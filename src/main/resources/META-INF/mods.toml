@@ -1,0 +1,30 @@
+modLoader="javafml"
+loaderVersion="[${loader_version},)"
+license="All rights reserved"
+issueTrackerURL="https://github.com/Flemmli97/ImprovedMobs/issues"
+[[mods]]
+modId="improvedmobs"
+version="1.13.6"
+displayName="Improved Mobs Mod"
+displayURL="${homepage}"
+logoFile="icon.png"
+authors="Flemmli97"
+description='''Improved AI and customizations for mobs.'''
+[[dependencies.improvedmobs]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.13.6,)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.improvedmobs]]
+modId="forge"
+mandatory=true
+versionRange="[${forge_version},)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.improvedmobs]]
+modId="tenshilib"
+mandatory=true
+versionRange="[${tenshilib_version},)"
+ordering="NONE"
+side="BOTH"
