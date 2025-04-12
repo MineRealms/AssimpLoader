@@ -11,8 +11,11 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.world.entity.EntityType;
@@ -58,92 +61,82 @@ public class PollutionManager {
     public static void tick(ServerLevel level) {
         tickCounter++;
         
-        // 每 1 秒（20 tick）处理一部分区块的污染衰减和机器扫描
+        // 1 second pollute & scan
         if (tickCounter % 20 == 0) {
             processPollutionDecayAndScanning(level);
         }
         
-        // 每 5 分钟（6000 tick）重新异步扫描一次加载区块的水和树叶（极低频，保证性能）
+        // 5 min env scan (already in thread)
         if (tickCounter % 6000 == 0) {
             updateEnvironmentalCache(level);
         }
     }
 
     private static void processPollutionDecayAndScanning(ServerLevel level) {
-        // 每秒累加的临时污染临时变量，按区块分组
         Map<ChunkPos, Double> newPollutionThisSec = new HashMap<>();
-
-        // 2. 高效扫描机器：为了避免访问私有字段，我们遍历所有玩家周围的已加载区块
-        int scanRadius = 4; // 每个玩家周围 4 个区块
-        java.util.Set<ChunkPos> scannedChunks = new java.util.HashSet<>();
         
-        for (net.minecraft.server.level.ServerPlayer player : level.players()) {
-            ChunkPos center = player.chunkPosition();
-            for (int x = -scanRadius; x <= scanRadius; x++) {
-                for (int z = -scanRadius; z <= scanRadius; z++) {
-                    ChunkPos scanPos = new ChunkPos(center.x + x, center.z + z);
-                    if (scannedChunks.add(scanPos) && level.hasChunk(scanPos.x, scanPos.z)) {
-                        net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunk(scanPos.x, scanPos.z);
-                        for (BlockEntity be : chunk.getBlockEntities().values()) {
-                            if (GTIntegration.isGTMachine(be)) {
-                                if (GTIntegration.hasEnergyOrActive(be)) {
-                                    int tier = GTIntegration.getVoltageTier(be);
-                                    double pollutionValue = 0.01 * Math.max(1, tier);
-                                    if (GTIntegration.isMultiblock(be)) {
-                                        pollutionValue *= 5.0;
+        CompletableFuture.runAsync(() -> {
+            int scanRadius = 4;
+            Set<ChunkPos> scannedChunks = new HashSet<>();
+            
+            for (net.minecraft.server.level.ServerPlayer player : level.players()) {
+                ChunkPos center = player.chunkPosition();
+                for (int x = -scanRadius; x <= scanRadius; x++) {
+                    for (int z = -scanRadius; z <= scanRadius; z++) {
+                        ChunkPos scanPos = new ChunkPos(center.x + x, center.z + z);
+                        if (scannedChunks.add(scanPos) && level.hasChunk(scanPos.x, scanPos.z)) {
+                            net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunk(scanPos.x, scanPos.z);
+                            for (BlockEntity be : chunk.getBlockEntities().values()) {
+                                if (GTIntegration.isGTMachine(be)) {
+                                    if (GTIntegration.hasEnergyOrActive(be)) {
+                                        int tier = GTIntegration.getVoltageTier(be);
+                                        double pollutionValue = 0.01 * Math.max(1, tier);
+                                        if (GTIntegration.isMultiblock(be)) {
+                                            pollutionValue *= 5.0;
+                                        }
+                                        
+                                        ChunkPos cPos = new ChunkPos(be.getBlockPos());
+                                        newPollutionThisSec.merge(cPos, pollutionValue, Double::sum);
+                                        
+                                        addPermanentPollution(pollutionValue * 0.00001);
                                     }
-                                    
-                                    ChunkPos cPos = new ChunkPos(be.getBlockPos());
-                                    newPollutionThisSec.merge(cPos, pollutionValue, Double::sum);
-                                    
-                                    addPermanentPollution(pollutionValue * 0.00001);
                                 }
                             }
                         }
                     }
                 }
             }
-        }
-        
-        // 当积累的永久污染达到 0.1 时，一次性加入到系统全局难度中，并重置累加器以减少网络发包
-        if (permanentPollution >= 0.1) {
-            io.github.flemmli97.improvedmobs.difficulty.DifficultyData diffData = io.github.flemmli97.improvedmobs.difficulty.DifficultyData.get(level.getServer());
-            diffData.addDifficulty((float)permanentPollution, level.getServer());
-            permanentPollution = 0.0;
-        }
-
-        // 3. 计算衰减与环境净化
-        for (ChunkPos cPos : temporaryPollution.keySet()) {
-            double current = temporaryPollution.get(cPos);
-            double reduction = 0.05; // 基础自然衰减
+        }).thenAccept(v -> {
+            if (permanentPollution >= 0.1) {
+                io.github.flemmli97.improvedmobs.difficulty.DifficultyData diffData = io.github.flemmli97.improvedmobs.difficulty.DifficultyData.get(level.getServer());
+                diffData.addDifficulty((float)permanentPollution, level.getServer());
+                permanentPollution = 0.0;
+            }
             
-            // 加上周围 4 区块内树叶和水的净化效果
-            reduction += getSurroundingEnvironmentalReduction(cPos);
-            
-            // 加上本秒新增的污染
-            double added = newPollutionThisSec.getOrDefault(cPos, 0.0);
-            
-            double nextVal = Math.max(0.0, current - reduction + added);
-            
-            if (nextVal <= 0.001) {
-                temporaryPollution.remove(cPos);
-            } else {
-                temporaryPollution.put(cPos, nextVal);
+            for (ChunkPos cPos : temporaryPollution.keySet()) {
+                double current = temporaryPollution.get(cPos);
+                double reduction = 0.05;
+                reduction += getSurroundingEnvironmentalReduction(cPos);
+                double added = newPollutionThisSec.getOrDefault(cPos, 0.0);
+                double nextVal = Math.max(0.0, current - reduction + added);
                 
-                // 【灾难爆发】如果一个区块的临时污染过高（大于50），有几率在附近刷出破坏机器的苦力怕
-                if (nextVal > 50.0 && level.random.nextInt(100) == 0) {
-                    spawnPollutionCreeper(level, cPos);
+                if (nextVal <= 0.001) {
+                    temporaryPollution.remove(cPos);
+                } else {
+                    temporaryPollution.put(cPos, nextVal);
+                    
+                    if (nextVal > 50.0 && level.random.nextInt(100) == 0) {
+                        spawnPollutionCreeper(level, cPos);
+                    }
                 }
             }
             
-            // 已经处理完的从本秒新增里移除
-            newPollutionThisSec.remove(cPos);
-        }
-        
-        // 4. 处理之前没有污染，但本秒新产生污染的区块
-        for (Map.Entry<ChunkPos, Double> entry : newPollutionThisSec.entrySet()) {
-            temporaryPollution.put(entry.getKey(), entry.getValue());
-        }
+            for (Map.Entry<ChunkPos, Double> entry : newPollutionThisSec.entrySet()) {
+                if (!temporaryPollution.containsKey(entry.getKey())) {
+                    temporaryPollution.put(entry.getKey(), entry.getValue());
+                }
+            }
+        });
     }
 
     private static void spawnPollutionCreeper(ServerLevel level, ChunkPos cPos) {
