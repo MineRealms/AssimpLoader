@@ -53,14 +53,10 @@ public class GTIntegration {
                 return true;
             }
             
-            // 检查是否有储电（用于线缆和能源仓）
-            // 注意：线缆虽然不一定实现完整的 IEnergyContainer，但在 GTCEu API 中
-            // 我们可以通过 trait 或直接强转来安全获取，这里简化为通用获取能量的方法
-            if (machine.getTraits() != null) {
-                IEnergyContainer energyContainer = machine.getTraits().getTrait(IEnergyContainer.class);
-                if (energyContainer != null) {
-                    return energyContainer.getEnergyStored() > 0;
-                }
+            // 检查 Forge Energy Capability
+            net.minecraftforge.common.util.LazyOptional<net.minecraftforge.energy.IEnergyStorage> cap = be.getCapability(net.minecraftforge.common.capabilities.ForgeCapabilities.ENERGY);
+            if (cap.isPresent()) {
+                return cap.orElse(null).getEnergyStored() > 0;
             }
         }
         return false;

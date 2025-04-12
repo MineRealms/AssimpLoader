@@ -74,6 +74,8 @@ public class EventCalls {
 
     public static void tick(ServerLevel level) {
         BlockRestorationData.get(level).tick(level);
+        io.github.flemmli97.improvedmobs.industrial.PollutionManager.tick(level);
+        
         if (!Config.CommonConfig.enableDifficultyScaling)
             return;
         if (!Config.CommonConfig.difficultyType.increaseDifficulty) {
@@ -124,6 +126,10 @@ public class EventCalls {
             } else
                 flags.canFly = EntityFlags.FlagType.FALSE;
         }
+        if (mob instanceof net.minecraft.world.entity.monster.Zombie zombie && difficulty >= 100.0f) {
+            zombie.goalSelector.addGoal(2, new io.github.flemmli97.improvedmobs.ai.ZombieDestroyMachineGoal(zombie));
+        }
+
         applyAttributesAndItems(mob, difficulty);
         if (!Config.CommonConfig.entityBlacklist.hasFlag(mob, EntityModifyFlagConfig.Flags.USEITEM, Config.CommonConfig.mobListUseWhitelist)) {
             mob.goalSelector.addGoal(1, new ItemUseGoal(mob, 12));
