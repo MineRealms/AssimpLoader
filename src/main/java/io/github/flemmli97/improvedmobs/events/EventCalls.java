@@ -131,6 +131,12 @@ public class EventCalls {
         }
 
         applyAttributesAndItems(mob, difficulty);
+        
+        // 专门针对 Spore 孢子怪物的特化增强
+        if (!mob.level().isClientSide() && mob.level() instanceof ServerLevel sl) {
+            double currentGlobalPollution = io.github.flemmli97.improvedmobs.industrial.PollutionManager.getPermanentPollution() + difficulty;
+            io.github.flemmli97.improvedmobs.industrial.SporeIntegration.buffSporeMob(mob, currentGlobalPollution);
+        }
         if (!Config.CommonConfig.entityBlacklist.hasFlag(mob, EntityModifyFlagConfig.Flags.USEITEM, Config.CommonConfig.mobListUseWhitelist)) {
             mob.goalSelector.addGoal(1, new ItemUseGoal(mob, 12));
         }
