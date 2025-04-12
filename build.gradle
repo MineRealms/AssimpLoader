@@ -101,6 +101,9 @@ dependencies {
     implementation fg.deobf("com.lowdragmc.ldlib:ldlib-forge-1.20.1:${ldlib_version}") { transitive = false }
    // implementation fg.deobf("com.tterrag.registrate:Registrate:${registrate_version}") { transitive = false }
     implementation fg.deobf("dev.toma.configuration:configuration-forge-1.20.1:${configuration_version}")
+    
+    // Spore (真菌孢子) API
+    implementation fg.deobf("curse.maven:spore-678295:7881767")
 }
 
 mixin {
