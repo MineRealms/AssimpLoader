@@ -1,6 +1,7 @@
 package io.github.flemmli97.improvedmobs.industrial;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -34,5 +35,22 @@ public class MachineScanner {
             }
         }
         return new ScanResult(tiers, weights);
+    }
+    
+    public static double scanNearbyVoltageTier(ServerLevel level, BlockPos center) {
+        int maxTier = 0;
+        int radius = 8;
+        
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-radius, -radius / 2, -radius), 
+                                                   center.offset(radius, radius / 2, radius))) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (GTIntegration.isGTMachine(be) && GTIntegration.hasEnergyOrActive(be)) {
+                int tier = GTIntegration.getVoltageTier(be);
+                if (tier > maxTier) {
+                    maxTier = tier;
+                }
+            }
+        }
+        return maxTier;
     }
 }

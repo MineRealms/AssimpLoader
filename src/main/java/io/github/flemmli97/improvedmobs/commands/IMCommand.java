@@ -158,7 +158,7 @@ public class IMCommand {
         return 1;
     }
 
-    private static int getSporeStatus(CommandContext<CommandSourceStack> src) throws CommandSyntaxException {
+private static int getSporeStatus(CommandContext<CommandSourceStack> src) throws CommandSyntaxException {
         ServerPlayer player = src.getSource().getPlayerOrException();
         double currentDifficulty = DifficultyData.getDifficulty(player.serverLevel(), player);
         double globalPollution = io.github.flemmli97.improvedmobs.industrial.PollutionManager.getPermanentPollution() + currentDifficulty;
@@ -168,14 +168,20 @@ public class IMCommand {
             tempHiveminds = io.github.flemmli97.improvedmobs.industrial.SporeIntegration.getActiveHiveminds(player.serverLevel());
         } catch(Exception e) {}
         
+        double nearbyVoltageTier = io.github.flemmli97.improvedmobs.industrial.MachineScanner.scanNearbyVoltageTier(player.serverLevel(), player.blockPosition());
         final int hiveminds = tempHiveminds;
 
         src.getSource().sendSuccess(() -> Component.literal("=== Spore Integration Status ===").withStyle(ChatFormatting.DARK_PURPLE), false);
         src.getSource().sendSuccess(() -> Component.literal("Global Pollution & Difficulty: ").append(Component.literal(String.format("%.2f", globalPollution)).withStyle(ChatFormatting.RED)), false);
         
-        // 当全球污染每10点，孢子生物会额外增加10%的生命值和力量
-        double bonusMultiplier = 1.0 + (globalPollution / 100.0);
-        src.getSource().sendSuccess(() -> Component.literal("Spore Evolution Bonus Multiplier: ").append(Component.literal(String.format("%.2f", bonusMultiplier) + "x").withStyle(ChatFormatting.RED)), false);
+        double pollutionBonus = globalPollution / 100.0;
+        double voltageBonus = Math.max(0, nearbyVoltageTier - 1) * 0.10;
+        double totalMultiplier = 1.0 + pollutionBonus + voltageBonus;
+        
+        String hpInfo = String.format("HP Multiplier: Pollution +%.0f%%, Voltage +%.0f%% = Total: %.2fx", pollutionBonus * 100, voltageBonus * 100, totalMultiplier);
+        src.getSource().sendSuccess(() -> Component.literal(hpInfo).withStyle(ChatFormatting.GOLD), false);
+        
+        src.getSource().sendSuccess(() -> Component.literal("Nearby Max Voltage Tier: ").append(Component.literal("Tier " + (int)nearbyVoltageTier)).withStyle(ChatFormatting.YELLOW), false);
         
         src.getSource().sendSuccess(() -> Component.literal("Active Spore Hiveminds (Proto) in World: ").append(Component.literal(String.valueOf(hiveminds)).withStyle(ChatFormatting.LIGHT_PURPLE)), false);
         
