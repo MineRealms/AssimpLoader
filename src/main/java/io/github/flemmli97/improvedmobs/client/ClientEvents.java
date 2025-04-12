@@ -94,49 +94,28 @@ public class ClientEvents {
         }
     }
 
-    public static void renderMachines(PoseStack poseStack, VertexConsumer buffer, double camX, double camY, double camZ) {
+    public static void renderMachines(PoseStack poseStack, double camX, double camY, double camZ) {
         if (!highlightPollution || highlightedMachines.isEmpty()) return;
         
-        Matrix4f pose = poseStack.last().pose();
+        com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
+        com.mojang.blaze3d.systems.RenderSystem.depthMask(false);
+        
+        poseStack.pushPose();
+        poseStack.translate(-camX, -camY, -camZ);
+        
+        VertexConsumer buffer = Minecraft.getInstance().renderBuffers().bufferSource().getBuffer(net.minecraft.client.renderer.RenderType.lines());
+        
         for (BlockPos pos : highlightedMachines) {
-            AABB aabb = new AABB(pos).move(-camX, -camY, -camZ);
-            
-            // Render glowing red box
-            float r = 1.0f;
-            float g = 0.2f;
-            float b = 0.2f;
-            float a = 0.8f;
-            
-            // Draw box edges
-            // Bottom
-            buffer.vertex(pose, (float)aabb.minX, (float)aabb.minY, (float)aabb.minZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.maxX, (float)aabb.minY, (float)aabb.minZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.maxX, (float)aabb.minY, (float)aabb.minZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.maxX, (float)aabb.minY, (float)aabb.maxZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.maxX, (float)aabb.minY, (float)aabb.maxZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.minX, (float)aabb.minY, (float)aabb.maxZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.minX, (float)aabb.minY, (float)aabb.maxZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.minX, (float)aabb.minY, (float)aabb.minZ).color(r, g, b, a).endVertex();
-            
-            // Top
-            buffer.vertex(pose, (float)aabb.minX, (float)aabb.maxY, (float)aabb.minZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.maxX, (float)aabb.maxY, (float)aabb.minZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.maxX, (float)aabb.maxY, (float)aabb.minZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.maxX, (float)aabb.maxY, (float)aabb.maxZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.maxX, (float)aabb.maxY, (float)aabb.maxZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.minX, (float)aabb.maxY, (float)aabb.maxZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.minX, (float)aabb.maxY, (float)aabb.maxZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.minX, (float)aabb.maxY, (float)aabb.minZ).color(r, g, b, a).endVertex();
-            
-            // Pillars
-            buffer.vertex(pose, (float)aabb.minX, (float)aabb.minY, (float)aabb.minZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.minX, (float)aabb.maxY, (float)aabb.minZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.maxX, (float)aabb.minY, (float)aabb.minZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.maxX, (float)aabb.maxY, (float)aabb.minZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.maxX, (float)aabb.minY, (float)aabb.maxZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.maxX, (float)aabb.maxY, (float)aabb.maxZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.minX, (float)aabb.minY, (float)aabb.maxZ).color(r, g, b, a).endVertex();
-            buffer.vertex(pose, (float)aabb.minX, (float)aabb.maxY, (float)aabb.maxZ).color(r, g, b, a).endVertex();
+            AABB box = new AABB(pos).inflate(0.002D);
+            // Render glowing red/yellow box (1.0f, 0.2f, 0.2f, 1.0f)
+            net.minecraft.client.renderer.LevelRenderer.renderLineBox(poseStack, buffer, box, 1.0f, 0.2f, 0.2f, 1.0f);
         }
+        
+        Minecraft.getInstance().renderBuffers().bufferSource().endBatch(net.minecraft.client.renderer.RenderType.lines());
+        
+        poseStack.popPose();
+        
+        com.mojang.blaze3d.systems.RenderSystem.depthMask(true);
+        com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
     }
 }
