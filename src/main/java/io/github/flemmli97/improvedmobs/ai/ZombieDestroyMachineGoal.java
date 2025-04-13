@@ -10,6 +10,9 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 
 import java.util.EnumSet;
 
+import io.github.flemmli97.improvedmobs.forge.network.PacketHandler;
+import io.github.flemmli97.improvedmobs.industrial.TriAxisConfig;
+
 public class ZombieDestroyMachineGoal extends Goal {
 
     private final Zombie zombie;
@@ -68,6 +71,13 @@ public class ZombieDestroyMachineGoal extends Goal {
     @Override
     public void tick() {
         if (this.targetMachine == null) return;
+        
+        // 发送调试连线封包
+        if (TriAxisConfig.enableDebugLines) {
+            if (this.zombie.tickCount % 5 == 0) { // 每5 tick发送一次以保持连线
+                PacketHandler.sendDebugLineToAll(this.zombie.getId(), this.targetMachine, this.zombie.level().getServer());
+            }
+        }
         
         double dist = this.zombie.distanceToSqr(this.targetMachine.getX() + 0.5, this.targetMachine.getY(), this.targetMachine.getZ() + 0.5);
         if (dist < 4.0) {
