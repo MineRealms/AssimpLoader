@@ -1,4 +1,12 @@
 {
   "improvedmobs.overlay.difficulty": "Difficulty %s",
-  "config.title.improvedmobs": "Improved Mobs Configs"
+  "config.title.improvedmobs": "Improved Mobs Configs",
+  "improvedmobs.command.debug.enabled": "\u00a7a[ImprovedMobs] Debug mode enabled.",
+  "improvedmobs.command.debug.disabled": "\u00a7c[ImprovedMobs] Debug mode disabled.",
+  "improvedmobs.command.difficulty.info": "\u00a76[TriAxis] Local Difficulty: \u00a7e%.2f \u00a77(T:%.2f, V:%.2f, P:%.2f)",
+  "improvedmobs.command.difficulty.stage.0": "\u00a7a[Threat] Light",
+  "improvedmobs.command.difficulty.stage.1": "\u00a7e[Threat] Oppressive",
+  "improvedmobs.command.difficulty.stage.2": "\u00a76[Threat] Base Defense",
+  "improvedmobs.command.difficulty.stage.3": "\u00a7c[Threat] Regional Threat",
+  "improvedmobs.command.difficulty.stage.4": "\u00a74[Threat] Catastrophe!"
 }

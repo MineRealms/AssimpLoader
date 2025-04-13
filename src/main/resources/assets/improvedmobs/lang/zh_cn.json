@@ -1,0 +1,10 @@
+{
+  "improvedmobs.command.debug.enabled": "§a[ImprovedMobs] 调试模式已开启喵~",
+  "improvedmobs.command.debug.disabled": "§c[ImprovedMobs] 调试模式已关闭喵~",
+  "improvedmobs.command.difficulty.info": "§6[三轴难度] 当前局部难度: §e%.2f §7(时间:%.2f, 电压:%.2f, 污染:%.2f)",
+  "improvedmobs.command.difficulty.stage.0": "§a[威胁等级] 轻度威胁",
+  "improvedmobs.command.difficulty.stage.1": "§e[威胁等级] 生态压迫",
+  "improvedmobs.command.difficulty.stage.2": "§6[威胁等级] 基地防守期",
+  "improvedmobs.command.difficulty.stage.3": "§c[威胁等级] 区域级威胁",
+  "improvedmobs.command.difficulty.stage.4": "§4[威胁等级] 灾变态！"
+}
