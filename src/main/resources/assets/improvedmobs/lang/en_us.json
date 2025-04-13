@@ -8,5 +8,15 @@
   "improvedmobs.command.difficulty.stage.1": "\u00a7e[Threat] Oppressive",
   "improvedmobs.command.difficulty.stage.2": "\u00a76[Threat] Base Defense",
   "improvedmobs.command.difficulty.stage.3": "\u00a7c[Threat] Regional Threat",
-  "improvedmobs.command.difficulty.stage.4": "\u00a74[Threat] Catastrophe!"
+  "improvedmobs.command.difficulty.stage.4": "\u00a74[Threat] Catastrophe!",
+  "improvedmobs.command.industrial.title": "\u00a7b=== Industrial Debug ===",
+  "improvedmobs.command.industrial.machines": "Machines Active: \u00a7e%s",
+  "improvedmobs.command.industrial.median": "Median Voltage Tier: \u00a7e%.2f",
+  "improvedmobs.command.industrial.pollution": "Local Pollution: \u00a7e%.2f",
+  "improvedmobs.command.industrial.bonus": "Current Difficulty Bonus: \u00a76%.2f",
+  "improvedmobs.command.spore.title": "\u00a75=== Spore Integration Status ===",
+  "improvedmobs.command.spore.global_pollution": "Global Pollution & Difficulty: \u00a7c%.2f",
+  "improvedmobs.command.spore.hp_info": "\u00a76HP Multiplier: Pollution +%.0f%%, Voltage +%.0f%% = Total: %.2fx",
+  "improvedmobs.command.spore.voltage": "Nearby Max Voltage Tier: \u00a7eTier %s",
+  "improvedmobs.command.spore.hiveminds": "Active Spore Hiveminds (Proto) in World: \u00a7d%s"
 }
