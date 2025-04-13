@@ -53,4 +53,28 @@ public class MachineScanner {
         }
         return maxTier;
     }
+
+    public static double scanNearbyVoltageTierSafely(ServerLevel level, BlockPos center) {
+        int maxTier = 0;
+        int radius = 8;
+        
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-radius, -radius / 2, -radius), 
+                                                   center.offset(radius, radius / 2, radius))) {
+            // Check if chunk is loaded before trying to get block entity to avoid triggering chunk loads
+            if (level.hasChunkAt(pos)) {
+                try {
+                    BlockEntity be = level.getBlockEntity(pos);
+                    if (GTIntegration.isGTMachine(be) && GTIntegration.hasEnergyOrActive(be)) {
+                        int tier = GTIntegration.getVoltageTier(be);
+                        if (tier > maxTier) {
+                            maxTier = tier;
+                        }
+                    }
+                } catch (Exception e) {
+                    // Ignore exceptions during async access
+                }
+            }
+        }
+        return maxTier;
+    }
 }
