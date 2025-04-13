@@ -1,6 +1,7 @@
 package io.github.flemmli97.improvedmobs.mekanism_turrets.common.block_entity;
 
 import io.github.flemmli97.improvedmobs.mekanism_turrets.MekanismTurretsConfig;
+import io.github.flemmli97.improvedmobs.mekanism_turrets.LaserDamageConfig;
 import io.github.flemmli97.improvedmobs.mekanism_turrets.common.entity.LaserEntity;
 import io.github.flemmli97.improvedmobs.mekanism_turrets.common.registry.SoundRegistry;
 import io.github.flemmli97.improvedmobs.mekanism_turrets.common.scheduler.Scheduler;
@@ -74,6 +75,7 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
     private boolean targetsPlayers = false;
     private boolean targetsTrusted = true;
     private @Nullable LivingEntity target;
+    private @Nullable LaserEntity activeLaser;
     public float xRot0 = 0;
     public float yRot0 = 0;
     private int coolDown = 0;
@@ -158,65 +160,65 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
         energySlot.fillContainerOrConvert();
         tryInvalidateTarget();
         tryFindTarget();
-        energyContainer.setEnergyPerTick(FloatingLong.create(laserShotEnergy()));
+
+        int energyPerTick = laserEnergyPerTick();
+        energyContainer.setEnergyPerTick(FloatingLong.create(energyPerTick));
+
         if(target != null) {
-            Vec3 targetPos = getShootLocation(target);
+            Vec3 targetPos = target.position().add(0, target.getBbHeight() * 0.5, 0);
             setAnimData(TARGET_POS_X, targetPos.x);
             setAnimData(TARGET_POS_Y, targetPos.y);
             setAnimData(TARGET_POS_Z, targetPos.z);
-            setAnimData(HAS_TARGET, target != null);
-            if(coolDown == 0) {
-                coolDown = Math.max(2, tier.getCooldown()-(2*upgradeComponent.getUpgrades(Upgrade.SPEED)));
-                if(energyContainer.getEnergy().greaterOrEqual(FloatingLong.create(laserShotEnergy()))) {
-                    shootLaser();
-                    if(tier.equals(LaserTurretTier.ULTIMATE)) {
-                        Scheduler.schedule(this::shootLaser, coolDown/2);
-                    }
+            setAnimData(HAS_TARGET, true);
+
+            if(energyContainer.getEnergy().greaterOrEqual(FloatingLong.create(energyPerTick))) {
+                if(activeLaser == null || !activeLaser.isAlive()) {
+                    startLaser();
                 }
+                energyContainer.extract(FloatingLong.create(energyPerTick), Action.EXECUTE, AutomationType.INTERNAL);
             } else {
-                coolDown--;
+                stopLaser();
             }
+        } else {
+            stopLaser();
         }
     }
 
-    private static Vec3 getShootLocation(LivingEntity entity) {
-        Vec3 targetPos = new Vec3(entity.getX(), entity.getY(), entity.getZ());
-        double laserSpeed = 0.75F*3F; //Laser speed is constant
-        for (int i = 1; i < 21; i++) { //Tries to predict the path of the entity one second into the future
-            Vec3 deltaMovement = entity.getDeltaMovement().multiply(0.95, 0, 0.95);
-            Vec3 nextPos = targetPos.add(deltaMovement.scale(i-1));
-            if(nextPos.length() <= laserSpeed*i || i == 20) {
-                return new Vec3(nextPos.x, nextPos.y+(entity.getBbHeight()*0.75), nextPos.z);
-            }
-        }
-        return targetPos;
-    }
-
-    private void shootLaser() {
-        if(target != null) { // Needed for scheduled shot
+    private void startLaser() {
+        if(target != null && activeLaser == null) {
             int mufflerCount = getComponent().getUpgrades(Upgrade.MUFFLING);
             float volume = 1.0F - (mufflerCount / (float) Upgrade.MUFFLING.getMax());
             level.playSound(null, getBlockPos(), SoundRegistry.TURRET_SHOOT.get(), SoundSource.BLOCKS, volume, 1.0F);
 
             triggerAnim("controller", "shoot");
 
-            Vec3 center = getBlockPos().getCenter();
-            Vec3 targetPos = getShootLocation(target);
-
-            LaserEntity laser = new LaserEntity(level, center.add(0, -0.15, 0), tier.getDamage());
-            laser.setDeltaMovement(center.vectorTo(targetPos).normalize().scale(2.25F));
-            level.addFreshEntity(laser);
-            energyContainer.extract(FloatingLong.create(laserShotEnergy()), Action.EXECUTE, AutomationType.INTERNAL);
+            Vec3 center = getBlockPos().getCenter().add(0, -0.15, 0);
+            float damagePerTick = switch(tier) {
+                case BASIC -> LaserDamageConfig.getBasicDamage();
+                case ADVANCED -> LaserDamageConfig.getAdvancedDamage();
+                case ELITE -> LaserDamageConfig.getEliteDamage();
+                case ULTIMATE -> LaserDamageConfig.getUltimateDamage();
+            };
+            activeLaser = new LaserEntity(level, center, target, damagePerTick);
+            level.addFreshEntity(activeLaser);
         }
     }
 
-    private int laserShotEnergy() {
-        return 1000*(tier.ordinal()+1)*Mth.square(upgradeComponent.getUpgrades(Upgrade.SPEED)+1);
+    private void stopLaser() {
+        if(activeLaser != null) {
+            activeLaser.discard();
+            activeLaser = null;
+        }
+    }
+
+    private int laserEnergyPerTick() {
+        return 50 * (tier.ordinal() + 1) * (upgradeComponent.getUpgrades(Upgrade.SPEED) + 1);
     }
 
     public void tryInvalidateTarget() {
         if(!isValidTarget(target)) {
             setAnimData(HAS_TARGET, false);
+            stopLaser();
             target = null;
         }
     }
@@ -227,10 +229,18 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
         }
         if(target == null && (level.getGameTime()+this.hashCode()) % 3 == 0) {
             Optional<LivingEntity> optional = level.getEntitiesOfClass(LivingEntity.class, targetBox, this::isValidTarget).stream()
-                    .min((o1, o2) -> Double.compare(
+                    .filter(entity -> countTurretsTargeting(entity) < 8)
+                    .min((o1, o2) -> {
+                        int count1 = countTurretsTargeting(o1);
+                        int count2 = countTurretsTargeting(o2);
+                        if(count1 != count2) {
+                            return Integer.compare(count1, count2);
+                        }
+                        return Double.compare(
                             o1.distanceToSqr(this.getBlockPos().getCenter()),
                             o2.distanceToSqr(this.getBlockPos().getCenter())
-                    ));
+                        );
+                    });
             if(optional.isPresent()) {
                 this.target = optional.get();
                 setAnimData(HAS_TARGET, true);
@@ -238,6 +248,12 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
                 idleTicks = 20 * 4;
             }
         }
+    }
+
+    private int countTurretsTargeting(LivingEntity entity) {
+        AABB searchBox = AABB.ofSize(getBlockPos().getCenter(), 100, 100, 100);
+        return (int) level.getEntitiesOfClass(LaserEntity.class, searchBox,
+            laser -> laser.getTargetEntity() != null && laser.getTargetEntity().equals(entity)).size();
     }
 
     private boolean isValidTarget(LivingEntity e) {

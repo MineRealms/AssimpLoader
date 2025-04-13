@@ -29,6 +29,7 @@ import io.github.flemmli97.improvedmobs.industrial.DifficultySmoother;
 import io.github.flemmli97.improvedmobs.industrial.TriAxisDifficultyManager;
 import io.github.flemmli97.improvedmobs.industrial.TriAxisConfig;
 import io.github.flemmli97.improvedmobs.client.DebugLineRenderer;
+import io.github.flemmli97.improvedmobs.mekanism_turrets.LaserDamageConfig;
 
 // TODO: make command feedback translatable (test translation lib a bit more before)
 public class IMCommand {
@@ -41,6 +42,13 @@ public class IMCommand {
                 .then(Commands.literal("spore").executes(IMCommand::getSporeStatus))
                 .then(Commands.literal("triaxis").executes(IMCommand::getTriAxisStatus))
                 .then(Commands.literal("debuglines").requires(src -> src.hasPermission(2)).executes(IMCommand::toggleDebugLines))
+                .then(Commands.literal("laser").requires(src -> src.hasPermission(2))
+                        .then(Commands.literal("damage")
+                                .then(Commands.literal("basic").then(Commands.argument("damage", FloatArgumentType.floatArg(0.1F, 1000F)).executes(IMCommand::setBasicLaserDamage)))
+                                .then(Commands.literal("advanced").then(Commands.argument("damage", FloatArgumentType.floatArg(0.1F, 1000F)).executes(IMCommand::setAdvancedLaserDamage)))
+                                .then(Commands.literal("elite").then(Commands.argument("damage", FloatArgumentType.floatArg(0.1F, 1000F)).executes(IMCommand::setEliteLaserDamage)))
+                                .then(Commands.literal("ultimate").then(Commands.argument("damage", FloatArgumentType.floatArg(0.1F, 1000F)).executes(IMCommand::setUltimateLaserDamage)))
+                                .executes(IMCommand::getLaserDamage)))
                 .then(Commands.literal("difficulty").requires(src -> src.hasPermission(2))
                         .then(Commands.literal("player").then(Commands.argument("players", GameProfileArgument.gameProfile())
                                 .then(Commands.literal("set").then(Commands.argument("val", FloatArgumentType.floatArg()).executes(IMCommand::setDifficultyPlayer)))
@@ -250,6 +258,43 @@ private static int getSporeStatus(CommandContext<CommandSourceStack> src) throws
         }
         data.setDifficulty(current, src.getSource().getServer());
         src.getSource().sendSuccess(() -> Component.literal(String.format("Simulated %s difficulty steps globally. Now at %s", steps, data.getDifficulty())).setStyle(Style.EMPTY.withColor(ChatFormatting.GOLD)), true);
+        return 1;
+    }
+
+    private static int getLaserDamage(CommandContext<CommandSourceStack> src) {
+        src.getSource().sendSuccess(() -> Component.literal("§6=== Laser Turret Damage (per tick) ==="), false);
+        src.getSource().sendSuccess(() -> Component.literal("§aBASIC: §e" + LaserDamageConfig.getBasicDamage() + " §7(80 damage/sec)"), false);
+        src.getSource().sendSuccess(() -> Component.literal("§bADVANCED: §e" + LaserDamageConfig.getAdvancedDamage() + " §7(160 damage/sec)"), false);
+        src.getSource().sendSuccess(() -> Component.literal("§dELITE: §e" + LaserDamageConfig.getEliteDamage() + " §7(240 damage/sec)"), false);
+        src.getSource().sendSuccess(() -> Component.literal("§5ULTIMATE: §e" + LaserDamageConfig.getUltimateDamage() + " §7(340 damage/sec)"), false);
+        return 1;
+    }
+
+    private static int setBasicLaserDamage(CommandContext<CommandSourceStack> src) {
+        float damage = FloatArgumentType.getFloat(src, "damage");
+        LaserDamageConfig.setBasicDamage(damage);
+        src.getSource().sendSuccess(() -> Component.literal("§aBASIC laser damage set to §e" + damage + " §7per tick (§e" + (damage * 20) + " §7damage/sec)"), true);
+        return 1;
+    }
+
+    private static int setAdvancedLaserDamage(CommandContext<CommandSourceStack> src) {
+        float damage = FloatArgumentType.getFloat(src, "damage");
+        LaserDamageConfig.setAdvancedDamage(damage);
+        src.getSource().sendSuccess(() -> Component.literal("§bADVANCED laser damage set to §e" + damage + " §7per tick (§e" + (damage * 20) + " §7damage/sec)"), true);
+        return 1;
+    }
+
+    private static int setEliteLaserDamage(CommandContext<CommandSourceStack> src) {
+        float damage = FloatArgumentType.getFloat(src, "damage");
+        LaserDamageConfig.setEliteDamage(damage);
+        src.getSource().sendSuccess(() -> Component.literal("§dELITE laser damage set to §e" + damage + " §7per tick (§e" + (damage * 20) + " §7damage/sec)"), true);
+        return 1;
+    }
+
+    private static int setUltimateLaserDamage(CommandContext<CommandSourceStack> src) {
+        float damage = FloatArgumentType.getFloat(src, "damage");
+        LaserDamageConfig.setUltimateDamage(damage);
+        src.getSource().sendSuccess(() -> Component.literal("§5ULTIMATE laser damage set to §e" + damage + " §7per tick (§e" + (damage * 20) + " §7damage/sec)"), true);
         return 1;
     }
 }
