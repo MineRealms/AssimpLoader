@@ -128,6 +128,9 @@ mixin {
     add sourceSets.main, "improvedmobs.refmap.json"
     config "improvedmobs.mixins.json"
     config "improvedmobs.mixins.compat.json"
+    add sourceSets.main, "mixins.mekanism_turrets.refmap.json"
+    config "mixins.mekanism_turrets.json"
+
 }
 
 jar {

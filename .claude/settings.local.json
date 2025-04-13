@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find src/main/java/io/github/flemmli97/improvedmobs/mekanism_turrets -type f -name \"*.java\" -exec sed -i 's/package com\\\\.github\\\\.x3r\\\\.mekanism_turrets/package io.github.flemmli97.improvedmobs.mekanism_turrets/g' {} \\\\;)",
+      "Bash(find src/main/java/io/github/flemmli97/improvedmobs/mekanism_turrets -type f -name \"*.java\" -exec sed -i 's/import com\\\\.github\\\\.x3r\\\\.mekanism_turrets/import io.github.flemmli97.improvedmobs.mekanism_turrets/g' {} \\\\;)",
+      "Bash(find src/main/java/io/github/flemmli97/improvedmobs -type f -name \"*.java\" ! -path \"*/mekanism_turrets/*\" -exec grep -l \"com\\\\.github\\\\.x3r\\\\.mekanism_turrets\" {} \\\\;)",
+      "Bash(find src/main/java/io/github/flemmli97/improvedmobs/mekanism_turrets -type f -name \"*.java\" -exec sed -i 's/MekanismTurrets\\\\.MOD_ID/ImprovedMobs.MODID/g' {} \\\\;)",
+      "Bash(find src/main/java/io/github/flemmli97/improvedmobs/mekanism_turrets -type f -name \"*.java\" -exec grep -l \"ImprovedMobs\\\\.MODID\" {} \\\\;)",
+      "Bash(xargs grep:*)",
+      "Bash(cp -r src/main/resources/data/mekanism_turrets/* src/main/resources/data/improvedmobs/)",
+      "Bash(mkdir -p src/main/resources/data/improvedmobs)",
+      "Bash(find src/main/java/io/github/flemmli97/improvedmobs/mekanism_turrets -type f -name \"*.java\" -exec sed -i '/import io\\\\.github\\\\.flemmli97\\\\.improvedmobs\\\\.mekanism_turrets\\\\.MekanismTurrets;/d' {} \\\\;)",
+      "Bash(./gradlew classes:*)",
+      "Bash(find src/main/resources -type f \\\\\\( -name \"*.json\" -o -name \"*.lang\" \\\\\\) -exec sed -i 's/mekanism_turrets/improvedmobs/g' {} \\\\;)"
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "parent": "improvedmobs:block/gecko_block",
+  "textures": {
+    "particle": "improvedmobs:block/ultimate_laser_turret"
+  }
+}
