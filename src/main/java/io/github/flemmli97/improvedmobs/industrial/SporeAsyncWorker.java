@@ -6,7 +6,12 @@ import net.minecraft.world.entity.Mob;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class SporeAsyncWorker {
@@ -33,8 +38,10 @@ public class SporeAsyncWorker {
         return t;
     });
 
-    // Debug toggle
-    public static boolean isDebugEnabled = true;
+    // Debug toggle - controlled by IndustrialLogger
+    private static boolean isDebugEnabled() {
+        return IndustrialLogger.isDebugEnabled();
+    }
 
     public static void processSporeBuffAsync(Mob mob, double pollutionLevel) {
         if (!SporeIntegration.isSporeLoaded()) return;
@@ -45,7 +52,7 @@ public class SporeAsyncWorker {
         THREAD_POOL.submit(() -> {
             ScheduledFuture<?> watchdogTask = null;
             try {
-                if (isDebugEnabled) {
+                if (isDebugEnabled()) {
                     LOGGER.info("[SporeAsyncWorker] Start scanning for mob at {}", pos);
                 }
                 
@@ -63,7 +70,7 @@ public class SporeAsyncWorker {
                     watchdogTask.cancel(false);
                 }
                 
-                if (isDebugEnabled) {
+                if (isDebugEnabled()) {
                     long duration = System.currentTimeMillis() - startTime;
                     LOGGER.info("[SporeAsyncWorker] Finished scanning for mob at {} in {} ms. Tier: {}", pos, duration, nearbyVoltageTier);
                 }
@@ -71,7 +78,7 @@ public class SporeAsyncWorker {
                 // Return to main thread
                 level.getServer().execute(() -> {
                     if (mob.isAlive()) {
-                        SporeIntegration.buffSporeMob(mob, pollutionLevel, nearbyVoltageTier);
+                        SporeIntegration.buffSporeMob(mob, pollutionLevel, nearbyVoltageTier, level);
                     }
                 });
             } catch (Exception e) {
