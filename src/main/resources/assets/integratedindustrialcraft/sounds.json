@@ -1,0 +1,5 @@
+{
+  "turret_shoot": {
+    "sounds":["integratedindustrialcraft:turret_shoot"]
+  }
+}

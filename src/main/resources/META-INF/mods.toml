@@ -1,30 +1,65 @@
 modLoader="javafml"
-loaderVersion="[${loader_version},)"
-license="All rights reserved"
-issueTrackerURL="https://github.com/Flemmli97/ImprovedMobs/issues"
+loaderVersion="[47,)"
+license="MIT"
+issueTrackerURL="https://github.com/MineRealms/IntegratedIndustrialCraft/issues"
+
 [[mods]]
-modId="improvedmobs"
-version="1.13.6"
-displayName="Improved Mobs Mod"
-displayURL="${homepage}"
+modId="integratedindustrialcraft"
+version="${file.jarVersion}"
+displayName="Integrated Industrial Craft"
 logoFile="icon.png"
-authors="Flemmli97"
-description='''Improved AI and customizations for mobs.'''
-[[dependencies.improvedmobs]]
-modId="minecraft"
-mandatory=true
-versionRange="[1.13.6,)"
-ordering="NONE"
-side="BOTH"
-[[dependencies.improvedmobs]]
+authors="MineRealms Team"
+description='''
+Integrated Industrial Craft (IIC) - A comprehensive integration mod for ImprovedMobs, GregTech CEu, and Spore.
+
+Features:
+- Tri-Axis Difficulty System (Time, Voltage, Pollution)
+- Dynamic pollution system with environmental effects
+- Industrial threat system (mob attacks on machines)
+- Spore integration with infection mechanics
+- Mekanism laser turrets for base defense
+- Real-time HUD display system
+- Terrain scanner tool
+'''
+
+[[dependencies.integratedindustrialcraft]]
 modId="forge"
 mandatory=true
-versionRange="[${forge_version},)"
+versionRange="[47,)"
 ordering="NONE"
 side="BOTH"
-[[dependencies.improvedmobs]]
-modId="tenshilib"
+
+[[dependencies.integratedindustrialcraft]]
+modId="minecraft"
 mandatory=true
-versionRange="[${tenshilib_version},)"
+versionRange="[1.20.1,1.21)"
 ordering="NONE"
+side="BOTH"
+
+[[dependencies.integratedindustrialcraft]]
+modId="gtceu"
+mandatory=false
+versionRange="[7.2.0,)"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.integratedindustrialcraft]]
+modId="spore"
+mandatory=false
+versionRange="[2.0,)"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.integratedindustrialcraft]]
+modId="mekanism"
+mandatory=false
+versionRange="[10.4.16,)"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.integratedindustrialcraft]]
+modId="geckolib"
+mandatory=true
+versionRange="[4.8,)"
+ordering="BEFORE"
 side="BOTH"

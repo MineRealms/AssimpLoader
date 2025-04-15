@@ -30,10 +30,10 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-            property 'forge.enabledGameTestNamespaces', 'improvedmobs'
+            property 'forge.enabledGameTestNamespaces', 'integratedindustrialcraft'
 
             mods {
-                improvedmobs {
+                integratedindustrialcraft {
                     source sourceSets.main
                 }
             }
@@ -43,10 +43,10 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-            property 'forge.enabledGameTestNamespaces', 'improvedmobs'
+            property 'forge.enabledGameTestNamespaces', 'integratedindustrialcraft'
 
             mods {
-                improvedmobs {
+                integratedindustrialcraft {
                     source sourceSets.main
                 }
             }
@@ -56,10 +56,10 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-            args '--all', '--mod', 'improvedmobs', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+            args '--all', '--mod', 'integratedindustrialcraft', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
 
             mods {
-                improvedmobs {
+                integratedindustrialcraft {
                     source sourceSets.main
                 }
             }
@@ -74,6 +74,7 @@ repositories {
     maven { url = "https://maven.gtceu.com" }
     maven { url = "https://maven.blamejared.com/" }
     maven { url = "https://maven.virtuoel.com" }
+    maven { url "https://maven.blazing-coop.net/releases"}
     maven { url = "https://jitpack.io" }
     maven { url = "https://maven.saps.dev/releases" }
     maven { url = "https://maven.blazing-coop.net/releases" }
@@ -86,6 +87,10 @@ repositories {
     maven { url 'https://modmaven.dev/' }
     maven { url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
     maven { url 'https://www.cursemaven.com' }
+    maven { url "https://maven.firstdarkdev.xyz/snapshots"  }
+
+
+
 
     mavenCentral()
 }
@@ -95,39 +100,39 @@ dependencies {
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
+    // ImprovedMobs - Required dependency
+    implementation fg.deobf("io.github.flemmli97:improvedmobs:${improvedmobs_version}-forge")
     implementation fg.deobf("io.github.flemmli97:tenshilib:${tenshilib_version}-forge")
+
+    // Optional mods
     runtimeOnly fg.deobf("curse.maven:mobbattle-268746:6456884")
-    compileOnly fg.deobf("${scalhealth_dep}")
+    runtimeOnly fg.deobf("mezz.jei:jei-1.20.1-forge:15.20.0.115")
+    runtimeOnly fg.deobf("curse.maven:pehkui-319596:4684391")
 
-  //  implementation fg.deobf("mezz.jei:jei-1.20.1-forge:15.3.0.4")
-    implementation fg.deobf("mezz.jei:jei-1.20.1-forge:15.20.0.115")
-    implementation fg.deobf("curse.maven:pehkui-319596:4684391")
-
-    implementation fg.deobf("curse.maven:turrets-1031448:7875847")
-
+    // GregTech CEu integration
     implementation fg.deobf("com.gregtechceu.gtceu:gtceu-1.20.1:${gtceu_version}") { transitive = false }
     implementation fg.deobf("com.lowdragmc.ldlib:ldlib-forge-1.20.1:${ldlib_version}") { transitive = false }
-   // implementation fg.deobf("com.tterrag.registrate:Registrate:${registrate_version}") { transitive = false }
     implementation fg.deobf("dev.toma.configuration:configuration-forge-1.20.1:${configuration_version}")
-    
-    // Spore (真菌孢子) API
+
+    // Spore integration
     implementation fg.deobf("curse.maven:spore-678295:7881767")
 
-
+    // Mekanism Turrets
     implementation fg.deobf("mekanism:Mekanism:${minecraft_version}-${mekanism_version}")
     implementation fg.deobf("software.bernie.geckolib:geckolib-forge-${minecraft_version}:${geckolib_version}")
 
-
+    // Utilities
     runtimeOnly fg.deobf("curse.maven:jade-324717:5339264")
+    //implementation fg.deobf("com.lowdragmc.shimmer:Shimmer-forge:1.20:0.2.4")
 
-   // implementation fg.deobf(fileTree(dir: "mods_dev", include: ["*.jar"]))
-
+    //Others
+    implementation fg.deobf(fileTree(dir: 'mods_dev', include: '*.jar'))
 }
 
 mixin {
-    add sourceSets.main, "improvedmobs.refmap.json"
-    config "improvedmobs.mixins.json"
-    config "improvedmobs.mixins.compat.json"
+    add sourceSets.main, "integratedindustrialcraft.refmap.json"
+    config "integratedindustrialcraft.mixins.json"
+    config "integratedindustrialcraft.mixins.compat.json"
     add sourceSets.main, "mixins.mekanism_turrets.refmap.json"
     config "mixins.mekanism_turrets.json"
 
@@ -136,14 +141,14 @@ mixin {
 jar {
     manifest {
         attributes([
-                "Specification-Title"     : "improvedmobs",
+                "Specification-Title"     : "integratedindustrialcraft",
                 "Specification-Vendor"    : "flemmli97",
                 "Specification-Version"   : "1",
                 "Implementation-Title"    : project.name,
                 "Implementation-Version"  : project.jar.archiveVersion,
                 "Implementation-Vendor"   : "flemmli97",
                 "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                "MixinConfigs"            : "improvedmobs.mixins.json,improvedmobs.mixins.compat.json,mixins.mekanism_turrets.json"
+                "MixinConfigs"            : "integratedindustrialcraft.mixins.json,integratedindustrialcraft.mixins.compat.json,mixins.mekanism_turrets.json"
         ])
     }
 }

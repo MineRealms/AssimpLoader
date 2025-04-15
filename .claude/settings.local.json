@@ -26,11 +26,25 @@
       "Bash(./gradlew clean:*)",
       "Bash(ls:*)",
       "Bash(git commit -m ':*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(find:*)",
+      "Bash(./gradlew compileJava --no-daemon)",
+      "Bash(./gradlew compileJava --console=plain)",
+      "Bash(tee /tmp/compile.log)",
+      "Bash(tee /tmp/compile_result.txt)",
+      "Bash(grep -l \"IntegratedIndustrialCraft.MODID\" src/main/java/cn/minerealms/iic/turrets/common/registry/*.java)",
+      "Bash(xargs -I {} sh -c 'grep -q \"^import cn.minerealms.iic.IntegratedIndustrialCraft\" {} || sed -i \"1a import cn.minerealms.iic.IntegratedIndustrialCraft;\" {}')",
+      "Bash(tee /tmp/build_output.log)",
+      "Bash(unzip -l build/libs/integratedindustrialcraft-1.0.0.jar)",
+      "Bash(unzip -p build/libs/integratedindustrialcraft-1.0.0.jar META-INF/mods.toml)",
+      "Bash(./gradlew jar:*)",
+      "Bash(./gradlew compileJava --offline --no-daemon)"
     ],
     "additionalDirectories": [
       "H:\\MinecraftMods\\Spore\\Spore_2.0_1.20.1",
-      "H:\\MinecraftMods\\GregTech-Modern"
+      "H:\\MinecraftMods\\GregTech-Modern",
+      "H:\\MinecraftMods\\ImprovedMobsOrigin\\ImprovedMobs",
+      "H:\\MinecraftMods\\Shimmer"
     ]
   }
 }
