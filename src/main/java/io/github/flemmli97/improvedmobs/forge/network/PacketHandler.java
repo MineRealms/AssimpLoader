@@ -7,6 +7,7 @@ import io.github.flemmli97.improvedmobs.difficulty.PlayerDifficulty;
 import io.github.flemmli97.improvedmobs.platform.CrossPlatformStuff;
 import io.github.flemmli97.improvedmobs.scanner.network.PacketScannerRequest;
 import io.github.flemmli97.improvedmobs.scanner.network.PacketScannerResponse;
+import io.github.flemmli97.improvedmobs.network.SyncHudDataPacket;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -33,6 +34,7 @@ public class PacketHandler {
         dispatcher.registerMessage(id++, PacketDebugLinesSync.class, PacketDebugLinesSync::write, PacketDebugLinesSync::read, PacketDebugLinesSync::handle);
         dispatcher.registerMessage(id++, PacketScannerRequest.class, PacketScannerRequest::toNetwork, PacketScannerRequest::fromNetwork, PacketScannerRequest::handle);
         dispatcher.registerMessage(id++, PacketScannerResponse.class, PacketScannerResponse::toNetwork, PacketScannerResponse::fromNetwork, PacketScannerResponse::handle);
+        dispatcher.registerMessage(id++, SyncHudDataPacket.class, SyncHudDataPacket::encode, SyncHudDataPacket::decode, SyncHudDataPacket::handle);
     }
 
     public static <T> void sendDifficultyToClient(DifficultyData data, ServerPlayer player) {
@@ -79,6 +81,11 @@ public class PacketHandler {
             if (hasChannel(player))
                 player.connection.send(pkt);
         });
+    }
+
+    public static void sendHudDataToPlayer(SyncHudDataPacket packet, ServerPlayer player) {
+        if (hasChannel(player))
+            dispatcher.sendTo(packet, player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
     }
 
     private static boolean hasChannel(ServerPlayer player) {

@@ -11,7 +11,22 @@
       "Bash(mkdir -p src/main/resources/data/improvedmobs)",
       "Bash(find src/main/java/io/github/flemmli97/improvedmobs/mekanism_turrets -type f -name \"*.java\" -exec sed -i '/import io\\\\.github\\\\.flemmli97\\\\.improvedmobs\\\\.mekanism_turrets\\\\.MekanismTurrets;/d' {} \\\\;)",
       "Bash(./gradlew classes:*)",
-      "Bash(find src/main/resources -type f \\\\\\( -name \"*.json\" -o -name \"*.lang\" \\\\\\) -exec sed -i 's/mekanism_turrets/improvedmobs/g' {} \\\\;)"
+      "Bash(find src/main/resources -type f \\\\\\( -name \"*.json\" -o -name \"*.lang\" \\\\\\) -exec sed -i 's/mekanism_turrets/improvedmobs/g' {} \\\\;)",
+      "Bash(./gradlew compileJava)",
+      "WebFetch(domain:github.com)",
+      "Bash(./gradlew build:*)",
+      "Bash(grep -n \"System\\\\\\\\.out\\\\\\\\.print\\\\|System\\\\\\\\.err\\\\\\\\.print\" src/main/java/io/github/flemmli97/improvedmobs/industrial/SporeIntegration.java)",
+      "Bash(grep -n \"IndustrialLogger\\\\|System\\\\.out\\\\|System\\\\.err\" src/main/java/io/github/flemmli97/improvedmobs/industrial/*.java)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "Bash(find . -name \"*.java\" -exec grep -l \"TODO\\\\|FIXME\\\\|XXX\\\\|HACK\" {} \\\\;)",
+      "Bash(grep -n \"import.*\\\\*;\" *.java)",
+      "Bash(claude plugin:*)",
+      "Bash(git add:*)"
+    ],
+    "additionalDirectories": [
+      "H:\\MinecraftMods\\Spore\\Spore_2.0_1.20.1",
+      "H:\\MinecraftMods\\GregTech-Modern"
     ]
   }
 }

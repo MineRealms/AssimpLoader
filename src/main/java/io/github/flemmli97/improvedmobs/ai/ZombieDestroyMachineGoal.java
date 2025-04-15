@@ -1,11 +1,13 @@
 package io.github.flemmli97.improvedmobs.ai;
 
 import io.github.flemmli97.improvedmobs.industrial.GTIntegration;
+import io.github.flemmli97.improvedmobs.industrial.PollutionManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import java.util.EnumSet;
@@ -19,6 +21,11 @@ public class ZombieDestroyMachineGoal extends Goal {
     private BlockPos targetMachine;
     private int findCooldown = 0;
 
+    // 污染阈值：MV 阶段降低阈值，让僵尸更早攻击
+    // MV (tier 2): 污染 >= 50 时攻击
+    // HV+ (tier 3+): 无条件攻击（由 ThreatManager 主动生成）
+    private static final double MV_POLLUTION_THRESHOLD = 50.0;
+
     public ZombieDestroyMachineGoal(Zombie zombie) {
         this.zombie = zombie;
         this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
@@ -28,12 +35,21 @@ public class ZombieDestroyMachineGoal extends Goal {
     public boolean canUse() {
         if (--findCooldown > 0) return false;
         this.findCooldown = 40; // check every 2 seconds
-        
+
+        // 检查当前区块的污染等级
+        ChunkPos chunkPos = new ChunkPos(this.zombie.blockPosition());
+        double localPollution = PollutionManager.getTemporaryPollution(chunkPos);
+
+        // MV 阶段：污染不够高，不触发
+        if (localPollution < MV_POLLUTION_THRESHOLD) {
+            return false;
+        }
+
         // Find nearest GT machine within 16 blocks
         BlockPos bestPos = null;
         double bestDist = Double.MAX_VALUE;
         BlockPos center = this.zombie.blockPosition();
-        
+
         for (BlockPos pos : BlockPos.betweenClosed(center.offset(-16, -4, -16), center.offset(16, 4, 16))) {
             BlockEntity be = this.zombie.level().getBlockEntity(pos);
             if (GTIntegration.isGTMachine(be)) {
@@ -44,7 +60,7 @@ public class ZombieDestroyMachineGoal extends Goal {
                 }
             }
         }
-        
+
         if (bestPos != null) {
             this.targetMachine = bestPos;
             return true;
@@ -71,14 +87,14 @@ public class ZombieDestroyMachineGoal extends Goal {
     @Override
     public void tick() {
         if (this.targetMachine == null) return;
-        
+
         // 发送调试连线封包
         if (TriAxisConfig.enableDebugLines) {
             if (this.zombie.tickCount % 5 == 0) { // 每5 tick发送一次以保持连线
                 PacketHandler.sendDebugLineToAll(this.zombie.getId(), this.targetMachine, this.zombie.level().getServer());
             }
         }
-        
+
         double dist = this.zombie.distanceToSqr(this.targetMachine.getX() + 0.5, this.targetMachine.getY(), this.targetMachine.getZ() + 0.5);
         if (dist < 4.0) {
             // Adjacent to machine, start breaking or TNT

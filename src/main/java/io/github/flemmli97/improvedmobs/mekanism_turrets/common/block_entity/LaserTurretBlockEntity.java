@@ -53,8 +53,7 @@ import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.network.SerializableDataTicket;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 
 public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlockEntity {
@@ -66,7 +65,7 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
     public static SerializableDataTicket<Double> TARGET_POS_Y;
     public static SerializableDataTicket<Double> TARGET_POS_Z;
     private static final RawAnimation SHOOT_ANIMATION = RawAnimation.begin().then("shoot", Animation.LoopType.PLAY_ONCE);
-    private final AABB targetBox = AABB.ofSize(getBlockPos().getCenter(), getTier().getRange()*2, getTier().getRange()*2, getTier().getRange()*2);
+    private AABB targetBox;
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private LaserTurretTier tier;
     private MachineEnergyContainer<LaserTurretBlockEntity> energyContainer;
@@ -80,6 +79,9 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
     public float yRot0 = 0;
     private int coolDown = 0;
     private int idleTicks = 0;
+    private FloatingLong cachedEnergyPerTick = FloatingLong.ZERO;
+    private int lastUpgradeCount = -1;
+    private int targetValidationCounter = 0;
 
     public LaserTurretBlockEntity(IBlockProvider blockProvider, BlockPos pos, BlockState state) {
         super(blockProvider, pos, state);
@@ -158,11 +160,22 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
     protected void onUpdateServer() {
         super.onUpdateServer();
         energySlot.fillContainerOrConvert();
-        tryInvalidateTarget();
+
+        // 每5 tick验证一次目标有效性，而不是每tick
+        if(++targetValidationCounter >= 5) {
+            targetValidationCounter = 0;
+            tryInvalidateTarget();
+        }
+
         tryFindTarget();
 
-        int energyPerTick = laserEnergyPerTick();
-        energyContainer.setEnergyPerTick(FloatingLong.create(energyPerTick));
+        // 缓存能量消耗值，只在升级变化时重新计算
+        int currentUpgradeCount = upgradeComponent.getUpgrades(Upgrade.SPEED);
+        if(currentUpgradeCount != lastUpgradeCount) {
+            lastUpgradeCount = currentUpgradeCount;
+            cachedEnergyPerTick = FloatingLong.create(laserEnergyPerTick());
+        }
+        energyContainer.setEnergyPerTick(cachedEnergyPerTick);
 
         if(target != null) {
             Vec3 targetPos = target.position().add(0, target.getBbHeight() * 0.5, 0);
@@ -171,11 +184,11 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
             setAnimData(TARGET_POS_Z, targetPos.z);
             setAnimData(HAS_TARGET, true);
 
-            if(energyContainer.getEnergy().greaterOrEqual(FloatingLong.create(energyPerTick))) {
+            if(energyContainer.getEnergy().greaterOrEqual(cachedEnergyPerTick)) {
                 if(activeLaser == null || !activeLaser.isAlive()) {
                     startLaser();
                 }
-                energyContainer.extract(FloatingLong.create(energyPerTick), Action.EXECUTE, AutomationType.INTERNAL);
+                energyContainer.extract(cachedEnergyPerTick, Action.EXECUTE, AutomationType.INTERNAL);
             } else {
                 stopLaser();
             }
@@ -199,7 +212,7 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
                 case ELITE -> LaserDamageConfig.getEliteDamage();
                 case ULTIMATE -> LaserDamageConfig.getUltimateDamage();
             };
-            activeLaser = new LaserEntity(level, center, target, damagePerTick);
+            activeLaser = new LaserEntity(level, center, target, damagePerTick, tier);
             level.addFreshEntity(activeLaser);
         }
     }
@@ -216,6 +229,28 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
     }
 
     public void tryInvalidateTarget() {
+        if(target == null) {
+            return;
+        }
+
+        // 快速路径：先检查简单条件
+        if(!target.isAlive() || !target.canBeSeenAsEnemy()) {
+            setAnimData(HAS_TARGET, false);
+            stopLaser();
+            target = null;
+            return;
+        }
+
+        // 快速距离检查（避免平方根计算）
+        double maxRangeSq = getTier().getRange() * getTier().getRange();
+        if(target.distanceToSqr(this.getBlockPos().getCenter()) > maxRangeSq) {
+            setAnimData(HAS_TARGET, false);
+            stopLaser();
+            target = null;
+            return;
+        }
+
+        // 完整验证（包括射线追踪等昂贵操作）
         if(!isValidTarget(target)) {
             setAnimData(HAS_TARGET, false);
             stopLaser();
@@ -228,11 +263,34 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
             return;
         }
         if(target == null && (level.getGameTime()+this.hashCode()) % 3 == 0) {
-            Optional<LivingEntity> optional = level.getEntitiesOfClass(LivingEntity.class, targetBox, this::isValidTarget).stream()
-                    .filter(entity -> countTurretsTargeting(entity) < 8)
+            List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class, targetBox, this::isValidTarget);
+
+            if(candidates.isEmpty()) {
+                idleTicks = 20 * 4;
+                return;
+            }
+
+            // 一次性计算所有候选目标被瞄准的次数，避免重复扫描
+            Map<LivingEntity, Integer> targetCounts = new HashMap<>();
+            AABB searchBox = AABB.ofSize(getBlockPos().getCenter(), 100, 100, 100);
+            List<LaserEntity> nearbyLasers = level.getEntitiesOfClass(LaserEntity.class, searchBox);
+
+            for(LivingEntity candidate : candidates) {
+                int count = 0;
+                for(LaserEntity laser : nearbyLasers) {
+                    if(laser.getTargetEntity() != null && laser.getTargetEntity().equals(candidate)) {
+                        count++;
+                    }
+                }
+                targetCounts.put(candidate, count);
+            }
+
+            // 选择被瞄准次数最少且距离最近的目标
+            Optional<LivingEntity> optional = candidates.stream()
+                    .filter(entity -> targetCounts.get(entity) < 8)
                     .min((o1, o2) -> {
-                        int count1 = countTurretsTargeting(o1);
-                        int count2 = countTurretsTargeting(o2);
+                        int count1 = targetCounts.get(o1);
+                        int count2 = targetCounts.get(o2);
                         if(count1 != count2) {
                             return Integer.compare(count1, count2);
                         }
@@ -248,12 +306,6 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
                 idleTicks = 20 * 4;
             }
         }
-    }
-
-    private int countTurretsTargeting(LivingEntity entity) {
-        AABB searchBox = AABB.ofSize(getBlockPos().getCenter(), 100, 100, 100);
-        return (int) level.getEntitiesOfClass(LaserEntity.class, searchBox,
-            laser -> laser.getTargetEntity() != null && laser.getTargetEntity().equals(entity)).size();
     }
 
     private boolean isValidTarget(LivingEntity e) {
@@ -391,6 +443,9 @@ public class LaserTurretBlockEntity extends TileEntityMekanism implements GeoBlo
     protected void presetVariables() {
         super.presetVariables();
         tier = Attribute.getTier(getBlockType(), LaserTurretTier.class);
+        // 在tier设置后初始化targetBox
+        double range = tier.getRange();
+        targetBox = AABB.ofSize(getBlockPos().getCenter(), range*2, range*2, range*2);
     }
 
     @Override
