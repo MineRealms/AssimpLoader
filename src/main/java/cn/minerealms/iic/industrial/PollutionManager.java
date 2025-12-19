@@ -108,6 +108,44 @@ public class PollutionManager {
     }
 
     /**
+     * Sets the temporary pollution level for a specific chunk.
+     * Used by commands for direct pollution manipulation.
+     *
+     * @param level Server level (unused but kept for API consistency)
+     * @param pos Chunk position to set
+     * @param amount Pollution amount to set
+     */
+    public static void setChunkPollution(ServerLevel level, ChunkPos pos, double amount) {
+        if (amount <= 0) {
+            temporaryPollution.remove(pos);
+        } else {
+            temporaryPollution.put(pos, amount);
+        }
+    }
+
+    /**
+     * Gets the temporary pollution level for a specific chunk.
+     * Alias for getTemporaryPollution for API consistency.
+     *
+     * @param level Server level (unused but kept for API consistency)
+     * @param pos Chunk position to query
+     * @return Temporary pollution level, or 0 if no pollution
+     */
+    public static double getChunkPollution(ServerLevel level, ChunkPos pos) {
+        return getTemporaryPollution(pos);
+    }
+
+    /**
+     * Sets the global permanent pollution value directly.
+     * Used by commands for direct pollution manipulation.
+     *
+     * @param amount New permanent pollution value
+     */
+    public static void setPermanentPollution(double amount) {
+        permanentPollution = Math.max(0, amount);
+    }
+
+    /**
      * Main tick method called from ServerTickEvent.
      * For performance, scanning is not done every tick but every 20 ticks (1 second).
      * Randomly samples loaded chunks for pollution accumulation and decay calculation.
