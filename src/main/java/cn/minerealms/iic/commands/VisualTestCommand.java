@@ -1,7 +1,7 @@
 package cn.minerealms.iic.commands;
 
 import cn.minerealms.iic.util.MixinLoadTracker;
-import cn.minerealms.iic.mixin.enhancedvisuals.EnhancedVisualsHelper;
+import cn.minerealms.iic.integration.enhancedvisuals.EnhancedVisualsHelper;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
