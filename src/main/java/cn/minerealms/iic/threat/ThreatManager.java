@@ -1,7 +1,9 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.threat;
 
 import cn.minerealms.iic.ai.CreeperTargetMachineGoal;
 import cn.minerealms.iic.ai.ZombieDestroyMachineGoal;
+import cn.minerealms.iic.industrial.IndustrialLogger;
+import cn.minerealms.iic.integration.gregtech.GTIntegration;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;

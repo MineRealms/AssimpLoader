@@ -1,5 +1,10 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.difficulty;
 
+import cn.minerealms.iic.industrial.IndustrialLogger;
+import cn.minerealms.iic.industrial.TriAxisConfig;
+import cn.minerealms.iic.integration.spore.HivemindProximityManager;
+import cn.minerealms.iic.integration.spore.SporeIntegration;
+import cn.minerealms.iic.pollution.PollutionManager;
 import io.github.flemmli97.improvedmobs.api.difficulty.DifficultyGetter;
 import io.github.flemmli97.improvedmobs.config.Config;
 import net.minecraft.server.level.ServerLevel;
@@ -25,12 +30,12 @@ import net.minecraft.world.phys.Vec3;
  * to produce the final difficulty value. This value is added to the base difficulty
  * from other sources.
  *
- * @see IndustrialDifficultyManager
+ * @see DifficultyManager
  * @see PollutionManager
  * @see TriAxisConfig
  * @author ImprovedMobs Team
  */
-public class IndustrialDifficultyGetter implements DifficultyGetter {
+public class DifficultyProvider implements DifficultyGetter {
 
     @Override
     public float getDifficulty(ServerLevel level, Vec3 pos) {
@@ -40,7 +45,7 @@ public class IndustrialDifficultyGetter implements DifficultyGetter {
         float maxPlayerBonus = 0;
         for (Player player : level.players()) {
             if (player.position().closerThan(pos, 64)) {
-                float playerBonus = IndustrialDifficultyManager.getDifficultyFor(player);
+                float playerBonus = DifficultyManager.getDifficultyFor(player);
                 if (playerBonus > maxPlayerBonus) {
                     maxPlayerBonus = playerBonus;
                 }

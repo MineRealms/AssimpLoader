@@ -1,4 +1,6 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.integration.spore;
+
+import cn.minerealms.iic.integration.spore.SporeIntegration;
 
 import net.minecraft.server.level.ServerLevel;
 

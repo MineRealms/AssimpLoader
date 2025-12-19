@@ -1,4 +1,4 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.difficulty;
 
 import java.util.ArrayList;
 import java.util.Collections;

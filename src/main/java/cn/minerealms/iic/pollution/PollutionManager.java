@@ -1,5 +1,11 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.pollution;
 
+import cn.minerealms.iic.industrial.IndustrialLogger;
+import cn.minerealms.iic.industrial.TriAxisConfig;
+import cn.minerealms.iic.integration.gregtech.GTIntegration;
+import cn.minerealms.iic.integration.gregtech.GTPollutionScanner;
+import cn.minerealms.iic.integration.spore.SporeIntegration;
+import cn.minerealms.iic.threat.ThreatManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;

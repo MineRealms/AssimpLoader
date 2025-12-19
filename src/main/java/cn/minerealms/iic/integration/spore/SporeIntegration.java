@@ -1,4 +1,9 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.integration.spore;
+
+import cn.minerealms.iic.difficulty.DifficultyManager;
+import cn.minerealms.iic.industrial.IndustrialLogger;
+import cn.minerealms.iic.industrial.TriAxisConfig;
+import cn.minerealms.iic.pollution.PollutionManager;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -368,7 +373,7 @@ public class SporeIntegration {
         double permanentPollution = PollutionManager.getPermanentPollution();
 
         // Calculate average voltage tier (from player data)
-        double avgVoltageTier = IndustrialDifficultyManager.getAveragePlayerVoltageTier(level);
+        double avgVoltageTier = DifficultyManager.getAveragePlayerVoltageTier(level);
 
         // Normalize factors (0.0 - 1.0)
         double hivemindFactor = Math.min(1.0, hiveminds / 10.0);  // 10 Hiveminds = max

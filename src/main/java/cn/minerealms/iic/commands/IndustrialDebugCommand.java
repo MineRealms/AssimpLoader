@@ -3,7 +3,12 @@ package cn.minerealms.iic.commands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import cn.minerealms.iic.industrial.*;
+import cn.minerealms.iic.difficulty.*;
+import cn.minerealms.iic.industrial.IndustrialLogger;
+import cn.minerealms.iic.industrial.TriAxisConfig;
+import cn.minerealms.iic.integration.gregtech.GTIntegration;
+import cn.minerealms.iic.integration.spore.SporeIntegration;
+import cn.minerealms.iic.pollution.PollutionManager;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
@@ -211,7 +216,7 @@ public class IndustrialDebugCommand {
                     Component.literal(String.format("  §7Pollution Factor: §f%.3f%%", triAxis.pollutionFactor * 100)), false);
 
             // 工业加成
-            float industrialBonus = IndustrialDifficultyManager.getDifficultyFor(player);
+            float industrialBonus = DifficultyManager.getDifficultyFor(player);
             ctx.getSource().sendSuccess(() ->
                     Component.literal(String.format("§6Industrial Bonus: §e%.3f", industrialBonus)), false);
 

@@ -2,7 +2,11 @@ package cn.minerealms.iic.command;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import cn.minerealms.iic.industrial.*;
+import cn.minerealms.iic.industrial.IndustrialLogger;
+import cn.minerealms.iic.industrial.TriAxisConfig;
+import cn.minerealms.iic.integration.spore.SporeApiDiagnostics;
+import cn.minerealms.iic.integration.spore.SporeIntegration;
+import cn.minerealms.iic.pollution.visual.PollutionVisualEffects;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;

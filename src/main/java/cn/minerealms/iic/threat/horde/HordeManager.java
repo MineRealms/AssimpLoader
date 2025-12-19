@@ -1,4 +1,6 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.threat.horde;
+
+import cn.minerealms.iic.industrial.TriAxisConfig;
 
 import cn.minerealms.iic.IntegratedIndustrialCraft;
 import net.minecraft.server.level.ServerLevel;

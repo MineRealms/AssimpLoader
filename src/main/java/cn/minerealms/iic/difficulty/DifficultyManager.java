@@ -1,4 +1,8 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.difficulty;
+
+import cn.minerealms.iic.industrial.IndustrialLogger;
+import cn.minerealms.iic.industrial.TriAxisConfig;
+import cn.minerealms.iic.pollution.PollutionManager;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -29,7 +33,7 @@ import net.minecraft.world.entity.player.Player;
  * @see TriAxisConfig
  * @author ImprovedMobs Team
  */
-public class IndustrialDifficultyManager {
+public class DifficultyManager {
 
     /**
      * Per-player industrial difficulty bonus values.

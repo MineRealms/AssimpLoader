@@ -1,5 +1,6 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.pollution.visual;
 
+import cn.minerealms.iic.integration.enhancedvisuals.EnhancedVisualsHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;

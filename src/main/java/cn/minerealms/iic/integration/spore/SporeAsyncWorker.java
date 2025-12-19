@@ -1,4 +1,7 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.integration.spore;
+
+import cn.minerealms.iic.difficulty.MachineScanner;
+import cn.minerealms.iic.industrial.IndustrialLogger;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;

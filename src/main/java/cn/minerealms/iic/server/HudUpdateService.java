@@ -1,9 +1,13 @@
 package cn.minerealms.iic.server;
 
 import cn.minerealms.iic.commands.HudCommands;
-import cn.minerealms.iic.industrial.*;
-import cn.minerealms.iic.network.SyncHudDataPacket;
+import cn.minerealms.iic.difficulty.*;
+import cn.minerealms.iic.industrial.IndustrialLogger;
+import cn.minerealms.iic.industrial.TriAxisConfig;
+import cn.minerealms.iic.integration.spore.SporeIntegration;
 import cn.minerealms.iic.network.PacketHandler;
+import cn.minerealms.iic.network.SyncHudDataPacket;
+import cn.minerealms.iic.pollution.PollutionManager;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.TickEvent;
@@ -76,7 +80,7 @@ public class HudUpdateService {
         MachineScanner.ScanResult machineResult = MachineScanner.scanNearbyMachines(player, scanRadius);
         float medianTier = machineResult.tiers().isEmpty() ? 0 :
                 DifficultySmoother.weightedMedian(machineResult.tiers(), machineResult.weights());
-        float industrialBonus = IndustrialDifficultyManager.getDifficultyFor(player);
+        float industrialBonus = DifficultyManager.getDifficultyFor(player);
 
         // 无条件 debug 日志 - 诊断问题
         if (IndustrialLogger.isDebugEnabled()) {

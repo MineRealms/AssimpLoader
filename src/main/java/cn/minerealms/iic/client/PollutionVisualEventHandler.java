@@ -1,6 +1,7 @@
 package cn.minerealms.iic.client;
 
-import cn.minerealms.iic.industrial.PollutionManager;
+import cn.minerealms.iic.pollution.PollutionManager;
+import cn.minerealms.iic.pollution.visual.PollutionVisualEffects;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
@@ -57,7 +58,7 @@ public class PollutionVisualEventHandler {
 
         // Trigger effects based on pollution level
         try {
-            cn.minerealms.iic.industrial.PollutionVisualEffects.checkAndTriggerEffects(player, pollution);
+            cn.minerealms.iic.pollution.visual.PollutionVisualEffects.checkAndTriggerEffects(player, pollution);
         } catch (Exception e) {
             LOGGER.error("[PollutionVisualEvents] Error triggering effects", e);
         }
