@@ -13,14 +13,21 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Industrial difficulty provider that calculates difficulty from multiple sources.
+ * ImprovedMobs API difficulty provider for location-based difficulty calculation.
  * <p>
- * This difficulty getter implements a multi-factor difficulty calculation system that
- * considers various aspects of industrial progression and environmental pollution.
+ * <b>Responsibility:</b> Implements {@link DifficultyGetter} to provide location-based
+ * difficulty values to the ImprovedMobs system. This is the external API integration
+ * point that combines multiple difficulty sources.
+ * <p>
+ * <b>Key Differences from {@link DifficultyManager}:</b>
+ * <ul>
+ *   <li><b>DifficultyProvider</b> - Provides location-based difficulty to ImprovedMobs API</li>
+ *   <li><b>DifficultyManager</b> - Manages per-player state, calculates player-specific bonuses</li>
+ * </ul>
  * <p>
  * Contributing factors:
  * <ol>
- *   <li>Player industrial bonus (based on nearby machines and pollution)</li>
+ *   <li>Player industrial bonus (from {@link DifficultyManager}, based on nearby players)</li>
  *   <li>Local temporary pollution (chunk-based pollution spread)</li>
  *   <li>Global permanent pollution (long-term accumulation)</li>
  *   <li>Time factor (game days elapsed)</li>
@@ -34,6 +41,7 @@ import net.minecraft.world.phys.Vec3;
  * @see PollutionManager
  * @see TriAxisConfig
  * @author ImprovedMobs Team
+ * @since 1.0.0
  */
 public class DifficultyProvider implements DifficultyGetter {
 
