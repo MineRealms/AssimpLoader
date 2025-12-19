@@ -1,5 +1,5 @@
 {
-  "required": false,
+  "required": true,
   "minVersion": "0.8",
   "package": "cn.minerealms.iic.mixin",
   "compatibilityLevel": "JAVA_17",
@@ -7,8 +7,10 @@
   "mixins": [
   ],
   "client": [
+    "enhancedvisuals.VisualManagerMixin"
   ],
   "injectors": {
-    "defaultRequire": 1
-  }
+    "defaultRequire": 0
+  },
+  "verbose": true
 }

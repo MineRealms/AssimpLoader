@@ -1,0 +1,747 @@
+[17:37:57] [main/INFO]: ModLauncher running: args [--username, CharlesKo, --version, Create New Horizon, --gameDir, G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon, --assetsDir, G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\assets, --assetIndex, 5, --uuid, 4f3e34849376441b919f056c25684719, --accessToken, ❄❄❄❄❄❄❄❄, --clientId, ${clientid}, --xuid, ${auth_xuid}, --userType, msa, --versionType, HMCL 3.6.11.264, --width, 854, --height, 480, --launchTarget, forgeclient, --fml.forgeVersion, 47.4.2, --fml.mcVersion, 1.20.1, --fml.forgeGroup, net.minecraftforge, --fml.mcpVersion, 20230612.114412]
+[17:37:57] [main/INFO]: ModLauncher 10.0.9+10.0.9+main.dcd20f30 starting: java version 17.0.18 by Eclipse Adoptium; OS Windows 11 arch amd64 version 10.0
+[17:37:58] [main/INFO]: Loading ImmediateWindowProvider fmlearlywindow
+[17:37:58] [main/INFO]: Trying GL version 4.6
+[17:37:59] [main/INFO]: Requested GL version 4.6 got version 4.6
+[17:37:59] [main/INFO]: SpongePowered MIXIN Subsystem Version=0.8.5 Source=union:/G:/MinecraftGames/CTNH-BaopuEdition/.minecraft/libraries/org/spongepowered/mixin/0.8.5/mixin-0.8.5.jar%23100!/ Service=ModLauncher Env=CLIENT
+[17:37:59] [pool-2-thread-1/INFO]: GL info: NVIDIA GeForce RTX 4060/PCIe/SSE2 GL version 4.6.0 NVIDIA 572.83, NVIDIA Corporation
+[17:37:59] [main/INFO]: Found mod file Atlas Lib-1.20.1-1.1.12.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file CreativeCore_FORGE_v2.12.35_mc1.20.1.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file EnhancedVisuals_FORGE_v1.8.2_mc1.20.1.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file geckolib-forge-1.20.1-4.8.3.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file gtceu-1.20.1-7.2.0.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file improvedmobs-1.20.1-1.13.6-forge.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file integratedindustrialcraft-1.0.0.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file ldlib-forge-1.20.1-1.0.42.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file Mekanism-1.20.1-10.4.16.80.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file MekanismAdditions-1.20.1-10.4.16.80.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file MekanismGenerators-1.20.1-10.4.16.80.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file MekanismTools-1.20.1-10.4.16.80.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file Shimmer-forge-1.20.1-0.2.4.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file spore_2.2.0c_1.20.1.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file tenshilib-1.20.1-1.7.2-forge.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/INFO]: Found mod file The-Hordes-1.20.1-1.5.4.jar of type MOD with provider {mods folder locator at G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods}
+[17:37:59] [main/WARN]: Mod file G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\libraries\net\minecraftforge\fmlcore\1.20.1-47.4.2\fmlcore-1.20.1-47.4.2.jar is missing mods.toml file
+[17:37:59] [main/WARN]: Mod file G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\libraries\net\minecraftforge\javafmllanguage\1.20.1-47.4.2\javafmllanguage-1.20.1-47.4.2.jar is missing mods.toml file
+[17:37:59] [main/WARN]: Mod file G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\libraries\net\minecraftforge\lowcodelanguage\1.20.1-47.4.2\lowcodelanguage-1.20.1-47.4.2.jar is missing mods.toml file
+[17:37:59] [main/WARN]: Mod file G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\libraries\net\minecraftforge\mclanguage\1.20.1-47.4.2\mclanguage-1.20.1-47.4.2.jar is missing mods.toml file
+[17:37:59] [main/INFO]: Found mod file fmlcore-1.20.1-47.4.2.jar of type LIBRARY with provider net.minecraftforge.fml.loading.moddiscovery.MinecraftLocator@1623bbe5
+[17:37:59] [main/INFO]: Found mod file javafmllanguage-1.20.1-47.4.2.jar of type LANGPROVIDER with provider net.minecraftforge.fml.loading.moddiscovery.MinecraftLocator@1623bbe5
+[17:37:59] [main/INFO]: Found mod file lowcodelanguage-1.20.1-47.4.2.jar of type LANGPROVIDER with provider net.minecraftforge.fml.loading.moddiscovery.MinecraftLocator@1623bbe5
+[17:37:59] [main/INFO]: Found mod file mclanguage-1.20.1-47.4.2.jar of type LANGPROVIDER with provider net.minecraftforge.fml.loading.moddiscovery.MinecraftLocator@1623bbe5
+[17:37:59] [main/INFO]: Found mod file client-1.20.1-20230612.114412-srg.jar of type MOD with provider net.minecraftforge.fml.loading.moddiscovery.MinecraftLocator@1623bbe5
+[17:37:59] [main/INFO]: Found mod file forge-1.20.1-47.4.2-universal.jar of type MOD with provider net.minecraftforge.fml.loading.moddiscovery.MinecraftLocator@1623bbe5
+[17:38:00] [main/WARN]: Attempted to select a dependency jar for JarJar which was passed in as source: ldlib. Using Mod File: G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods\ldlib-forge-1.20.1-1.0.42.jar
+[17:38:00] [main/INFO]: Found 5 dependencies adding them to mods collection
+[17:38:00] [main/INFO]: Found mod file mclib-20.jar of type GAMELIBRARY with provider net.minecraftforge.fml.loading.moddiscovery.JarInJarDependencyLocator@77b9d0c7
+[17:38:00] [main/INFO]: Found mod file configuration-forge-1.20.1-2.2.0.jar of type MOD with provider net.minecraftforge.fml.loading.moddiscovery.JarInJarDependencyLocator@77b9d0c7
+[17:38:00] [main/INFO]: Found mod file MixinExtras-0.5.0.jar of type GAMELIBRARY with provider net.minecraftforge.fml.loading.moddiscovery.JarInJarDependencyLocator@77b9d0c7
+[17:38:00] [main/INFO]: Found mod file mixinextras-forge-0.5.0.jar of type GAMELIBRARY with provider net.minecraftforge.fml.loading.moddiscovery.JarInJarDependencyLocator@77b9d0c7
+[17:38:00] [main/INFO]: Found mod file Registrate-MC1.20-1.3.11.jar of type GAMELIBRARY with provider net.minecraftforge.fml.loading.moddiscovery.JarInJarDependencyLocator@77b9d0c7
+[17:38:02] [main/INFO]: Compatibility level set to JAVA_17
+[17:38:02] [main/INFO]: Launching target 'forgeclient' with arguments [--version, Create New Horizon, --gameDir, G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon, --assetsDir, G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\assets, --uuid, 4f3e34849376441b919f056c25684719, --username, CharlesKo, --assetIndex, 5, --accessToken, ❄❄❄❄❄❄❄❄, --clientId, ${clientid}, --xuid, ${auth_xuid}, --userType, msa, --versionType, HMCL 3.6.11.264, --width, 854, --height, 480]
+[17:38:02] [main/WARN]: Reference map 'integratedindustrialcraft.refmap.json' for integratedindustrialcraft.mixins.json could not be read. If this is a development environment you can ignore this message
+[17:38:02] [main/WARN]: Reference map 'integratedindustrialcraft.refmap.json' for integratedindustrialcraft.mixins.compat.json could not be read. If this is a development environment you can ignore this message
+[17:38:04] [main/INFO]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.0).
+[17:38:11] [Datafixer Bootstrap/INFO]: 188 Datafixer optimizations took 235 milliseconds
+[17:38:14] [Render thread/WARN]: Assets URL 'union:/G:/MinecraftGames/CTNH-BaopuEdition/.minecraft/libraries/net/minecraft/client/1.20.1-20230612.114412/client-1.20.1-20230612.114412-srg.jar%23188!/assets/.mcassetsroot' uses unexpected schema
+[17:38:14] [Render thread/WARN]: Assets URL 'union:/G:/MinecraftGames/CTNH-BaopuEdition/.minecraft/libraries/net/minecraft/client/1.20.1-20230612.114412/client-1.20.1-20230612.114412-srg.jar%23188!/data/.mcassetsroot' uses unexpected schema
+[17:38:14] [Render thread/INFO]: Environment: authHost='https://littleskin.cn/api/yggdrasil/authserver', accountsHost='http://127.0.0.1:52197/https/api.mojang.com', sessionHost='http://127.0.0.1:52197/https/sessionserver.mojang.com', servicesHost='http://127.0.0.1:52197/https/api.minecraftservices.com', name='PROD'
+[17:38:14] [Render thread/INFO]: Setting user: CharlesKo
+[17:38:14] [Render thread/INFO]: Backend library: LWJGL version 3.3.1 build 7
+[17:38:15] [modloading-worker-0/INFO]: GregTechCEu is initializing...
+[17:38:15] [modloading-worker-0/INFO]: Initializing Integrated Industrial Craft (IIC)
+[17:38:15] [modloading-worker-0/INFO]: LowDragLib is initializing on platform: Forge
+[17:38:15] [modloading-worker-0/INFO]: Trying to load common config
+[17:38:15] [modloading-worker-0/INFO]: Trying to load client config
+[17:38:15] [modloading-worker-0/INFO]: Forge mod loading, version 47.4.2, for MC 1.20.1 with MCP 20230612.114412
+[17:38:15] [modloading-worker-0/INFO]: MinecraftForge v47.4.2 Initialized
+[17:38:15] [modloading-worker-0/INFO]: Config files are up to date, skipping data/asset generation
+[17:38:16] [modloading-worker-0/INFO]: IIC initialization complete
+[17:38:16] [modloading-worker-0/INFO]: Registered gtceu config for auto-sync function
+[17:38:16] [modloading-worker-0/INFO]: High-Tier is Enabled.
+[17:38:16] [modloading-worker-0/WARN]: Error loading class: dev/latvian/mods/kubejs/KubeJSPlugin (java.lang.ClassNotFoundException: dev.latvian.mods.kubejs.KubeJSPlugin)
+[17:38:16] [modloading-worker-0/WARN]: Error loading class: org/embeddedt/modernfix/api/entrypoint/ModernFixClientIntegration (java.lang.ClassNotFoundException: org.embeddedt.modernfix.api.entrypoint.ModernFixClientIntegration)
+[17:38:18] [Render thread/INFO]: GTCEu common proxy init!
+[17:38:18] [Render thread/INFO]: Registering material registries
+[17:38:18] [Render thread/INFO]: Registering GTCEu Materials
+[17:38:19] [Render thread/INFO]: Registering addon Materials
+[17:38:19] [Render thread/WARN]: FluidStorageKey{gtceu:liquid} already has an associated fluid for material gtceu:lava
+[17:38:19] [Render thread/WARN]: FluidStorageKey{gtceu:liquid} already has an associated fluid for material gtceu:water
+[17:38:19] [Render thread/WARN]: FluidStorageKey{gtceu:liquid} already has an associated fluid for material gtceu:milk
+[17:38:21] [Render thread/INFO]: Registering KeyBinds
+[17:38:21] [Render thread/WARN]: Mod 'gtceu' took 2.559 s to run a deferred task.
+[17:38:24] [Render thread/WARN]: defineId called for: class com.Harbinger.Spore.Sentities.EvolvedInfected.Spitter from class com.Harbinger.Spore.Sentities.EvolvedInfected.Howler
+[17:38:24] [Render thread/WARN]: defineId called for: class com.Harbinger.Spore.Sentities.EvolvedInfected.Busser from class com.Harbinger.Spore.Sentities.EvolvedInfected.Scamper
+[17:38:24] [Render thread/WARN]: defineId called for: class com.Harbinger.Spore.Sentities.EvolvedInfected.Busser from class com.Harbinger.Spore.Sentities.Organoids.Vigil
+[17:38:24] [Render thread/WARN]: defineId called for: class com.Harbinger.Spore.Sentities.EvolvedInfected.Busser from class com.Harbinger.Spore.Sentities.Organoids.Brauerei
+[17:38:24] [Render thread/WARN]: defineId called for: class com.Harbinger.Spore.Sentities.BaseEntities.Infected from class com.Harbinger.Spore.Sentities.BaseEntities.Hyper
+[17:38:24] [Render thread/INFO]: Found non-pack entry 'G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\resourcepacks\新建文件夹', ignoring
+[17:38:25] [Render thread/INFO]: Reloading ResourceManager: gtceu:dynamic_assets, vanilla, mod_resources, hordes-config, file/PH.zip, ldlib
+[17:38:25] [Worker-Main-2/ERROR]: Failed to retrieve profile key pair
+com.mojang.authlib.exceptions.MinecraftClientHttpException: 访问令牌无效，请重新登录。Invalid access token, please re-login.
+	at com.mojang.authlib.minecraft.client.MinecraftClient.readInputStream(MinecraftClient.java:85) ~[authlib-4.0.43.jar%23111!/:?]
+	at com.mojang.authlib.minecraft.client.MinecraftClient.post(MinecraftClient.java:55) ~[authlib-4.0.43.jar%23111!/:?]
+	at com.mojang.authlib.yggdrasil.YggdrasilUserApiService.getKeyPair(YggdrasilUserApiService.java:73) ~[authlib-4.0.43.jar%23111!/:?]
+	at net.minecraft.client.multiplayer.AccountProfileKeyPairManager.m_253252_(AccountProfileKeyPairManager.java:124) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.multiplayer.AccountProfileKeyPairManager.m_252828_(AccountProfileKeyPairManager.java:74) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1768) ~[?:?]
+	at java.util.concurrent.CompletableFuture$AsyncSupply.exec(CompletableFuture.java:1760) ~[?:?]
+	at java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373) ~[?:?]
+	at java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182) ~[?:?]
+	at java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655) ~[?:?]
+	at java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622) ~[?:?]
+	at java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165) ~[?:?]
+[17:38:25] [Worker-Main-18/INFO]: Version 10.4.16 initializing...
+[17:38:25] [Worker-Main-4/INFO]: Loaded 'Mekanism: Tools' module.
+[17:38:25] [Worker-Main-8/INFO]: Loaded 'Mekanism: Additions' module.
+[17:38:26] [Worker-Main-14/INFO]: Loaded 'Mekanism: Generators' module.
+[17:38:26] [Worker-Main-14/INFO]: IIC common setup
+[17:38:26] [Worker-Main-14/INFO]: ImprovedMobs detected, registering difficulty provider
+[17:38:26] [Worker-Main-15/WARN]: File spore:sounds/bairn_ambient1.ogg does not exist, cannot add it to event spore:bairn
+[17:38:26] [Worker-Main-15/WARN]: File spore:sounds/post_proto/repurposed.ogg does not exist, cannot add it to event spore:repurposed
+[17:38:26] [Worker-Main-12/INFO]: Found unifont_all_no_pua-15.0.06.hex, loading
+[17:38:26] [Forge Version Check/INFO]: [configuration] Starting version check at https://raw.githubusercontent.com/Toma1O6/UpdateSchemas/master/configuration-forge.json
+[17:38:26] [Worker-Main-18/INFO]: Fake player readout: UUID = 46e82cd0-d480-3d48-800a-77431ede078e, name = [Mekanism]
+[17:38:26] [Worker-Main-18/INFO]: Mod loaded.
+[17:38:26] [Forge Version Check/INFO]: [configuration] Found status: OUTDATED Current: 2.2.0 Target: 2.2.1
+[17:38:26] [Forge Version Check/INFO]: [atlaslib] Starting version check at https://raw.githubusercontent.com/SmileycorpMC/Atlas-Lib/1.20/update.json
+[17:38:26] [Forge Version Check/INFO]: [atlaslib] Found status: UP_TO_DATE Current: 1.1.12 Target: null
+[17:38:27] [Forge Version Check/INFO]: [hordes] Starting version check at https://raw.githubusercontent.com/SmileycorpMC/The-Hordes/1.20/update.json
+[17:38:27] [Render thread/INFO]: GregTech Model loading took 1198ms
+[17:38:27] [Forge Version Check/INFO]: [hordes] Found status: OUTDATED Current: 1.5.4 Target: 1.5.4c
+[17:38:27] [Forge Version Check/INFO]: [forge] Starting version check at https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json
+[17:38:28] [Forge Version Check/INFO]: [forge] Found status: OUTDATED Current: 47.4.2 Target: 47.4.10
+[17:38:28] [Worker-Main-6/INFO]: Initialized HolidayManager.
+[17:38:29] [Worker-Main-7/WARN]: Invalid frame index on sprite spore:item/scythe frame 2: 2
+[17:38:29] [Worker-Main-7/WARN]: Invalid frame index on sprite spore:item/scythe frame 3: 3
+[17:38:29] [Worker-Main-18/WARN]: Invalid frame index on sprite spore:item/great_sword frame 2: 2
+[17:38:29] [Worker-Main-18/WARN]: Invalid frame index on sprite spore:item/great_sword frame 3: 3
+[17:38:29] [Worker-Main-7/WARN]: Invalid frame index on sprite spore:item/halberd frame 3: 3
+[17:38:29] [Worker-Main-23/WARN]: Unused frames in sprite spore:item/saber: [4]
+[17:38:29] [Worker-Main-2/WARN]: Unused frames in sprite spore:item/armads: [3]
+[17:38:29] [Worker-Main-1/WARN]: Invalid frame index on sprite spore:item/rapier frame 3: 3
+[17:38:29] [Worker-Main-19/WARN]: Invalid frame index on sprite spore:item/mace frame 2: 2
+[17:38:29] [Worker-Main-19/WARN]: Invalid frame index on sprite spore:item/mace frame 3: 3
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/cdu.json' missing model for variant: 'spore:cdu#facing=east,lit=false'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/cdu.json' missing model for variant: 'spore:cdu#facing=south,lit=false'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/cdu.json' missing model for variant: 'spore:cdu#facing=west,lit=false'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/cdu.json' missing model for variant: 'spore:cdu#facing=east,lit=true'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/cdu.json' missing model for variant: 'spore:cdu#facing=south,lit=true'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/cdu.json' missing model for variant: 'spore:cdu#facing=north,lit=true'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/cdu.json' missing model for variant: 'spore:cdu#facing=north,lit=false'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/cdu.json' missing model for variant: 'spore:cdu#facing=west,lit=true'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/cdu.json' in resourcepack: 'mod_resources': Expected variants to be a JsonObject, was an array ([{"m..."}])
+[17:38:29] [Worker-Main-11/WARN]: minecraft:fire
+java.io.FileNotFoundException: minecraft:models/fire.json
+	at net.minecraft.client.resources.model.ModelBakery.m_119364_(ModelBakery.java:417) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119362_(ModelBakery.java:262) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119341_(ModelBakery.java:243) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119306_(ModelBakery.java:384) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119263_(ModelBakery.java:143) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at com.google.common.collect.ImmutableList.forEach(ImmutableList.java:422) ~[guava-31.1-jre.jar%23109!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.<init>(ModelBakery.java:142) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelManager.m_246505_(ModelManager.java:83) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.concurrent.CompletableFuture.biApply(CompletableFuture.java:1311) ~[?:?]
+	at java.util.concurrent.CompletableFuture$BiApply.tryFire(CompletableFuture.java:1280) ~[?:?]
+	at java.util.concurrent.CompletableFuture$Completion.exec(CompletableFuture.java:483) ~[?:?]
+	at java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373) ~[?:?]
+	at java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182) ~[?:?]
+	at java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655) ~[?:?]
+	at java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622) ~[?:?]
+	at java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165) ~[?:?]
+[17:38:29] [Worker-Main-11/WARN]: minecraft:rotten_branch
+java.io.FileNotFoundException: minecraft:models/rotten_branch.json
+	at net.minecraft.client.resources.model.ModelBakery.m_119364_(ModelBakery.java:417) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119362_(ModelBakery.java:262) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119341_(ModelBakery.java:243) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119306_(ModelBakery.java:384) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119263_(ModelBakery.java:143) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at com.google.common.collect.ImmutableList.forEach(ImmutableList.java:422) ~[guava-31.1-jre.jar%23109!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.<init>(ModelBakery.java:142) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelManager.m_246505_(ModelManager.java:83) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.concurrent.CompletableFuture.biApply(CompletableFuture.java:1311) ~[?:?]
+	at java.util.concurrent.CompletableFuture$BiApply.tryFire(CompletableFuture.java:1280) ~[?:?]
+	at java.util.concurrent.CompletableFuture$Completion.exec(CompletableFuture.java:483) ~[?:?]
+	at java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373) ~[?:?]
+	at java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182) ~[?:?]
+	at java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655) ~[?:?]
+	at java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622) ~[?:?]
+	at java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165) ~[?:?]
+[17:38:29] [Worker-Main-11/WARN]: minecraft:biomass_lump
+java.io.FileNotFoundException: minecraft:models/biomass_lump.json
+	at net.minecraft.client.resources.model.ModelBakery.m_119364_(ModelBakery.java:417) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119362_(ModelBakery.java:262) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119341_(ModelBakery.java:243) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119306_(ModelBakery.java:384) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119263_(ModelBakery.java:143) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at com.google.common.collect.ImmutableList.forEach(ImmutableList.java:422) ~[guava-31.1-jre.jar%23109!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.<init>(ModelBakery.java:142) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelManager.m_246505_(ModelManager.java:83) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.concurrent.CompletableFuture.biApply(CompletableFuture.java:1311) ~[?:?]
+	at java.util.concurrent.CompletableFuture$BiApply.tryFire(CompletableFuture.java:1280) ~[?:?]
+	at java.util.concurrent.CompletableFuture$Completion.exec(CompletableFuture.java:483) ~[?:?]
+	at java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373) ~[?:?]
+	at java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182) ~[?:?]
+	at java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655) ~[?:?]
+	at java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622) ~[?:?]
+	at java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165) ~[?:?]
+[17:38:29] [Worker-Main-11/WARN]: minecraft:hospital_bed_top
+java.io.FileNotFoundException: minecraft:models/hospital_bed_top.json
+	at net.minecraft.client.resources.model.ModelBakery.m_119364_(ModelBakery.java:417) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119362_(ModelBakery.java:262) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119341_(ModelBakery.java:243) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119306_(ModelBakery.java:384) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119263_(ModelBakery.java:143) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at com.google.common.collect.ImmutableList.forEach(ImmutableList.java:422) ~[guava-31.1-jre.jar%23109!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.<init>(ModelBakery.java:142) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelManager.m_246505_(ModelManager.java:83) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.concurrent.CompletableFuture.biApply(CompletableFuture.java:1311) ~[?:?]
+	at java.util.concurrent.CompletableFuture$BiApply.tryFire(CompletableFuture.java:1280) ~[?:?]
+	at java.util.concurrent.CompletableFuture$Completion.exec(CompletableFuture.java:483) ~[?:?]
+	at java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373) ~[?:?]
+	at java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182) ~[?:?]
+	at java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655) ~[?:?]
+	at java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622) ~[?:?]
+	at java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165) ~[?:?]
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=0'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=1'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=2'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=3'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=13'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=14'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=15'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=8'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=9'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=10'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=11'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=12'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=4'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=5'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=6'
+[17:38:29] [Worker-Main-11/WARN]: Exception loading blockstate definition: 'spore:blockstates/bile.json' missing model for variant: 'spore:bile#level=7'
+[17:38:30] [Worker-Main-11/WARN]: integratedindustrialcraft:terrain_scanner#inventory
+java.io.FileNotFoundException: integratedindustrialcraft:models/item/terrain_scanner.json
+	at net.minecraft.client.resources.model.ModelBakery.m_119364_(ModelBakery.java:417) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119362_(ModelBakery.java:266) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119341_(ModelBakery.java:243) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.m_119306_(ModelBakery.java:384) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelBakery.<init>(ModelBakery.java:150) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.resources.model.ModelManager.m_246505_(ModelManager.java:83) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.concurrent.CompletableFuture.biApply(CompletableFuture.java:1311) ~[?:?]
+	at java.util.concurrent.CompletableFuture$BiApply.tryFire(CompletableFuture.java:1280) ~[?:?]
+	at java.util.concurrent.CompletableFuture$Completion.exec(CompletableFuture.java:483) ~[?:?]
+	at java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373) ~[?:?]
+	at java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182) ~[?:?]
+	at java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655) ~[?:?]
+	at java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622) ~[?:?]
+	at java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165) ~[?:?]
+[17:38:35] [Worker-Main-11/WARN]: Missing textures in model integratedindustrialcraft:ultimate_laser_turret#inventory:
+    minecraft:textures/atlas/blocks.png:integratedindustrialcraft:block/new_ultimate_laser_turret
+[17:38:38] [Render thread/WARN]: Mod 'gtceu' took 1.941 s to run a deferred task.
+[17:38:41] [Render thread/WARN]: Missing sound for event: minecraft:item.goat_horn.play
+[17:38:41] [Render thread/WARN]: Missing sound for event: minecraft:entity.goat.screaming.horn_break
+[17:38:41] [Render thread/INFO]: OpenAL initialized on device OpenAL Soft on 扬声器 (Realtek High Definition Audio)
+[17:38:41] [Render thread/INFO]: Sound engine started
+[17:38:41] [Render thread/INFO]: Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[17:38:41] [Render thread/INFO]: Created: 256x256x4 minecraft:textures/atlas/signs.png-atlas
+[17:38:41] [Render thread/INFO]: Created: 512x512x4 minecraft:textures/atlas/banner_patterns.png-atlas
+[17:38:41] [Render thread/INFO]: Created: 512x512x4 minecraft:textures/atlas/shield_patterns.png-atlas
+[17:38:41] [Render thread/INFO]: Created: 1024x1024x4 minecraft:textures/atlas/armor_trims.png-atlas
+[17:38:41] [Render thread/INFO]: Created: 256x256x4 minecraft:textures/atlas/chest.png-atlas
+[17:38:41] [Render thread/INFO]: Created: 128x64x4 minecraft:textures/atlas/decorated_pot.png-atlas
+[17:38:41] [Render thread/INFO]: Created: 512x256x4 minecraft:textures/atlas/beds.png-atlas
+[17:38:41] [Render thread/INFO]: Created: 512x256x4 minecraft:textures/atlas/shulker_boxes.png-atlas
+[17:38:41] [Render thread/INFO]: [IIC-Turrets] Shimmer detected, bloom effects enabled for lasers
+[17:38:42] [Render thread/INFO]: inject shader vsh particle.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_solid.
+[17:38:42] [Render thread/INFO]: inject shader fsh rendertype_solid.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_cutout_mipped.
+[17:38:42] [Render thread/INFO]: inject shader fsh rendertype_cutout_mipped.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_cutout.
+[17:38:42] [Render thread/INFO]: inject shader fsh rendertype_cutout.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_translucent.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_armor_cutout_no_cull.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_entity_solid.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_entity_cutout.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_entity_cutout_no_cull.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_entity_cutout_no_cull_z_offset.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_entity_translucent_cull.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_entity_translucent.
+[17:38:42] [Render thread/WARN]: Shader rendertype_entity_translucent_emissive could not find sampler named Sampler2 in the specified shader program.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_entity_smooth_cutout.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_entity_decal.
+[17:38:42] [Render thread/INFO]: inject shader vsh rendertype_entity_no_outline.
+[17:38:42] [Render thread/WARN]: Shader shimmer:rendertype_armor_cutout_no_cull could not find sampler named Sampler2 in the specified shader program.
+[17:38:42] [Render thread/WARN]: Shader shimmer:rendertype_armor_cutout_no_cull could not find uniform named Light0_Direction in the specified shader program.
+[17:38:42] [Render thread/WARN]: Shader shimmer:rendertype_armor_cutout_no_cull could not find uniform named Light1_Direction in the specified shader program.
+[17:38:42] [Render thread/INFO]: Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[17:38:42] [Render thread/INFO]: Created: 256x256x0 minecraft:textures/atlas/paintings.png-atlas
+[17:38:42] [Render thread/INFO]: Created: 256x128x0 minecraft:textures/atlas/mob_effects.png-atlas
+[17:38:42] [Render thread/INFO]: Created: 512x256x0 mekanism:textures/atlas/robit.png-atlas
+[17:38:42] [Render thread/INFO]: buildIn shimmer configuration is enabled, this can be disabled by config file
+[17:38:43] [Realms Notification Availability checker #1/INFO]: Could not authorize you against Realms server: javax.ws.rs.NotAuthorizedException: HTTP 401 Unauthorized
+[17:40:01] [Render thread/INFO]: Registering dungeon loot...
+[17:40:01] [Render thread/INFO]: GregTech Data loading took 9482ms
+[17:40:01] [Render thread/INFO]: Injecting existing registry data into this CLIENT instance
+[17:40:06] [Render thread/ERROR]: Parsing error loading recipe create:crushing/amethyst_dust
+com.google.gson.JsonSyntaxException: Invalid or unsupported recipe type 'create:crushing'
+	at net.minecraft.world.item.crafting.RecipeManager.m_220253_(RecipeManager.java:170) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.Optional.orElseThrow(Optional.java:403) ~[?:?]
+	at net.minecraft.world.item.crafting.RecipeManager.fromJson(RecipeManager.java:169) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.RecipeManager.m_5787_(RecipeManager.java:67) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.RecipeManager.m_5787_(RecipeManager.java:34) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.server.packs.resources.SimplePreparableReloadListener.m_10789_(SimplePreparableReloadListener.java:13) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.concurrent.CompletableFuture$UniAccept.tryFire(CompletableFuture.java:718) ~[?:?]
+	at java.util.concurrent.CompletableFuture$Completion.run(CompletableFuture.java:482) ~[?:?]
+	at net.minecraft.server.packs.resources.SimpleReloadInstance.m_143940_(SimpleReloadInstance.java:69) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_6367_(BlockableEventLoop.java:156) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.ReentrantBlockableEventLoop.m_6367_(ReentrantBlockableEventLoop.java:23) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_7245_(BlockableEventLoop.java:130) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_18701_(BlockableEventLoop.java:139) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_246486_(WorldOpenFlows.java:163) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233122_(WorldOpenFlows.java:113) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.doLoadLevel(WorldOpenFlows.java:181) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233145_(WorldOpenFlows.java:169) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233133_(WorldOpenFlows.java:65) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_101744_(WorldSelectionList.java:575) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_101704_(WorldSelectionList.java:474) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_6375_(WorldSelectionList.java:416) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.components.AbstractSelectionList.m_6375_(AbstractSelectionList.java:298) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.components.events.ContainerEventHandler.m_6375_(ContainerEventHandler.java:38) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_168084_(MouseHandler.java:92) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.Screen.m_96579_(Screen.java:437) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_91530_(MouseHandler.java:89) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_168091_(MouseHandler.java:189) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.execute(BlockableEventLoop.java:102) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_91565_(MouseHandler.java:188) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at org.lwjgl.glfw.GLFWMouseButtonCallbackI.callback(GLFWMouseButtonCallbackI.java:43) ~[lwjgl-glfw-3.3.1.jar%23141!/:build 7]
+	at org.lwjgl.system.JNI.invokeV(Native Method) ~[lwjgl-3.3.1.jar%23153!/:build 7]
+	at org.lwjgl.glfw.GLFW.glfwWaitEventsTimeout(GLFW.java:3474) ~[lwjgl-glfw-3.3.1.jar%23141!/:build 7]
+	at com.mojang.blaze3d.systems.RenderSystem.limitDisplayFPS(RenderSystem.java:237) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.Minecraft.m_91383_(Minecraft.java:1173) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.Minecraft.m_91374_(Minecraft.java:718) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.main.Main.main(Main.java:218) ~[Create%20New%20Horizon.jar:?]
+	at jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[?:?]
+	at jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[?:?]
+	at jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[?:?]
+	at java.lang.reflect.Method.invoke(Method.java:569) ~[?:?]
+	at net.minecraftforge.fml.loading.targets.CommonLaunchHandler.runTarget(CommonLaunchHandler.java:111) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at net.minecraftforge.fml.loading.targets.CommonLaunchHandler.clientService(CommonLaunchHandler.java:99) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at net.minecraftforge.fml.loading.targets.CommonClientLaunchHandler.lambda$makeService$0(CommonClientLaunchHandler.java:25) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandlerDecorator.launch(LaunchServiceHandlerDecorator.java:30) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandler.launch(LaunchServiceHandler.java:53) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandler.launch(LaunchServiceHandler.java:71) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.Launcher.run(Launcher.java:108) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.Launcher.main(Launcher.java:78) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.BootstrapLaunchConsumer.accept(BootstrapLaunchConsumer.java:26) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.BootstrapLaunchConsumer.accept(BootstrapLaunchConsumer.java:23) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.bootstraplauncher.BootstrapLauncher.main(BootstrapLauncher.java:141) ~[bootstraplauncher-1.1.2.jar:?]
+[17:40:06] [Render thread/ERROR]: Parsing error loading recipe create:pressing/compound_plate
+com.google.gson.JsonSyntaxException: Invalid or unsupported recipe type 'create:pressing'
+	at net.minecraft.world.item.crafting.RecipeManager.m_220253_(RecipeManager.java:170) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.Optional.orElseThrow(Optional.java:403) ~[?:?]
+	at net.minecraft.world.item.crafting.RecipeManager.fromJson(RecipeManager.java:169) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.RecipeManager.m_5787_(RecipeManager.java:67) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.RecipeManager.m_5787_(RecipeManager.java:34) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.server.packs.resources.SimplePreparableReloadListener.m_10789_(SimplePreparableReloadListener.java:13) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.concurrent.CompletableFuture$UniAccept.tryFire(CompletableFuture.java:718) ~[?:?]
+	at java.util.concurrent.CompletableFuture$Completion.run(CompletableFuture.java:482) ~[?:?]
+	at net.minecraft.server.packs.resources.SimpleReloadInstance.m_143940_(SimpleReloadInstance.java:69) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_6367_(BlockableEventLoop.java:156) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.ReentrantBlockableEventLoop.m_6367_(ReentrantBlockableEventLoop.java:23) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_7245_(BlockableEventLoop.java:130) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_18701_(BlockableEventLoop.java:139) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_246486_(WorldOpenFlows.java:163) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233122_(WorldOpenFlows.java:113) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.doLoadLevel(WorldOpenFlows.java:181) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233145_(WorldOpenFlows.java:169) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233133_(WorldOpenFlows.java:65) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_101744_(WorldSelectionList.java:575) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_101704_(WorldSelectionList.java:474) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_6375_(WorldSelectionList.java:416) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.components.AbstractSelectionList.m_6375_(AbstractSelectionList.java:298) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.components.events.ContainerEventHandler.m_6375_(ContainerEventHandler.java:38) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_168084_(MouseHandler.java:92) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.Screen.m_96579_(Screen.java:437) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_91530_(MouseHandler.java:89) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_168091_(MouseHandler.java:189) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.execute(BlockableEventLoop.java:102) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_91565_(MouseHandler.java:188) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at org.lwjgl.glfw.GLFWMouseButtonCallbackI.callback(GLFWMouseButtonCallbackI.java:43) ~[lwjgl-glfw-3.3.1.jar%23141!/:build 7]
+	at org.lwjgl.system.JNI.invokeV(Native Method) ~[lwjgl-3.3.1.jar%23153!/:build 7]
+	at org.lwjgl.glfw.GLFW.glfwWaitEventsTimeout(GLFW.java:3474) ~[lwjgl-glfw-3.3.1.jar%23141!/:build 7]
+	at com.mojang.blaze3d.systems.RenderSystem.limitDisplayFPS(RenderSystem.java:237) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.Minecraft.m_91383_(Minecraft.java:1173) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.Minecraft.m_91374_(Minecraft.java:718) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.main.Main.main(Main.java:218) ~[Create%20New%20Horizon.jar:?]
+	at jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[?:?]
+	at jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[?:?]
+	at jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[?:?]
+	at java.lang.reflect.Method.invoke(Method.java:569) ~[?:?]
+	at net.minecraftforge.fml.loading.targets.CommonLaunchHandler.runTarget(CommonLaunchHandler.java:111) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at net.minecraftforge.fml.loading.targets.CommonLaunchHandler.clientService(CommonLaunchHandler.java:99) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at net.minecraftforge.fml.loading.targets.CommonClientLaunchHandler.lambda$makeService$0(CommonClientLaunchHandler.java:25) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandlerDecorator.launch(LaunchServiceHandlerDecorator.java:30) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandler.launch(LaunchServiceHandler.java:53) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandler.launch(LaunchServiceHandler.java:71) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.Launcher.run(Launcher.java:108) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.Launcher.main(Launcher.java:78) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.BootstrapLaunchConsumer.accept(BootstrapLaunchConsumer.java:26) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.BootstrapLaunchConsumer.accept(BootstrapLaunchConsumer.java:23) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.bootstraplauncher.BootstrapLauncher.main(BootstrapLauncher.java:141) ~[bootstraplauncher-1.1.2.jar:?]
+[17:40:08] [Render thread/ERROR]: Parsing error loading recipe create:milling/amethyst_dust
+com.google.gson.JsonSyntaxException: Invalid or unsupported recipe type 'create:milling'
+	at net.minecraft.world.item.crafting.RecipeManager.m_220253_(RecipeManager.java:170) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.Optional.orElseThrow(Optional.java:403) ~[?:?]
+	at net.minecraft.world.item.crafting.RecipeManager.fromJson(RecipeManager.java:169) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.RecipeManager.m_5787_(RecipeManager.java:67) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.RecipeManager.m_5787_(RecipeManager.java:34) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.server.packs.resources.SimplePreparableReloadListener.m_10789_(SimplePreparableReloadListener.java:13) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.concurrent.CompletableFuture$UniAccept.tryFire(CompletableFuture.java:718) ~[?:?]
+	at java.util.concurrent.CompletableFuture$Completion.run(CompletableFuture.java:482) ~[?:?]
+	at net.minecraft.server.packs.resources.SimpleReloadInstance.m_143940_(SimpleReloadInstance.java:69) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_6367_(BlockableEventLoop.java:156) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.ReentrantBlockableEventLoop.m_6367_(ReentrantBlockableEventLoop.java:23) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_7245_(BlockableEventLoop.java:130) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_18701_(BlockableEventLoop.java:139) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_246486_(WorldOpenFlows.java:163) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233122_(WorldOpenFlows.java:113) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.doLoadLevel(WorldOpenFlows.java:181) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233145_(WorldOpenFlows.java:169) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233133_(WorldOpenFlows.java:65) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_101744_(WorldSelectionList.java:575) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_101704_(WorldSelectionList.java:474) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_6375_(WorldSelectionList.java:416) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.components.AbstractSelectionList.m_6375_(AbstractSelectionList.java:298) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.components.events.ContainerEventHandler.m_6375_(ContainerEventHandler.java:38) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_168084_(MouseHandler.java:92) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.Screen.m_96579_(Screen.java:437) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_91530_(MouseHandler.java:89) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_168091_(MouseHandler.java:189) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.execute(BlockableEventLoop.java:102) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_91565_(MouseHandler.java:188) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at org.lwjgl.glfw.GLFWMouseButtonCallbackI.callback(GLFWMouseButtonCallbackI.java:43) ~[lwjgl-glfw-3.3.1.jar%23141!/:build 7]
+	at org.lwjgl.system.JNI.invokeV(Native Method) ~[lwjgl-3.3.1.jar%23153!/:build 7]
+	at org.lwjgl.glfw.GLFW.glfwWaitEventsTimeout(GLFW.java:3474) ~[lwjgl-glfw-3.3.1.jar%23141!/:build 7]
+	at com.mojang.blaze3d.systems.RenderSystem.limitDisplayFPS(RenderSystem.java:237) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.Minecraft.m_91383_(Minecraft.java:1173) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.Minecraft.m_91374_(Minecraft.java:718) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.main.Main.main(Main.java:218) ~[Create%20New%20Horizon.jar:?]
+	at jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[?:?]
+	at jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[?:?]
+	at jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[?:?]
+	at java.lang.reflect.Method.invoke(Method.java:569) ~[?:?]
+	at net.minecraftforge.fml.loading.targets.CommonLaunchHandler.runTarget(CommonLaunchHandler.java:111) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at net.minecraftforge.fml.loading.targets.CommonLaunchHandler.clientService(CommonLaunchHandler.java:99) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at net.minecraftforge.fml.loading.targets.CommonClientLaunchHandler.lambda$makeService$0(CommonClientLaunchHandler.java:25) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandlerDecorator.launch(LaunchServiceHandlerDecorator.java:30) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandler.launch(LaunchServiceHandler.java:53) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandler.launch(LaunchServiceHandler.java:71) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.Launcher.run(Launcher.java:108) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.Launcher.main(Launcher.java:78) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.BootstrapLaunchConsumer.accept(BootstrapLaunchConsumer.java:26) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.BootstrapLaunchConsumer.accept(BootstrapLaunchConsumer.java:23) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.bootstraplauncher.BootstrapLauncher.main(BootstrapLauncher.java:141) ~[bootstraplauncher-1.1.2.jar:?]
+[17:40:08] [Render thread/ERROR]: Parsing error loading recipe farmersdelight:organic_compost_from_body_parts
+com.google.gson.JsonSyntaxException: Unknown item 'farmersdelight:straw'
+	at net.minecraft.world.item.crafting.ShapedRecipe.m_151280_(ShapedRecipe.java:292) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.Optional.orElseThrow(Optional.java:403) ~[?:?]
+	at net.minecraft.world.item.crafting.ShapedRecipe.m_151278_(ShapedRecipe.java:291) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.Ingredient.m_43919_(Ingredient.java:219) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraftforge.common.crafting.VanillaIngredientSerializer.parse(VanillaIngredientSerializer.java:27) ~[forge-1.20.1-47.4.2-universal.jar%23193!/:?]
+	at net.minecraftforge.common.crafting.CraftingHelper.getIngredient(CraftingHelper.java:148) ~[forge-1.20.1-47.4.2-universal.jar%23193!/:?]
+	at net.minecraft.world.item.crafting.Ingredient.m_288218_(Ingredient.java:194) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.ShapelessRecipe$Serializer.m_44275_(ShapelessRecipe.java:104) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.ShapelessRecipe$Serializer.m_6729_(ShapelessRecipe.java:89) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.ShapelessRecipe$Serializer.m_6729_(ShapelessRecipe.java:84) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraftforge.common.extensions.IForgeRecipeSerializer.fromJson(IForgeRecipeSerializer.java:23) ~[forge-1.20.1-47.4.2-universal.jar%23193!/:?]
+	at net.minecraft.world.item.crafting.RecipeManager.fromJson(RecipeManager.java:171) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.RecipeManager.m_5787_(RecipeManager.java:67) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.RecipeManager.m_5787_(RecipeManager.java:34) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.server.packs.resources.SimplePreparableReloadListener.m_10789_(SimplePreparableReloadListener.java:13) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.concurrent.CompletableFuture$UniAccept.tryFire(CompletableFuture.java:718) ~[?:?]
+	at java.util.concurrent.CompletableFuture$Completion.run(CompletableFuture.java:482) ~[?:?]
+	at net.minecraft.server.packs.resources.SimpleReloadInstance.m_143940_(SimpleReloadInstance.java:69) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_6367_(BlockableEventLoop.java:156) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.ReentrantBlockableEventLoop.m_6367_(ReentrantBlockableEventLoop.java:23) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_7245_(BlockableEventLoop.java:130) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_18701_(BlockableEventLoop.java:139) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_246486_(WorldOpenFlows.java:163) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233122_(WorldOpenFlows.java:113) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.doLoadLevel(WorldOpenFlows.java:181) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233145_(WorldOpenFlows.java:169) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233133_(WorldOpenFlows.java:65) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_101744_(WorldSelectionList.java:575) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_101704_(WorldSelectionList.java:474) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_6375_(WorldSelectionList.java:416) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.components.AbstractSelectionList.m_6375_(AbstractSelectionList.java:298) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.components.events.ContainerEventHandler.m_6375_(ContainerEventHandler.java:38) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_168084_(MouseHandler.java:92) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.Screen.m_96579_(Screen.java:437) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_91530_(MouseHandler.java:89) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_168091_(MouseHandler.java:189) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.execute(BlockableEventLoop.java:102) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_91565_(MouseHandler.java:188) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at org.lwjgl.glfw.GLFWMouseButtonCallbackI.callback(GLFWMouseButtonCallbackI.java:43) ~[lwjgl-glfw-3.3.1.jar%23141!/:build 7]
+	at org.lwjgl.system.JNI.invokeV(Native Method) ~[lwjgl-3.3.1.jar%23153!/:build 7]
+	at org.lwjgl.glfw.GLFW.glfwWaitEventsTimeout(GLFW.java:3474) ~[lwjgl-glfw-3.3.1.jar%23141!/:build 7]
+	at com.mojang.blaze3d.systems.RenderSystem.limitDisplayFPS(RenderSystem.java:237) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.Minecraft.m_91383_(Minecraft.java:1173) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.Minecraft.m_91374_(Minecraft.java:718) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.main.Main.main(Main.java:218) ~[Create%20New%20Horizon.jar:?]
+	at jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[?:?]
+	at jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[?:?]
+	at jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[?:?]
+	at java.lang.reflect.Method.invoke(Method.java:569) ~[?:?]
+	at net.minecraftforge.fml.loading.targets.CommonLaunchHandler.runTarget(CommonLaunchHandler.java:111) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at net.minecraftforge.fml.loading.targets.CommonLaunchHandler.clientService(CommonLaunchHandler.java:99) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at net.minecraftforge.fml.loading.targets.CommonClientLaunchHandler.lambda$makeService$0(CommonClientLaunchHandler.java:25) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandlerDecorator.launch(LaunchServiceHandlerDecorator.java:30) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandler.launch(LaunchServiceHandler.java:53) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandler.launch(LaunchServiceHandler.java:71) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.Launcher.run(Launcher.java:108) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.Launcher.main(Launcher.java:78) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.BootstrapLaunchConsumer.accept(BootstrapLaunchConsumer.java:26) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.BootstrapLaunchConsumer.accept(BootstrapLaunchConsumer.java:23) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.bootstraplauncher.BootstrapLauncher.main(BootstrapLauncher.java:141) ~[bootstraplauncher-1.1.2.jar:?]
+[17:40:08] [Render thread/ERROR]: Parsing error loading recipe create:mixing/compound
+com.google.gson.JsonSyntaxException: Invalid or unsupported recipe type 'create:mixing'
+	at net.minecraft.world.item.crafting.RecipeManager.m_220253_(RecipeManager.java:170) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.Optional.orElseThrow(Optional.java:403) ~[?:?]
+	at net.minecraft.world.item.crafting.RecipeManager.fromJson(RecipeManager.java:169) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.RecipeManager.m_5787_(RecipeManager.java:67) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.item.crafting.RecipeManager.m_5787_(RecipeManager.java:34) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.server.packs.resources.SimplePreparableReloadListener.m_10789_(SimplePreparableReloadListener.java:13) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.util.concurrent.CompletableFuture$UniAccept.tryFire(CompletableFuture.java:718) ~[?:?]
+	at java.util.concurrent.CompletableFuture$Completion.run(CompletableFuture.java:482) ~[?:?]
+	at net.minecraft.server.packs.resources.SimpleReloadInstance.m_143940_(SimpleReloadInstance.java:69) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_6367_(BlockableEventLoop.java:156) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.ReentrantBlockableEventLoop.m_6367_(ReentrantBlockableEventLoop.java:23) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_7245_(BlockableEventLoop.java:130) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.m_18701_(BlockableEventLoop.java:139) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_246486_(WorldOpenFlows.java:163) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233122_(WorldOpenFlows.java:113) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.doLoadLevel(WorldOpenFlows.java:181) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233145_(WorldOpenFlows.java:169) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldOpenFlows.m_233133_(WorldOpenFlows.java:65) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_101744_(WorldSelectionList.java:575) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_101704_(WorldSelectionList.java:474) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.worldselection.WorldSelectionList$WorldListEntry.m_6375_(WorldSelectionList.java:416) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.components.AbstractSelectionList.m_6375_(AbstractSelectionList.java:298) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.components.events.ContainerEventHandler.m_6375_(ContainerEventHandler.java:38) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_168084_(MouseHandler.java:92) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.gui.screens.Screen.m_96579_(Screen.java:437) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_91530_(MouseHandler.java:89) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_168091_(MouseHandler.java:189) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.util.thread.BlockableEventLoop.execute(BlockableEventLoop.java:102) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.MouseHandler.m_91565_(MouseHandler.java:188) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at org.lwjgl.glfw.GLFWMouseButtonCallbackI.callback(GLFWMouseButtonCallbackI.java:43) ~[lwjgl-glfw-3.3.1.jar%23141!/:build 7]
+	at org.lwjgl.system.JNI.invokeV(Native Method) ~[lwjgl-3.3.1.jar%23153!/:build 7]
+	at org.lwjgl.glfw.GLFW.glfwWaitEventsTimeout(GLFW.java:3474) ~[lwjgl-glfw-3.3.1.jar%23141!/:build 7]
+	at com.mojang.blaze3d.systems.RenderSystem.limitDisplayFPS(RenderSystem.java:237) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.Minecraft.m_91383_(Minecraft.java:1173) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.Minecraft.m_91374_(Minecraft.java:718) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.main.Main.main(Main.java:218) ~[Create%20New%20Horizon.jar:?]
+	at jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[?:?]
+	at jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[?:?]
+	at jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[?:?]
+	at java.lang.reflect.Method.invoke(Method.java:569) ~[?:?]
+	at net.minecraftforge.fml.loading.targets.CommonLaunchHandler.runTarget(CommonLaunchHandler.java:111) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at net.minecraftforge.fml.loading.targets.CommonLaunchHandler.clientService(CommonLaunchHandler.java:99) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at net.minecraftforge.fml.loading.targets.CommonClientLaunchHandler.lambda$makeService$0(CommonClientLaunchHandler.java:25) ~[fmlloader-1.20.1-47.4.2.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandlerDecorator.launch(LaunchServiceHandlerDecorator.java:30) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandler.launch(LaunchServiceHandler.java:53) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.LaunchServiceHandler.launch(LaunchServiceHandler.java:71) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.Launcher.run(Launcher.java:108) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.Launcher.main(Launcher.java:78) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.BootstrapLaunchConsumer.accept(BootstrapLaunchConsumer.java:26) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.modlauncher.BootstrapLaunchConsumer.accept(BootstrapLaunchConsumer.java:23) ~[modlauncher-10.0.9.jar:?]
+	at cpw.mods.bootstraplauncher.BootstrapLauncher.main(BootstrapLauncher.java:141) ~[bootstraplauncher-1.1.2.jar:?]
+[17:40:08] [Render thread/INFO]: Loaded 93 recipes
+[17:40:09] [Render thread/INFO]: Loaded 1472 advancements
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zombie as entity.minecraft.zombie with weight 35, min day 0 and max day 20
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zombie_villager as entity.minecraft.zombie_villager with weight 1, min day 0 and max day 20
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zombie_horse as entity.minecraft.zombie_horse with weight 3, min day 20 and max day 40
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:husk as entity.minecraft.husk with weight 40, min day 20 and max day 40
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:drowned as entity.minecraft.drowned with weight 3, min day 30 and max day 40
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zoglin as entity.minecraft.zoglin with weight 3, min day 40 and max day 40
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zombified_piglin as entity.minecraft.zombified_piglin with weight 10, min day 40 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:husk as entity.minecraft.husk with weight 25, min day 50 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zoglin as entity.minecraft.zoglin with weight 3, min day 50 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zombie_horse as entity.minecraft.zombie_horse with weight 3, min day 50 and max day 0
+[17:40:09] [Render thread/INFO]: loaded horde table hordes:default
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:drowned as entity.minecraft.drowned with weight 40, min day 0 and max day 20
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:drowned as entity.minecraft.drowned with weight 3, min day 30 and max day 40
+[17:40:09] [Render thread/INFO]: loaded horde table hordes:drowned
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zombie as entity.minecraft.zombie with weight 20, min day 0 and max day 20
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:skeleton as entity.minecraft.skeleton with weight 10, min day 20 and max day 30
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:spider as entity.minecraft.spider with weight 15, min day 20 and max day 30
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:creeper as entity.minecraft.creeper with weight 5, min day 30 and max day 30
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:husk as entity.minecraft.husk with weight 20, min day 30 and max day 50
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:stray as entity.minecraft.stray with weight 10, min day 40 and max day 50
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:cave_spider as entity.minecraft.cave_spider with weight 10, min day 40 and max day 50
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:witch as entity.minecraft.witch with weight 5, min day 40 and max day 50
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:pillager as entity.minecraft.pillager with weight 10, min day 40 and max day 50
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zombified_piglin as entity.minecraft.zombified_piglin with weight 10, min day 40 and max day 50
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zombie_horse as entity.minecraft.zombie_horse with weight 3, min day 40 and max day 50
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:wither_skeleton as entity.minecraft.wither_skeleton with weight 10, min day 50 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:phantom as entity.minecraft.phantom with weight 5, min day 50 and max day 50
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:vindicator as entity.minecraft.vindicator with weight 10, min day 50 and max day 50
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zoglin as entity.minecraft.zoglin with weight 5, min day 40 and max day 40
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:ravager as entity.minecraft.ravager with weight 5, min day 50 and max day 50
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:evoker as entity.minecraft.evoker with weight 5, min day 50 and max day 50
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:piglin_brute as entity.minecraft.piglin_brute with weight 10, min day 60 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:cave_spider as entity.minecraft.cave_spider with weight 15, min day 60 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zombie_horse as entity.minecraft.zombie_horse with weight 5, min day 60 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:ravager as entity.minecraft.ravager with weight 3, min day 60 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:phantom as entity.minecraft.phantom with weight 3, min day 60 and max day 0
+[17:40:09] [Render thread/INFO]: loaded horde table hordes:mixed_mobs
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:pillager as entity.minecraft.pillager with weight 15, min day 0 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:vindicator as entity.minecraft.vindicator with weight 10, min day 0 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:witch as entity.minecraft.witch with weight 5, min day 20 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:ravager as entity.minecraft.ravager with weight 5, min day 30 and max day 40
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:evoker as entity.minecraft.evoker with weight 3, min day 40 and max day 40
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:illusioner as entity.minecraft.illusioner with weight 5, min day 50 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:ravager as entity.minecraft.ravager with weight 3, min day 50 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:ravager as entity.minecraft.ravager with weight 5, min day 50 and max day 0
+[17:40:09] [Render thread/INFO]: loaded horde table hordes:illagers
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:skeleton as entity.minecraft.skeleton with weight 10, min day 0 and max day 20
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:skeleton as entity.minecraft.skeleton with weight 20, min day 0 and max day 30
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:skeleton_horse as entity.minecraft.skeleton_horse with weight 5, min day 20 and max day 50
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:stray as entity.minecraft.stray with weight 10, min day 20 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:wither_skeleton as entity.minecraft.wither_skeleton with weight 10, min day 40 and max day 0
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:skeleton_horse as entity.minecraft.skeleton_horse with weight 5, min day 40 and max day 0
+[17:40:09] [Render thread/INFO]: loaded horde table hordes:skeletons
+[17:40:09] [Render thread/INFO]: Loaded entity minecraft:zombie as entity.minecraft.zombie with weight 30, min day 0 and max day 0
+[17:40:09] [Render thread/INFO]: loaded horde table hordes:fallback
+[17:40:09] [Render thread/INFO]: loaded horde script hordes:default
+[17:40:09] [Render thread/INFO]: Loading conversion tables
+[17:40:09] [Render thread/INFO]: Loading conversion table hordes:infection_conversions
+[17:40:09] [Render thread/INFO]: Loaded conversion entity.minecraft.horse to entity.minecraft.zombie_horse with chance of 0.65
+[17:40:09] [Render thread/INFO]: Loaded conversion entity.minecraft.piglin to entity.minecraft.zombified_piglin with chance of 0.75
+[17:40:09] [Render thread/INFO]: Loaded conversion entity.minecraft.piglin_brute to entity.minecraft.zombified_piglin{Attributes:[{Base:50.0f,Name:"generic.max_health"}],chat_name:"entity.hordes.ZombifiedPiglinBrute.name",texture:"hordes:textures/entity/zombified_piglin_brute.png"} with chance of 0.35
+[17:40:09] [Render thread/INFO]: Loaded conversion entity.minecraft.hoglin to entity.minecraft.zoglin with chance of 0.15
+[17:40:09] [Render thread/INFO]: Loaded conversion entity.minecraft.wandering_trader to entity.minecraft.zombie_villager{VillagerData:{type:"none"},chat_name:"entity.hordes.ZombieWanderingTrader.name",texture:"hordes:textures/entity/zombie_wandering_trader.png"} with chance of 0.75
+[17:40:09] [Render thread/INFO]: Loaded conversion entity.minecraft.pillager to entity.minecraft.zombie_villager{Attributes:[{Base:24.0f,Name:"generic.max_health"}],VillagerData:{type:"none"},chat_name:"entity.hordes.ZombiePillager.name",texture:"hordes:textures/entity/zombie_pillager.png"} with chance of 0.75
+[17:40:09] [Render thread/INFO]: Loaded conversion entity.minecraft.vindicator to entity.minecraft.zombie_villager{Attributes:[{Base:24.0f,Name:"generic.max_health"}],VillagerData:{type:"none"},chat_name:"entity.hordes.ZombieVindicator.name",texture:"hordes:textures/entity/zombie_vindicator.png"} with chance of 0.35
+[17:40:09] [Render thread/INFO]: Loaded conversion entity.minecraft.evoker to entity.minecraft.zombie_villager{Attributes:[{Base:24.0f,Name:"generic.max_health"}],VillagerData:{type:"none"},chat_name:"entity.hordes.ZombieEvoker.name",texture:"hordes:textures/entity/zombie_evoker.png"} with chance of 0.5
+[17:40:09] [Render thread/INFO]: Loaded conversion entity.minecraft.illusioner to entity.minecraft.zombie_villager{Attributes:[{Base:32.0f,Name:"generic.max_health"}],VillagerData:{type:"none"},chat_name:"entity.hordes.ZombieIllusioner.name",texture:"hordes:textures/entity/zombie_illusioner.png"} with chance of 0.15
+[17:40:09] [Render thread/INFO]: Loaded conversion entity.minecraft.witch to entity.minecraft.zombie_villager{Attributes:[{Base:26.0f,Name:"generic.max_health"}],VillagerData:{type:"none"},chat_name:"entity.hordes.ZombieWitch.name",texture:"hordes:textures/entity/zombie_witch.png"} with chance of 0.25
+[17:40:09] [Render thread/INFO]: Loading immunity item list
+[17:40:09] [Render thread/INFO]: Loading immunity item list hordes:immunity_items
+[17:40:09] [Render thread/INFO]: Loaded immunity item minecraft:enchanted_golden_apple with duration 150
+[17:40:09] [Render thread/INFO]: Loading wearables protection list
+[17:40:09] [Render thread/INFO]: Loading wearables protection list hordes:immune_wearables
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:leather_boots with modifier 0.95
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:leather_leggings with modifier 0.95
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:leather_chestplate with modifier 0.95
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:leather_helmet with modifier 0.95
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:chainmail_boots with modifier 0.95
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:chainmail_leggings with modifier 0.95
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:chainmail_chestplate with modifier 0.95
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:chainmail_helmet with modifier 0.95
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:iron_boots with modifier 0.9
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:iron_leggings with modifier 0.9
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:iron_chestplate with modifier 0.9
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:iron_helmet with modifier 0.9
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:golden_boots with modifier 0.9
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:golden_leggings with modifier 0.9
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:golden_chestplate with modifier 0.9
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:golden_helmet with modifier 0.9
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:diamond_boots with modifier 0.86
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:diamond_leggings with modifier 0.86
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:diamond_chestplate with modifier 0.86
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:diamond_helmet with modifier 0.86
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:netherite_boots with modifier 0.82
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:netherite_leggings with modifier 0.82
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:netherite_chestplate with modifier 0.82
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:netherite_helmet with modifier 0.82
+[17:40:09] [Render thread/INFO]: Loaded wearable protection minecraft:turtle_helmet with modifier 0.75
+[17:40:11] [Server thread/INFO]: Starting integrated minecraft server version 1.20.1
+[17:40:11] [Server thread/INFO]: Generating keypair
+[17:40:12] [Server thread/ERROR]: Unknown registry key in gtceu:ore_vein: ctnhcore:kaolinite_vein
+[17:40:12] [Server thread/ERROR]: Error loading saved data: gtceu_ore_vein_cache
+java.lang.RuntimeException: Unknown registry key in gtceu:ore_vein: ctnhcore:kaolinite_vein
+	at com.mojang.serialization.DataResult.lambda$getOrThrow$5(DataResult.java:101) ~[datafixerupper-6.0.8.jar%23114!/:?]
+	at com.mojang.datafixers.util.Either$Right.map(Either.java:99) ~[datafixerupper-6.0.8.jar%23114!/:?]
+	at com.mojang.serialization.DataResult.getOrThrow(DataResult.java:93) ~[datafixerupper-6.0.8.jar%23114!/:?]
+	at com.gregtechceu.gtceu.integration.map.cache.GridCache.fromNBT(GridCache.java:42) ~[gtceu-1.20.1-7.2.0.jar%23176!/:7.2.0]
+	at com.gregtechceu.gtceu.integration.map.cache.DimensionCache.fromNBT(DimensionCache.java:52) ~[gtceu-1.20.1-7.2.0.jar%23176!/:7.2.0]
+	at com.gregtechceu.gtceu.integration.map.cache.server.ServerCacheSavedData.<init>(ServerCacheSavedData.java:42) ~[gtceu-1.20.1-7.2.0.jar%23176!/:7.2.0]
+	at com.gregtechceu.gtceu.integration.map.cache.server.ServerCacheSavedData.lambda$init$0(ServerCacheSavedData.java:20) ~[gtceu-1.20.1-7.2.0.jar%23176!/:7.2.0]
+	at net.minecraft.world.level.storage.DimensionDataStorage.m_164868_(DimensionDataStorage.java:70) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.level.storage.DimensionDataStorage.m_164858_(DimensionDataStorage.java:54) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.world.level.storage.DimensionDataStorage.m_164861_(DimensionDataStorage.java:39) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at com.gregtechceu.gtceu.integration.map.cache.server.ServerCacheSavedData.init(ServerCacheSavedData.java:20) ~[gtceu-1.20.1-7.2.0.jar%23176!/:7.2.0]
+	at com.gregtechceu.gtceu.integration.map.cache.server.ServerCache.maybeInitWorld(ServerCache.java:34) ~[gtceu-1.20.1-7.2.0.jar%23176!/:7.2.0]
+	at com.gregtechceu.gtceu.forge.ForgeCommonEventListener.worldLoad(ForgeCommonEventListener.java:276) ~[gtceu-1.20.1-7.2.0.jar%23176!/:7.2.0]
+	at com.gregtechceu.gtceu.forge.__ForgeCommonEventListener_worldLoad_Load.invoke(.dynamic) ~[gtceu-1.20.1-7.2.0.jar%23176!/:7.2.0]
+	at net.minecraftforge.eventbus.ASMEventHandler.invoke(ASMEventHandler.java:73) ~[eventbus-6.0.5.jar%2387!/:?]
+	at net.minecraftforge.eventbus.EventBus.post(EventBus.java:315) ~[eventbus-6.0.5.jar%2387!/:?]
+	at net.minecraftforge.eventbus.EventBus.post(EventBus.java:296) ~[eventbus-6.0.5.jar%2387!/:?]
+	at net.minecraft.server.MinecraftServer.m_129815_(MinecraftServer.java:343) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.server.MinecraftServer.m_130006_(MinecraftServer.java:308) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.client.server.IntegratedServer.m_7038_(IntegratedServer.java:63) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.server.MinecraftServer.m_130011_(MinecraftServer.java:634) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at net.minecraft.server.MinecraftServer.m_206580_(MinecraftServer.java:251) ~[client-1.20.1-20230612.114412-srg.jar%23188!/:?]
+	at java.lang.Thread.run(Thread.java:840) ~[?:?]
+[17:40:12] [Server thread/INFO]: Preparing start region for dimension minecraft:overworld
+[17:40:15] [Render thread/INFO]: 准备生成区域中：0%
+[17:40:15] [Render thread/INFO]: 准备生成区域中：0%
+[17:40:15] [Render thread/INFO]: 准备生成区域中：0%
+[17:40:15] [Render thread/INFO]: 准备生成区域中：0%
+[17:40:15] [Render thread/INFO]: 准备生成区域中：0%
+[17:40:15] [Render thread/INFO]: 准备生成区域中：0%
+[17:40:15] [Render thread/INFO]: 准备生成区域中：0%
+[17:40:15] [Render thread/INFO]: 准备生成区域中：0%
+[17:40:16] [Render thread/INFO]: 准备生成区域中：1%
+[17:40:16] [Render thread/INFO]: 准备生成区域中：24%
+[17:40:17] [Render thread/INFO]: 准备生成区域中：61%
+[17:40:17] [Render thread/INFO]: 准备生成区域中：91%
+[17:40:18] [Render thread/INFO]: Time elapsed: 5813 ms
+[17:40:18] [Server thread/INFO]: Successfully initialized permission handler forge:default_handler
+[17:40:18] [Server thread/INFO]: [IIC-Hordes] The Hordes detected, integration enabled
+[17:40:18] [Server thread/INFO]: Changing view distance to 5, from 10
+[17:40:18] [Server thread/INFO]: Changing simulation distance to 8, from 0
+[17:40:18] [Server thread/WARN]: Failed to retrieve username for UUID 380df991-f603-344c-a090-369bad2a924a, you might want to add it to the JSON cache
+[17:40:18] [Render thread/WARN]: Unable to parse the boolean system property 'java.net.preferIPv6Addresses':system - using the default value: false
+[17:40:20] [Netty Local Client IO #0/INFO]: Connected to a modded server.
+[17:40:20] [Server thread/INFO]: CharlesKo[local:E:68c6013f] logged in with entity id 231 at (-288.15474706539425, -37.0, 1209.9866325764053)
+[17:40:20] [Server thread/INFO]: CharlesKo加入了游戏
+[17:40:20] [Render thread/WARN]: Unknown recipe category: [!!!com.mojang.logging.LogUtils$1ToString@5fa500ae=>java.lang.NullPointerException:Cannot invoke "Object.toString()" because the return value of "java.util.function.Supplier.get()" is null!!!]/spore:flesh_helmet_recipe_surgery
+[17:40:23] [Render thread/INFO]: Loaded 139 advancements
+[17:40:24] [Server thread/INFO]: Saving and pausing game...
+[17:40:24] [Server thread/INFO]: Saving chunks for level 'ServerLevel[新的世界]'/minecraft:overworld
+[17:40:25] [Server thread/INFO]: Saving chunks for level 'ServerLevel[新的世界]'/minecraft:the_nether
+[17:40:25] [Server thread/INFO]: Saving chunks for level 'ServerLevel[新的世界]'/minecraft:the_end
+[17:40:55] [Server thread/INFO]: [PollutionVisuals] Debug logging ENABLED
+[17:40:55] [Server thread/INFO]: [CharlesKo: §a[污染视觉] 调试日志已开启]
+[17:40:55] [Render thread/INFO]: [System] [CHAT] §a[污染视觉] 调试日志已开启
+[17:40:58] [Render thread/INFO]: [System] [CHAT] §b=== Pollution Visual Effects Diagnostics ===\nEnhancedVisuals Integration: ACTIVE (Mixin-based)\nDebug Enabled: true\nActive Cooldowns: 0\nThresholds:\n  - Light: 50.0\n  - Moderate: 100.0\n  - Heavy: 150.0\n  - Severe: 200.0\n
+[17:41:06] [Render thread/INFO]: [System] [CHAT] §6[Pollution Visual] Triggering 'light' effect...
+[17:41:06] [Render thread/INFO]: [DEBUG] Triggering test effect 'light' for CharlesKo
+[17:41:06] [Render thread/INFO]: [System] [CHAT] §a[Pollution Visual] Effect 'light' triggered successfully!
+[17:41:10] [Render thread/INFO]: [System] [CHAT] §6[Pollution Visual] Triggering 'light' effect...
+[17:41:10] [Render thread/INFO]: [DEBUG] Triggering test effect 'light' for CharlesKo
+[17:41:10] [Render thread/INFO]: [System] [CHAT] §a[Pollution Visual] Effect 'light' triggered successfully!
+[17:41:14] [Render thread/INFO]: [System] [CHAT] §6[Pollution Visual] Triggering 'severe' effect...
+[17:41:14] [Render thread/INFO]: [DEBUG] Triggering test effect 'severe' for CharlesKo
+[17:41:14] [Render thread/INFO]: [System] [CHAT] §a[Pollution Visual] Effect 'severe' triggered successfully!
+[17:41:19] [Render thread/INFO]: [System] [CHAT] §6[Pollution Visual] Triggering 'heavy' effect...
+[17:41:19] [Render thread/INFO]: [DEBUG] Triggering test effect 'heavy' for CharlesKo
+[17:41:19] [Render thread/INFO]: [System] [CHAT] §a[Pollution Visual] Effect 'heavy' triggered successfully!
+[17:41:35] [Render thread/INFO]: Stopping!
+[17:41:35] [Server thread/INFO]: CharlesKo lost connection: 连接中断
+[17:41:35] [Server thread/INFO]: CharlesKo退出了游戏
+[17:41:35] [Server thread/INFO]: Stopping singleplayer server as player logged out
+[17:41:35] [Server thread/INFO]: Stopping server
+[17:41:35] [Server thread/INFO]: Saving players
+[17:41:35] [Server thread/INFO]: Saving worlds
+[17:41:36] [Server thread/INFO]: Saving chunks for level 'ServerLevel[新的世界]'/minecraft:overworld
+[17:41:36] [Server thread/INFO]: Saving chunks for level 'ServerLevel[新的世界]'/minecraft:the_nether
+[17:41:36] [Server thread/INFO]: Saving chunks for level 'ServerLevel[新的世界]'/minecraft:the_end
+[17:41:36] [Server thread/INFO]: ThreadedAnvilChunkStorage (新的世界): All chunks are saved
+[17:41:36] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[17:41:36] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[17:41:36] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved

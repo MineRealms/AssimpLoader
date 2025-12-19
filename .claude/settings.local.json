@@ -38,13 +38,19 @@
       "Bash(unzip -l build/libs/integratedindustrialcraft-1.0.0.jar)",
       "Bash(unzip -p build/libs/integratedindustrialcraft-1.0.0.jar META-INF/mods.toml)",
       "Bash(./gradlew jar:*)",
-      "Bash(./gradlew compileJava --offline --no-daemon)"
+      "Bash(./gradlew compileJava --offline --no-daemon)",
+      "Bash(unzip -l \"H:\\\\MinecraftMods\\\\ImprovedMobs\\\\build\\\\libs/\"*.jar)",
+      "Bash(./gradlew tasks:*)",
+      "Bash(unzip -l \"G:/MinecraftGames/CTNH-BaopuEdition/.minecraft/versions/Create New Horizon/mods/EnhancedVisuals_FORGE_v1.8.2_mc1.20.1.jar\")",
+      "Bash(unzip:*)",
+      "Bash(javap -cp \"G:/MinecraftGames/CTNH-BaopuEdition/.minecraft/versions/Create New Horizon/mods/EnhancedVisuals_FORGE_v1.8.2_mc1.20.1.jar\" team.creative.enhancedvisuals.client.VisualManager)"
     ],
     "additionalDirectories": [
       "H:\\MinecraftMods\\Spore\\Spore_2.0_1.20.1",
       "H:\\MinecraftMods\\GregTech-Modern",
       "H:\\MinecraftMods\\ImprovedMobsOrigin\\ImprovedMobs",
-      "H:\\MinecraftMods\\Shimmer"
+      "H:\\MinecraftMods\\Shimmer",
+      "H:\\MinecraftMods\\EnhancedVisuals"
     ]
   }
 }

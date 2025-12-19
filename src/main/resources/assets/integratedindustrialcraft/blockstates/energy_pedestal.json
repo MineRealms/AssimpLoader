@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "integratedindustrialcraft:block/energy_pedestal"
+    },
+    "facing=up": {
+      "model": "integratedindustrialcraft:block/energy_pedestal",
+      "x": 180
+    },
+    "facing=north": {
+      "model": "integratedindustrialcraft:block/energy_pedestal",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "integratedindustrialcraft:block/energy_pedestal",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west": {
+      "model": "integratedindustrialcraft:block/energy_pedestal",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east": {
+      "model": "integratedindustrialcraft:block/energy_pedestal",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

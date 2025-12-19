@@ -2,6 +2,7 @@ package cn.minerealms.iic.forge;
 
 import cn.minerealms.iic.commands.ImprovedMobsCommand;
 import cn.minerealms.iic.industrial.IndustrialDifficultyManager;
+import cn.minerealms.iic.industrial.HordeIntegrationManager;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
@@ -27,6 +28,11 @@ public class EventHandler {
             // Tick for each player
             event.getServer().getPlayerList().getPlayers().forEach(player -> {
                 IndustrialDifficultyManager.tick(player);
+            });
+
+            // Tick Hordes integration for each level
+            event.getServer().getAllLevels().forEach(level -> {
+                HordeIntegrationManager.tick(level);
             });
         }
     }

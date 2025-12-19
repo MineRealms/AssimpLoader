@@ -115,11 +115,21 @@ public class DifficultyHudRenderer {
         if (data.activeHiveminds > 0 || data.infectionLevel > 0) {
             lines.add(new HudLine("§d[" + I18n.get("integratedindustrialcraft.hud.spore") + "]", 0xFF55FF));
             lines.add(new HudLine(String.format("§e%s: §f%d", I18n.get("integratedindustrialcraft.hud.hiveminds"), data.activeHiveminds), 0xFFFF55));
-            lines.add(new HudLine(String.format("§e%s: §f%d", I18n.get("integratedindustrialcraft.hud.evolution"), data.evolutionPhase), 0xFFFF55));
+            lines.add(new HudLine(String.format("§e%s: §f%d/10", I18n.get("integratedindustrialcraft.hud.evolution"), data.evolutionPhase), 0xFFFF55));
             lines.add(new HudLine(String.format("§e%s: §f%.1f%%", I18n.get("integratedindustrialcraft.hud.infection"), data.infectionLevel), 0xFFFF55));
             lines.add(new HudLine(String.format("§e%s: §f%d", I18n.get("integratedindustrialcraft.hud.biomass"), data.totalBiomass), 0xFFFF55));
+            lines.add(new HudLine(String.format("§e%s: §f%d", I18n.get("integratedindustrialcraft.hud.hosts"), data.totalHosts), 0xFFFF55));
             lines.add(new HudLine(String.format("§e%s: §f%d", I18n.get("integratedindustrialcraft.hud.infected_chunks"), data.infectedChunks), 0xFFFF55));
-            lines.add(new HudLine(String.format("§e%s: §f%.3fx", I18n.get("integratedindustrialcraft.hud.multiplier"), data.sporeMultiplier), 0xFFFF55));
+            lines.add(new HudLine(String.format("§e%s: §f%.2fx", I18n.get("integratedindustrialcraft.hud.multiplier"), data.sporeMultiplier), 0xFFFF55));
+
+            // Evolution breakdown (debug info)
+            if (data.evolutionPhase > 0) {
+                String evolutionColor = getEvolutionColor(data.evolutionPhase);
+                String evolutionDesc = getEvolutionDescription(data.evolutionPhase);
+                lines.add(new HudLine(String.format("  §7%s: %s%s",
+                    I18n.get("integratedindustrialcraft.hud.threat_level"),
+                    evolutionColor, evolutionDesc), 0xAAAAAA));
+            }
         }
 
         return lines;
@@ -162,6 +172,28 @@ public class DifficultyHudRenderer {
             case "integratedindustrialcraft.pollution.catastrophic" -> "§4";
             default -> "§7";
         };
+    }
+
+    /**
+     * 获取进化阶段颜色
+     */
+    private static String getEvolutionColor(int phase) {
+        if (phase <= 2) return "§a";  // Green: Low threat
+        if (phase <= 4) return "§2";  // Dark green: Moderate
+        if (phase <= 6) return "§e";  // Yellow: Elevated
+        if (phase <= 8) return "§6";  // Gold: High
+        return "§c";  // Red: Critical
+    }
+
+    /**
+     * 获取进化阶段描述
+     */
+    private static String getEvolutionDescription(int phase) {
+        if (phase <= 2) return I18n.get("integratedindustrialcraft.evolution.low");
+        if (phase <= 4) return I18n.get("integratedindustrialcraft.evolution.moderate");
+        if (phase <= 6) return I18n.get("integratedindustrialcraft.evolution.elevated");
+        if (phase <= 8) return I18n.get("integratedindustrialcraft.evolution.high");
+        return I18n.get("integratedindustrialcraft.evolution.critical");
     }
 
     private static class HudLine {

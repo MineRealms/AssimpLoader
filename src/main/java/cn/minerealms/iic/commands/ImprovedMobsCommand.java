@@ -34,6 +34,10 @@ public class ImprovedMobsCommand {
         HudCommands.register(dispatcher);
         SporeDebugCommand.register(dispatcher);  // 注册 Spore 调试命令
         IndustrialDebugCommand.register(dispatcher);  // 注册工业集成调试命令
+        HordesCommands.register(dispatcher);  // 注册 Hordes 集成命令
+        PollutionVisualCommand.register(dispatcher);  // 注册污染视觉效果命令
+        VisualTestCommand.register(dispatcher);  // 注册视觉效果测试命令
+        MixinStatusCommand.register(dispatcher);  // 注册 Mixin 状态检查命令
 
         // 主指令
         dispatcher.register(Commands.literal("im")
@@ -83,9 +87,14 @@ public class ImprovedMobsCommand {
         ctx.getSource().sendSuccess(() -> Component.literal("§e/im industrial §7- Industrial integration debug"), false);
         ctx.getSource().sendSuccess(() -> Component.literal("§e/im spore debug §7- Toggle Spore debug info"), false);
         ctx.getSource().sendSuccess(() -> Component.literal("§e/im spore diagnose §7- Diagnose Spore API"), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("§e/im hordes §7- Hordes integration commands"), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("§e/im visual §7- Visual effects testing"), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("§e/im mixin §7- Mixin status and verification"), false);
         ctx.getSource().sendSuccess(() -> Component.literal(""), false);
         ctx.getSource().sendSuccess(() -> Component.literal("§7Use §e/im config §7for detailed config options"), false);
         ctx.getSource().sendSuccess(() -> Component.literal("§7Use §e/im industrial §7for GT/Spore integration debug"), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("§7Use §e/im hordes status §7for horde system status"), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("§7Use §e/im visual check §7to verify EnhancedVisuals integration"), false);
         return 1;
     }
 

@@ -47,11 +47,10 @@ public class HudCommands {
             // 发送空数据包，只更新显示状态
             SyncHudDataPacket packet = new SyncHudDataPacket(
                     0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0, 0.0, 0.0,
-                    0, 0, 0.0f, 0, 0, 0.0,
+                    0, 0, 0.0f, 0, 0, 0, 0.0,
                     0.0, "SAFE", 0.0, newState
             );
             PacketHandler.sendHudDataToPlayer(packet, player);
-cn.minerealms.iic.network.PacketHandler.sendHudDataToPlayer(packet, player);
             String status = newState ? "§aON" : "§cOFF";
             ctx.getSource().sendSuccess(() ->
                     Component.literal(String.format("§6Difficulty HUD: %s", status)), false);
@@ -71,7 +70,7 @@ cn.minerealms.iic.network.PacketHandler.sendHudDataToPlayer(packet, player);
 
             SyncHudDataPacket packet = new SyncHudDataPacket(
                     0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0, 0.0, 0.0,
-                    0, 0, 0.0f, 0, 0, 0.0,
+                    0, 0, 0.0f, 0, 0, 0, 0.0,
                     0.0, "SAFE", 0.0, enabled
             );
             PacketHandler.sendHudDataToPlayer(packet, player);

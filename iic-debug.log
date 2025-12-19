@@ -1,0 +1,14 @@
+[17:40:18] [Server thread/INFO] [IndustrialIntegrationCraft]: === Industrial Integration Craft Debug Log ===
+[17:40:18] [Server thread/INFO] [IndustrialIntegrationCraft]: Log file: logs/iic-debug.log
+[17:40:18] [Server thread/INFO] [IndustrialIntegrationCraft]: This file is overwritten on each server start
+[17:40:18] [Server thread/INFO] [IndustrialIntegrationCraft]: Use /im industrial debug on to enable debug logging
+[17:40:18] [Server thread/INFO] [IndustrialIntegrationCraft]: ==============================================
+[17:40:18] [Server thread/WARN] [IndustrialIntegrationCraft]: [Spore] setBiomass method not found, pollution feedback disabled
+[17:40:18] [Server thread/WARN] [IndustrialIntegrationCraft]: [Spore] NODE field not accessible: net.minecraft.world.entity.Entity.getEntityData()
+[17:40:18] [Server thread/INFO] [IndustrialIntegrationCraft]: [Spore] Integration initialized successfully
+[17:40:18] [Server thread/INFO] [IndustrialIntegrationCraft]: [Spore] Pollution feedback: DISABLED
+[17:40:24] [Server thread/INFO] [IndustrialIntegrationCraft]: === Initializing GregTech CEu Integration ===
+[17:40:24] [Server thread/INFO] [IndustrialIntegrationCraft]: ✓ GregTech CEu detected: Using MetaMachineBlockEntity mode
+[17:40:24] [Server thread/INFO] [IndustrialIntegrationCraft]:   - MetaMachineBlockEntity: com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity
+[17:40:24] [Server thread/INFO] [IndustrialIntegrationCraft]:   - MetaMachine: com.gregtechceu.gtceu.api.machine.MetaMachine
+[17:40:24] [Server thread/INFO] [IndustrialIntegrationCraft]: === GregTech CEu Integration: ENABLED ===

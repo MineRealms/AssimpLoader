@@ -111,22 +111,32 @@ public class HudUpdateService {
         int evolutionPhase = 0;
         float infectionLevel = 0.0f;
         int totalBiomass = 0;
+        int totalHosts = 0;
         int infectedChunks = 0;
         double sporeMultiplier = 1.0;
 
         if (SporeIntegration.isSporeLoaded()) {
             activeHiveminds = SporeIntegration.getActiveHiveminds(level);
             totalBiomass = SporeIntegration.getTotalBiomass(level);
+            totalHosts = SporeIntegration.getTotalHosts(level);
+            evolutionPhase = SporeIntegration.calculateEvolutionPhase(level);
             infectionLevel = SporeIntegration.calculateInfectionIntensity(level);
-            evolutionPhase = (int) (infectionLevel / 10f); // 0-10 阶段
             infectedChunks = SporeIntegration.getInfectedChunks(level);
 
-            // Spore 倍率：基于感染强度 + 污染 + 电压
+            // Spore 倍率：基于进化阶段 + 污染 + 电压
             double nearbyVoltageTier = MachineScanner.scanNearbyVoltageTier(level, player.blockPosition());
-            double pollutionBonus = globalPollution / 100.0;
-            double voltageBonus = Math.max(0, nearbyVoltageTier - 1) * 0.10;
-            double infectionBonus = infectionLevel / 200.0; // 最多 50%
-            sporeMultiplier = 1.0 + pollutionBonus + voltageBonus + infectionBonus;
+            double pollutionBonus = Math.min(1.0, globalPollution / 1000.0);  // Max 100% at 1000 pollution
+            double voltageBonus = Math.max(0, nearbyVoltageTier - 1) * 0.10;  // 10% per tier above ULV
+            double evolutionBonus = evolutionPhase * 0.05;  // 5% per phase, max 50% at phase 10
+            sporeMultiplier = 1.0 + pollutionBonus + voltageBonus + evolutionBonus;
+
+            // Debug logging for Spore data
+            if (TriAxisConfig.enableSporeDebug && level.getGameTime() % 100 == 0) {
+                IndustrialLogger.debugSpore(String.format(
+                    "[HUD] Spore Data: Hiveminds=%d, Biomass=%d, Hosts=%d, Evolution=%d/10, Infection=%.1f%%, Multiplier=%.2fx",
+                    activeHiveminds, totalBiomass, totalHosts, evolutionPhase, infectionLevel, sporeMultiplier
+                ));
+            }
         }
 
         // 5. 计算游戏阶段指标
@@ -164,6 +174,7 @@ public class HudUpdateService {
                 evolutionPhase,
                 infectionLevel,
                 totalBiomass,
+                totalHosts,
                 infectedChunks,
                 sporeMultiplier,
                 localPollutionProgress,

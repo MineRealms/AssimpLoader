@@ -25,6 +25,7 @@ public class SyncHudDataPacket {
     private final int evolutionPhase;
     private final float infectionLevel;
     private final int totalBiomass;
+    private final int totalHosts;
     private final int infectedChunks;
     private final double sporeMultiplier;
     private final double localPollutionProgress;
@@ -37,7 +38,7 @@ public class SyncHudDataPacket {
             int nearbyMachines, double medianTier, double industrialBonus,
             double localPollution, double globalPollution,
             int activeHiveminds, int evolutionPhase, float infectionLevel,
-            int totalBiomass, int infectedChunks, double sporeMultiplier,
+            int totalBiomass, int totalHosts, int infectedChunks, double sporeMultiplier,
             double localPollutionProgress, String pollutionLevelText, double globalGameStage,
             boolean showHud) {
         this.totalDifficulty = totalDifficulty;
@@ -53,6 +54,7 @@ public class SyncHudDataPacket {
         this.evolutionPhase = evolutionPhase;
         this.infectionLevel = infectionLevel;
         this.totalBiomass = totalBiomass;
+        this.totalHosts = totalHosts;
         this.infectedChunks = infectedChunks;
         this.sporeMultiplier = sporeMultiplier;
         this.localPollutionProgress = localPollutionProgress;
@@ -75,6 +77,7 @@ public class SyncHudDataPacket {
         buf.writeInt(packet.evolutionPhase);
         buf.writeFloat(packet.infectionLevel);
         buf.writeInt(packet.totalBiomass);
+        buf.writeInt(packet.totalHosts);
         buf.writeInt(packet.infectedChunks);
         buf.writeDouble(packet.sporeMultiplier);
         buf.writeDouble(packet.localPollutionProgress);
@@ -89,7 +92,7 @@ public class SyncHudDataPacket {
                 buf.readInt(), buf.readDouble(), buf.readDouble(),
                 buf.readDouble(), buf.readDouble(),
                 buf.readInt(), buf.readInt(), buf.readFloat(),
-                buf.readInt(), buf.readInt(), buf.readDouble(),
+                buf.readInt(), buf.readInt(), buf.readInt(), buf.readDouble(),
                 buf.readDouble(), buf.readUtf(), buf.readDouble(),
                 buf.readBoolean()
         );
@@ -113,6 +116,7 @@ public class SyncHudDataPacket {
                 data.evolutionPhase = packet.evolutionPhase;
                 data.infectionLevel = packet.infectionLevel;
                 data.totalBiomass = packet.totalBiomass;
+                data.totalHosts = packet.totalHosts;
                 data.infectedChunks = packet.infectedChunks;
                 data.sporeMultiplier = packet.sporeMultiplier;
                 data.localPollutionProgress = packet.localPollutionProgress;
