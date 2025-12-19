@@ -1,6 +1,5 @@
 package cn.minerealms.iic;
 
-import cn.minerealms.iic.commands.ImprovedMobsCommand;
 import cn.minerealms.iic.industrial.*;
 import cn.minerealms.iic.network.PacketHandler;
 import cn.minerealms.iic.scanner.ScannerItem;

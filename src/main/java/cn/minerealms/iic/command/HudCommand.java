@@ -9,6 +9,10 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 /**
  * HUD display control commands.
  * /im hud toggle - Toggle HUD display
@@ -16,6 +20,9 @@ import net.minecraft.server.level.ServerPlayer;
  * /im hud off - Disable HUD
  */
 public class HudCommand {
+
+    // Server-side storage for each player's HUD display state
+    private static final Map<UUID, Boolean> playerHudState = new HashMap<>();
 
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
         return Commands.literal("hud")
@@ -31,8 +38,11 @@ public class HudCommand {
     private static int toggleHud(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer player = ctx.getSource().getPlayerOrException();
-            boolean currentState = cn.minerealms.iic.commands.HudCommands.isHudEnabled(player.getUUID());
+            UUID playerId = player.getUUID();
+
+            boolean currentState = playerHudState.getOrDefault(playerId, false);
             boolean newState = !currentState;
+            playerHudState.put(playerId, newState);
 
             // Send packet to update HUD state
             SyncHudDataPacket packet = new SyncHudDataPacket(
@@ -56,6 +66,8 @@ public class HudCommand {
     private static int setHud(CommandContext<CommandSourceStack> ctx, boolean enabled) {
         try {
             ServerPlayer player = ctx.getSource().getPlayerOrException();
+            UUID playerId = player.getUUID();
+            playerHudState.put(playerId, enabled);
 
             // Send packet to update HUD state
             SyncHudDataPacket packet = new SyncHudDataPacket(
@@ -74,5 +86,24 @@ public class HudCommand {
             ctx.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
             return 0;
         }
+    }
+
+    /**
+     * Check if HUD is enabled for a player.
+     *
+     * @param playerId the player's UUID
+     * @return true if HUD is enabled, false otherwise
+     */
+    public static boolean isHudEnabled(UUID playerId) {
+        return playerHudState.getOrDefault(playerId, false);
+    }
+
+    /**
+     * Clear HUD state for a player (called on logout).
+     *
+     * @param playerId the player's UUID
+     */
+    public static void clearPlayerData(UUID playerId) {
+        playerHudState.remove(playerId);
     }
 }
