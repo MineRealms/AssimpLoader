@@ -1,6 +1,7 @@
 package cn.minerealms.iic;
 
 import cn.minerealms.iic.industrial.*;
+import cn.minerealms.iic.integration.alexscaves.AlexsCavesIntegration;
 import cn.minerealms.iic.network.PacketHandler;
 import cn.minerealms.iic.scanner.ScannerItem;
 import cn.minerealms.iic.server.HudUpdateService;
@@ -106,6 +107,9 @@ public class IntegratedIndustrialCraft {
 
         // Initialize TriAxis config
         TriAxisConfig.load();
+
+        // Initialize AlexsCaves integration if available
+        AlexsCavesIntegration.initialize();
     }
 
     private void onConfigLoad(ModConfigEvent event) {

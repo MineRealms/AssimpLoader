@@ -2,6 +2,7 @@ package cn.minerealms.iic.forge;
 
 import cn.minerealms.iic.command.IICCommand;
 import cn.minerealms.iic.difficulty.DifficultyManager;
+import cn.minerealms.iic.integration.alexscaves.AlexsCavesIntegration;
 import cn.minerealms.iic.threat.horde.HordeIntegrationManager;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
@@ -34,6 +35,7 @@ public class EventHandler {
             // Tick Hordes integration for each level
             event.getServer().getAllLevels().forEach(level -> {
                 HordeIntegrationManager.tick(level);
+                AlexsCavesIntegration.tick(level);
             });
         }
     }
