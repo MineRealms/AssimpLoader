@@ -10,7 +10,8 @@ import static mekanism.common.MekanismLang.*;
 
 public enum MekanismTurretsLang implements ILangEntry {
 
-    DESCRIPTION_LASER_TURRET("description", "laser_turret");
+    DESCRIPTION_LASER_TURRET("description", "laser_turret"),
+    DESCRIPTION_FLAMETHROWER_TURRET("description", "flamethrower_turret");
 
     private final String key;
 

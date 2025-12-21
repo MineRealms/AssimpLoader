@@ -2,6 +2,7 @@ package cn.minerealms.iic.turrets.common.events;
 
 import cn.minerealms.iic.IntegratedIndustrialCraft;
 import cn.minerealms.iic.turrets.common.block.EnergyPedestalBlock;
+import cn.minerealms.iic.turrets.common.block.FlameThrowerTurretBlock;
 import cn.minerealms.iic.turrets.common.block.LaserTurretBlock;
 import cn.minerealms.iic.turrets.common.block_entity.EnergyPedestalBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -21,7 +22,8 @@ import net.minecraftforge.fml.common.Mod;
  *
  * 功能：
  * - 限制炮塔只能放置在能量底座上
- * - 限制炮塔只能放置在能量底座的非输入面
+ * - 激光炮塔：可以放置在能量底座的非输入面
+ * - 火焰喷射器：只能放置在能量底座的上面或下面
  */
 @Mod.EventBusSubscriber(modid = IntegratedIndustrialCraft.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class TurretPlacementHandler {
@@ -35,7 +37,10 @@ public class TurretPlacementHandler {
 
         // 检查玩家手持的是否是炮塔方块
         Block heldBlock = Block.byItem(player.getMainHandItem().getItem());
-        if (!(heldBlock instanceof LaserTurretBlock)) {
+        boolean isLaserTurret = heldBlock instanceof LaserTurretBlock;
+        boolean isFlameThrower = heldBlock instanceof FlameThrowerTurretBlock;
+
+        if (!isLaserTurret && !isFlameThrower) {
             return;
         }
 
@@ -47,6 +52,18 @@ public class TurretPlacementHandler {
             if (level.isClientSide) {
                 player.displayClientMessage(
                     Component.translatable("message.integratedindustrialcraft.turret_needs_pedestal"),
+                    true
+                );
+            }
+            return;
+        }
+
+        // 火焰喷射器特殊限制：只能放置在上面或下面
+        if (isFlameThrower && face != Direction.UP && face != Direction.DOWN) {
+            event.setCanceled(true);
+            if (level.isClientSide) {
+                player.displayClientMessage(
+                    Component.translatable("message.integratedindustrialcraft.flamethrower_vertical_only"),
                     true
                 );
             }
