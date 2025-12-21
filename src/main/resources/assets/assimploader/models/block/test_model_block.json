@@ -1,0 +1,7 @@
+{
+  "loader": "assimploader:assimp",
+  "model": "assimploader:block/test_cube.obj",
+  "textures": {
+    "particle": "minecraft:block/iron_block"
+  }
+}
