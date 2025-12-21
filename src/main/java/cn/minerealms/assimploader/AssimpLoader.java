@@ -42,7 +42,6 @@ public class AssimpLoader {
 
     private static AssimpLoader instance;
     private AssimpModelLoader modelLoader;
-    private ModelCacheManager cacheManager;
 
     public AssimpLoader() {
         instance = this;
@@ -68,9 +67,8 @@ public class AssimpLoader {
         LOGGER.info("AssimpLoader common setup");
 
         event.enqueueWork(() -> {
-            // Initialize cache manager
-            cacheManager = new ModelCacheManager();
-            LOGGER.info("Model cache manager initialized");
+            // Cache manager is now a singleton
+            LOGGER.info("Model cache manager ready");
         });
     }
 
@@ -102,6 +100,6 @@ public class AssimpLoader {
     }
 
     public ModelCacheManager getCacheManager() {
-        return cacheManager;
+        return ModelCacheManager.getInstance();
     }
 }

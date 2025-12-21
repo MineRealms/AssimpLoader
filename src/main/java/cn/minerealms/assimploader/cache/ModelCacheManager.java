@@ -16,11 +16,32 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ModelCacheManager {
 
+    private static final ModelCacheManager INSTANCE = new ModelCacheManager();
     private final Map<String, AssimpScene> cache = new ConcurrentHashMap<>();
     private long totalMemoryUsage = 0;
 
-    public ModelCacheManager() {
+    private ModelCacheManager() {
         AssimpLoader.LOGGER.info("ModelCacheManager initialized");
+    }
+
+    public static ModelCacheManager getInstance() {
+        return INSTANCE;
+    }
+
+    /**
+     * Load a model from path (with caching)
+     */
+    public AssimpScene loadModel(String resourcePath) {
+        // Check cache first
+        if (cache.containsKey(resourcePath)) {
+            AssimpLoader.LOGGER.debug("Model loaded from cache: {}", resourcePath);
+            return cache.get(resourcePath);
+        }
+
+        // Load model (implementation depends on resource system)
+        // For now, return null - will be implemented with resource pack integration
+        AssimpLoader.LOGGER.warn("Model loading not yet implemented: {}", resourcePath);
+        return null;
     }
 
     /**
@@ -59,7 +80,7 @@ public class ModelCacheManager {
     /**
      * Clear all cached models
      */
-    public void clear() {
+    public void clearCache() {
         for (AssimpScene scene : cache.values()) {
             scene.release();
         }
