@@ -22,6 +22,11 @@ import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Collection;
 
+import io.github.flemmli97.improvedmobs.industrial.IndustrialDifficultyManager;
+import io.github.flemmli97.improvedmobs.industrial.MachineScanner;
+import io.github.flemmli97.improvedmobs.industrial.HazardScanner;
+import io.github.flemmli97.improvedmobs.industrial.DifficultySmoother;
+
 // TODO: make command feedback translatable (test translation lib a bit more before)
 public class IMCommand {
 
@@ -29,6 +34,7 @@ public class IMCommand {
         dispatcher.register(Commands.literal("improvedmobs")
                 .executes(IMCommand::getDifficulty)
                 .then(Commands.literal("reloadJson").requires(src -> src.hasPermission(2)).executes(IMCommand::reloadJson))
+                .then(Commands.literal("industrial").executes(IMCommand::getIndustrialDebug))
                 .then(Commands.literal("difficulty").requires(src -> src.hasPermission(2))
                         .then(Commands.literal("player").then(Commands.argument("players", GameProfileArgument.gameProfile())
                                 .then(Commands.literal("set").then(Commands.argument("val", FloatArgumentType.floatArg()).executes(IMCommand::setDifficultyPlayer)))
@@ -126,6 +132,28 @@ public class IMCommand {
         DifficultyData data = DifficultyData.get(src.getSource().getServer());
         data.setPaused(pause);
         src.getSource().sendSuccess(() -> Component.literal("Difficulty " + (pause ? "paused" : "unpaused")).setStyle(Style.EMPTY.withColor(ChatFormatting.GOLD)), true);
+        return 1;
+    }
+
+    private static int getIndustrialDebug(CommandContext<CommandSourceStack> src) throws CommandSyntaxException {
+        ServerPlayer player = src.getSource().getPlayerOrException();
+        
+        // 1. Scan Machines
+        MachineScanner.ScanResult result = MachineScanner.scanNearbyMachines(player, 32);
+        float medianTier = DifficultySmoother.weightedMedian(result.tiers(), result.weights());
+        
+        // 2. Scan Hazards
+        double pollution = HazardScanner.getPollutionLevel(player);
+        
+        // 3. Current Manager State
+        float currentBonus = IndustrialDifficultyManager.getDifficultyFor(player);
+
+        src.getSource().sendSuccess(() -> Component.literal("=== Industrial Debug ===").withStyle(ChatFormatting.AQUA), false);
+        src.getSource().sendSuccess(() -> Component.literal("Machines Active: ").append(Component.literal(String.valueOf(result.tiers().size())).withStyle(ChatFormatting.YELLOW)), false);
+        src.getSource().sendSuccess(() -> Component.literal("Median Voltage Tier: ").append(Component.literal(String.format("%.2f", medianTier)).withStyle(ChatFormatting.YELLOW)), false);
+        src.getSource().sendSuccess(() -> Component.literal("Local Pollution: ").append(Component.literal(String.format("%.2f", pollution)).withStyle(ChatFormatting.YELLOW)), false);
+        src.getSource().sendSuccess(() -> Component.literal("Current Difficulty Bonus: ").append(Component.literal(String.format("%.2f", currentBonus)).withStyle(ChatFormatting.GOLD)), false);
+        
         return 1;
     }
 
