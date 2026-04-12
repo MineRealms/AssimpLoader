@@ -53,10 +53,8 @@ public class ClientEventHandler {
     }
 
     public static void onRenderLevel(RenderLevelStageEvent event) {
-        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
-            VertexConsumer buffer = net.minecraft.client.Minecraft.getInstance().renderBuffers().bufferSource().getBuffer(RenderType.lines());
-            ClientEvents.renderMachines(event.getPoseStack(), buffer, event.getCamera().getPosition().x, event.getCamera().getPosition().y, event.getCamera().getPosition().z);
-            net.minecraft.client.Minecraft.getInstance().renderBuffers().bufferSource().endBatch(RenderType.lines());
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+            ClientEvents.renderMachines(event.getPoseStack(), event.getCamera().getPosition().x, event.getCamera().getPosition().y, event.getCamera().getPosition().z);
         }
     }
 }
