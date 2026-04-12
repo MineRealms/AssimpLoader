@@ -35,6 +35,7 @@ public class IMCommand {
                 .executes(IMCommand::getDifficulty)
                 .then(Commands.literal("reloadJson").requires(src -> src.hasPermission(2)).executes(IMCommand::reloadJson))
                 .then(Commands.literal("industrial").executes(IMCommand::getIndustrialDebug))
+                .then(Commands.literal("spore").executes(IMCommand::getSporeStatus))
                 .then(Commands.literal("difficulty").requires(src -> src.hasPermission(2))
                         .then(Commands.literal("player").then(Commands.argument("players", GameProfileArgument.gameProfile())
                                 .then(Commands.literal("set").then(Commands.argument("val", FloatArgumentType.floatArg()).executes(IMCommand::setDifficultyPlayer)))
@@ -153,6 +154,30 @@ public class IMCommand {
         src.getSource().sendSuccess(() -> Component.literal("Median Voltage Tier: ").append(Component.literal(String.format("%.2f", medianTier)).withStyle(ChatFormatting.YELLOW)), false);
         src.getSource().sendSuccess(() -> Component.literal("Local Pollution: ").append(Component.literal(String.format("%.2f", pollution)).withStyle(ChatFormatting.YELLOW)), false);
         src.getSource().sendSuccess(() -> Component.literal("Current Difficulty Bonus: ").append(Component.literal(String.format("%.2f", currentBonus)).withStyle(ChatFormatting.GOLD)), false);
+        
+        return 1;
+    }
+
+    private static int getSporeStatus(CommandContext<CommandSourceStack> src) throws CommandSyntaxException {
+        ServerPlayer player = src.getSource().getPlayerOrException();
+        double currentDifficulty = DifficultyData.getDifficulty(player.serverLevel(), player);
+        double globalPollution = io.github.flemmli97.improvedmobs.industrial.PollutionManager.getPermanentPollution() + currentDifficulty;
+        
+        int tempHiveminds = 0;
+        try {
+            tempHiveminds = io.github.flemmli97.improvedmobs.industrial.SporeIntegration.getActiveHiveminds(player.serverLevel());
+        } catch(Exception e) {}
+        
+        final int hiveminds = tempHiveminds;
+
+        src.getSource().sendSuccess(() -> Component.literal("=== Spore Integration Status ===").withStyle(ChatFormatting.DARK_PURPLE), false);
+        src.getSource().sendSuccess(() -> Component.literal("Global Pollution & Difficulty: ").append(Component.literal(String.format("%.2f", globalPollution)).withStyle(ChatFormatting.RED)), false);
+        
+        // 当全球污染每10点，孢子生物会额外增加10%的生命值和力量
+        double bonusMultiplier = 1.0 + (globalPollution / 100.0);
+        src.getSource().sendSuccess(() -> Component.literal("Spore Evolution Bonus Multiplier: ").append(Component.literal(String.format("%.2f", bonusMultiplier) + "x").withStyle(ChatFormatting.RED)), false);
+        
+        src.getSource().sendSuccess(() -> Component.literal("Active Spore Hiveminds (Proto) in World: ").append(Component.literal(String.valueOf(hiveminds)).withStyle(ChatFormatting.LIGHT_PURPLE)), false);
         
         return 1;
     }
