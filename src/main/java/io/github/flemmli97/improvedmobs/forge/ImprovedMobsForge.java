@@ -51,6 +51,8 @@ public class ImprovedMobsForge {
         DifficultyFetcher.register();
         if (ModList.get().isLoaded("scalinghealth"))
             DifficultyFetcher.add(new ResourceLocation(ImprovedMobs.MODID, "scalinghealth_integration"), new ScalingHealthDifficulty());
+        if (ModList.get().isLoaded("gtceu"))
+            DifficultyFetcher.add(new ResourceLocation(ImprovedMobs.MODID, "industrial_integration"), new io.github.flemmli97.improvedmobs.industrial.IndustrialDifficultyGetter());
     }
 
     static void setup(FMLCommonSetupEvent event) {

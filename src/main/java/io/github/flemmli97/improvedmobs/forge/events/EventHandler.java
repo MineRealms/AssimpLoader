@@ -26,6 +26,10 @@ import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
+import net.minecraftforge.event.TickEvent;
+import io.github.flemmli97.improvedmobs.industrial.IndustrialDifficultyManager;
+import net.minecraft.world.entity.player.Player;
+
 public class EventHandler {
 
     public static final ResourceLocation tileCap = new ResourceLocation(ImprovedMobs.MODID, "opened_flag");
@@ -94,7 +98,13 @@ public class EventHandler {
         }
     }
 
-    //Note: Sodium-Forge breaks this since they modify explosion but dont call the forge event
+    @SubscribeEvent
+    public void playerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase == TickEvent.Phase.END && event.player instanceof ServerPlayer serverPlayer) {
+            IndustrialDifficultyManager.tick(serverPlayer);
+        }
+    }
+
     @SubscribeEvent
     public void explosion(ExplosionEvent.Detonate event) {
         EventCalls.explosion(event.getExplosion(), event.getExplosion().getExploder(), event.getAffectedEntities());
