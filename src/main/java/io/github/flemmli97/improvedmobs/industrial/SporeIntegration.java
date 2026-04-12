@@ -4,6 +4,8 @@ import com.Harbinger.Spore.ExtremelySusThings.SporeSavedData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 
 public class SporeIntegration {
 
@@ -24,17 +26,26 @@ public class SporeIntegration {
         return 0;
     }
 
-    public static void buffSporeMob(Mob mob, double pollutionLevel) {
-        // If it's a Spore mob, we can give it extra buffs based on pollution
+    public static void buffSporeMob(Mob mob, double pollutionLevel, double localVoltageTier) {
+        // If it's a Spore mob, we can give it extra buffs based on pollution and voltage
         if (isSporeMob(mob)) {
-            // Extra HP or damage can be applied here on top of Improved Mobs base buffs
-            // 比如：每 10 点全局污染，额外增加 10% 血量
-            double extraHealthMultiplier = 1.0 + (pollutionLevel / 100.0);
+            // Base: Pollution = +1% HP per 1 point
+            // Extra: Voltage Tier = +10% HP per tier above LV
+            double pollutionBonus = pollutionLevel / 100.0;
+            double voltageBonus = Math.max(0, localVoltageTier - 1) * 0.10;
+            double totalMultiplier = 1.0 + pollutionBonus + voltageBonus;
             
-            net.minecraft.world.entity.ai.attributes.AttributeInstance health = mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+            AttributeInstance health = mob.getAttribute(Attributes.MAX_HEALTH);
             if (health != null) {
-                health.setBaseValue(health.getBaseValue() * extraHealthMultiplier);
+                health.setBaseValue(health.getBaseValue() * totalMultiplier);
                 mob.setHealth(mob.getMaxHealth());
+            }
+            
+            // Also boost attack damage slightly based on pollution
+            AttributeInstance damage = mob.getAttribute(Attributes.ATTACK_DAMAGE);
+            if (damage != null && pollutionLevel > 50) {
+                // Extra 0.5 damage per 50 pollution
+                damage.setBaseValue(damage.getBaseValue() + (pollutionLevel / 50.0) * 0.5);
             }
         }
     }
