@@ -15,8 +15,14 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.entity.MobSpawnType;
+
 /**
  * Handles Temporary and Permanent Pollution for Improved Mobs
+
  * 采用了极低频率的分帧扫描（Staggered Tick）来保证几千机器也不会卡服。
  */
 public class PollutionManager {
@@ -64,31 +70,46 @@ public class PollutionManager {
     }
 
     private static void processPollutionDecayAndScanning(ServerLevel level) {
-        // 1. 获取当前加载的所有区块 (简单迭代，实际可以分批次，这里先演示核心逻辑)
-        Iterable<BlockEntity> blockEntities = level.blockEntityList;
-        
         // 每秒累加的临时污染临时变量，按区块分组
         Map<ChunkPos, Double> newPollutionThisSec = new HashMap<>();
 
-        // 2. 高效扫描机器：直接遍历加载的 BlockEntity 而不是方块
-        // 这样成百上千的机器也可以在几毫秒内过滤完
-        for (BlockEntity be : blockEntities) {
-            if (GTIntegration.isGTMachine(be)) {
-                // 判断：只有在工作，或者线缆/能源仓里面有电，才产生污染
-                if (GTIntegration.hasEnergyOrActive(be)) {
-                    int tier = GTIntegration.getVoltageTier(be);
-                    double pollutionValue = 0.01 * Math.max(1, tier); // Tier越高污染越大
-                    if (GTIntegration.isMultiblock(be)) {
-                        pollutionValue *= 5.0; // 多方块污染更重
+        // 2. 高效扫描机器：为了避免访问私有字段，我们遍历所有玩家周围的已加载区块
+        int scanRadius = 4; // 每个玩家周围 4 个区块
+        java.util.Set<ChunkPos> scannedChunks = new java.util.HashSet<>();
+        
+        for (net.minecraft.server.level.ServerPlayer player : level.players()) {
+            ChunkPos center = player.chunkPosition();
+            for (int x = -scanRadius; x <= scanRadius; x++) {
+                for (int z = -scanRadius; z <= scanRadius; z++) {
+                    ChunkPos scanPos = new ChunkPos(center.x + x, center.z + z);
+                    if (scannedChunks.add(scanPos) && level.hasChunk(scanPos.x, scanPos.z)) {
+                        net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunk(scanPos.x, scanPos.z);
+                        for (BlockEntity be : chunk.getBlockEntities().values()) {
+                            if (GTIntegration.isGTMachine(be)) {
+                                if (GTIntegration.hasEnergyOrActive(be)) {
+                                    int tier = GTIntegration.getVoltageTier(be);
+                                    double pollutionValue = 0.01 * Math.max(1, tier);
+                                    if (GTIntegration.isMultiblock(be)) {
+                                        pollutionValue *= 5.0;
+                                    }
+                                    
+                                    ChunkPos cPos = new ChunkPos(be.getBlockPos());
+                                    newPollutionThisSec.merge(cPos, pollutionValue, Double::sum);
+                                    
+                                    addPermanentPollution(pollutionValue * 0.00001);
+                                }
+                            }
+                        }
                     }
-                    
-                    ChunkPos cPos = new ChunkPos(be.getBlockPos());
-                    newPollutionThisSec.merge(cPos, pollutionValue, Double::sum);
-                    
-                    // 只要有机器在跑，就有极小概率产生永久污染（加入全局难度）
-                    addPermanentPollution(pollutionValue * 0.00001);
                 }
             }
+        }
+        
+        // 当积累的永久污染达到 0.1 时，一次性加入到系统全局难度中，并重置累加器以减少网络发包
+        if (permanentPollution >= 0.1) {
+            io.github.flemmli97.improvedmobs.difficulty.DifficultyData diffData = io.github.flemmli97.improvedmobs.difficulty.DifficultyData.get(level.getServer());
+            diffData.addDifficulty((float)permanentPollution, level.getServer());
+            permanentPollution = 0.0;
         }
 
         // 3. 计算衰减与环境净化
@@ -108,6 +129,11 @@ public class PollutionManager {
                 temporaryPollution.remove(cPos);
             } else {
                 temporaryPollution.put(cPos, nextVal);
+                
+                // 【灾难爆发】如果一个区块的临时污染过高（大于50），有几率在附近刷出破坏机器的苦力怕
+                if (nextVal > 50.0 && level.random.nextInt(100) == 0) {
+                    spawnPollutionCreeper(level, cPos);
+                }
             }
             
             // 已经处理完的从本秒新增里移除
@@ -120,8 +146,30 @@ public class PollutionManager {
         }
     }
 
+    private static void spawnPollutionCreeper(ServerLevel level, ChunkPos cPos) {
+        // 在区块附近找一个可以生成的点
+        int rx = cPos.getMinBlockX() + level.random.nextInt(16);
+        int rz = cPos.getMinBlockZ() + level.random.nextInt(16);
+        int ry = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, rx, rz);
+        BlockPos spawnPos = new BlockPos(rx, ry, rz);
+        
+        // 确保生成点周围有一些机器
+        if (level.hasChunkAt(spawnPos)) {
+            Creeper creeper = EntityType.CREEPER.create(level);
+            if (creeper != null) {
+                creeper.moveTo(rx + 0.5, ry, rz + 0.5, level.random.nextFloat() * 360.0F, 0.0F);
+                creeper.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.EVENT, null, null);
+                
+                // 给它添加针对机器的自爆 AI
+                creeper.goalSelector.addGoal(1, new io.github.flemmli97.improvedmobs.ai.CreeperTargetMachineGoal(creeper));
+                level.addFreshEntity(creeper);
+            }
+        }
+    }
+
     /**
      * 获取周围 4 个区块的净化总量
+
      */
     private static double getSurroundingEnvironmentalReduction(ChunkPos center) {
         double totalReduction = 0.0;
