@@ -180,8 +180,7 @@ public class PollutionManager {
      * 由于原版水是 Blocks.WATER，树叶在 BlockTags.LEAVES，我们在单独线程中直接读取方块状态
      */
     private static void updateEnvironmentalCache(ServerLevel level) {
-        // 为了防止卡主线程，我们在一个新的线程或 CompletableFuture 中执行
-        // 这里提供核心扫描逻辑
+
         new Thread(() -> {
             for (ChunkPos cPos : temporaryPollution.keySet()) {
                 // 仅扫描有污染附近的区块，防止扫描过多无用区域

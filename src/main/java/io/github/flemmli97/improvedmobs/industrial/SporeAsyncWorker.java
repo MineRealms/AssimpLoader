@@ -34,7 +34,7 @@ public class SporeAsyncWorker {
     });
 
     // Debug toggle
-    public static boolean isDebugEnabled = false;
+    public static boolean isDebugEnabled = true;
 
     public static void processSporeBuffAsync(Mob mob, double pollutionLevel) {
         if (!SporeIntegration.isSporeLoaded()) return;
