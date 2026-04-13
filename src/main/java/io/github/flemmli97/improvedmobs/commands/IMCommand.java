@@ -58,9 +58,10 @@ public class IMCommand {
     }
 
     private static int reloadJson(CommandContext<CommandSourceStack> src) {
-        src.getSource().sendSuccess(() -> Component.literal("Reloading equipment.json"), true);
+        src.getSource().sendSuccess(() -> Component.literal("Reloading configurations and equipment..."), true);
         try {
             EquipmentList.initEquip();
+            TriAxisConfig.load(); // 热重载三轴难度配置
         } catch (EquipmentList.InvalidItemNameException e) {
             src.getSource().sendSuccess(() -> Component.literal(e.getMessage()), false);
         }
