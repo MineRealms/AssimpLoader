@@ -17,7 +17,7 @@ public class EntityRegistry {
             () -> EntityType.Builder.<LaserEntity>of(LaserEntity::new, MobCategory.MISC)
                     .sized(0.25F, 0.25F)
                     .noSave()
-                    .clientTrackingRange(8)
-                    .updateInterval(3)
+                    .clientTrackingRange(128)
+                    .updateInterval(1)
                     .build(new ResourceLocation(ImprovedMobs.MODID, "laser").toString()));
 }
