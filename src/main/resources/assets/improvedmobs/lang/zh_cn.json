@@ -1,4 +1,5 @@
 {
+  "item.improvedmobs.terrain_scanner": "§b地形扫描仪",
   "improvedmobs.command.debug.enabled": "§a[ImprovedMobs] 调试模式已开启喵~",
   "improvedmobs.command.debug.disabled": "§c[ImprovedMobs] 调试模式已关闭喵~",
   "improvedmobs.command.difficulty.info": "§6[三轴难度] 当前局部难度: §e%.2f §7(时间:%.2f, 电压:%.2f, 污染:%.2f)",

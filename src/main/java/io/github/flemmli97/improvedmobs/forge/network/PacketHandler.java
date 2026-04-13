@@ -5,6 +5,8 @@ import io.github.flemmli97.improvedmobs.config.Config;
 import io.github.flemmli97.improvedmobs.difficulty.DifficultyData;
 import io.github.flemmli97.improvedmobs.difficulty.PlayerDifficulty;
 import io.github.flemmli97.improvedmobs.platform.CrossPlatformStuff;
+import io.github.flemmli97.improvedmobs.scanner.network.PacketScannerRequest;
+import io.github.flemmli97.improvedmobs.scanner.network.PacketScannerResponse;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -18,9 +20,9 @@ import net.minecraftforge.network.simple.SimpleChannel;
 public class PacketHandler {
 
     private static final ResourceLocation channelID = new ResourceLocation(ImprovedMobs.MODID, "packets");
-    private static final SimpleChannel dispatcher = NetworkRegistry.ChannelBuilder.named(new ResourceLocation(ImprovedMobs.MODID, "packets"))
+    public static final SimpleChannel dispatcher = NetworkRegistry.ChannelBuilder.named(new ResourceLocation(ImprovedMobs.MODID, "packets"))
             .clientAcceptedVersions(a -> true)
-            .serverAcceptedVersions(a -> true)//(a.equals(NetworkRegistry.ABSENT) || a.equals(NetworkRegistry.ACCEPTVANILLA)) ? false : true)
+            .serverAcceptedVersions(a -> true)
             .networkProtocolVersion(() -> "v1.0").simpleChannel();
 
     public static void register() {
@@ -29,6 +31,8 @@ public class PacketHandler {
         dispatcher.registerMessage(id++, PacketConfig.class, PacketConfig::write, PacketConfig::read, PacketConfig::handle);
         dispatcher.registerMessage(id++, PacketDebugLine.class, PacketDebugLine::write, PacketDebugLine::read, PacketDebugLine::handle);
         dispatcher.registerMessage(id++, PacketDebugLinesSync.class, PacketDebugLinesSync::write, PacketDebugLinesSync::read, PacketDebugLinesSync::handle);
+        dispatcher.registerMessage(id++, PacketScannerRequest.class, PacketScannerRequest::toNetwork, PacketScannerRequest::fromNetwork, PacketScannerRequest::handle);
+        dispatcher.registerMessage(id++, PacketScannerResponse.class, PacketScannerResponse::toNetwork, PacketScannerResponse::fromNetwork, PacketScannerResponse::handle);
     }
 
     public static <T> void sendDifficultyToClient(DifficultyData data, ServerPlayer player) {

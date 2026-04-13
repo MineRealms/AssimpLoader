@@ -12,7 +12,9 @@ import io.github.flemmli97.improvedmobs.forge.events.DifficultyHandler;
 import io.github.flemmli97.improvedmobs.forge.events.EventHandler;
 import io.github.flemmli97.improvedmobs.forge.integration.difficulty.ScalingHealthDifficulty;
 import io.github.flemmli97.improvedmobs.forge.network.PacketHandler;
+import io.github.flemmli97.improvedmobs.scanner.ScannerItem;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -26,12 +28,18 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
 
 import java.io.File;
 
 @Mod.EventBusSubscriber
 @Mod(value = ImprovedMobs.MODID)
 public class ImprovedMobsForge {
+
+    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, ImprovedMobs.MODID);
+    public static final RegistryObject<Item> TERRAIN_SCANNER = ITEMS.register("terrain_scanner", ScannerItem::new);
 
     public ImprovedMobsForge() {
         ModLoadingContext.get().registerExtensionPoint(IExtensionPoint.DisplayTest.class, () -> new IExtensionPoint.DisplayTest(() -> "*", (s1, s2) -> true));
@@ -44,6 +52,7 @@ public class ImprovedMobsForge {
         modBus.addListener(ImprovedMobsForge::setup);
         modBus.addListener(ImprovedMobsForge::conf);
         modBus.addListener(CapabilityProvider::register);
+        ITEMS.register(modBus);
         if (FMLEnvironment.dist == Dist.CLIENT)
             ClientEventHandler.setup();
         MinecraftForge.EVENT_BUS.register(new EventHandler());
