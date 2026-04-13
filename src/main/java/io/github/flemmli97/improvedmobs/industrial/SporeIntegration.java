@@ -11,7 +11,7 @@ public class SporeIntegration {
     private static boolean checkDone = false;
     private static boolean isSporeLoaded = false;
     
-    private static boolean isSporeLoaded() {
+    public static boolean isSporeLoaded() {
         if (!checkDone) {
             try {
                 Class.forName("com.Harbinger.Spore.ExtremelySusThings.SporeSavedData");
