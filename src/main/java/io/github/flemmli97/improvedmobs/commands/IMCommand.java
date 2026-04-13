@@ -27,6 +27,8 @@ import io.github.flemmli97.improvedmobs.industrial.MachineScanner;
 import io.github.flemmli97.improvedmobs.industrial.HazardScanner;
 import io.github.flemmli97.improvedmobs.industrial.DifficultySmoother;
 import io.github.flemmli97.improvedmobs.industrial.TriAxisDifficultyManager;
+import io.github.flemmli97.improvedmobs.industrial.TriAxisConfig;
+import io.github.flemmli97.improvedmobs.client.DebugLineRenderer;
 
 // TODO: make command feedback translatable (test translation lib a bit more before)
 public class IMCommand {
@@ -38,6 +40,7 @@ public class IMCommand {
                 .then(Commands.literal("industrial").executes(IMCommand::getIndustrialDebug))
                 .then(Commands.literal("spore").executes(IMCommand::getSporeStatus))
                 .then(Commands.literal("triaxis").executes(IMCommand::getTriAxisStatus))
+                .then(Commands.literal("debuglines").requires(src -> src.hasPermission(2)).executes(IMCommand::toggleDebugLines))
                 .then(Commands.literal("difficulty").requires(src -> src.hasPermission(2))
                         .then(Commands.literal("player").then(Commands.argument("players", GameProfileArgument.gameProfile())
                                 .then(Commands.literal("set").then(Commands.argument("val", FloatArgumentType.floatArg()).executes(IMCommand::setDifficultyPlayer)))
@@ -202,6 +205,21 @@ private static int getSporeStatus(CommandContext<CommandSourceStack> src) throws
         
         final int finalStage = stage;
         src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.difficulty.stage." + finalStage), false);
+        return 1;
+    }
+
+    private static int toggleDebugLines(CommandContext<CommandSourceStack> src) {
+        TriAxisConfig.enableDebugLines = !TriAxisConfig.enableDebugLines;
+        TriAxisConfig.save(); // 保存到配置文件
+        
+        // 同步到所有客户端渲染器
+        io.github.flemmli97.improvedmobs.forge.network.PacketHandler.syncDebugLinesToAll(
+            TriAxisConfig.enableDebugLines, 
+            src.getSource().getServer()
+        );
+        
+        String status = TriAxisConfig.enableDebugLines ? "enabled" : "disabled";
+        src.getSource().sendSuccess(() -> Component.literal("[ImprovedMobs] Debug lines " + status).setStyle(Style.EMPTY.withColor(TriAxisConfig.enableDebugLines ? ChatFormatting.GREEN : ChatFormatting.RED)), true);
         return 1;
     }
 

@@ -30,6 +30,9 @@ public class TriAxisConfig {
     public static double hpMultFactor = 0.45;
     public static double attackMultFactor = 0.20;
 
+    // 调试设置
+    public static boolean enableDebugLines = false;
+
     private static final File CONFIG_FILE = new File("config/triaxis-difficulty.properties");
 
     public static void load() {
@@ -50,6 +53,7 @@ public class TriAxisConfig {
                 baseDays = Double.parseDouble(props.getProperty("baseDays", String.valueOf(baseDays)));
                 hpMultFactor = Double.parseDouble(props.getProperty("hpMultFactor", String.valueOf(hpMultFactor)));
                 attackMultFactor = Double.parseDouble(props.getProperty("attackMultFactor", String.valueOf(attackMultFactor)));
+                enableDebugLines = Boolean.parseBoolean(props.getProperty("enableDebugLines", String.valueOf(enableDebugLines)));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -73,6 +77,7 @@ public class TriAxisConfig {
         props.setProperty("baseDays", String.valueOf(baseDays));
         props.setProperty("hpMultFactor", String.valueOf(hpMultFactor));
         props.setProperty("attackMultFactor", String.valueOf(attackMultFactor));
+        props.setProperty("enableDebugLines", String.valueOf(enableDebugLines));
 
         try {
             if (!CONFIG_FILE.getParentFile().exists()) {

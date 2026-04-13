@@ -27,6 +27,8 @@ public class PacketHandler {
         int id = 0;
         dispatcher.registerMessage(id++, PacketDifficulty.class, PacketDifficulty::write, PacketDifficulty::read, PacketDifficulty::handle);
         dispatcher.registerMessage(id++, PacketConfig.class, PacketConfig::write, PacketConfig::read, PacketConfig::handle);
+        dispatcher.registerMessage(id++, PacketDebugLine.class, PacketDebugLine::write, PacketDebugLine::read, PacketDebugLine::handle);
+        dispatcher.registerMessage(id++, PacketDebugLinesSync.class, PacketDebugLinesSync::write, PacketDebugLinesSync::read, PacketDebugLinesSync::handle);
     }
 
     public static <T> void sendDifficultyToClient(DifficultyData data, ServerPlayer player) {
@@ -57,6 +59,22 @@ public class PacketHandler {
     public static <T> void sendConfigSync(ServerPlayer player) {
         if (hasChannel(player))
             dispatcher.sendTo(new PacketConfig(), player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
+    }
+
+    public static void sendDebugLineToAll(int entityId, net.minecraft.core.BlockPos pos, MinecraftServer server) {
+        Packet<?> pkt = dispatcher.toVanillaPacket(new PacketDebugLine(entityId, pos), NetworkDirection.PLAY_TO_CLIENT);
+        server.getPlayerList().getPlayers().forEach(player -> {
+            if (hasChannel(player))
+                player.connection.send(pkt);
+        });
+    }
+
+    public static void syncDebugLinesToAll(boolean enabled, MinecraftServer server) {
+        Packet<?> pkt = dispatcher.toVanillaPacket(new PacketDebugLinesSync(enabled), NetworkDirection.PLAY_TO_CLIENT);
+        server.getPlayerList().getPlayers().forEach(player -> {
+            if (hasChannel(player))
+                player.connection.send(pkt);
+        });
     }
 
     private static boolean hasChannel(ServerPlayer player) {
