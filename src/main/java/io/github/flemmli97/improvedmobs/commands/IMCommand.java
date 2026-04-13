@@ -26,6 +26,7 @@ import io.github.flemmli97.improvedmobs.industrial.IndustrialDifficultyManager;
 import io.github.flemmli97.improvedmobs.industrial.MachineScanner;
 import io.github.flemmli97.improvedmobs.industrial.HazardScanner;
 import io.github.flemmli97.improvedmobs.industrial.DifficultySmoother;
+import io.github.flemmli97.improvedmobs.industrial.TriAxisDifficultyManager;
 
 // TODO: make command feedback translatable (test translation lib a bit more before)
 public class IMCommand {
@@ -36,6 +37,7 @@ public class IMCommand {
                 .then(Commands.literal("reloadJson").requires(src -> src.hasPermission(2)).executes(IMCommand::reloadJson))
                 .then(Commands.literal("industrial").executes(IMCommand::getIndustrialDebug))
                 .then(Commands.literal("spore").executes(IMCommand::getSporeStatus))
+                .then(Commands.literal("triaxis").executes(IMCommand::getTriAxisStatus))
                 .then(Commands.literal("difficulty").requires(src -> src.hasPermission(2))
                         .then(Commands.literal("player").then(Commands.argument("players", GameProfileArgument.gameProfile())
                                 .then(Commands.literal("set").then(Commands.argument("val", FloatArgumentType.floatArg()).executes(IMCommand::setDifficultyPlayer)))
@@ -149,11 +151,11 @@ public class IMCommand {
         // 3. Current Manager State
         float currentBonus = IndustrialDifficultyManager.getDifficultyFor(player);
 
-        src.getSource().sendSuccess(() -> Component.literal("=== Industrial Debug ===").withStyle(ChatFormatting.AQUA), false);
-        src.getSource().sendSuccess(() -> Component.literal("Machines Active: ").append(Component.literal(String.valueOf(result.tiers().size())).withStyle(ChatFormatting.YELLOW)), false);
-        src.getSource().sendSuccess(() -> Component.literal("Median Voltage Tier: ").append(Component.literal(String.format("%.2f", medianTier)).withStyle(ChatFormatting.YELLOW)), false);
-        src.getSource().sendSuccess(() -> Component.literal("Local Pollution: ").append(Component.literal(String.format("%.2f", pollution)).withStyle(ChatFormatting.YELLOW)), false);
-        src.getSource().sendSuccess(() -> Component.literal("Current Difficulty Bonus: ").append(Component.literal(String.format("%.2f", currentBonus)).withStyle(ChatFormatting.GOLD)), false);
+        src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.industrial.title"), false);
+        src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.industrial.machines", String.valueOf(result.tiers().size())), false);
+        src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.industrial.median", medianTier), false);
+        src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.industrial.pollution", pollution), false);
+        src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.industrial.bonus", currentBonus), false);
         
         return 1;
     }
@@ -171,20 +173,34 @@ private static int getSporeStatus(CommandContext<CommandSourceStack> src) throws
         double nearbyVoltageTier = io.github.flemmli97.improvedmobs.industrial.MachineScanner.scanNearbyVoltageTier(player.serverLevel(), player.blockPosition());
         final int hiveminds = tempHiveminds;
 
-        src.getSource().sendSuccess(() -> Component.literal("=== Spore Integration Status ===").withStyle(ChatFormatting.DARK_PURPLE), false);
-        src.getSource().sendSuccess(() -> Component.literal("Global Pollution & Difficulty: ").append(Component.literal(String.format("%.2f", globalPollution)).withStyle(ChatFormatting.RED)), false);
+        src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.spore.title"), false);
+        src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.spore.global_pollution", globalPollution), false);
         
         double pollutionBonus = globalPollution / 100.0;
         double voltageBonus = Math.max(0, nearbyVoltageTier - 1) * 0.10;
         double totalMultiplier = 1.0 + pollutionBonus + voltageBonus;
         
-        String hpInfo = String.format("HP Multiplier: Pollution +%.0f%%, Voltage +%.0f%% = Total: %.2fx", pollutionBonus * 100, voltageBonus * 100, totalMultiplier);
-        src.getSource().sendSuccess(() -> Component.literal(hpInfo).withStyle(ChatFormatting.GOLD), false);
+        src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.spore.hp_info", pollutionBonus * 100, voltageBonus * 100, totalMultiplier), false);
+        src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.spore.voltage", String.valueOf((int)nearbyVoltageTier)), false);
+        src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.spore.hiveminds", String.valueOf(hiveminds)), false);
         
-        src.getSource().sendSuccess(() -> Component.literal("Nearby Max Voltage Tier: ").append(Component.literal("Tier " + (int)nearbyVoltageTier)).withStyle(ChatFormatting.YELLOW), false);
+        return 1;
+    }
+
+    private static int getTriAxisStatus(CommandContext<CommandSourceStack> src) throws CommandSyntaxException {
+        ServerPlayer player = src.getSource().getPlayerOrException();
+        TriAxisDifficultyManager.DifficultyState state = TriAxisDifficultyManager.calculateLocalDifficulty(player.serverLevel(), player.blockPosition());
         
-        src.getSource().sendSuccess(() -> Component.literal("Active Spore Hiveminds (Proto) in World: ").append(Component.literal(String.valueOf(hiveminds)).withStyle(ChatFormatting.LIGHT_PURPLE)), false);
+        src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.difficulty.info", state.totalDifficulty, state.timeFactor, state.voltageFactor, state.pollutionFactor), false);
         
+        int stage = 0;
+        if (state.totalDifficulty > 1.10) stage = 4;
+        else if (state.totalDifficulty > 0.75) stage = 3;
+        else if (state.totalDifficulty > 0.50) stage = 2;
+        else if (state.totalDifficulty > 0.25) stage = 1;
+        
+        final int finalStage = stage;
+        src.getSource().sendSuccess(() -> Component.translatable("improvedmobs.command.difficulty.stage." + finalStage), false);
         return 1;
     }
 
