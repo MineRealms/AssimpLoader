@@ -81,6 +81,12 @@ repositories {
     maven { url = "https://maven.firstdarkdev.xyz/snapshots" }
     maven { url = "https://maven.tterrag.com/" }
     maven { url = "https://modmaven.dev" }
+    maven { url = 'https://maven.parchmentmc.org' }
+    maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+    maven { url 'https://modmaven.dev/' }
+    maven { url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
+    maven { url 'https://www.cursemaven.com' }
+
     mavenCentral()
 }
 
@@ -97,6 +103,8 @@ dependencies {
     implementation fg.deobf("mezz.jei:jei-1.20.1-forge:15.20.0.115")
     implementation fg.deobf("curse.maven:pehkui-319596:4684391")
 
+    implementation fg.deobf("curse.maven:turrets-1031448:7875847")
+
     implementation fg.deobf("com.gregtechceu.gtceu:gtceu-1.20.1:${gtceu_version}") { transitive = false }
     implementation fg.deobf("com.lowdragmc.ldlib:ldlib-forge-1.20.1:${ldlib_version}") { transitive = false }
    // implementation fg.deobf("com.tterrag.registrate:Registrate:${registrate_version}") { transitive = false }
@@ -104,6 +112,16 @@ dependencies {
     
     // Spore (真菌孢子) API
     implementation fg.deobf("curse.maven:spore-678295:7881767")
+
+
+    implementation fg.deobf("mekanism:Mekanism:${minecraft_version}-${mekanism_version}")
+    implementation fg.deobf("software.bernie.geckolib:geckolib-forge-${minecraft_version}:${geckolib_version}")
+
+
+    runtimeOnly fg.deobf("curse.maven:jade-324717:5339264")
+
+   // implementation fg.deobf(fileTree(dir: "mods_dev", include: ["*.jar"]))
+
 }
 
 mixin {
