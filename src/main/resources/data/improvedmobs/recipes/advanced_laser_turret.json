@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " # ",
+    "BOB",
+    "RTR"
+  ],
+  "key": {
+    "#": {
+      "item": "mekanism:alloy_infused"
+    },
+    "B": {
+      "item": "mekanism:advanced_control_circuit"
+    },
+    "O": {
+      "item": "improvedmobs:basic_laser_turret"
+    },
+    "R": {
+      "tag": "forge:ingots/steel"
+    },
+    "T": {
+      "item": "mekanism:energy_tablet"
+    }
+  },
+  "result": {
+    "item": "improvedmobs:advanced_laser_turret",
+    "count": 1
+  }
+}
