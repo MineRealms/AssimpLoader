@@ -1,0 +1,9 @@
+{
+  "blooms": [
+    {
+      "comment": "IIC激光炮塔 - 激光实体bloom效果",
+      "particle": "integratedindustrialcraft:laser_spark"
+    }
+  ],
+  "lights": []
+}

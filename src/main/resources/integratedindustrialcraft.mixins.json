@@ -1,0 +1,14 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "cn.minerealms.iic.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "integratedindustrialcraft.refmap.json",
+  "mixins": [
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

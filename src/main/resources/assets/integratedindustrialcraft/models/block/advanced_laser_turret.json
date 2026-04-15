@@ -1,0 +1,6 @@
+{
+  "parent": "integratedindustrialcraft:block/gecko_block",
+  "textures": {
+    "particle": "integratedindustrialcraft:block/advanced_laser_turret"
+  }
+}

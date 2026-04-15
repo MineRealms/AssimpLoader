@@ -1,0 +1,20 @@
+{
+  "container.integratedindustrialcraft.basic_laser_turret": "Базовая лазерная турель",
+  "container.integratedindustrialcraft.advanced_laser_turret": "Продвинутая лазерная турель",
+  "container.integratedindustrialcraft.elite_laser_turret": "Элитная лазерная турель",
+  "container.integratedindustrialcraft.ultimate_laser_turret": "Совершенная лазерная турель",
+  "description.mekanism.laser_turret": "Лазерная турель, которую можно использовать для защиты вашей базы от враждебных мобов.",
+  "gui.turret.target_hostile": "Цель: Враждебные существа",
+  "gui.turret.target_passive": "Цель: Мирные существа",
+  "gui.turret.target_players": "Цель: Игроки",
+  "gui.turret.target_trusted": "Цель: Доверенные игроки",
+  "gui.turret.energy_per_shot": "Энергия за выстрел: ",
+  "block.integratedindustrialcraft.electric_fence": "Электрический забор",
+  "block.integratedindustrialcraft.basic_laser_turret": "Базовая лазерная турель",
+  "block.integratedindustrialcraft.advanced_laser_turret": "Продвинутая лазерная турель",
+  "block.integratedindustrialcraft.elite_laser_turret": "Элитная лазерная турель",
+  "block.integratedindustrialcraft.ultimate_laser_turret": "Совершенная лазерная турель",
+  "item_group.integratedindustrialcraft": "Mekanism: Турели",
+  "death.attack.integratedindustrialcraft.laser" : "%1$s был уничтожен лазерной турелью",
+  "death.attack.integratedindustrialcraft.electric_fence" : "%1$s был шокирован электрическим забором"
+}
