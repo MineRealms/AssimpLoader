@@ -22,7 +22,10 @@
       "Bash(find . -name \"*.java\" -exec grep -l \"TODO\\\\|FIXME\\\\|XXX\\\\|HACK\" {} \\\\;)",
       "Bash(grep -n \"import.*\\\\*;\" *.java)",
       "Bash(claude plugin:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(./gradlew clean:*)",
+      "Bash(ls:*)",
+      "Bash(git commit -m ':*)"
     ],
     "additionalDirectories": [
       "H:\\MinecraftMods\\Spore\\Spore_2.0_1.20.1",
