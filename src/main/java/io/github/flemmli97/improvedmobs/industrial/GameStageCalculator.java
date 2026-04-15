@@ -174,6 +174,7 @@ public class GameStageCalculator {
     /**
      * 获取污染等级的颜色代码
      */
+
     public static String getPollutionLevelColor(PollutionLevel level) {
         return switch (level) {
             case SAFE -> "§a";

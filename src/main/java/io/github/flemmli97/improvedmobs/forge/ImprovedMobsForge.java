@@ -77,6 +77,7 @@ public class ImprovedMobsForge {
         if (FMLEnvironment.dist == Dist.CLIENT)
             ClientEventHandler.setup();
         MinecraftForge.EVENT_BUS.register(new EventHandler());
+        MinecraftForge.EVENT_BUS.register(io.github.flemmli97.improvedmobs.server.HudUpdateService.class);
         MinecraftForge.EVENT_BUS.addListener(LaserEntity::enterChunk);
 
         DifficultyFetcher.register();

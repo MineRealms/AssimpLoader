@@ -1,7 +1,7 @@
 package io.github.flemmli97.improvedmobs.forge.events;
 
 import io.github.flemmli97.improvedmobs.ImprovedMobs;
-import io.github.flemmli97.improvedmobs.commands.IMCommand;
+import io.github.flemmli97.improvedmobs.commands.ImprovedMobsCommand;
 import io.github.flemmli97.improvedmobs.events.EventCalls;
 import io.github.flemmli97.improvedmobs.forge.capability.ContainerCap;
 import io.github.flemmli97.improvedmobs.forge.capability.PlayerDifficultyData;
@@ -59,7 +59,7 @@ public class EventHandler {
 
     @SubscribeEvent
     public void commands(RegisterCommandsEvent event) {
-        IMCommand.register(event.getDispatcher());
+        ImprovedMobsCommand.register(event.getDispatcher());
     }
 
     @SubscribeEvent
