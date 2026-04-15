@@ -19,21 +19,34 @@ public class MachineScanner {
         List<Integer> tiers = new ArrayList<>();
         List<Double> weights = new ArrayList<>();
 
-        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-radius, -radius / 2, -radius), 
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-radius, -radius / 2, -radius),
                                                    center.offset(radius, radius / 2, radius))) {
             BlockEntity be = level.getBlockEntity(pos);
-            if (GTIntegration.isGTMachine(be) && GTIntegration.isMachineActive(be)) {
+            // 修改：扫描所有有电的机器，不仅仅是正在工作的
+            if (GTIntegration.isGTMachine(be) && GTIntegration.hasEnergyOrActive(be)) {
                 int tier = GTIntegration.getVoltageTier(be);
                 if (tier >= 0) {
                     double distSq = pos.distSqr(center);
                     double distanceWeight = 1.0 / (1.0 + Math.sqrt(distSq) * 0.1);
                     double typeWeight = GTIntegration.isMultiblock(be) ? 5.0 : 1.0;
-                    
+
                     tiers.add(tier);
                     weights.add(distanceWeight * typeWeight);
+
+                    // 调试日志
+                    IndustrialLogger.debugMachine(String.format(
+                            "Scanned machine at %s | Tier: %d | Active: %s",
+                            pos, tier, GTIntegration.isMachineActive(be)));
                 }
             }
         }
+
+        // 输出扫描结果
+        if (IndustrialLogger.isDebugEnabled() && !tiers.isEmpty()) {
+            IndustrialLogger.debugMachine(String.format(
+                    "Scan complete: Found %d machines with energy", tiers.size()));
+        }
+
         return new ScanResult(tiers, weights);
     }
     

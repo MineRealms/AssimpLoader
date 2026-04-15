@@ -24,54 +24,123 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.entity.MobSpawnType;
 
 /**
- * Handles Temporary and Permanent Pollution for Improved Mobs
-
- * 采用了极低频率的分帧扫描（Staggered Tick）来保证几千机器也不会卡服。
+ * Pollution Manager - Handles temporary and permanent pollution systems for Improved Mobs.
+ *
+ * <h2>Pollution System Design</h2>
+ * <p>This manager implements a dual-layer pollution system:
+ *
+ * <h3>1. Temporary Pollution</h3>
+ * <ul>
+ *   <li>Chunk-based diffusion pollution</li>
+ *   <li>Can be absorbed by environment (leaves, grass, water)</li>
+ *   <li>Triggers mob attacks on machines</li>
+ *   <li>Does not directly affect difficulty</li>
+ * </ul>
+ *
+ * <h3>2. Permanent Pollution</h3>
+ * <ul>
+ *   <li>Global accumulated pollution value</li>
+ *   <li>Converted from temporary pollution when threshold exceeded</li>
+ *   <li>Directly increases ImprovedMobs difficulty</li>
+ *   <li>Represents long-term environmental impact of industrial development</li>
+ * </ul>
+ *
+ * <h3>Performance Optimization</h3>
+ * <p>Uses extremely low-frequency staggered tick scanning to ensure
+ * thousands of machines don't cause server lag. All heavy operations
+ * are performed asynchronously off the main thread.
+ *
+ * @see ThreatManager
+ * @see TriAxisConfig
+ * @author ImprovedMobs Industrial Integration
  */
 public class PollutionManager {
-    
-    // Chunk-based temporary pollution (临时污染值)
+
+    /** Chunk-based temporary pollution map (temporary pollution - chunk diffusion) */
     private static final Map<ChunkPos, Double> temporaryPollution = new ConcurrentHashMap<>();
-    
-    // Chunk-based environmental reduction cache (缓存每个区块的水和树叶抵消值)
+
+    /** Chunk-based environmental reduction cache (caches water and leaf absorption per chunk) */
     private static final Map<ChunkPos, Double> environmentalReductionCache = new ConcurrentHashMap<>();
-    
-    // Global/Player permanent pollution (永久污染值)
+
+    /** Global permanent pollution value (permanent pollution - global accumulation) */
     private static double permanentPollution = 0.0;
-    
-    // 扫描计数器，用于分帧处理
+
+    /** Scan counter for staggered processing */
     private static int tickCounter = 0;
 
+    // === Configuration Parameters (adjustable via TriAxisConfig) ===
+
+    /** Threshold for converting temporary pollution to permanent pollution */
+    public static double TEMP_TO_PERM_THRESHOLD = 200.0;
+
+    /** Conversion rate for temporary to permanent pollution (per second) */
+    public static double TEMP_TO_PERM_RATE = 0.001;
+
+    /** Conversion rate for permanent pollution to difficulty */
+    public static double PERM_TO_DIFFICULTY_RATE = 0.1;
+
+    /**
+     * Adds to the global permanent pollution value.
+     *
+     * @param amount Amount of pollution to add
+     */
     public static void addPermanentPollution(double amount) {
         permanentPollution += amount;
     }
 
+    /**
+     * Gets the current global permanent pollution value.
+     *
+     * @return Current permanent pollution level
+     */
     public static double getPermanentPollution() {
         return permanentPollution;
     }
 
+    /**
+     * Gets the temporary pollution level for a specific chunk.
+     *
+     * @param pos Chunk position to query
+     * @return Temporary pollution level, or 0 if no pollution
+     */
     public static double getTemporaryPollution(ChunkPos pos) {
         return temporaryPollution.getOrDefault(pos, 0.0);
     }
 
     /**
-     * 在 ServerTickEvent 中调用。为了性能，我们不每tick扫描，而是每20 tick（1秒）
-     * 随机抽取一部分加载的区块进行污染累加和衰减计算。
+     * Main tick method called from ServerTickEvent.
+     * For performance, scanning is not done every tick but every 20 ticks (1 second).
+     * Randomly samples loaded chunks for pollution accumulation and decay calculation.
+     *
+     * @param level The server level to process
      */
     public static void tick(ServerLevel level) {
         tickCounter++;
-        
-        // 1 second pollute & scan
+
+        // 1 second pollution & scan
         if (tickCounter % 20 == 0) {
             processPollutionDecayAndScanning(level);
         }
-        
-        // 5 min env scan (already in thread)
+
+        // 5 minute environment scan (already in thread)
         if (tickCounter % 6000 == 0) {
             updateEnvironmentalCache(level);
         }
     }
 
+    /**
+     * Processes pollution decay and machine scanning asynchronously.
+     * This method:
+     * <ul>
+     *   <li>Scans for active GT machines near players</li>
+     *   <li>Calculates pollution generation from machines</li>
+     *   <li>Converts temporary pollution to permanent when threshold exceeded</li>
+     *   <li>Applies environmental reduction (leaves, water, grass)</li>
+     *   <li>Triggers threat mechanisms based on pollution levels</li>
+     * </ul>
+     *
+     * @param level The server level to process
+     */
     private static void processPollutionDecayAndScanning(ServerLevel level) {
         Map<ChunkPos, Double> newPollutionThisSec = new HashMap<>();
         
@@ -90,15 +159,24 @@ public class PollutionManager {
                                 if (GTIntegration.isGTMachine(be)) {
                                     if (GTIntegration.hasEnergyOrActive(be)) {
                                         int tier = GTIntegration.getVoltageTier(be);
-                                        double pollutionValue = 0.01 * Math.max(1, tier);
+                                        // Reasonable pollution generation: base 0.01, linear growth
+                                        // tier 0 (ULV) = 0.01/s, tier 2 (MV) = 0.03/s, tier 4 (EV) = 0.05/s
+                                        double pollutionValue = 0.01 * (1 + tier * 0.5);
+
+                                        // Multiblock structures produce more pollution (3x)
                                         if (GTIntegration.isMultiblock(be)) {
-                                            pollutionValue *= 5.0;
+                                            pollutionValue *= 3.0;
                                         }
-                                        
+
                                         ChunkPos cPos = new ChunkPos(be.getBlockPos());
                                         newPollutionThisSec.merge(cPos, pollutionValue, Double::sum);
-                                        
-                                        addPermanentPollution(pollutionValue * 0.00001);
+
+                                        // Debug logging
+                                        if (IndustrialLogger.isDebugEnabled() && level.getGameTime() % 100 == 0) {
+                                            IndustrialLogger.debugPollution(String.format(
+                                                    "Machine at %s (tier %d, multiblock: %s) produces %.4f temp pollution/sec",
+                                                    be.getBlockPos(), tier, GTIntegration.isMultiblock(be), pollutionValue));
+                                        }
                                     }
                                 }
                             }
@@ -107,62 +185,71 @@ public class PollutionManager {
                 }
             }
         }).thenAccept(v -> {
-            if (permanentPollution >= 0.1) {
-                io.github.flemmli97.improvedmobs.difficulty.DifficultyData diffData = io.github.flemmli97.improvedmobs.difficulty.DifficultyData.get(level.getServer());
-                diffData.addDifficulty((float)permanentPollution, level.getServer());
-                permanentPollution = 0.0;
-            }
-            
+            // Process temporary pollution conversion to permanent pollution
+            double totalTempPollution = 0;
             for (ChunkPos cPos : temporaryPollution.keySet()) {
                 double current = temporaryPollution.get(cPos);
+                totalTempPollution += current;
+
+                // When temporary pollution exceeds threshold, convert to permanent
+                if (current > TEMP_TO_PERM_THRESHOLD) {
+                    double converted = current * TEMP_TO_PERM_RATE;
+                    addPermanentPollution(converted);
+
+                    if (IndustrialLogger.isDebugEnabled() && level.getGameTime() % 100 == 0) {
+                        IndustrialLogger.debugPollution(String.format(
+                                "Chunk %s: Temp pollution %.2f -> Converting %.4f to permanent",
+                                cPos, current, converted));
+                    }
+                }
+
+                // Calculate decay and new additions
                 double reduction = 0.05;
                 reduction += getSurroundingEnvironmentalReduction(cPos);
                 double added = newPollutionThisSec.getOrDefault(cPos, 0.0);
                 double nextVal = Math.max(0.0, current - reduction + added);
-                
+
                 if (nextVal <= 0.001) {
                     temporaryPollution.remove(cPos);
                 } else {
                     temporaryPollution.put(cPos, nextVal);
-                    
-                    if (nextVal > 50.0 && level.random.nextInt(100) == 0) {
-                        spawnPollutionCreeper(level, cPos);
-                    }
+
+                    // Check and trigger threat mechanisms (based on voltage tier and pollution)
+                    double avgTier = ThreatManager.getChunkAverageVoltageTier(level, cPos);
+                    ThreatManager.checkAndTriggerThreats(level, cPos, nextVal, avgTier);
                 }
             }
-            
+
+            // New pollution chunks
             for (Map.Entry<ChunkPos, Double> entry : newPollutionThisSec.entrySet()) {
                 if (!temporaryPollution.containsKey(entry.getKey())) {
                     temporaryPollution.put(entry.getKey(), entry.getValue());
                 }
             }
+
+            // When permanent pollution accumulates to a certain level, increase global difficulty
+            if (permanentPollution >= PERM_TO_DIFFICULTY_RATE) {
+                io.github.flemmli97.improvedmobs.difficulty.DifficultyData diffData =
+                        io.github.flemmli97.improvedmobs.difficulty.DifficultyData.get(level.getServer());
+                diffData.addDifficulty((float)permanentPollution, level.getServer());
+
+                if (IndustrialLogger.isDebugEnabled()) {
+                    IndustrialLogger.debugPollution(String.format(
+                            "Added %.2f permanent pollution to global difficulty (Total temp: %.2f)",
+                            permanentPollution, totalTempPollution));
+                }
+
+                permanentPollution = 0.0;
+            }
         });
     }
 
-    private static void spawnPollutionCreeper(ServerLevel level, ChunkPos cPos) {
-        // 在区块附近找一个可以生成的点
-        int rx = cPos.getMinBlockX() + level.random.nextInt(16);
-        int rz = cPos.getMinBlockZ() + level.random.nextInt(16);
-        int ry = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, rx, rz);
-        BlockPos spawnPos = new BlockPos(rx, ry, rz);
-        
-        // 确保生成点周围有一些机器
-        if (level.hasChunkAt(spawnPos)) {
-            Creeper creeper = EntityType.CREEPER.create(level);
-            if (creeper != null) {
-                creeper.moveTo(rx + 0.5, ry, rz + 0.5, level.random.nextFloat() * 360.0F, 0.0F);
-                creeper.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.EVENT, null, null);
-                
-                // 给它添加针对机器的自爆 AI
-                creeper.goalSelector.addGoal(1, new io.github.flemmli97.improvedmobs.ai.CreeperTargetMachineGoal(creeper));
-                level.addFreshEntity(creeper);
-            }
-        }
-    }
-
     /**
-     * 获取周围 4 个区块的净化总量
-
+     * Gets the total environmental reduction from surrounding 4 chunks.
+     * Environmental reduction comes from leaves, water, and grass blocks.
+     *
+     * @param center Center chunk position
+     * @return Total environmental reduction value
      */
     private static double getSurroundingEnvironmentalReduction(ChunkPos center) {
         double totalReduction = 0.0;
@@ -176,14 +263,18 @@ public class PollutionManager {
     }
 
     /**
-     * 后台线程异步更新区块的树叶和水数量缓存
-     * 由于原版水是 Blocks.WATER，树叶在 BlockTags.LEAVES，我们在单独线程中直接读取方块状态
+     * Updates the environmental reduction cache in a background thread.
+     * Scans chunks for leaves and water blocks to calculate pollution absorption.
+     * Since vanilla water is Blocks.WATER and leaves are in BlockTags.LEAVES,
+     * we read block states directly in a separate thread.
+     *
+     * @param level The server level to scan
      */
     private static void updateEnvironmentalCache(ServerLevel level) {
 
         new Thread(() -> {
             for (ChunkPos cPos : temporaryPollution.keySet()) {
-                // 仅扫描有污染附近的区块，防止扫描过多无用区域
+                // Only scan chunks near pollution to avoid scanning too many useless areas
                 for (int cx = -4; cx <= 4; cx++) {
                     for (int cz = -4; cz <= 4; cz++) {
                         ChunkPos scanPos = new ChunkPos(cPos.x + cx, cPos.z + cz);
@@ -199,18 +290,30 @@ public class PollutionManager {
     }
 
     /**
-     * 极速扫描区块：利用 ChunkSection 的双层循环，而不是三层坐标循环
-     * 极大地优化了性能！
+     * Ultra-fast chunk scanning using ChunkSection's two-layer loop instead of three-layer coordinate loop.
+     * This greatly optimizes performance!
+     *
+     * <p>Pollution absorption formula:
+     * <ul>
+     *   <li>Each leaf: 0.0001 (trees are the main purification source)</li>
+     *   <li>Each water block: 0.00005 (water purification is weaker)</li>
+     *   <li>Each grass/flower: 0.0001 (grass purification equals leaves)</li>
+     * </ul>
+     *
+     * @param chunk The chunk to scan
+     * @return Total environmental reduction value for the chunk
      */
     private static double calculateChunkReduction(LevelChunk chunk) {
         int leafCount = 0;
         int waterCount = 0;
-        
+        int grassCount = 0;
+
         for (LevelChunkSection section : chunk.getSections()) {
             if (section.hasOnlyAir()) continue;
-            
-            // 为了安全在异步线程访问，我们只做基本的 blockId 比较（此处演示经典的三层循环优化版）
-            // 因为直接调取 PaletteContainer 的并发不安全
+
+            // For safe async thread access, we only do basic blockId comparison
+            // (classic three-layer loop optimized version shown here)
+            // Direct PaletteContainer access is not thread-safe
             for (int x = 0; x < 16; x++) {
                 for (int y = 0; y < 16; y++) {
                     for (int z = 0; z < 16; z++) {
@@ -219,15 +322,18 @@ public class PollutionManager {
                             waterCount++;
                         } else if (state.is(BlockTags.LEAVES)) {
                             leafCount++;
+                        } else if (state.is(BlockTags.FLOWERS) ||
+                                   state.is(Blocks.GRASS) ||
+                                   state.is(Blocks.TALL_GRASS) ||
+                                   state.is(Blocks.FERN) ||
+                                   state.is(Blocks.LARGE_FERN)) {
+                            grassCount++;
                         }
                     }
                 }
             }
         }
-        
-        // 高精度换算公式：
-        // 每个树叶 0.0001
-        // 每个水方块 0.00005
-        return (leafCount * 0.0001) + (waterCount * 0.00005);
+
+        return (leafCount * 0.0001) + (waterCount * 0.00005) + (grassCount * 0.0001);
     }
 }

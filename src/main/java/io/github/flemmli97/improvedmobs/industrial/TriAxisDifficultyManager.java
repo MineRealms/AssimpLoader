@@ -30,9 +30,8 @@ public class TriAxisDifficultyManager {
 
     public static DifficultyState calculateLocalDifficulty(ServerLevel level, BlockPos center) {
         // --- 1. 时间轴 (Time Axis - T) ---
-        // 根据配置里的MC天数进行对数缩放，平滑前期并放缓后期
         long mcDays = level.getDayTime() / 24000L;
-        
+
         double tRaw = Math.log1p(mcDays / TriAxisConfig.baseDays) / Math.log1p(TriAxisConfig.targetDays / TriAxisConfig.baseDays);
         double T = Mth.clamp(tRaw, 0.0, 1.0);
 
@@ -40,43 +39,62 @@ public class TriAxisDifficultyManager {
         double V = 0.0;
         if (TriAxisConfig.hasGTCEu()) {
             int medianTier = MachineScanner.scanNearbyVoltageTierMedianSafely(level, center, TriAxisConfig.scanRadiusBlocks);
-            V = Mth.clamp((double) medianTier / TriAxisConfig.maxGTTier, 0.0, 1.0);
+            // 使用配置的最大电压等级进行归一化
+            int effectiveMaxTier = TriAxisConfig.getEffectiveMaxTier();
+            V = Mth.clamp((double) medianTier / effectiveMaxTier, 0.0, 1.0);
         } else {
-            // 降级兼容：如果没有GTCEu，把V的权重平摊或者按时间补偿
-            V = T; // 简单的降级处理
+            V = T; // 降级处理
         }
 
         // --- 3. 污染轴 (Pollution Axis - P) ---
         double P = 0.0;
         if (SporeIntegration.isSporeLoaded()) {
-            double rawPollution = PollutionManager.getPermanentPollution(); // 简化：获取基础污染
-            
+            double rawPollution = PollutionManager.getPermanentPollution();
+
             // EMA (指数移动平均) 平滑处理污染值
             double currentEma = pollutionEmaCache.getOrDefault(center, 0.0);
             double newEma = (TriAxisConfig.emaAlpha * rawPollution) + ((1.0 - TriAxisConfig.emaAlpha) * currentEma);
             pollutionEmaCache.put(center, newEma);
-            
+
             P = 1.0 - Math.exp(-newEma / TriAxisConfig.pollutionDenominator);
         } else {
-            P = T; // 降级处理
+            // 降级处理：即使没有 Spore，也应该使用污染数据
+            // 使用临时污染 + 永久污染的组合
+            double localPollution = PollutionManager.getTemporaryPollution(new net.minecraft.world.level.ChunkPos(center));
+            double globalPollution = PollutionManager.getPermanentPollution();
+            double totalPollution = localPollution + globalPollution;
+
+            // EMA 平滑
+            double currentEma = pollutionEmaCache.getOrDefault(center, 0.0);
+            double newEma = (TriAxisConfig.emaAlpha * totalPollution) + ((1.0 - TriAxisConfig.emaAlpha) * currentEma);
+            pollutionEmaCache.put(center, newEma);
+
+            P = 1.0 - Math.exp(-newEma / TriAxisConfig.pollutionDenominator);
         }
 
         // --- 4. 融合计算总难度 (Total Difficulty - D) ---
         double targetD = TriAxisConfig.globalMultiplier * (
-                TriAxisConfig.weightTime * T + 
-                TriAxisConfig.weightVoltage * V + 
+                TriAxisConfig.weightTime * T +
+                TriAxisConfig.weightVoltage * V +
                 TriAxisConfig.weightPollution * P
         );
 
         // --- 5. 迟滞与限速 (Hysteresis & Rate Limiting) ---
         double currentD = difficultyCache.getOrDefault(center, 0.0);
         double delta = targetD - currentD;
-        
-        // 限制每次计算的最大变化率 (防止难度瞬间暴走)
+
+        // 限制每次计算的最大变化率
         delta = Mth.clamp(delta, -TriAxisConfig.maxChangePerSec, TriAxisConfig.maxChangePerSec);
         double finalD = currentD + delta;
-        
+
         difficultyCache.put(center, finalD);
+
+        // --- 6. Debug Logging - 每5秒输出一次（100 ticks）---
+        if (IndustrialLogger.isDebugEnabled() && level.getGameTime() % 100 == 0) {
+            IndustrialLogger.debugDifficulty(String.format(
+                    "Pos: %s | T: %.2f | V: %.2f | P: %.2f | D: %.2f",
+                    center, T, V, P, finalD));
+        }
 
         return new DifficultyState(finalD, T, V, P);
     }
