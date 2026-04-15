@@ -46,31 +46,20 @@ public class TriAxisDifficultyManager {
             V = T; // 降级处理
         }
 
-        // --- 3. 污染轴 (Pollution Axis - P) ---
-        double P = 0.0;
-        if (SporeIntegration.isSporeLoaded()) {
-            double rawPollution = PollutionManager.getPermanentPollution();
+        // --- 3. Pollution Axis (P) ---
+        // Always use temporary + permanent pollution, regardless of Spore
+        double localPollution = PollutionManager.getTemporaryPollution(new net.minecraft.world.level.ChunkPos(center));
+        double globalPollution = PollutionManager.getPermanentPollution();
+        double totalPollution = localPollution + globalPollution;
 
-            // EMA (指数移动平均) 平滑处理污染值
-            double currentEma = pollutionEmaCache.getOrDefault(center, 0.0);
-            double newEma = (TriAxisConfig.emaAlpha * rawPollution) + ((1.0 - TriAxisConfig.emaAlpha) * currentEma);
-            pollutionEmaCache.put(center, newEma);
+        // EMA smoothing
+        double currentEma = pollutionEmaCache.getOrDefault(center, 0.0);
+        double newEma = (TriAxisConfig.emaAlpha * totalPollution) + ((1.0 - TriAxisConfig.emaAlpha) * currentEma);
+        pollutionEmaCache.put(center, newEma);
 
-            P = 1.0 - Math.exp(-newEma / TriAxisConfig.pollutionDenominator);
-        } else {
-            // 降级处理：即使没有 Spore，也应该使用污染数据
-            // 使用临时污染 + 永久污染的组合
-            double localPollution = PollutionManager.getTemporaryPollution(new net.minecraft.world.level.ChunkPos(center));
-            double globalPollution = PollutionManager.getPermanentPollution();
-            double totalPollution = localPollution + globalPollution;
-
-            // EMA 平滑
-            double currentEma = pollutionEmaCache.getOrDefault(center, 0.0);
-            double newEma = (TriAxisConfig.emaAlpha * totalPollution) + ((1.0 - TriAxisConfig.emaAlpha) * currentEma);
-            pollutionEmaCache.put(center, newEma);
-
-            P = 1.0 - Math.exp(-newEma / TriAxisConfig.pollutionDenominator);
-        }
+        // Normalize pollution to 0-1 range
+        // Use a more sensitive formula for low pollution values
+        double P = Math.min(1.0, newEma / 100.0); // Linear scaling: 100 pollution = 1.0
 
         // --- 4. 融合计算总难度 (Total Difficulty - D) ---
         double targetD = TriAxisConfig.globalMultiplier * (
@@ -89,11 +78,11 @@ public class TriAxisDifficultyManager {
 
         difficultyCache.put(center, finalD);
 
-        // --- 6. Debug Logging - 每5秒输出一次（100 ticks）---
+        // --- 6. Debug Logging - output every 5 seconds (100 ticks) ---
         if (IndustrialLogger.isDebugEnabled() && level.getGameTime() % 100 == 0) {
             IndustrialLogger.debugDifficulty(String.format(
-                    "Pos: %s | T: %.2f | V: %.2f | P: %.2f | D: %.2f",
-                    center, T, V, P, finalD));
+                    "TriAxis at %s | T: %.4f | V: %.4f | P: %.4f | D: %.4f | LocalPollution: %.2f | GlobalPollution: %.2f | TotalPollution: %.2f",
+                    center, T, V, P, finalD, localPollution, globalPollution, totalPollution));
         }
 
         return new DifficultyState(finalD, T, V, P);
