@@ -42,32 +42,29 @@ public class HudUpdateService {
         if (tickCounter < 20) return; // 每秒更新一次
         tickCounter = 0;
 
-        // 遍历所有玩家，异步更新HUD数据
+        // 遍历所有玩家，在主线程更新HUD数据（避免线程安全问题）
         for (ServerLevel level : event.getServer().getAllLevels()) {
             for (ServerPlayer player : level.players()) {
                 if (!HudCommands.isHudEnabled(player.getUUID())) continue;
 
-                // 异步计算HUD数据，避免阻塞主线程
-                EXECUTOR.submit(() -> {
-                    try {
-                        updatePlayerHudAsync(player);
-                    } catch (Exception e) {
-                        // 静默失败，避免影响游戏
-                        if (TriAxisConfig.enableDifficultyLogging) {
-                            System.err.println("[ImprovedMobs] HUD update failed for player " + player.getName().getString());
-                            e.printStackTrace();
-                        }
+                try {
+                    updatePlayerHud(player);
+                } catch (Exception e) {
+                    // 静默失败，避免影响游戏
+                    if (TriAxisConfig.enableDifficultyLogging) {
+                        System.err.println("[ImprovedMobs] HUD update failed for player " + player.getName().getString());
+                        e.printStackTrace();
                     }
-                });
+                }
             }
         }
     }
 
     /**
-     * 异步更新玩家HUD数据
-     * 在工作线程中执行，不阻塞主线程
+     * 更新玩家HUD数据
+     * 在主线程执行，确保线程安全
      */
-    private static void updatePlayerHudAsync(ServerPlayer player) {
+    private static void updatePlayerHud(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
 
         // 1. 三轴难度数据
@@ -81,10 +78,17 @@ public class HudUpdateService {
                 DifficultySmoother.weightedMedian(machineResult.tiers(), machineResult.weights());
         float industrialBonus = IndustrialDifficultyManager.getDifficultyFor(player);
 
+        // 无条件 debug 日志 - 诊断问题
+        if (IndustrialLogger.isDebugEnabled()) {
+            IndustrialLogger.info(String.format(
+                    "[HUD-DEBUG] Scanned %d machines, median: %.2f, bonus: %.3f, radius: %d",
+                    machineResult.tiers().size(), medianTier, industrialBonus, scanRadius));
+        }
+
         // 调试日志 - 显示扫描结果
         if (IndustrialLogger.isDebugEnabled() && level.getGameTime() % 100 == 0) {
             IndustrialLogger.info(String.format(
-                    "HUD Update: Scan radius=%d, Found %d machines, median tier: %.2f, industrial bonus: %.3f",
+                    "cd, Found %d machines, median tier: %.2f, industrial bonus: %.3f",
                     scanRadius, machineResult.tiers().size(), medianTier, industrialBonus));
             if (!machineResult.tiers().isEmpty()) {
                 IndustrialLogger.info("Machine tiers: " + machineResult.tiers());
@@ -145,7 +149,7 @@ public class HudUpdateService {
                     localPollution, globalPollution));
         }
 
-        // 6. 发送数据包到客户端（必须在主线程执行）
+        // 6. 发送数据包到客户端
         SyncHudDataPacket packet = new SyncHudDataPacket(
                 triAxisState.totalDifficulty,
                 triAxisState.timeFactor,
@@ -168,12 +172,10 @@ public class HudUpdateService {
                 true // HUD已启用
         );
 
-        // 回到主线程发送数据包
-        level.getServer().execute(() -> {
-            if (player.isAlive() && !player.hasDisconnected()) {
-                PacketHandler.sendHudDataToPlayer(packet, player);
-            }
-        });
+        // 发送数据包
+        if (player.isAlive() && !player.hasDisconnected()) {
+            PacketHandler.sendHudDataToPlayer(packet, player);
+        }
     }
 
     /**
