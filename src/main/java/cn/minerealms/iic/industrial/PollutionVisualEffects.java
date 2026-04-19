@@ -117,7 +117,7 @@ public class PollutionVisualEffects {
         try {
             // Delegate to EnhancedVisuals helper
             LOGGER.info("[PollutionVisualEffects] Calling EnhancedVisualsHelper.triggerLightEffects()");
-            cn.minerealms.iic.mixin.enhancedvisuals.EnhancedVisualsHelper.triggerLightEffects();
+            cn.minerealms.iic.integration.enhancedvisuals.EnhancedVisualsHelper.triggerLightEffects();
             debugLog(String.format("Light effects triggered: pollution=%.1f", pollution));
         } catch (NoClassDefFoundError e) {
             LOGGER.error("[PollutionVisualEffects] EnhancedVisualsHelper class not found - EnhancedVisuals may not be installed", e);
@@ -133,7 +133,7 @@ public class PollutionVisualEffects {
         try {
             // Delegate to EnhancedVisuals helper
             LOGGER.info("[PollutionVisualEffects] Calling EnhancedVisualsHelper.triggerModerateEffects()");
-            cn.minerealms.iic.mixin.enhancedvisuals.EnhancedVisualsHelper.triggerModerateEffects();
+            cn.minerealms.iic.integration.enhancedvisuals.EnhancedVisualsHelper.triggerModerateEffects();
 
             // Apply Nausea I (10 seconds)
             player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 200, 0, false, false));
@@ -153,7 +153,7 @@ public class PollutionVisualEffects {
         try {
             // Delegate to EnhancedVisuals helper
             LOGGER.info("[PollutionVisualEffects] Calling EnhancedVisualsHelper.triggerHeavyEffects()");
-            cn.minerealms.iic.mixin.enhancedvisuals.EnhancedVisualsHelper.triggerHeavyEffects();
+            cn.minerealms.iic.integration.enhancedvisuals.EnhancedVisualsHelper.triggerHeavyEffects();
 
             // Apply Nausea II (15 seconds)
             player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 300, 1, false, false));
@@ -173,7 +173,7 @@ public class PollutionVisualEffects {
         try {
             // Delegate to EnhancedVisuals helper
             LOGGER.info("[PollutionVisualEffects] Calling EnhancedVisualsHelper.triggerSevereEffects()");
-            cn.minerealms.iic.mixin.enhancedvisuals.EnhancedVisualsHelper.triggerSevereEffects();
+            cn.minerealms.iic.integration.enhancedvisuals.EnhancedVisualsHelper.triggerSevereEffects();
 
             // Apply Nausea III (20 seconds)
             player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 400, 2, false, false));
