@@ -10,11 +10,17 @@ import java.util.UUID;
 import net.minecraft.world.entity.player.Player;
 
 /**
- * Manages per-player industrial difficulty bonuses based on nearby machines and pollution.
+ * Per-player difficulty tracking and calculation manager.
  * <p>
- * This manager tracks each player's industrial progression by scanning nearby machines
- * and pollution levels, then calculating a difficulty bonus that reflects their
- * technological advancement and environmental impact.
+ * <b>Responsibility:</b> Tracks and calculates per-player industrial difficulty bonuses
+ * based on nearby machines and pollution levels. This is the internal state manager
+ * that maintains player-specific difficulty values.
+ * <p>
+ * <b>Key Differences from {@link DifficultyProvider}:</b>
+ * <ul>
+ *   <li><b>DifficultyManager</b> - Manages per-player state, calculates player-specific bonuses</li>
+ *   <li><b>DifficultyProvider</b> - Provides location-based difficulty to ImprovedMobs API</li>
+ * </ul>
  * <p>
  * The calculation process:
  * <ol>
@@ -27,11 +33,13 @@ import net.minecraft.world.entity.player.Player;
  * Scanning occurs every {@value #SCAN_INTERVAL} ticks (1 second) for performance.
  * Debug logging outputs every 100 ticks (5 seconds) when enabled.
  *
+ * @see DifficultyProvider
  * @see MachineScanner
  * @see HazardScanner
  * @see DifficultySmoother
  * @see TriAxisConfig
  * @author ImprovedMobs Team
+ * @since 1.0.0
  */
 public class DifficultyManager {
 

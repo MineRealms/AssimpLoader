@@ -998,8 +998,9 @@ public class TriAxisConfig {
      *
      * @deprecated This class is deprecated in favor of {@link cn.minerealms.iic.core.config.IICConfig}.
      *             This method exists only for backward compatibility.
+     * @since 1.0.0
      */
-
+    @Deprecated(forRemoval = true, since = "1.1.0")
     public static void syncFromConfig() {
         cn.minerealms.iic.core.config.IICConfig config = cn.minerealms.iic.core.config.IICConfig.INSTANCE;
         if (config == null) return;
