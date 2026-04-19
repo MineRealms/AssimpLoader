@@ -1,6 +1,6 @@
 package cn.minerealms.iic.network;
 
-import cn.minerealms.iic.industrial.PollutionVisualEffects;
+import cn.minerealms.iic.pollution.visual.PollutionVisualEffects;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;

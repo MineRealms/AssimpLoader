@@ -3,7 +3,7 @@ package cn.minerealms.iic.commands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import cn.minerealms.iic.industrial.PollutionVisualEffects;
+import cn.minerealms.iic.pollution.visual.PollutionVisualEffects;
 import cn.minerealms.iic.network.PacketHandler;
 import cn.minerealms.iic.network.TriggerPollutionEffectPacket;
 import net.minecraft.commands.CommandSourceStack;

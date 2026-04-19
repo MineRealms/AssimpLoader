@@ -1,4 +1,7 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.integration.gregtech;
+
+import cn.minerealms.iic.industrial.IndustrialLogger;
+import cn.minerealms.iic.industrial.TriAxisConfig;
 
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.common.util.LazyOptional;

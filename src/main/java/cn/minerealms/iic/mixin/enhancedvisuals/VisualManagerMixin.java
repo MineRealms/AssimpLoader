@@ -1,6 +1,7 @@
 package cn.minerealms.iic.mixin.enhancedvisuals;
 
-import cn.minerealms.iic.industrial.PollutionManager;
+import cn.minerealms.iic.pollution.PollutionManager;
+import cn.minerealms.iic.pollution.visual.PollutionVisualEffects;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraftforge.api.distmarker.Dist;
@@ -65,6 +66,6 @@ public class VisualManagerMixin {
         double pollution = PollutionManager.getTemporaryPollution(chunkPos);
 
         // Trigger effects based on pollution level (handled by PollutionVisualEffects)
-        cn.minerealms.iic.industrial.PollutionVisualEffects.checkAndTriggerEffects(player, pollution);
+        cn.minerealms.iic.pollution.visual.PollutionVisualEffects.checkAndTriggerEffects(player, pollution);
     }
 }

@@ -1,4 +1,11 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.threat.horde;
+
+import cn.minerealms.iic.difficulty.DifficultyManager;
+import cn.minerealms.iic.difficulty.MachineScanner;
+import cn.minerealms.iic.industrial.IndustrialLogger;
+import cn.minerealms.iic.industrial.TriAxisConfig;
+import cn.minerealms.iic.integration.gregtech.GTIntegration;
+import cn.minerealms.iic.pollution.PollutionManager;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -264,7 +271,7 @@ public class HordeIntegrationManager {
             }
 
             // 获取当前 difficulty
-            float difficulty = IndustrialDifficultyManager.getDifficultyFor(player);
+            float difficulty = DifficultyManager.getDifficultyFor(player);
 
             // 计算强度调整
             double intensityBonus = difficulty * difficultyToIntensityFactor * hordeIntensityMultiplier;

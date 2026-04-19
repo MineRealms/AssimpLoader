@@ -1,4 +1,8 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.difficulty;
+
+import cn.minerealms.iic.industrial.IndustrialLogger;
+import cn.minerealms.iic.integration.gregtech.GTIntegration;
+import cn.minerealms.iic.industrial.TriAxisConfig;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;

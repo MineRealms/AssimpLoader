@@ -2,7 +2,7 @@ package cn.minerealms.iic.commands;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
-import cn.minerealms.iic.industrial.SporeApiDiagnostics;
+import cn.minerealms.iic.integration.spore.SporeApiDiagnostics;
 import cn.minerealms.iic.industrial.TriAxisConfig;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;

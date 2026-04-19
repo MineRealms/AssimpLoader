@@ -1,4 +1,7 @@
-package cn.minerealms.iic.industrial;
+package cn.minerealms.iic.difficulty;
+
+import cn.minerealms.iic.industrial.TriAxisConfig;
+import cn.minerealms.iic.integration.spore.SporeIntegration;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;

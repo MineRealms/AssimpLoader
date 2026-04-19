@@ -99,7 +99,7 @@ public class IntegratedIndustrialCraft {
             LOGGER.info("ImprovedMobs detected, registering difficulty provider");
             DifficultyFetcher.add(
                     new ResourceLocation(MODID, "industrial_difficulty"),
-                    new IndustrialDifficultyGetter()
+                    new cn.minerealms.iic.difficulty.DifficultyProvider()
             );
         } else {
             LOGGER.warn("ImprovedMobs not found! IIC requires ImprovedMobs to function.");

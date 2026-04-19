@@ -1,7 +1,7 @@
 package cn.minerealms.iic.ai;
 
-import cn.minerealms.iic.industrial.GTIntegration;
-import cn.minerealms.iic.industrial.PollutionManager;
+import cn.minerealms.iic.integration.gregtech.GTIntegration;
+import cn.minerealms.iic.pollution.PollutionManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Creeper;
@@ -18,6 +18,7 @@ public class CreeperTargetMachineGoal extends Goal {
 
     // 污染阈值：HV 阶段 Creeper 才会攻击机器
     // 比僵尸更高的阈值，因为 Creeper 会炸毁机器
+    //TODO: 改成在配置里集成，指定在什么阶段和污染触发
     private static final double HV_POLLUTION_THRESHOLD = 120.0;
 
     public CreeperTargetMachineGoal(Creeper creeper) {
@@ -33,7 +34,7 @@ public class CreeperTargetMachineGoal extends Goal {
         // 检查当前区块的污染等级
         ChunkPos chunkPos = new ChunkPos(this.creeper.blockPosition());
         double localPollution = PollutionManager.getTemporaryPollution(chunkPos);
-
+        //TODO:不要硬编码
         // HV 阶段：污染不够高，不触发
         if (localPollution < HV_POLLUTION_THRESHOLD) {
             return false;

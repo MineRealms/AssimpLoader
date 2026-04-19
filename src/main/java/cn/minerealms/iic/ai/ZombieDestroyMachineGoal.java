@@ -1,7 +1,7 @@
 package cn.minerealms.iic.ai;
 
-import cn.minerealms.iic.industrial.GTIntegration;
-import cn.minerealms.iic.industrial.PollutionManager;
+import cn.minerealms.iic.integration.gregtech.GTIntegration;
+import cn.minerealms.iic.pollution.PollutionManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Zombie;
