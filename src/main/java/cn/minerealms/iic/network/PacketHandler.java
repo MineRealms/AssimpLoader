@@ -41,6 +41,13 @@ public class PacketHandler {
                 .consumerMainThread(SyncHudDataPacket::handle)
                 .add();
 
+        // Pollution visual effect test packet
+        INSTANCE.messageBuilder(TriggerPollutionEffectPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .decoder(TriggerPollutionEffectPacket::new)
+                .encoder(TriggerPollutionEffectPacket::encode)
+                .consumerMainThread(TriggerPollutionEffectPacket::handle)
+                .add();
+
         // Scanner packets
         INSTANCE.messageBuilder(PacketScannerRequest.class, id(), NetworkDirection.PLAY_TO_SERVER)
                 .decoder(PacketScannerRequest::fromNetwork)

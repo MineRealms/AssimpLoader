@@ -370,6 +370,132 @@ public class TriAxisConfig {
      */
     public static boolean enableHivemindAcceleration = true;
 
+    // ========== Hordes Integration ==========
+
+    /**
+     * Enable The Hordes integration system.
+     * When enabled, hordes are dynamically adjusted based on difficulty and pollution.
+     * Default: true
+     */
+    public static boolean enableHordeIntegration = true;
+
+    /**
+     * Global horde intensity multiplier (0.5-3.0).
+     * Higher values make hordes stronger overall.
+     * Default: 1.0
+     */
+    public static double hordeIntensityMultiplier = 1.0;
+
+    /**
+     * Difficulty to horde intensity conversion factor (0.1-2.0).
+     * Controls how much ImprovedMobs difficulty affects horde strength.
+     * Default: 0.5
+     */
+    public static double difficultyToIntensityFactor = 0.5;
+
+    /**
+     * Enable pollution-triggered hordes.
+     * When enabled, high pollution automatically triggers hordes.
+     * Default: true
+     */
+    public static boolean enablePollutionTriggeredHordes = true;
+
+    /**
+     * Pollution threshold for triggering hordes (100-300).
+     * When chunk pollution exceeds this, hordes may be triggered.
+     * Default: 150.0
+     */
+    public static double pollutionHordeTriggerThreshold = 150.0;
+
+    /**
+     * Pollution horde check interval in ticks (300-1200).
+     * How often to check for pollution-triggered hordes.
+     * Default: 600 (30 seconds)
+     */
+    public static double pollutionHordeCheckInterval = 600.0;
+
+    /**
+     * Pollution horde trigger chance per check (0.01-0.2).
+     * Probability of triggering a horde when pollution is high enough.
+     * Default: 0.05 (5% per check)
+     */
+    public static double pollutionHordeTriggerChance = 0.05;
+
+    /**
+     * Enable small skirmishes (mini-hordes).
+     * When enabled, small groups of mobs spawn periodically in polluted areas.
+     * Default: true
+     */
+    public static boolean enableSkirmishes = true;
+
+    /**
+     * Pollution threshold for skirmishes (50-150).
+     * When chunk pollution exceeds this, skirmishes may occur.
+     * Default: 80.0
+     */
+    public static double skirmishPollutionThreshold = 80.0;
+
+    /**
+     * Skirmish interval in ticks (600-2400).
+     * Time between skirmish checks.
+     * Default: 1200 (1 minute)
+     */
+    public static double skirmishInterval = 1200.0;
+
+    /**
+     * Minimum skirmish mob count (1-10).
+     * Default: 3
+     */
+    public static int skirmishMinCount = 3;
+
+    /**
+     * Maximum skirmish mob count (5-20).
+     * Default: 8
+     */
+    public static int skirmishMaxCount = 8;
+
+    /**
+     * Major horde pollution threshold (150-300).
+     * When pollution exceeds this, major hordes (2x strength) are triggered.
+     * Default: 200.0
+     */
+    public static double majorHordePollutionThreshold = 200.0;
+
+    /**
+     * Major horde strength multiplier (1.5-3.0).
+     * How much stronger major hordes are compared to normal hordes.
+     * Default: 2.0
+     */
+    public static double majorHordeMultiplier = 2.0;
+
+    /**
+     * Enable machine targeting for horde zombies.
+     * When enabled, some horde zombies will attack nearby machines.
+     * Default: true
+     */
+    public static boolean enableMachineTargeting = true;
+
+    /**
+     * Machine targeting range in blocks (16-64).
+     * How far zombies can detect machines to attack.
+     * Default: 32.0
+     */
+    public static double machineTargetingRange = 32.0;
+
+    /**
+     * Machine targeting chance (0.1-1.0).
+     * Probability that a horde zombie will target machines instead of players.
+     * Default: 0.3 (30%)
+     */
+    public static double machineTargetingChance = 0.3;
+
+    /**
+     * Enable voltage tier scaling for hordes.
+     * When enabled, horde strength scales with player's voltage tier.
+     * Default: true
+     */
+    public static boolean enableVoltageTierScaling = true;
+
     // ========== Debug Settings ==========
 
     /**
@@ -548,6 +674,26 @@ public class TriAxisConfig {
                 hivemindAccelerationFactor = Double.parseDouble(props.getProperty("hivemindAccelerationFactor", String.valueOf(hivemindAccelerationFactor)));
                 enableHivemindAcceleration = Boolean.parseBoolean(props.getProperty("enableHivemindAcceleration", String.valueOf(enableHivemindAcceleration)));
 
+                // Hordes集成
+                enableHordeIntegration = Boolean.parseBoolean(props.getProperty("enableHordeIntegration", String.valueOf(enableHordeIntegration)));
+                hordeIntensityMultiplier = Double.parseDouble(props.getProperty("hordeIntensityMultiplier", String.valueOf(hordeIntensityMultiplier)));
+                difficultyToIntensityFactor = Double.parseDouble(props.getProperty("difficultyToIntensityFactor", String.valueOf(difficultyToIntensityFactor)));
+                enablePollutionTriggeredHordes = Boolean.parseBoolean(props.getProperty("enablePollutionTriggeredHordes", String.valueOf(enablePollutionTriggeredHordes)));
+                pollutionHordeTriggerThreshold = Double.parseDouble(props.getProperty("pollutionHordeTriggerThreshold", String.valueOf(pollutionHordeTriggerThreshold)));
+                pollutionHordeCheckInterval = Double.parseDouble(props.getProperty("pollutionHordeCheckInterval", String.valueOf(pollutionHordeCheckInterval)));
+                pollutionHordeTriggerChance = Double.parseDouble(props.getProperty("pollutionHordeTriggerChance", String.valueOf(pollutionHordeTriggerChance)));
+                enableSkirmishes = Boolean.parseBoolean(props.getProperty("enableSkirmishes", String.valueOf(enableSkirmishes)));
+                skirmishPollutionThreshold = Double.parseDouble(props.getProperty("skirmishPollutionThreshold", String.valueOf(skirmishPollutionThreshold)));
+                skirmishInterval = Double.parseDouble(props.getProperty("skirmishInterval", String.valueOf(skirmishInterval)));
+                skirmishMinCount = Integer.parseInt(props.getProperty("skirmishMinCount", String.valueOf(skirmishMinCount)));
+                skirmishMaxCount = Integer.parseInt(props.getProperty("skirmishMaxCount", String.valueOf(skirmishMaxCount)));
+                majorHordePollutionThreshold = Double.parseDouble(props.getProperty("majorHordePollutionThreshold", String.valueOf(majorHordePollutionThreshold)));
+                majorHordeMultiplier = Double.parseDouble(props.getProperty("majorHordeMultiplier", String.valueOf(majorHordeMultiplier)));
+                enableMachineTargeting = Boolean.parseBoolean(props.getProperty("enableMachineTargeting", String.valueOf(enableMachineTargeting)));
+                machineTargetingRange = Double.parseDouble(props.getProperty("machineTargetingRange", String.valueOf(machineTargetingRange)));
+                machineTargetingChance = Double.parseDouble(props.getProperty("machineTargetingChance", String.valueOf(machineTargetingChance)));
+                enableVoltageTierScaling = Boolean.parseBoolean(props.getProperty("enableVoltageTierScaling", String.valueOf(enableVoltageTierScaling)));
+
                 // 预设和调试
                 difficultyPreset = props.getProperty("difficultyPreset", difficultyPreset);
                 enableDebugLines = Boolean.parseBoolean(props.getProperty("enableDebugLines", String.valueOf(enableDebugLines)));
@@ -631,6 +777,26 @@ public class TriAxisConfig {
         props.setProperty("hivemindAccelerationFactor", String.valueOf(hivemindAccelerationFactor));
         props.setProperty("enableHivemindAcceleration", String.valueOf(enableHivemindAcceleration));
 
+        // Hordes集成
+        props.setProperty("enableHordeIntegration", String.valueOf(enableHordeIntegration));
+        props.setProperty("hordeIntensityMultiplier", String.valueOf(hordeIntensityMultiplier));
+        props.setProperty("difficultyToIntensityFactor", String.valueOf(difficultyToIntensityFactor));
+        props.setProperty("enablePollutionTriggeredHordes", String.valueOf(enablePollutionTriggeredHordes));
+        props.setProperty("pollutionHordeTriggerThreshold", String.valueOf(pollutionHordeTriggerThreshold));
+        props.setProperty("pollutionHordeCheckInterval", String.valueOf(pollutionHordeCheckInterval));
+        props.setProperty("pollutionHordeTriggerChance", String.valueOf(pollutionHordeTriggerChance));
+        props.setProperty("enableSkirmishes", String.valueOf(enableSkirmishes));
+        props.setProperty("skirmishPollutionThreshold", String.valueOf(skirmishPollutionThreshold));
+        props.setProperty("skirmishInterval", String.valueOf(skirmishInterval));
+        props.setProperty("skirmishMinCount", String.valueOf(skirmishMinCount));
+        props.setProperty("skirmishMaxCount", String.valueOf(skirmishMaxCount));
+        props.setProperty("majorHordePollutionThreshold", String.valueOf(majorHordePollutionThreshold));
+        props.setProperty("majorHordeMultiplier", String.valueOf(majorHordeMultiplier));
+        props.setProperty("enableMachineTargeting", String.valueOf(enableMachineTargeting));
+        props.setProperty("machineTargetingRange", String.valueOf(machineTargetingRange));
+        props.setProperty("machineTargetingChance", String.valueOf(machineTargetingChance));
+        props.setProperty("enableVoltageTierScaling", String.valueOf(enableVoltageTierScaling));
+
         // 预设和调试
         props.setProperty("difficultyPreset", difficultyPreset);
         props.setProperty("enableDebugLines", String.valueOf(enableDebugLines));
@@ -698,6 +864,51 @@ public class TriAxisConfig {
                           - 加速基于: 距离(越近越强) × 生物质(越多越强) × 污染(越高越强)
                         enableHivemindAcceleration: 启用Hivemind加速 (true/false)
                           - 是否启用污染接近虫巢时的难度加速，默认true
+
+                        [Hordes集成 Hordes Integration] - The Hordes尸潮系统集成
+                        enableHordeIntegration: 启用Hordes集成 (true/false)
+                          - 是否启用尸潮系统与工业难度的联动，默认true
+                        hordeIntensityMultiplier: 全局尸潮强度倍率 (0.5-3.0)
+                          - 控制尸潮整体强度，默认1.0
+                        difficultyToIntensityFactor: Difficulty转换系数 (0.1-2.0)
+                          - 控制ImprovedMobs难度对尸潮强度的影响，默认0.5
+
+                        enablePollutionTriggeredHordes: 启用污染触发尸潮 (true/false)
+                          - 高污染区域自动触发尸潮，默认true
+                        pollutionHordeTriggerThreshold: 污染触发阈值 (100-300)
+                          - 区块污染超过此值可能触发尸潮，默认150
+                        pollutionHordeCheckInterval: 检查间隔(tick) (300-1200)
+                          - 多久检查一次污染触发，默认600(30秒)
+                        pollutionHordeTriggerChance: 触发概率 (0.01-0.2)
+                          - 每次检查的触发概率，默认0.05(5%)
+
+                        enableSkirmishes: 启用小股袭扰 (true/false)
+                          - 污染区域定期生成小股怪物，默认true
+                        skirmishPollutionThreshold: 袭扰污染阈值 (50-150)
+                          - 区块污染超过此值可能触发袭扰，默认80
+                        skirmishInterval: 袭扰间隔(tick) (600-2400)
+                          - 袭扰检查间隔，默认1200(1分钟)
+                        skirmishMinCount: 袭扰最小数量 (1-10)
+                          - 默认3
+                        skirmishMaxCount: 袭扰最大数量 (5-20)
+                          - 默认8
+
+                        majorHordePollutionThreshold: 大尸潮污染阈值 (150-300)
+                          - 污染超过此值触发大尸潮(2倍强度)，默认200
+                        majorHordeMultiplier: 大尸潮强度倍率 (1.5-3.0)
+                          - 大尸潮相对普通尸潮的强度，默认2.0
+
+                        enableMachineTargeting: 启用机器攻击 (true/false)
+                          - 尸潮僵尸攻击附近机器，默认true
+                        machineTargetingRange: 机器检测范围(方块) (16-64)
+                          - 僵尸检测机器的距离，默认32
+                        machineTargetingChance: 机器攻击概率 (0.1-1.0)
+                          - 僵尸攻击机器而非玩家的概率，默认0.3(30%)
+
+                        enableVoltageTierScaling: 启用电压等级缩放 (true/false)
+                          - 尸潮强度随玩家电压等级提升，默认true
+                          - 倍率: ULV=1.0x, LV=1.1x, MV=1.3x, HV=1.5x, EV=1.8x
+                                 IV=2.2x, LuV=2.6x, ZPM=3.0x, UV=3.5x, UHV=4.0x
 
                         [时间曲线 Time Scaling] - 控制时间对难度的影响
                         targetDays: 达到最高时间难度的MC天数 (300-2000)

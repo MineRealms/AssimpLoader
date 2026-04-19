@@ -47,6 +47,9 @@ public class IntegratedIndustrialCraft {
     public IntegratedIndustrialCraft() {
         LOGGER.info("Initializing Integrated Industrial Craft (IIC)");
 
+        // Initialize Mixin load tracker
+        cn.minerealms.iic.util.MixinLoadTracker.init();
+
         // Create config directory
         File configDir = FMLPaths.CONFIGDIR.get().resolve("iic").toFile();
         if (!configDir.exists()) {
@@ -64,6 +67,7 @@ public class IntegratedIndustrialCraft {
         // Register Mekanism Turrets components
         BlockRegistry.BLOCKS.register(modBus);
         BlockEntityTypeRegistry.BLOCK_ENTITY_TYPES.register(modBus);
+        BlockEntityTypeRegistry.STANDARD_BLOCK_ENTITIES.register(modBus); // 标准 Forge BlockEntity 注册
         ContainerTypeRegistry.CONTAINER_TYPES.register(modBus);
         EntityRegistry.ENTITY_TYPES.register(modBus);
         ItemRegistry.ITEMS.register(modBus);

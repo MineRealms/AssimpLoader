@@ -3,6 +3,7 @@ import cn.minerealms.iic.IntegratedIndustrialCraft;
 import io.github.flemmli97.improvedmobs.ImprovedMobs;
 
 import cn.minerealms.iic.turrets.common.block.ElectricFenceBlock;
+import cn.minerealms.iic.turrets.common.block.EnergyPedestalBlock;
 import cn.minerealms.iic.turrets.common.block.LaserTurretBlock;
 import cn.minerealms.iic.turrets.common.block_entity.LaserTurretBlockEntity;
 import cn.minerealms.iic.turrets.common.item.LaserTurretBlockItem;
@@ -26,6 +27,10 @@ public class BlockRegistry {
 
     public static final BlockRegistryObject<ElectricFenceBlock, BlockItem> ELECTRIC_FENCE = BLOCKS.register("electric_fence",
             () -> new ElectricFenceBlock(BlockBehaviour.Properties.of().requiresCorrectToolForDrops().strength(5.0F, 6.0F).sound(SoundType.METAL).noOcclusion()));
+
+    // 能量底座 - 用于为炮塔供能
+    public static final BlockRegistryObject<EnergyPedestalBlock, BlockItem> ENERGY_PEDESTAL = BLOCKS.register("energy_pedestal",
+            () -> new EnergyPedestalBlock(BlockBehaviour.Properties.of().requiresCorrectToolForDrops().strength(3.0F, 6.0F).sound(SoundType.METAL)));
 
     public static final BlockRegistryObject<LaserTurretBlock, LaserTurretBlockItem> BASIC_LASER_TURRET = registerLaserTurret(BlockTypeRegistry.BASIC_LASER_TURRET);
     public static final BlockRegistryObject<LaserTurretBlock, LaserTurretBlockItem> ADVANCED_LASER_TURRET = registerLaserTurret(BlockTypeRegistry.ADVANCED_LASER_TURRET);

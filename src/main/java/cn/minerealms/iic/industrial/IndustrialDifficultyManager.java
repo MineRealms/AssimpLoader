@@ -115,4 +115,29 @@ public class IndustrialDifficultyManager {
     public static float getDifficultyFor(Player player) {
         return playerIndustrialDifficulty.getOrDefault(player.getUUID(), 0f);
     }
+
+    /**
+     * Gets the average voltage tier across all tracked players.
+     * Used for evolution calculations.
+     *
+     * @param level the server level
+     * @return average voltage tier (0.0 if no players)
+     */
+    public static double getAveragePlayerVoltageTier(net.minecraft.server.level.ServerLevel level) {
+        if (level.players().isEmpty()) return 0.0;
+
+        double totalTier = 0.0;
+        int count = 0;
+
+        for (net.minecraft.server.level.ServerPlayer player : level.players()) {
+            MachineScanner.ScanResult result = MachineScanner.scanNearbyMachines(player, 32);
+            if (!result.tiers().isEmpty()) {
+                float medianTier = DifficultySmoother.weightedMedian(result.tiers(), result.weights());
+                totalTier += medianTier;
+                count++;
+            }
+        }
+
+        return count > 0 ? totalTier / count : 0.0;
+    }
 }

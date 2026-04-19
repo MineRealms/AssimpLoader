@@ -3,6 +3,8 @@ package cn.minerealms.iic.turrets.client.renderer;
 import cn.minerealms.iic.IntegratedIndustrialCraft;
 import cn.minerealms.iic.turrets.common.block_entity.LaserTurretTier;
 import cn.minerealms.iic.turrets.common.entity.LaserEntity;
+import com.lowdragmc.shimmer.client.postprocessing.PostProcessing;
+import com.lowdragmc.shimmer.client.shader.RenderUtils;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -17,9 +19,10 @@ import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
 /**
- * 激光渲染器 - 三层渲染增强视觉效果
+ * 激光渲染器 - 带Shimmer Bloom效果
  *
- * 使用三层渲染（bloom + glow + core）创造发光激光效果
+ * 使用Shimmer的PostProcessing系统为激光添加bloom发光效果
+ * 如果Shimmer不可用，自动降级到普通渲染
  */
 public class LaserRenderer<T extends LaserEntity> extends EntityRenderer<T> {
 
@@ -28,8 +31,30 @@ public class LaserRenderer<T extends LaserEntity> extends EntityRenderer<T> {
     private static final float GLOW_RADIUS = 0.15F;   // 外层光晕半径
     private static final float BLOOM_RADIUS = 0.25F;  // Bloom效果半径
 
+    // Shimmer是否可用
+    private static boolean shimmerAvailable = false;
+    private static boolean shimmerChecked = false;
+
     public LaserRenderer(EntityRendererProvider.Context pContext) {
         super(pContext);
+        checkShimmer();
+    }
+
+    /**
+     * 检查Shimmer是否可用
+     */
+    private static void checkShimmer() {
+        if (shimmerChecked) return;
+        shimmerChecked = true;
+
+        try {
+            Class.forName("com.lowdragmc.shimmer.client.postprocessing.PostProcessing");
+            shimmerAvailable = true;
+            IntegratedIndustrialCraft.LOGGER.info("[IIC-Turrets] Shimmer detected, bloom effects enabled for lasers");
+        } catch (ClassNotFoundException e) {
+            shimmerAvailable = false;
+            IntegratedIndustrialCraft.LOGGER.info("[IIC-Turrets] Shimmer not found, using standard laser rendering");
+        }
     }
 
     @Override
@@ -44,23 +69,55 @@ public class LaserRenderer<T extends LaserEntity> extends EntityRenderer<T> {
         // 计算动画时间，用于能量波动效果
         float time = (pEntity.tickCount + pPartialTick) * 0.1F;
 
+        // 使用Shimmer bloom效果或降级到普通渲染
+        if (shimmerAvailable) {
+            renderWithBloom(start, end, pPoseStack, pBuffer, color, time);
+        } else {
+            renderStandard(start, end, pPoseStack, pBuffer, color, time);
+        }
+
+        super.render(pEntity, pEntityYaw, pPartialTick, pPoseStack, pBuffer, pPackedLight);
+    }
+
+    /**
+     * 使用Shimmer Bloom效果渲染激光
+     */
+    private void renderWithBloom(Vec3 start, Vec3 end, PoseStack pPoseStack, MultiBufferSource pBuffer, LaserColor color, float time) {
+        try {
+            // 关键：使用 Shimmer 的 RenderUtils.copyPoseStack()
+            PoseStack finalStack = RenderUtils.copyPoseStack(pPoseStack);
+
+            // 使用 Shimmer 的 BLOOM_UNREAL 效果
+            // 在 bloom 后处理管线中渲染整个激光束
+            PostProcessing.BLOOM_UNREAL.postEntity(bufferSource -> {
+                // 只渲染核心光束，让 Shimmer 自动产生 bloom 效果
+                VertexConsumer coreConsumer = bufferSource.getBuffer(RenderType.lightning());
+                renderBeam(start, end, finalStack, coreConsumer, 240, color, CORE_RADIUS, 1.0F, time, false);
+            });
+
+        } catch (Exception e) {
+            IntegratedIndustrialCraft.LOGGER.warn("[IIC-Turrets] Shimmer bloom rendering failed, falling back to standard", e);
+            renderStandard(start, end, pPoseStack, pBuffer, color, time);
+        }
+    }
+
+    /**
+     * 普通渲染（无bloom效果）
+     */
+    private void renderStandard(Vec3 start, Vec3 end, PoseStack pPoseStack, MultiBufferSource pBuffer, LaserColor color, float time) {
         pPoseStack.pushPose();
 
-        // 渲染激光（三层，增强视觉效果）
-        // Bloom 层（最外层，半透明）
+        // 三层渲染
         VertexConsumer bloomConsumer = pBuffer.getBuffer(RenderType.energySwirl(LASER_TEXTURE, 0, 0));
         renderBeam(start, end, pPoseStack, bloomConsumer, 240, color, BLOOM_RADIUS, 0.3F, time, true);
 
-        // Glow 层（中层，发光）
         VertexConsumer glowConsumer = pBuffer.getBuffer(RenderType.energySwirl(LASER_TEXTURE, 0, 0));
         renderBeam(start, end, pPoseStack, glowConsumer, 240, color, GLOW_RADIUS, 0.5F, time, true);
 
-        // Core 层（核心，实心）
         VertexConsumer coreConsumer = pBuffer.getBuffer(RenderType.lightning());
         renderBeam(start, end, pPoseStack, coreConsumer, 240, color, CORE_RADIUS, 1.0F, time, false);
 
         pPoseStack.popPose();
-        super.render(pEntity, pEntityYaw, pPartialTick, pPoseStack, pBuffer, pPackedLight);
     }
 
     /**

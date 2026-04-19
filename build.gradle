@@ -109,6 +109,11 @@ dependencies {
     runtimeOnly fg.deobf("mezz.jei:jei-1.20.1-forge:15.20.0.115")
     runtimeOnly fg.deobf("curse.maven:pehkui-319596:4684391")
 
+    // EnhancedVisuals - Optional integration (compile-only for mixin support)
+    // Download from: https://www.curseforge.com/minecraft/mc-mods/enhancedvisuals/files/5339265
+    // Place in mods_dev/ folder for compilation support
+    compileOnly fg.deobf(fileTree(dir: 'mods_dev', include: 'EnhancedVisuals*.jar'))
+
     // GregTech CEu integration
     implementation fg.deobf("com.gregtechceu.gtceu:gtceu-1.20.1:${gtceu_version}") { transitive = false }
     implementation fg.deobf("com.lowdragmc.ldlib:ldlib-forge-1.20.1:${ldlib_version}") { transitive = false }
@@ -133,9 +138,6 @@ mixin {
     add sourceSets.main, "integratedindustrialcraft.refmap.json"
     config "integratedindustrialcraft.mixins.json"
     config "integratedindustrialcraft.mixins.compat.json"
-    add sourceSets.main, "mixins.mekanism_turrets.refmap.json"
-    config "mixins.mekanism_turrets.json"
-
 }
 
 jar {
@@ -148,7 +150,7 @@ jar {
                 "Implementation-Version"  : project.jar.archiveVersion,
                 "Implementation-Vendor"   : "flemmli97",
                 "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                "MixinConfigs"            : "integratedindustrialcraft.mixins.json,integratedindustrialcraft.mixins.compat.json,mixins.mekanism_turrets.json"
+                "MixinConfigs"            : "integratedindustrialcraft.mixins.json,integratedindustrialcraft.mixins.compat.json"
         ])
     }
 }
@@ -158,3 +160,74 @@ jar.finalizedBy('reobfJar')
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
 }
+
+// ==================== 自动部署和启动游戏 ====================
+
+/**
+ * 复制构建的 JAR 到游戏 mods 目录
+ */
+task copyToGameMods(type: Copy) {
+    description = 'Copy built JAR to game mods directory'
+    group = 'deployment'
+
+    from(jar.archiveFile) {
+        // 只复制主 JAR 文件
+    }
+    into 'G:\\MinecraftGames\\CTNH-BaopuEdition\\.minecraft\\versions\\Create New Horizon\\mods'
+
+    // 确保在 reobfJar 完成后执行（使用字符串引用）
+    mustRunAfter 'reobfJar'
+
+    doLast {
+        println "✓ JAR 已复制到游戏 mods 目录: ${destinationDir}"
+    }
+}
+
+/**
+ * 启动游戏测试脚本
+ */
+task launchTestGame(type: Exec) {
+    description = 'Launch game using testgame.ps1 script'
+    group = 'deployment'
+
+    // Windows PowerShell 执行
+    commandLine 'powershell.exe', '-ExecutionPolicy', 'Bypass', '-File', "${projectDir}\\testgame.ps1"
+
+    // 设置工作目录为项目根目录
+    workingDir projectDir
+
+    // 忽略退出值（因为脚本可能会启动游戏后立即返回）
+    ignoreExitValue = true
+
+    // 确保在复制完成后执行
+    mustRunAfter copyToGameMods
+
+    doFirst {
+        println "⏳ 等待 1 秒后启动游戏..."
+        sleep(1000)
+        println "🚀 正在启动游戏测试脚本..."
+    }
+
+    doLast {
+        println "✓ 游戏启动脚本已执行"
+    }
+}
+
+/**
+ * 完整的构建和部署流程
+ */
+task buildAndDeploy {
+    description = 'Build, copy to mods, and launch game'
+    group = 'deployment'
+
+    dependsOn 'build', 'copyToGameMods', 'launchTestGame'
+
+    // 确保执行顺序：build -> copyToGameMods -> launchTestGame
+    tasks.findByName('copyToGameMods').mustRunAfter 'build'
+    tasks.findByName('launchTestGame').mustRunAfter 'copyToGameMods'
+}
+
+// 让 build 任务完成后自动执行部署
+build.finalizedBy('copyToGameMods')
+// 如果需要 build 后自动启动游戏，取消下面这行的注释
+// copyToGameMods.finalizedBy('launchTestGame')

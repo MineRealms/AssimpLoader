@@ -269,6 +269,15 @@ public class PollutionManager {
 
                 permanentPollution = 0.0;
             }
+
+            // Spore pollution feedback - accelerate Hivemind growth based on pollution
+            // Must be called on main thread (modifies entity data)
+            if (SporeIntegration.isSporeLoaded() && totalTempPollution > 100.0) {
+                final double pollutionForFeedback = totalTempPollution;  // Make effectively final
+                level.getServer().execute(() -> {
+                    SporeIntegration.applyPollutionFeedback(level, pollutionForFeedback);
+                });
+            }
         });
     }
 
