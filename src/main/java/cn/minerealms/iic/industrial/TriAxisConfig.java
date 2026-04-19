@@ -991,4 +991,225 @@ public class TriAxisConfig {
             return false;
         }
     }
+
+    /**
+     * Synchronize values from the new IICConfig system to this legacy config.
+     * This method is called when the config is loaded or reloaded.
+     *
+     * @deprecated This class is deprecated in favor of {@link cn.minerealms.iic.core.config.IICConfig}.
+     *             This method exists only for backward compatibility.
+     */
+    @Deprecated(forRemoval = true, since = "1.1.0")
+    public static void syncFromConfig() {
+        cn.minerealms.iic.core.config.IICConfig config = cn.minerealms.iic.core.config.IICConfig.INSTANCE;
+        if (config == null) return;
+
+        // Tri-Axis Weights
+        weightTime = config.DIFFICULTY.weightTime.get();
+        weightVoltage = config.DIFFICULTY.weightVoltage.get();
+        weightPollution = config.DIFFICULTY.weightPollution.get();
+
+        // Global Difficulty Multipliers
+        globalMultiplier = config.DIFFICULTY.globalMultiplier.get();
+        emaAlpha = config.DIFFICULTY.emaAlpha.get();
+        pollutionDenominator = config.DIFFICULTY.pollutionDenominator.get();
+
+        // Industrial Bonus Configuration
+        techWeight = config.DIFFICULTY.techWeight.get();
+        pollutionWeight = config.DIFFICULTY.pollutionWeight.get();
+        maxIndustrialTier = config.DIFFICULTY.maxIndustrialTier.get();
+
+        // Difficulty Contribution Weights
+        playerBonusWeight = config.DIFFICULTY.playerBonusWeight.get();
+        localPollutionWeight = config.DIFFICULTY.localPollutionWeight.get();
+        globalPollutionWeight = config.DIFFICULTY.globalPollutionWeight.get();
+        timeFactorWeight = config.DIFFICULTY.timeFactorWeight.get();
+
+        // Time Scaling
+        targetDays = config.DIFFICULTY.targetDays.get();
+        baseDays = config.DIFFICULTY.baseDays.get();
+
+        // Attribute Multipliers
+        hpMultFactor = config.DIFFICULTY.hpMultFactor.get();
+        attackMultFactor = config.DIFFICULTY.attackMultFactor.get();
+        speedMultFactor = config.DIFFICULTY.speedMultFactor.get();
+        armorMultFactor = config.DIFFICULTY.armorMultFactor.get();
+
+        // Voltage Tier HP Targets
+        ulvHpTarget = config.DIFFICULTY.ulvHpTarget.get();
+        lvHpTarget = config.DIFFICULTY.lvHpTarget.get();
+        mvHpTarget = config.DIFFICULTY.mvHpTarget.get();
+        hvHpTarget = config.DIFFICULTY.hvHpTarget.get();
+        evHpTarget = config.DIFFICULTY.evHpTarget.get();
+        ivHpTarget = config.DIFFICULTY.ivHpTarget.get();
+        luvHpTarget = config.DIFFICULTY.luvHpTarget.get();
+        zpmHpTarget = config.DIFFICULTY.zpmHpTarget.get();
+        uvHpTarget = config.DIFFICULTY.uvHpTarget.get();
+        uhvHpTarget = config.DIFFICULTY.uhvHpTarget.get();
+
+        // Scanning Parameters
+        scanRadiusBlocks = config.DIFFICULTY.scanRadiusBlocks.get();
+        maxGTTier = config.DIFFICULTY.maxGTTier.get();
+        maxChangePerSec = config.DIFFICULTY.maxChangePerSec.get();
+
+        // Pollution System - map to correct field names
+        tempToPermanentThreshold = config.POLLUTION.conversionThreshold.get();
+        tempToPermanentRate = config.POLLUTION.conversionRate.get();
+        permanentToDifficultyRate = config.POLLUTION.difficultyMultiplier.get();
+
+        // Threat System - map to correct field names
+        mvZombieAttackThreshold = config.THREAT.mvZombieAttackThreshold.get();
+        hvZombieSpawnThreshold = config.THREAT.hvZombieSpawnThreshold.get();
+        hvCreeperSpawnThreshold = config.THREAT.hvCreeperSpawnThreshold.get();
+        chargedCreeperThreshold = config.THREAT.chargedCreeperThreshold.get();
+        zombieSpawnChance = config.THREAT.zombieSpawnChance.get();
+        creeperSpawnChance = config.THREAT.creeperSpawnChance.get();
+        chargedCreeperChance = config.THREAT.chargedCreeperChance.get();
+
+        // Horde Integration
+        enableHordeIntegration = config.HORDE.enableHordeIntegration.get();
+        hordeIntensityMultiplier = config.HORDE.hordeIntensityMultiplier.get();
+        difficultyToIntensityFactor = config.HORDE.difficultyToIntensityFactor.get();
+        enablePollutionTriggeredHordes = config.HORDE.enablePollutionTriggeredHordes.get();
+        pollutionHordeTriggerThreshold = config.HORDE.pollutionHordeTriggerThreshold.get();
+        pollutionHordeCheckInterval = config.HORDE.pollutionHordeCheckInterval.get();
+        pollutionHordeTriggerChance = config.HORDE.pollutionHordeTriggerChance.get();
+        enableSkirmishes = config.HORDE.enableSkirmishes.get();
+        skirmishPollutionThreshold = config.HORDE.skirmishPollutionThreshold.get();
+        skirmishInterval = config.HORDE.skirmishInterval.get();
+        skirmishMinCount = config.HORDE.skirmishMinCount.get();
+        skirmishMaxCount = config.HORDE.skirmishMaxCount.get();
+        majorHordePollutionThreshold = config.HORDE.majorHordePollutionThreshold.get();
+        majorHordeMultiplier = config.HORDE.majorHordeMultiplier.get();
+        enableMachineTargeting = config.HORDE.enableMachineTargeting.get();
+        machineTargetingRange = config.HORDE.machineTargetingRange.get();
+        machineTargetingChance = config.HORDE.machineTargetingChance.get();
+        enableVoltageTierScaling = config.HORDE.enableVoltageTierScaling.get();
+
+        // Integration
+        gtPollutionWeight = config.INTEGRATION.gtPollutionWeight.get();
+        gtSourceMultiplierBase = config.INTEGRATION.gtSourceMultiplierBase.get();
+        gtSourceThreshold = config.INTEGRATION.gtSourceThreshold.get();
+        airScrubberEfficiency = config.INTEGRATION.airScrubberEfficiency.get();
+        enableHivemindAcceleration = config.INTEGRATION.enableHivemindAcceleration.get();
+        hivemindProximityRadius = config.INTEGRATION.hivemindProximityRadius.get();
+        hivemindAccelerationFactor = config.INTEGRATION.hivemindAccelerationFactor.get();
+
+        // Debug Options
+        enableDebugLines = config.DEBUG.enableDebugLines.get();
+        enableDifficultyLogging = config.DEBUG.enableDifficultyLogging.get();
+        enableSporeDebug = config.DEBUG.enableSporeDebug.get();
+    }
+
+    /**
+     * Synchronize values from this legacy config to the new IICConfig system.
+     * This method is called when values are changed via commands.
+     *
+     * @deprecated This class is deprecated in favor of {@link cn.minerealms.iic.core.config.IICConfig}.
+     *             This method exists only for backward compatibility.
+     */
+    @Deprecated(forRemoval = true, since = "1.1.0")
+    public static void syncToConfig() {
+        cn.minerealms.iic.core.config.IICConfig config = cn.minerealms.iic.core.config.IICConfig.INSTANCE;
+        if (config == null) return;
+
+        // Tri-Axis Weights
+        config.DIFFICULTY.weightTime.set(weightTime);
+        config.DIFFICULTY.weightVoltage.set(weightVoltage);
+        config.DIFFICULTY.weightPollution.set(weightPollution);
+
+        // Global Difficulty Multipliers
+        config.DIFFICULTY.globalMultiplier.set(globalMultiplier);
+        config.DIFFICULTY.emaAlpha.set(emaAlpha);
+        config.DIFFICULTY.pollutionDenominator.set(pollutionDenominator);
+
+        // Industrial Bonus Configuration
+        config.DIFFICULTY.techWeight.set(techWeight);
+        config.DIFFICULTY.pollutionWeight.set(pollutionWeight);
+        config.DIFFICULTY.maxIndustrialTier.set(maxIndustrialTier);
+
+        // Difficulty Contribution Weights
+        config.DIFFICULTY.playerBonusWeight.set(playerBonusWeight);
+        config.DIFFICULTY.localPollutionWeight.set(localPollutionWeight);
+        config.DIFFICULTY.globalPollutionWeight.set(globalPollutionWeight);
+        config.DIFFICULTY.timeFactorWeight.set(timeFactorWeight);
+
+        // Time Scaling
+        config.DIFFICULTY.targetDays.set(targetDays);
+        config.DIFFICULTY.baseDays.set(baseDays);
+
+        // Attribute Multipliers
+        config.DIFFICULTY.hpMultFactor.set(hpMultFactor);
+        config.DIFFICULTY.attackMultFactor.set(attackMultFactor);
+        config.DIFFICULTY.speedMultFactor.set(speedMultFactor);
+        config.DIFFICULTY.armorMultFactor.set(armorMultFactor);
+
+        // Voltage Tier HP Targets
+        config.DIFFICULTY.ulvHpTarget.set(ulvHpTarget);
+        config.DIFFICULTY.lvHpTarget.set(lvHpTarget);
+        config.DIFFICULTY.mvHpTarget.set(mvHpTarget);
+        config.DIFFICULTY.hvHpTarget.set(hvHpTarget);
+        config.DIFFICULTY.evHpTarget.set(evHpTarget);
+        config.DIFFICULTY.ivHpTarget.set(ivHpTarget);
+        config.DIFFICULTY.luvHpTarget.set(luvHpTarget);
+        config.DIFFICULTY.zpmHpTarget.set(zpmHpTarget);
+        config.DIFFICULTY.uvHpTarget.set(uvHpTarget);
+        config.DIFFICULTY.uhvHpTarget.set(uhvHpTarget);
+
+        // Scanning Parameters
+        config.DIFFICULTY.scanRadiusBlocks.set(scanRadiusBlocks);
+        config.DIFFICULTY.maxGTTier.set(maxGTTier);
+        config.DIFFICULTY.maxChangePerSec.set(maxChangePerSec);
+
+        // Pollution System - map to correct field names
+        config.POLLUTION.conversionThreshold.set(tempToPermanentThreshold);
+        config.POLLUTION.conversionRate.set(tempToPermanentRate);
+        config.POLLUTION.difficultyMultiplier.set(permanentToDifficultyRate);
+
+        // Threat System - map to correct field names
+        config.THREAT.mvZombieAttackThreshold.set(mvZombieAttackThreshold);
+        config.THREAT.hvZombieSpawnThreshold.set(hvZombieSpawnThreshold);
+        config.THREAT.hvCreeperSpawnThreshold.set(hvCreeperSpawnThreshold);
+        config.THREAT.chargedCreeperThreshold.set(chargedCreeperThreshold);
+        config.THREAT.zombieSpawnChance.set(zombieSpawnChance);
+        config.THREAT.creeperSpawnChance.set(creeperSpawnChance);
+        config.THREAT.chargedCreeperChance.set(chargedCreeperChance);
+
+        // Horde Integration
+        config.HORDE.enableHordeIntegration.set(enableHordeIntegration);
+        config.HORDE.hordeIntensityMultiplier.set(hordeIntensityMultiplier);
+        config.HORDE.difficultyToIntensityFactor.set(difficultyToIntensityFactor);
+        config.HORDE.enablePollutionTriggeredHordes.set(enablePollutionTriggeredHordes);
+        config.HORDE.pollutionHordeTriggerThreshold.set(pollutionHordeTriggerThreshold);
+        config.HORDE.pollutionHordeCheckInterval.set(pollutionHordeCheckInterval);
+        config.HORDE.pollutionHordeTriggerChance.set(pollutionHordeTriggerChance);
+        config.HORDE.enableSkirmishes.set(enableSkirmishes);
+        config.HORDE.skirmishPollutionThreshold.set(skirmishPollutionThreshold);
+        config.HORDE.skirmishInterval.set(skirmishInterval);
+        config.HORDE.skirmishMinCount.set(skirmishMinCount);
+        config.HORDE.skirmishMaxCount.set(skirmishMaxCount);
+        config.HORDE.majorHordePollutionThreshold.set(majorHordePollutionThreshold);
+        config.HORDE.majorHordeMultiplier.set(majorHordeMultiplier);
+        config.HORDE.enableMachineTargeting.set(enableMachineTargeting);
+        config.HORDE.machineTargetingRange.set(machineTargetingRange);
+        config.HORDE.machineTargetingChance.set(machineTargetingChance);
+        config.HORDE.enableVoltageTierScaling.set(enableVoltageTierScaling);
+
+        // Integration
+        config.INTEGRATION.gtPollutionWeight.set(gtPollutionWeight);
+        config.INTEGRATION.gtSourceMultiplierBase.set(gtSourceMultiplierBase);
+        config.INTEGRATION.gtSourceThreshold.set(gtSourceThreshold);
+        config.INTEGRATION.airScrubberEfficiency.set(airScrubberEfficiency);
+        config.INTEGRATION.enableHivemindAcceleration.set(enableHivemindAcceleration);
+        config.INTEGRATION.hivemindProximityRadius.set(hivemindProximityRadius);
+        config.INTEGRATION.hivemindAccelerationFactor.set(hivemindAccelerationFactor);
+
+        // Debug Options
+        config.DEBUG.enableDebugLines.set(enableDebugLines);
+        config.DEBUG.enableDifficultyLogging.set(enableDifficultyLogging);
+        config.DEBUG.enableSporeDebug.set(enableSporeDebug);
+
+        // Save the config
+        cn.minerealms.iic.core.config.IICConfig.SPEC.save();
+    }
 }
