@@ -1,6 +1,6 @@
 package cn.minerealms.iic.server;
 
-import cn.minerealms.iic.commands.HudCommands;
+import cn.minerealms.iic.command.HudCommand;
 import cn.minerealms.iic.difficulty.*;
 import cn.minerealms.iic.industrial.IndustrialLogger;
 import cn.minerealms.iic.industrial.TriAxisConfig;
@@ -49,7 +49,7 @@ public class HudUpdateService {
         // 遍历所有玩家，在主线程更新HUD数据（避免线程安全问题）
         for (ServerLevel level : event.getServer().getAllLevels()) {
             for (ServerPlayer player : level.players()) {
-                if (!HudCommands.isHudEnabled(player.getUUID())) continue;
+                if (!HudCommand.isHudEnabled(player.getUUID())) continue;
 
                 try {
                     updatePlayerHud(player);

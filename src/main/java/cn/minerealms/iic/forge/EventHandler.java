@@ -1,7 +1,6 @@
 package cn.minerealms.iic.forge;
 
 import cn.minerealms.iic.command.IICCommand;
-import cn.minerealms.iic.commands.ImprovedMobsCommand;
 import cn.minerealms.iic.difficulty.DifficultyManager;
 import cn.minerealms.iic.threat.horde.HordeIntegrationManager;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -20,10 +19,7 @@ public class EventHandler {
 
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
-        // Register old command system (for backward compatibility)
-        ImprovedMobsCommand.register(event.getDispatcher());
-
-        // Register new unified command system
+        // Register unified command system
         IICCommand.register(event.getDispatcher());
     }
 
