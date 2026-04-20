@@ -1276,4 +1276,102 @@ public class TriAxisConfig {
         // Save the config
         cn.minerealms.iic.core.config.IICConfig.SPEC.save();
     }
+
+    // ========================================
+    // Helper Methods for Dynamic Configuration
+    // ========================================
+
+    private static Properties configProps = new Properties();
+
+    /**
+     * Gets a boolean value from configuration.
+     *
+     * @param key the configuration key
+     * @param defaultValue the default value if key not found
+     * @return the boolean value
+     */
+    public static boolean getBoolean(String key, boolean defaultValue) {
+        if (CONFIG_FILE.exists() && configProps.isEmpty()) {
+            try (FileInputStream in = new FileInputStream(CONFIG_FILE)) {
+                configProps.load(in);
+            } catch (IOException e) {
+                return defaultValue;
+            }
+        }
+        return Boolean.parseBoolean(configProps.getProperty(key, String.valueOf(defaultValue)));
+    }
+
+    /**
+     * Gets an integer value from configuration.
+     *
+     * @param key the configuration key
+     * @param defaultValue the default value if key not found
+     * @return the integer value
+     */
+    public static int getInt(String key, int defaultValue) {
+        if (CONFIG_FILE.exists() && configProps.isEmpty()) {
+            try (FileInputStream in = new FileInputStream(CONFIG_FILE)) {
+                configProps.load(in);
+            } catch (IOException e) {
+                return defaultValue;
+            }
+        }
+        try {
+            return Integer.parseInt(configProps.getProperty(key, String.valueOf(defaultValue)));
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    /**
+     * Gets a double value from configuration.
+     *
+     * @param key the configuration key
+     * @param defaultValue the default value if key not found
+     * @return the double value
+     */
+    public static double getDouble(String key, double defaultValue) {
+        if (CONFIG_FILE.exists() && configProps.isEmpty()) {
+            try (FileInputStream in = new FileInputStream(CONFIG_FILE)) {
+                configProps.load(in);
+            } catch (IOException e) {
+                return defaultValue;
+            }
+        }
+        try {
+            return Double.parseDouble(configProps.getProperty(key, String.valueOf(defaultValue)));
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    /**
+     * Sets a boolean value in configuration.
+     *
+     * @param key the configuration key
+     * @param value the boolean value
+     */
+    public static void setBoolean(String key, boolean value) {
+        configProps.setProperty(key, String.valueOf(value));
+    }
+
+    /**
+     * Sets an integer value in configuration.
+     *
+     * @param key the configuration key
+     * @param value the integer value
+     */
+    public static void setInt(String key, int value) {
+        configProps.setProperty(key, String.valueOf(value));
+    }
+
+    /**
+     * Sets a double value in configuration.
+     *
+     * @param key the configuration key
+     * @param value the double value
+     */
+    public static void setDouble(String key, double value) {
+        configProps.setProperty(key, String.valueOf(value));
+    }
 }

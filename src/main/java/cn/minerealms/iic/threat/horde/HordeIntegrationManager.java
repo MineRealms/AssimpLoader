@@ -4,6 +4,7 @@ import cn.minerealms.iic.difficulty.DifficultyManager;
 import cn.minerealms.iic.difficulty.MachineScanner;
 import cn.minerealms.iic.industrial.IndustrialLogger;
 import cn.minerealms.iic.industrial.TriAxisConfig;
+import cn.minerealms.iic.integration.alexscaves.AlexsCavesIntegration;
 import cn.minerealms.iic.integration.gregtech.GTIntegration;
 import cn.minerealms.iic.pollution.PollutionManager;
 
@@ -154,6 +155,8 @@ public class HordeIntegrationManager {
      * 触发污染尸潮
      */
     private static void triggerPollutionHorde(ServerPlayer player, double pollution) {
+        ServerLevel level = player.serverLevel();
+
         // 计算尸潮强度
         boolean isMajorHorde = pollution >= majorHordePollutionThreshold;
         double intensityMultiplier = isMajorHorde ? majorHordeMultiplier : 1.0;
@@ -179,6 +182,9 @@ public class HordeIntegrationManager {
         if (success) {
             // 设置冷却
             playerHordeCooldowns.put(player.getUUID(), player.serverLevel().getGameTime());
+
+            // 尝试生成 Nucleeper（AlexsCaves 集成）
+            AlexsCavesIntegration.onHordeEvent(level, player);
 
             // 日志
             IndustrialLogger.info(String.format(
