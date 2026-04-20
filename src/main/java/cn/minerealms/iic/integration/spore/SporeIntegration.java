@@ -228,6 +228,17 @@ public class SporeIntegration {
     }
 
     /**
+     * Get active Hivemind count (alias for getActiveHiveminds).
+     * Thread-safe.
+     *
+     * @param level the server level
+     * @return number of active Hiveminds
+     */
+    public static int getHivemindCount(ServerLevel level) {
+        return getActiveHiveminds(level);
+    }
+
+    /**
      * Get total biomass across all Hiveminds.
      * Thread-safe.
      *
