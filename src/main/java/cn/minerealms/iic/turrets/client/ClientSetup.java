@@ -1,9 +1,13 @@
 package cn.minerealms.iic.turrets.client;
 import cn.minerealms.iic.IntegratedIndustrialCraft;
 
+import cn.minerealms.iic.turrets.client.gui.FlameThrowerTurretScreen;
 import cn.minerealms.iic.turrets.client.gui.LaserTurretScreen;
+import cn.minerealms.iic.turrets.client.renderer.FlameEntityRenderer;
+import cn.minerealms.iic.turrets.client.renderer.FlameThrowerTurretRenderer;
 import cn.minerealms.iic.turrets.client.renderer.LaserRenderer;
 import cn.minerealms.iic.turrets.client.renderer.LaserTurretRenderer;
+import cn.minerealms.iic.turrets.common.block_entity.FlameThrowerTurretBlockEntity;
 import cn.minerealms.iic.turrets.common.block_entity.LaserTurretBlockEntity;
 import cn.minerealms.iic.turrets.common.registry.BlockEntityTypeRegistry;
 import cn.minerealms.iic.turrets.common.registry.ContainerTypeRegistry;
@@ -26,17 +30,23 @@ public class ClientSetup {
 
     @SubscribeEvent
     public static void registerRenderers(final EntityRenderersEvent.RegisterRenderers event) {
+        // 激光炮塔
         event.registerBlockEntityRenderer(BlockEntityTypeRegistry.BASIC_LASER_TURRET.get(), pContext -> new LaserTurretRenderer());
         event.registerBlockEntityRenderer(BlockEntityTypeRegistry.ADVANCED_LASER_TURRET.get(), pContext -> new LaserTurretRenderer());
         event.registerBlockEntityRenderer(BlockEntityTypeRegistry.ELITE_LASER_TURRET.get(), pContext -> new LaserTurretRenderer());
         event.registerBlockEntityRenderer(BlockEntityTypeRegistry.ULTIMATE_LASER_TURRET.get(), pContext -> new LaserTurretRenderer());
         event.registerEntityRenderer(EntityRegistry.LASER.get(), LaserRenderer::new);
+
+        // 火焰喷射器炮塔
+        event.registerBlockEntityRenderer(BlockEntityTypeRegistry.FLAMETHROWER_TURRET.get(), pContext -> new FlameThrowerTurretRenderer());
+        event.registerEntityRenderer(EntityRegistry.FLAME.get(), FlameEntityRenderer::new);
     }
 
     @SubscribeEvent
     public static void registerContainers(RegisterEvent event) {
         event.register(Registries.MENU, helper -> {
             ClientRegistrationUtil.registerScreen(ContainerTypeRegistry.LASER_TURRET, LaserTurretScreen::new);
+            ClientRegistrationUtil.registerScreen(ContainerTypeRegistry.FLAMETHROWER_TURRET, FlameThrowerTurretScreen::new);
         });
     }
 }

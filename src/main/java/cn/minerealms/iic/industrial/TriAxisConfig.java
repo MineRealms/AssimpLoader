@@ -1059,11 +1059,8 @@ public class TriAxisConfig {
      * Synchronize values from the new IICConfig system to this legacy config.
      * This method is called when the config is loaded or reloaded.
      *
-     * @deprecated This class is deprecated in favor of {@link cn.minerealms.iic.core.config.IICConfig}.
-     *             This method exists only for backward compatibility.
      * @since 1.0.0
      */
-    @Deprecated(forRemoval = true, since = "1.1.0")
     public static void syncFromConfig() {
         cn.minerealms.iic.core.config.IICConfig config = cn.minerealms.iic.core.config.IICConfig.INSTANCE;
         if (config == null) return;
@@ -1168,11 +1165,7 @@ public class TriAxisConfig {
     /**
      * Synchronize values from this legacy config to the new IICConfig system.
      * This method is called when values are changed via commands.
-     *
-     * @deprecated This class is deprecated in favor of {@link cn.minerealms.iic.core.config.IICConfig}.
-     *             This method exists only for backward compatibility.
      */
-    @Deprecated(forRemoval = true, since = "1.1.0")
     public static void syncToConfig() {
         cn.minerealms.iic.core.config.IICConfig config = cn.minerealms.iic.core.config.IICConfig.INSTANCE;
         if (config == null) return;

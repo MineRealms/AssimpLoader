@@ -2,6 +2,7 @@ package cn.minerealms.iic.turrets.common.registry;
 import cn.minerealms.iic.IntegratedIndustrialCraft;
 import io.github.flemmli97.improvedmobs.ImprovedMobs;
 
+import cn.minerealms.iic.turrets.common.entity.FlameEntity;
 import cn.minerealms.iic.turrets.common.entity.LaserEntity;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
@@ -21,4 +22,12 @@ public class EntityRegistry {
                     .clientTrackingRange(128)
                     .updateInterval(1)
                     .build(new ResourceLocation(IntegratedIndustrialCraft.MODID, "laser").toString()));
+
+    public static final RegistryObject<EntityType<FlameEntity>> FLAME = ENTITY_TYPES.register("flame",
+            () -> EntityType.Builder.<FlameEntity>of(FlameEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .noSave()
+                    .clientTrackingRange(128)
+                    .updateInterval(1)
+                    .build(new ResourceLocation(IntegratedIndustrialCraft.MODID, "flame").toString()));
 }

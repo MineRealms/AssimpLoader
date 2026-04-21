@@ -4,6 +4,7 @@ import io.github.flemmli97.improvedmobs.ImprovedMobs;
 
 import cn.minerealms.iic.turrets.common.block_entity.ElectricFenceBlockEntity;
 import cn.minerealms.iic.turrets.common.block_entity.EnergyPedestalBlockEntity;
+import cn.minerealms.iic.turrets.common.block_entity.FlameThrowerTurretBlockEntity;
 import cn.minerealms.iic.turrets.common.block_entity.LaserTurretBlockEntity;
 import mekanism.common.registration.impl.TileEntityTypeDeferredRegister;
 import mekanism.common.registration.impl.TileEntityTypeRegistryObject;
@@ -31,4 +32,6 @@ public class BlockEntityTypeRegistry {
     public static final TileEntityTypeRegistryObject<LaserTurretBlockEntity> ADVANCED_LASER_TURRET = BLOCK_ENTITY_TYPES.register(BlockRegistry.ADVANCED_LASER_TURRET, (pos, state) -> new LaserTurretBlockEntity(BlockRegistry.ADVANCED_LASER_TURRET, pos, state));
     public static final TileEntityTypeRegistryObject<LaserTurretBlockEntity> ELITE_LASER_TURRET = BLOCK_ENTITY_TYPES.register(BlockRegistry.ELITE_LASER_TURRET, (pos, state) -> new LaserTurretBlockEntity(BlockRegistry.ELITE_LASER_TURRET, pos, state));
     public static final TileEntityTypeRegistryObject<LaserTurretBlockEntity> ULTIMATE_LASER_TURRET = BLOCK_ENTITY_TYPES.register(BlockRegistry.ULTIMATE_LASER_TURRET, (pos, state) -> new LaserTurretBlockEntity(BlockRegistry.ULTIMATE_LASER_TURRET, pos, state));
+
+    public static final TileEntityTypeRegistryObject<FlameThrowerTurretBlockEntity> FLAMETHROWER_TURRET = BLOCK_ENTITY_TYPES.register(BlockRegistry.FLAMETHROWER_TURRET, (pos, state) -> new FlameThrowerTurretBlockEntity(BlockRegistry.FLAMETHROWER_TURRET, pos, state));
 }

@@ -6,6 +6,7 @@ import cn.minerealms.iic.network.PacketHandler;
 import cn.minerealms.iic.scanner.ScannerItem;
 import cn.minerealms.iic.server.HudUpdateService;
 import cn.minerealms.iic.turrets.MekanismTurretsConfig;
+import cn.minerealms.iic.turrets.common.block_entity.FlameThrowerTurretBlockEntity;
 import cn.minerealms.iic.turrets.common.block_entity.LaserTurretBlockEntity;
 import cn.minerealms.iic.turrets.common.entity.LaserEntity;
 import cn.minerealms.iic.turrets.common.packet.MekanismTurretsPacketHandler;
@@ -94,6 +95,9 @@ public class IntegratedIndustrialCraft {
         // Register network packets (all packets registered here)
         PacketHandler.register();
 
+        // Initialize turret config references
+        initializeTurretConfigs();
+
         // Register difficulty provider if ImprovedMobs is loaded
         if (ModList.get().isLoaded("improvedmobs")) {
             LOGGER.info("ImprovedMobs detected, registering difficulty provider");
@@ -112,6 +116,42 @@ public class IntegratedIndustrialCraft {
         AlexsCavesIntegration.initialize();
     }
 
+    private void initializeTurretConfigs() {
+        // Initialize Laser Turret configs
+        cn.minerealms.iic.turrets.common.block_entity.LaserTurretTier.BASIC.setConfigReference(
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.basicLaserTurretCooldown.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.basicLaserTurretDamage.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.basicLaserTurretEnergyCapacity.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.basicLaserTurretRange.get()
+        );
+        cn.minerealms.iic.turrets.common.block_entity.LaserTurretTier.ADVANCED.setConfigReference(
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.advancedLaserTurretCooldown.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.advancedLaserTurretDamage.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.advancedLaserTurretEnergyCapacity.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.advancedLaserTurretRange.get()
+        );
+        cn.minerealms.iic.turrets.common.block_entity.LaserTurretTier.ELITE.setConfigReference(
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.eliteLaserTurretCooldown.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.eliteLaserTurretDamage.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.eliteLaserTurretEnergyCapacity.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.eliteLaserTurretRange.get()
+        );
+        cn.minerealms.iic.turrets.common.block_entity.LaserTurretTier.ULTIMATE.setConfigReference(
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.ultimateLaserTurretCooldown.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.ultimateLaserTurretDamage.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.ultimateLaserTurretEnergyCapacity.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.ultimateLaserTurretRange.get()
+        );
+
+        // Initialize Flame Thrower Turret config
+        cn.minerealms.iic.turrets.common.block_entity.FlameThrowerTurretTier.BASIC.setConfigReference(
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.flameThrowerTurretCooldown.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.flameThrowerTurretDamage.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.flameThrowerTurretFuelCapacity.get(),
+                () -> cn.minerealms.iic.turrets.MekanismTurretsConfig.flameThrowerTurretRange.get()
+        );
+    }
+
     private void onConfigLoad(ModConfigEvent event) {
         if (event.getConfig().getType() == ModConfig.Type.COMMON) {
             TriAxisConfig.load();
@@ -123,5 +163,10 @@ public class IntegratedIndustrialCraft {
         LaserTurretBlockEntity.TARGET_POS_X = GeckoLibUtil.addDataTicket(SerializableDataTicket.ofDouble(new ResourceLocation(IntegratedIndustrialCraft.MODID, "target_pos_x")));
         LaserTurretBlockEntity.TARGET_POS_Y = GeckoLibUtil.addDataTicket(SerializableDataTicket.ofDouble(new ResourceLocation(IntegratedIndustrialCraft.MODID, "target_pos_y")));
         LaserTurretBlockEntity.TARGET_POS_Z = GeckoLibUtil.addDataTicket(SerializableDataTicket.ofDouble(new ResourceLocation(IntegratedIndustrialCraft.MODID, "target_pos_z")));
+
+        FlameThrowerTurretBlockEntity.HAS_TARGET = GeckoLibUtil.addDataTicket(SerializableDataTicket.ofBoolean(new ResourceLocation(IntegratedIndustrialCraft.MODID, "flame_has_target")));
+        FlameThrowerTurretBlockEntity.TARGET_POS_X = GeckoLibUtil.addDataTicket(SerializableDataTicket.ofDouble(new ResourceLocation(IntegratedIndustrialCraft.MODID, "flame_target_pos_x")));
+        FlameThrowerTurretBlockEntity.TARGET_POS_Y = GeckoLibUtil.addDataTicket(SerializableDataTicket.ofDouble(new ResourceLocation(IntegratedIndustrialCraft.MODID, "flame_target_pos_y")));
+        FlameThrowerTurretBlockEntity.TARGET_POS_Z = GeckoLibUtil.addDataTicket(SerializableDataTicket.ofDouble(new ResourceLocation(IntegratedIndustrialCraft.MODID, "flame_target_pos_z")));
     }
 }

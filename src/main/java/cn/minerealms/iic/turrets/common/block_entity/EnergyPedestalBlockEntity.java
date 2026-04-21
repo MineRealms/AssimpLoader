@@ -14,7 +14,11 @@ import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.fluids.capability.templates.FluidTank;
 import net.minecraftforge.fml.ModList;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -23,18 +27,29 @@ import org.jetbrains.annotations.Nullable;
  *
  * 功能：
  * - 存储 FE 能量（128k FE）
+ * - 存储流体（16k mB汽油）
  * - 从一个面接收能量（FE 和 GTEU）
- * - 向其他五个面输出 FE 能量（供炮塔使用）
- * - 自动向所有非输入面的相邻方块供能
+ * - 从东南西北四个侧面接收流体（无论是否是能量输入面）
+ * - 向其他五个面输出 FE 能量和流体（供炮塔使用）
+ * - 单个面可同时输出能量和流体
+ * - 自动向所有非输入面的相邻方块供能和供液
  */
 public class EnergyPedestalBlockEntity extends BlockEntity implements Nameable {
 
     private static final int MAX_ENERGY = 128_000;  // 128k FE
+    private static final int MAX_FLUID = 16_000;    // 16k mB
     private static final int TRANSFER_RATE = 10_000; // 10k FE/t
+    private static final int FLUID_TRANSFER_RATE = 1000; // 1000 mB/t
     private static final boolean GTCEU_LOADED = ModList.get().isLoaded("gtceu");
 
     private final EnergyStorage energyStorage = new EnergyStorage(MAX_ENERGY);
+    private final FluidTank fluidTank = new FluidTank(MAX_FLUID, fluid -> {
+        // 只接受汽油
+        String fluidId = ForgeRegistries.FLUIDS.getKey(fluid.getFluid()).toString();
+        return fluidId.contains("gasoline");
+    });
     private final LazyOptional<IEnergyStorage> feHandler = LazyOptional.of(() -> energyStorage);
+    private final LazyOptional<IFluidHandler> fluidHandler = LazyOptional.of(() -> fluidTank);
     private LazyOptional<?> gteuHandler = LazyOptional.empty();
 
     public EnergyPedestalBlockEntity(BlockPos pos, BlockState state) {
@@ -50,6 +65,7 @@ public class EnergyPedestalBlockEntity extends BlockEntity implements Nameable {
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, EnergyPedestalBlockEntity blockEntity) {
         blockEntity.supplyEnergyToTurret();
+        blockEntity.supplyFluidToTurret();
     }
 
     /**
@@ -76,6 +92,16 @@ public class EnergyPedestalBlockEntity extends BlockEntity implements Nameable {
      */
     public boolean canPlaceTurretOnSide(Direction side) {
         return side != getEnergyInputFace();
+    }
+
+    /**
+     * 检查指定面是否可以接收流体
+     * 东南西北四个侧面都可以接收流体
+     */
+    private boolean canReceiveFluidFromSide(@Nullable Direction side) {
+        if (side == null) return false;
+        // 上下面不接收流体，只有东南西北四个侧面可以
+        return side != Direction.UP && side != Direction.DOWN;
     }
 
     /**
@@ -119,16 +145,63 @@ public class EnergyPedestalBlockEntity extends BlockEntity implements Nameable {
         }
     }
 
+    /**
+     * 向所有可输出面的相邻方块传输流体
+     */
+    private void supplyFluidToTurret() {
+        if (level == null || fluidTank.getFluidAmount() == 0) {
+            return;
+        }
+
+        Direction inputFace = getEnergyInputFace();
+
+        // 遍历所有6个方向
+        for (Direction direction : Direction.values()) {
+            // 跳过输入面
+            if (direction == inputFace) {
+                continue;
+            }
+
+            // 检查该方向是否还有流体可以传输
+            if (fluidTank.getFluidAmount() == 0) {
+                break;
+            }
+
+            // 获取该方向的相邻方块
+            BlockPos neighborPos = worldPosition.relative(direction);
+            BlockEntity neighborEntity = level.getBlockEntity(neighborPos);
+
+            if (neighborEntity != null) {
+                // 从相邻方块的相对面接收流体
+                Direction receivingSide = direction.getOpposite();
+
+                neighborEntity.getCapability(ForgeCapabilities.FLUID_HANDLER, receivingSide).ifPresent(handler -> {
+                    FluidStack toTransfer = fluidTank.drain(FLUID_TRANSFER_RATE, IFluidHandler.FluidAction.SIMULATE);
+                    if (!toTransfer.isEmpty()) {
+                        int filled = handler.fill(toTransfer, IFluidHandler.FluidAction.EXECUTE);
+                        if (filled > 0) {
+                            fluidTank.drain(filled, IFluidHandler.FluidAction.EXECUTE);
+                        }
+                    }
+                });
+            }
+        }
+    }
+
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
         tag.putInt("Energy", energyStorage.getEnergyStored());
+        tag.put("FluidTank", fluidTank.writeToNBT(new CompoundTag()));
     }
 
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
         energyStorage.setEnergy(tag.getInt("Energy"));
+        if (tag.contains("FluidTank")) {
+            fluidTank.readFromNBT(tag.getCompound("FluidTank"));
+        }
     }
 
     @NotNull
@@ -145,6 +218,20 @@ public class EnergyPedestalBlockEntity extends BlockEntity implements Nameable {
             // 其他面：只能输出能量（供炮塔使用）
             else if (side != null) {
                 LazyOptional<IEnergyStorage> outputHandler = LazyOptional.of(() -> new OutputOnlyEnergyStorage(energyStorage));
+                return outputHandler.cast();
+            }
+            return LazyOptional.empty();
+        }
+
+        // 流体系统
+        if (cap == ForgeCapabilities.FLUID_HANDLER) {
+            // 东南西北四个侧面：可以接收和输出流体
+            if (canReceiveFluidFromSide(side)) {
+                return fluidHandler.cast();
+            }
+            // 上下面：只能输出流体（供炮塔使用）
+            else if (side != null) {
+                LazyOptional<IFluidHandler> outputHandler = LazyOptional.of(() -> new OutputOnlyFluidHandler(fluidTank));
                 return outputHandler.cast();
             }
             return LazyOptional.empty();
@@ -171,6 +258,7 @@ public class EnergyPedestalBlockEntity extends BlockEntity implements Nameable {
     public void invalidateCaps() {
         super.invalidateCaps();
         feHandler.invalidate();
+        fluidHandler.invalidate();
         if (GTCEU_LOADED) {
             gteuHandler.invalidate();
         }
@@ -220,6 +308,52 @@ public class EnergyPedestalBlockEntity extends BlockEntity implements Nameable {
         @Override
         public boolean canReceive() {
             return false; // 不能接收
+        }
+    }
+
+    /**
+     * 只输出流体的包装器 - 用于非输入面
+     */
+    private static class OutputOnlyFluidHandler implements IFluidHandler {
+        private final FluidTank tank;
+
+        public OutputOnlyFluidHandler(FluidTank tank) {
+            this.tank = tank;
+        }
+
+        @Override
+        public int getTanks() {
+            return 1;
+        }
+
+        @Override
+        public @NotNull FluidStack getFluidInTank(int tank) {
+            return this.tank.getFluid();
+        }
+
+        @Override
+        public int getTankCapacity(int tank) {
+            return this.tank.getCapacity();
+        }
+
+        @Override
+        public boolean isFluidValid(int tank, @NotNull FluidStack stack) {
+            return false; // 不接收
+        }
+
+        @Override
+        public int fill(FluidStack resource, FluidAction action) {
+            return 0; // 不接收流体
+        }
+
+        @Override
+        public @NotNull FluidStack drain(FluidStack resource, FluidAction action) {
+            return tank.drain(resource, action);
+        }
+
+        @Override
+        public @NotNull FluidStack drain(int maxDrain, FluidAction action) {
+            return tank.drain(maxDrain, action);
         }
     }
 

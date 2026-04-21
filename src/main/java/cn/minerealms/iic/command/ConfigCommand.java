@@ -8,6 +8,9 @@ import com.mojang.brigadier.context.CommandContext;
 import cn.minerealms.iic.core.config.ConfigManager;
 import cn.minerealms.iic.core.config.IICConfig;
 import cn.minerealms.iic.industrial.TriAxisConfig;
+import cn.minerealms.iic.turrets.MekanismTurretsConfig;
+import cn.minerealms.iic.turrets.common.block_entity.FlameThrowerTurretTier;
+import cn.minerealms.iic.turrets.common.block_entity.LaserTurretTier;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -131,6 +134,41 @@ public class ConfigCommand {
                                             return 1;
                                         }))))
 
+                // Turret configurations
+                .then(Commands.literal("turret")
+                        .then(Commands.literal("laser")
+                                .then(Commands.literal("damage")
+                                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.0, 100.0))
+                                                .executes(ctx -> setTurretDouble(ctx, "laserDamage", DoubleArgumentType.getDouble(ctx, "value")))))
+                                .then(Commands.literal("cooldown")
+                                        .then(Commands.argument("ticks", IntegerArgumentType.integer(1, 200))
+                                                .executes(ctx -> setTurretInt(ctx, "laserCooldown", IntegerArgumentType.getInteger(ctx, "ticks")))))
+                                .then(Commands.literal("range")
+                                        .then(Commands.argument("blocks", DoubleArgumentType.doubleArg(1.0, 1000.0))
+                                                .executes(ctx -> setTurretDouble(ctx, "laserRange", DoubleArgumentType.getDouble(ctx, "blocks")))))
+                                .then(Commands.literal("energy")
+                                        .then(Commands.argument("capacity", IntegerArgumentType.integer(1000, 1000000))
+                                                .executes(ctx -> setTurretInt(ctx, "laserEnergyCapacity", IntegerArgumentType.getInteger(ctx, "capacity")))))
+                                .then(Commands.literal("energyPerShot")
+                                        .then(Commands.argument("amount", IntegerArgumentType.integer(1, 10000))
+                                                .executes(ctx -> setTurretInt(ctx, "laserEnergyPerShot", IntegerArgumentType.getInteger(ctx, "amount"))))))
+                        .then(Commands.literal("flame")
+                                .then(Commands.literal("damage")
+                                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.0, 100.0))
+                                                .executes(ctx -> setTurretDouble(ctx, "flameDamage", DoubleArgumentType.getDouble(ctx, "value")))))
+                                .then(Commands.literal("cooldown")
+                                        .then(Commands.argument("ticks", IntegerArgumentType.integer(1, 200))
+                                                .executes(ctx -> setTurretInt(ctx, "flameCooldown", IntegerArgumentType.getInteger(ctx, "ticks")))))
+                                .then(Commands.literal("range")
+                                        .then(Commands.argument("blocks", DoubleArgumentType.doubleArg(1.0, 1000.0))
+                                                .executes(ctx -> setTurretDouble(ctx, "flameRange", DoubleArgumentType.getDouble(ctx, "blocks")))))
+                                .then(Commands.literal("fuel")
+                                        .then(Commands.argument("capacity", IntegerArgumentType.integer(1000, 100000))
+                                                .executes(ctx -> setTurretInt(ctx, "flameFuelCapacity", IntegerArgumentType.getInteger(ctx, "capacity")))))
+                                .then(Commands.literal("fuelPerShot")
+                                        .then(Commands.argument("amount", IntegerArgumentType.integer(1, 1000))
+                                                .executes(ctx -> setTurretInt(ctx, "flameFuelPerShot", IntegerArgumentType.getInteger(ctx, "amount")))))))
+
                 // Show current configuration
                 .executes(ConfigCommand::showConfig);
     }
@@ -198,6 +236,97 @@ public class ConfigCommand {
         return 1;
     }
 
+    private static int setTurretDouble(CommandContext<CommandSourceStack> ctx, String key, double value) {
+        switch (key) {
+            case "laserDamage" -> {
+                MekanismTurretsConfig.basicLaserTurretDamage.set(value);
+                MekanismTurretsConfig.advancedLaserTurretDamage.set(value * 2);
+                MekanismTurretsConfig.eliteLaserTurretDamage.set(value * 3);
+                MekanismTurretsConfig.ultimateLaserTurretDamage.set(value * 4);
+            }
+            case "laserRange" -> {
+                MekanismTurretsConfig.basicLaserTurretRange.set(value);
+                MekanismTurretsConfig.advancedLaserTurretRange.set(value + 10);
+                MekanismTurretsConfig.eliteLaserTurretRange.set(value + 20);
+                MekanismTurretsConfig.ultimateLaserTurretRange.set(value + 30);
+            }
+            case "flameDamage" -> MekanismTurretsConfig.flameThrowerTurretDamage.set(value);
+            case "flameRange" -> MekanismTurretsConfig.flameThrowerTurretRange.set(value);
+        }
+        MekanismTurretsConfig.SPEC.save();
+
+        // 更新tier配置引用
+        updateTurretTierConfigs();
+
+        ctx.getSource().sendSuccess(() ->
+                Component.literal(String.format("§a✓ %s set to: §e%.2f", key, value)), true);
+        return 1;
+    }
+
+    private static int setTurretInt(CommandContext<CommandSourceStack> ctx, String key, int value) {
+        switch (key) {
+            case "laserCooldown" -> {
+                MekanismTurretsConfig.basicLaserTurretCooldown.set(value);
+                MekanismTurretsConfig.advancedLaserTurretCooldown.set(Math.max(1, value - 10));
+                MekanismTurretsConfig.eliteLaserTurretCooldown.set(Math.max(1, value - 20));
+                MekanismTurretsConfig.ultimateLaserTurretCooldown.set(Math.max(1, value - 25));
+            }
+            case "laserEnergyCapacity" -> {
+                MekanismTurretsConfig.basicLaserTurretEnergyCapacity.set(value);
+                MekanismTurretsConfig.advancedLaserTurretEnergyCapacity.set(value * 4);
+                MekanismTurretsConfig.eliteLaserTurretEnergyCapacity.set(value * 9);
+                MekanismTurretsConfig.ultimateLaserTurretEnergyCapacity.set(value * 16);
+            }
+            case "flameCooldown" -> MekanismTurretsConfig.flameThrowerTurretCooldown.set(value);
+            case "flameFuelCapacity" -> MekanismTurretsConfig.flameThrowerTurretFuelCapacity.set(value);
+            case "flameFuelPerShot" -> MekanismTurretsConfig.flameThrowerTurretFuelPerShot.set(value);
+        }
+        MekanismTurretsConfig.SPEC.save();
+
+        // 更新tier配置引用
+        updateTurretTierConfigs();
+
+        ctx.getSource().sendSuccess(() ->
+                Component.literal(String.format("§a✓ %s set to: §e%d", key, value)), true);
+        return 1;
+    }
+
+    private static void updateTurretTierConfigs() {
+        // 更新激光炮塔配置
+        LaserTurretTier.BASIC.setConfigReference(
+                () -> MekanismTurretsConfig.basicLaserTurretCooldown.get(),
+                () -> MekanismTurretsConfig.basicLaserTurretDamage.get(),
+                () -> MekanismTurretsConfig.basicLaserTurretEnergyCapacity.get(),
+                () -> MekanismTurretsConfig.basicLaserTurretRange.get()
+        );
+        LaserTurretTier.ADVANCED.setConfigReference(
+                () -> MekanismTurretsConfig.advancedLaserTurretCooldown.get(),
+                () -> MekanismTurretsConfig.advancedLaserTurretDamage.get(),
+                () -> MekanismTurretsConfig.advancedLaserTurretEnergyCapacity.get(),
+                () -> MekanismTurretsConfig.advancedLaserTurretRange.get()
+        );
+        LaserTurretTier.ELITE.setConfigReference(
+                () -> MekanismTurretsConfig.eliteLaserTurretCooldown.get(),
+                () -> MekanismTurretsConfig.eliteLaserTurretDamage.get(),
+                () -> MekanismTurretsConfig.eliteLaserTurretEnergyCapacity.get(),
+                () -> MekanismTurretsConfig.eliteLaserTurretRange.get()
+        );
+        LaserTurretTier.ULTIMATE.setConfigReference(
+                () -> MekanismTurretsConfig.ultimateLaserTurretCooldown.get(),
+                () -> MekanismTurretsConfig.ultimateLaserTurretDamage.get(),
+                () -> MekanismTurretsConfig.ultimateLaserTurretEnergyCapacity.get(),
+                () -> MekanismTurretsConfig.ultimateLaserTurretRange.get()
+        );
+
+        // 更新火焰炮塔配置
+        FlameThrowerTurretTier.BASIC.setConfigReference(
+                () -> MekanismTurretsConfig.flameThrowerTurretCooldown.get(),
+                () -> MekanismTurretsConfig.flameThrowerTurretDamage.get(),
+                () -> MekanismTurretsConfig.flameThrowerTurretFuelCapacity.get(),
+                () -> MekanismTurretsConfig.flameThrowerTurretRange.get()
+        );
+    }
+
     private static int showConfig(CommandContext<CommandSourceStack> ctx) {
         ctx.getSource().sendSuccess(() -> Component.literal("§b§l=== IIC Configuration ==="), false);
         ctx.getSource().sendSuccess(() -> Component.literal(String.format("§6Preset: §e%s", IICConfig.DIFFICULTY.preset.get())), false);
@@ -225,6 +354,19 @@ public class ConfigCommand {
         ctx.getSource().sendSuccess(() -> Component.literal(String.format("  §7Enabled: §f%s", TriAxisConfig.enableHivemindAcceleration ? "§aYES" : "§cNO")), false);
         ctx.getSource().sendSuccess(() -> Component.literal(String.format("  §7Radius: §f%.1f chunks", TriAxisConfig.hivemindProximityRadius)), false);
         ctx.getSource().sendSuccess(() -> Component.literal(String.format("  §7Acceleration Factor: §f%.2f", TriAxisConfig.hivemindAccelerationFactor)), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(""), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("§e[Turrets - Laser]"), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(String.format("  §7Damage (Basic): §f%.1f", MekanismTurretsConfig.basicLaserTurretDamage.get())), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(String.format("  §7Cooldown (Basic): §f%d ticks", MekanismTurretsConfig.basicLaserTurretCooldown.get())), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(String.format("  §7Range (Basic): §f%.1f blocks", MekanismTurretsConfig.basicLaserTurretRange.get())), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(String.format("  §7Energy Capacity (Basic): §f%d FE", MekanismTurretsConfig.basicLaserTurretEnergyCapacity.get())), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(""), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("§6[Turrets - Flame Thrower]"), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(String.format("  §7Damage: §f%.1f", MekanismTurretsConfig.flameThrowerTurretDamage.get())), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(String.format("  §7Cooldown: §f%d ticks", MekanismTurretsConfig.flameThrowerTurretCooldown.get())), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(String.format("  §7Range: §f%.1f blocks", MekanismTurretsConfig.flameThrowerTurretRange.get())), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(String.format("  §7Fuel Capacity: §f%d mB", MekanismTurretsConfig.flameThrowerTurretFuelCapacity.get())), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(String.format("  §7Fuel Per Shot: §f%d mB", MekanismTurretsConfig.flameThrowerTurretFuelPerShot.get())), false);
         ctx.getSource().sendSuccess(() -> Component.literal(""), false);
         ctx.getSource().sendSuccess(() -> Component.literal("§7Use §e/im config reload §7to reload from file"), false);
         return 1;
