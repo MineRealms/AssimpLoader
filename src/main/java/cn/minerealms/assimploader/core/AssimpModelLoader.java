@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.core;
 
 import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.model.AssimpScene;
+import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.assimp.*;
 import org.lwjgl.system.MemoryStack;
@@ -42,7 +43,11 @@ public class AssimpModelLoader {
             aiProcess_JoinIdenticalVertices | // Merge duplicate vertices
             aiProcess_OptimizeMeshes |        // Optimize mesh count
             aiProcess_OptimizeGraph |         // Optimize scene graph
-            aiProcess_FlipUVs;                // Flip UV coordinates for OpenGL
+            aiProcess_FlipUVs |               // Flip UV coordinates for OpenGL
+            aiProcess_MakeLeftHanded |        // Convert to left-handed (Minecraft)
+            aiProcess_FlipWindingOrder;       // Flip face winding for left-handed
+
+    private boolean autoConvertCoordinates = true;
 
     public AssimpModelLoader() {
         AssimpLoader.LOGGER.info("AssimpModelLoader initialized with LWJGL Assimp bindings");
@@ -97,8 +102,16 @@ public class AssimpModelLoader {
                 aiScene.mNumMaterials(),
                 aiScene.mNumAnimations());
 
+        // Detect source coordinate system
+        String fileExtension = getFileExtension(fileName);
+        CoordinateSystemConverter.CoordinateSystem sourceSystem =
+                CoordinateSystemConverter.detectCoordinateSystem(fileExtension);
+
+        AssimpLoader.LOGGER.debug("Detected coordinate system: {} for file type: {}",
+                sourceSystem, fileExtension);
+
         // Convert to our internal format
-        return new AssimpScene(aiScene, filePath);
+        return new AssimpScene(aiScene, filePath, sourceSystem);
     }
 
     /**
@@ -127,7 +140,12 @@ public class AssimpModelLoader {
 
         AssimpLoader.LOGGER.info("Model loaded from memory: {} meshes", aiScene.mNumMeshes());
 
-        return new AssimpScene(aiScene, null);
+        // Detect source coordinate system
+        String fileExtension = getFileExtension(resourcePath);
+        CoordinateSystemConverter.CoordinateSystem sourceSystem =
+                CoordinateSystemConverter.detectCoordinateSystem(fileExtension);
+
+        return new AssimpScene(aiScene, null, sourceSystem);
     }
 
     /**
@@ -180,5 +198,16 @@ public class AssimpModelLoader {
         int minor = aiGetVersionMinor();
         int revision = aiGetVersionRevision();
         return String.format("%d.%d.%d", major, minor, revision);
+    }
+
+    /**
+     * Enable or disable automatic coordinate system conversion
+     */
+    public void setAutoConvertCoordinates(boolean autoConvert) {
+        this.autoConvertCoordinates = autoConvert;
+    }
+
+    public boolean isAutoConvertCoordinates() {
+        return autoConvertCoordinates;
     }
 }

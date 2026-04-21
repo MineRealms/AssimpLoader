@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.model;
 
 import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.assimp.*;
 
@@ -25,12 +26,14 @@ public class AssimpScene {
     private final List<AssimpMaterial> materials;
     private final List<AssimpAnimation> animations;
     private final AssimpNode rootNode;
+    private final CoordinateSystemConverter.CoordinateSystem sourceCoordinateSystem;
 
     private boolean released = false;
 
-    public AssimpScene(AIScene aiScene, @Nullable Path sourcePath) {
+    public AssimpScene(AIScene aiScene, @Nullable Path sourcePath, CoordinateSystemConverter.CoordinateSystem coordinateSystem) {
         this.aiScene = aiScene;
         this.sourcePath = sourcePath;
+        this.sourceCoordinateSystem = coordinateSystem;
 
         // Parse meshes
         this.meshes = new ArrayList<>();
@@ -39,7 +42,7 @@ public class AssimpScene {
             PointerBuffer meshesBuffer = aiScene.mMeshes();
             for (int i = 0; i < meshCount; i++) {
                 AIMesh aiMesh = AIMesh.create(meshesBuffer.get(i));
-                meshes.add(new AssimpMesh(aiMesh, i));
+                meshes.add(new AssimpMesh(aiMesh, i, coordinateSystem));
             }
         }
 
@@ -69,8 +72,8 @@ public class AssimpScene {
         AINode aiRootNode = aiScene.mRootNode();
         this.rootNode = aiRootNode != null ? new AssimpNode(aiRootNode) : null;
 
-        AssimpLoader.LOGGER.debug("AssimpScene created: {} meshes, {} materials, {} animations",
-                meshes.size(), materials.size(), animations.size());
+        AssimpLoader.LOGGER.debug("AssimpScene created: {} meshes, {} materials, {} animations, coordinate system: {}",
+                meshes.size(), materials.size(), animations.size(), coordinateSystem);
     }
 
     public List<AssimpMesh> getMeshes() {
@@ -93,6 +96,10 @@ public class AssimpScene {
     @Nullable
     public Path getSourcePath() {
         return sourcePath;
+    }
+
+    public CoordinateSystemConverter.CoordinateSystem getSourceCoordinateSystem() {
+        return sourceCoordinateSystem;
     }
 
     public AIScene getNativeScene() {

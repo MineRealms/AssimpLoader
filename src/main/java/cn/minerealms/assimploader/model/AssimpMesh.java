@@ -1,5 +1,6 @@
 package cn.minerealms.assimploader.model;
 
+import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 import org.lwjgl.assimp.AIFace;
 import org.lwjgl.assimp.AIMesh;
 import org.lwjgl.assimp.AIVector3D;
@@ -24,6 +25,7 @@ public class AssimpMesh {
     private final int index;
     private final String name;
     private final int materialIndex;
+    private final CoordinateSystemConverter.CoordinateSystem sourceCoordinateSystem;
 
     // Cached data
     private float[] vertices;
@@ -33,11 +35,12 @@ public class AssimpMesh {
     private float[] bitangents;
     private int[] indices;
 
-    public AssimpMesh(AIMesh aiMesh, int index) {
+    public AssimpMesh(AIMesh aiMesh, int index, CoordinateSystemConverter.CoordinateSystem coordinateSystem) {
         this.aiMesh = aiMesh;
         this.index = index;
         this.name = aiMesh.mName().dataString();
         this.materialIndex = aiMesh.mMaterialIndex();
+        this.sourceCoordinateSystem = coordinateSystem;
     }
 
     /**
@@ -176,6 +179,10 @@ public class AssimpMesh {
 
     public int getMaterialIndex() {
         return materialIndex;
+    }
+
+    public CoordinateSystemConverter.CoordinateSystem getSourceCoordinateSystem() {
+        return sourceCoordinateSystem;
     }
 
     public int getVertexCount() {
