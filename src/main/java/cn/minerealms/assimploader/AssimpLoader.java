@@ -57,6 +57,9 @@ public class AssimpLoader {
             modEventBus.addListener(this::registerModelLoaders);
         }
 
+        // Register examples
+        cn.minerealms.assimploader.example.ExampleRegistry.register(modEventBus);
+
         // Register to Forge event bus
         MinecraftForge.EVENT_BUS.register(this);
 
