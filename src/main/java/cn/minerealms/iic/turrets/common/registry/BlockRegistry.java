@@ -4,8 +4,11 @@ import io.github.flemmli97.improvedmobs.ImprovedMobs;
 
 import cn.minerealms.iic.turrets.common.block.ElectricFenceBlock;
 import cn.minerealms.iic.turrets.common.block.EnergyPedestalBlock;
+import cn.minerealms.iic.turrets.common.block.FlameThrowerTurretBlock;
 import cn.minerealms.iic.turrets.common.block.LaserTurretBlock;
+import cn.minerealms.iic.turrets.common.block_entity.FlameThrowerTurretBlockEntity;
 import cn.minerealms.iic.turrets.common.block_entity.LaserTurretBlockEntity;
+import cn.minerealms.iic.turrets.common.item.FlameThrowerTurretBlockItem;
 import cn.minerealms.iic.turrets.common.item.LaserTurretBlockItem;
 import mekanism.api.tier.ITier;
 import mekanism.common.block.attribute.AttributeTier;
@@ -36,6 +39,9 @@ public class BlockRegistry {
     public static final BlockRegistryObject<LaserTurretBlock, LaserTurretBlockItem> ADVANCED_LASER_TURRET = registerLaserTurret(BlockTypeRegistry.ADVANCED_LASER_TURRET);
     public static final BlockRegistryObject<LaserTurretBlock, LaserTurretBlockItem> ELITE_LASER_TURRET = registerLaserTurret(BlockTypeRegistry.ELITE_LASER_TURRET);
     public static final BlockRegistryObject<LaserTurretBlock, LaserTurretBlockItem> ULTIMATE_LASER_TURRET = registerLaserTurret(BlockTypeRegistry.ULTIMATE_LASER_TURRET);
+
+    public static final BlockRegistryObject<FlameThrowerTurretBlock, FlameThrowerTurretBlockItem> FLAMETHROWER_TURRET = BLOCKS.register("flamethrower_turret",
+            () -> new FlameThrowerTurretBlock(BlockTypeRegistry.FLAMETHROWER_TURRET), FlameThrowerTurretBlockItem::new);
 
     private static BlockRegistryObject<LaserTurretBlock, LaserTurretBlockItem> registerLaserTurret(BlockTypeTile<LaserTurretBlockEntity> type) {
         return registerTieredBlock(type, "_laser_turret", () -> new LaserTurretBlock(type), LaserTurretBlockItem::new);

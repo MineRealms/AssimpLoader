@@ -1,6 +1,8 @@
 package cn.minerealms.iic.turrets.common.registry;
 
 import cn.minerealms.iic.turrets.common.block.LaserTurretBlock;
+import cn.minerealms.iic.turrets.common.block_entity.FlameThrowerTurretBlockEntity;
+import cn.minerealms.iic.turrets.common.block_entity.FlameThrowerTurretTier;
 import cn.minerealms.iic.turrets.common.block_entity.LaserTurretBlockEntity;
 import cn.minerealms.iic.turrets.common.block_entity.LaserTurretTier;
 import cn.minerealms.iic.turrets.common.lang.MekanismTurretsLang;
@@ -22,6 +24,9 @@ public class BlockTypeRegistry {
     public static final BlockTypeTile<LaserTurretBlockEntity> ADVANCED_LASER_TURRET = createLaserTurret(LaserTurretTier.ADVANCED, () -> BlockEntityTypeRegistry.ADVANCED_LASER_TURRET, () -> BlockRegistry.ELITE_LASER_TURRET);
     public static final BlockTypeTile<LaserTurretBlockEntity> ELITE_LASER_TURRET = createLaserTurret(LaserTurretTier.ELITE, () -> BlockEntityTypeRegistry.ELITE_LASER_TURRET, () -> BlockRegistry.ULTIMATE_LASER_TURRET);
     public static final BlockTypeTile<LaserTurretBlockEntity> ULTIMATE_LASER_TURRET = createLaserTurret(LaserTurretTier.ULTIMATE, () -> BlockEntityTypeRegistry.ULTIMATE_LASER_TURRET, null);
+
+    public static final BlockTypeTile<FlameThrowerTurretBlockEntity> FLAMETHROWER_TURRET = createFlameThrowerTurret(FlameThrowerTurretTier.BASIC, () -> BlockEntityTypeRegistry.FLAMETHROWER_TURRET, null);
+
     private static <TILE extends LaserTurretBlockEntity> BlockTypeTile<TILE> createLaserTurret(LaserTurretTier tier, Supplier<TileEntityTypeRegistryObject<TILE>> tile, Supplier<BlockRegistryObject<?, ?>> upgradeBlock) {
         return BlockTypeTile.BlockTileBuilder.createBlock(tile, MekanismTurretsLang.DESCRIPTION_LASER_TURRET)
                 .withGui(() -> ContainerTypeRegistry.LASER_TURRET)
@@ -31,6 +36,18 @@ public class BlockTypeRegistry {
                         () -> FloatingLong.create(tier.getEnergyCapacity()))
                 .withSupportedUpgrades(EnumSet.of(Upgrade.SPEED, Upgrade.ENERGY, Upgrade.MUFFLING))
                 .withComputerSupport(tier, "LaserTurret")
+                .build();
+    }
+
+    private static <TILE extends FlameThrowerTurretBlockEntity> BlockTypeTile<TILE> createFlameThrowerTurret(FlameThrowerTurretTier tier, Supplier<TileEntityTypeRegistryObject<TILE>> tile, Supplier<BlockRegistryObject<?, ?>> upgradeBlock) {
+        return BlockTypeTile.BlockTileBuilder.createBlock(tile, MekanismTurretsLang.DESCRIPTION_FLAMETHROWER_TURRET)
+                .withGui(() -> ContainerTypeRegistry.FLAMETHROWER_TURRET)
+                .with(new AttributeTier<>(tier), new AttributeUpgradeable(upgradeBlock), Attributes.SECURITY)
+                .without(AttributeParticleFX.class, AttributeStateFacing.class, Attributes.AttributeRedstone.class)
+                .withEnergyConfig(
+                        () -> FloatingLong.create(tier.getFuelCapacity()))
+                .withSupportedUpgrades(EnumSet.of(Upgrade.SPEED, Upgrade.ENERGY, Upgrade.MUFFLING))
+                .withComputerSupport(tier, "FlameThrowerTurret")
                 .build();
     }
 

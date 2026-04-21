@@ -40,6 +40,18 @@ public class MekanismTurretsConfig {
     public static final ForgeConfigSpec.IntValue ultimateLaserTurretEnergyCapacity;
     public static final ForgeConfigSpec.DoubleValue ultimateLaserTurretRange;
 
+    public static final ForgeConfigSpec.IntValue flameThrowerTurretCooldown;
+    public static final ForgeConfigSpec.DoubleValue flameThrowerTurretDamage;
+    public static final ForgeConfigSpec.IntValue flameThrowerTurretFuelCapacity;
+    public static final ForgeConfigSpec.DoubleValue flameThrowerTurretRange;
+    public static final ForgeConfigSpec.IntValue flameThrowerTurretFuelPerShot;
+
+    // Flame Entity Damage Configuration
+    public static final ForgeConfigSpec.DoubleValue flameDirectHitDamage;
+    public static final ForgeConfigSpec.DoubleValue flameGroundDamagePerTick;
+    public static final ForgeConfigSpec.IntValue flameGroundDuration;
+    public static final ForgeConfigSpec.DoubleValue flameDamageRadius;
+
 
     static  {
         BUILDER.push("Mekanism Turrets Config");
@@ -70,6 +82,18 @@ public class MekanismTurretsConfig {
         ultimateLaserTurretDamage = BUILDER.comment("Damage of the Ultimate Laser Turret").defineInRange("ultimateLaserTurretDamage", 4F, 0F, Integer.MAX_VALUE);
         ultimateLaserTurretEnergyCapacity = BUILDER.comment("Energy Capacity of the Ultimate Laser Turret").defineInRange("ultimateLaserTurretEnergyCapacity", 160000, 0, Integer.MAX_VALUE);
         ultimateLaserTurretRange = BUILDER.comment("Range of the Ultimate Laser Turret").defineInRange("ultimateLaserTurretRange", 45D, 0D, 1000);
+
+        flameThrowerTurretCooldown = BUILDER.comment("Cooldown of the Flame Thrower Turret (ticks)").defineInRange("flameThrowerTurretCooldown", 5, 0, Integer.MAX_VALUE);
+        flameThrowerTurretDamage = BUILDER.comment("Damage per tick of the Flame Thrower Turret").defineInRange("flameThrowerTurretDamage", 1.0, 0.0, Double.MAX_VALUE);
+        flameThrowerTurretFuelCapacity = BUILDER.comment("Fuel Capacity of the Flame Thrower Turret (mB)").defineInRange("flameThrowerTurretFuelCapacity", 16000, 0, Integer.MAX_VALUE);
+        flameThrowerTurretRange = BUILDER.comment("Range of the Flame Thrower Turret (blocks)").defineInRange("flameThrowerTurretRange", 32.0, 0.0, 1000.0);
+        flameThrowerTurretFuelPerShot = BUILDER.comment("Fuel consumed per shot (mB)").defineInRange("flameThrowerTurretFuelPerShot", 10, 0, Integer.MAX_VALUE);
+
+        // Flame Entity Damage Configuration
+        flameDirectHitDamage = BUILDER.comment("Direct hit damage when flame projectile hits an entity").defineInRange("flameDirectHitDamage", 5.0, 0.0, Double.MAX_VALUE);
+        flameGroundDamagePerTick = BUILDER.comment("Damage per tick from ground fire (reference: Advanced Laser Turret = 2.0)").defineInRange("flameGroundDamagePerTick", 2.0, 0.0, Double.MAX_VALUE);
+        flameGroundDuration = BUILDER.comment("Duration of ground fire in ticks (100 ticks = 5 seconds)").defineInRange("flameGroundDuration", 100, 0, Integer.MAX_VALUE);
+        flameDamageRadius = BUILDER.comment("Radius of ground fire damage area (blocks)").defineInRange("flameDamageRadius", 3.0, 0.0, 100.0);
 
         BUILDER.pop();
         SPEC = BUILDER.build();
