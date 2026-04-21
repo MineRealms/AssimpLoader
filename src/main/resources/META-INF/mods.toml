@@ -66,3 +66,43 @@ mandatory=true
 versionRange="[4.8,)"
 ordering="BEFORE"
 side="BOTH"
+
+# ==================== AssimpLoader Mod ====================
+
+[[mods]]
+modId="assimploader"
+version="${file.jarVersion}"
+displayName="AssimpLoader - Advanced 3D Model System"
+logoFile="assimploader_icon.png"
+authors="MineRealms Team"
+description='''
+AssimpLoader - Advanced 3D Model Loading System for Minecraft
+
+A powerful bridge between Assimp (Open Asset Import Library) and Minecraft's rendering pipeline.
+
+Features:
+- Support for 40+ 3D model formats (FBX, GLTF, Collada, OBJ, Blender, 3DS, etc.)
+- Skeletal animation system with bone hierarchies
+- PBR material support
+- Efficient model caching and async loading
+- Modern rendering pipeline integration
+- Resource pack support
+
+Supported Formats:
+FBX, GLTF/GLB, Collada (DAE), OBJ, Blender (.blend), 3DS, STL, PLY,
+MD2, MD3, MD5, MDL, ASE, LWO, DXF, and many more!
+'''
+
+[[dependencies.assimploader]]
+modId="forge"
+mandatory=true
+versionRange="[47,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.assimploader]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.21)"
+ordering="NONE"
+side="BOTH"
