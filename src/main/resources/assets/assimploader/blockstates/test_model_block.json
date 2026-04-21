@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "assimploader:block/test_model_block"
+    }
+  }
+}
