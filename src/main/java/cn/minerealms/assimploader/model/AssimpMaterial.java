@@ -71,10 +71,25 @@ public class AssimpMaterial {
      */
     public float[] getDiffuseColor() {
         AIColor4D color = AIColor4D.create();
+
+        // Try standard diffuse color first
         if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_DIFFUSE, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
-            return new float[]{color.r(), color.g(), color.b(), color.a()};
+            float[] result = new float[]{color.r(), color.g(), color.b(), color.a()};
+            cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} diffuse color: R={}, G={}, B={}, A={}",
+                index, result[0], result[1], result[2], result[3]);
+            return result;
         }
-        // Default to white if no color found
+
+        // Try base color (PBR materials)
+        if (aiGetMaterialColor(aiMaterial, AI_MATKEY_BASE_COLOR, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
+            float[] result = new float[]{color.r(), color.g(), color.b(), color.a()};
+            cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} base color: R={}, G={}, B={}, A={}",
+                index, result[0], result[1], result[2], result[3]);
+            return result;
+        }
+
+        // Log warning and return white as default
+        cn.minerealms.assimploader.AssimpLoader.LOGGER.warn("Material {} has no diffuse or base color, using white", index);
         return new float[]{1.0f, 1.0f, 1.0f, 1.0f};
     }
 

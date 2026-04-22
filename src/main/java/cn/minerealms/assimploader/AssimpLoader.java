@@ -50,32 +50,35 @@ public class AssimpLoader {
     public AssimpLoader() {
         instance = this;
 
-        // Initialize LWJGL Assimp bootstrap FIRST
-        AssimpBootstrap.init();
+        LOGGER.info("Initializing AssimpLoader - Advanced 3D Model Loading System");
 
-        // Check LWJGL Assimp availability
-        if (!AssimpBootstrap.isAvailable()) {
-            LOGGER.error("===========================================");
-            LOGGER.error("LWJGL Assimp NOT FOUND!");
-            LOGGER.error("===========================================");
-            LOGGER.error("AssimpLoader requires LWJGL Assimp 3.3.1 (matching Minecraft's LWJGL version).");
-            LOGGER.error("");
-            LOGGER.error("This should not happen if the mod is properly installed.");
-            LOGGER.error("Please report this issue to the mod author.");
-            LOGGER.error("===========================================");
-            throw new RuntimeException("LWJGL Assimp dependency missing!");
+        // Initialize LWJGL Assimp bootstrap FIRST
+        try {
+            AssimpBootstrap.init();
+            LOGGER.info("LWJGL Assimp bootstrap initialized");
+        } catch (Exception e) {
+            LOGGER.error("Failed to initialize LWJGL Assimp bootstrap", e);
+            // Don't throw - let it fail later if actually needed
         }
 
-        String assimpVersion = AssimpBootstrap.getVersion();
-        LOGGER.info("LWJGL Assimp initialized: version {}", assimpVersion);
+        // Check LWJGL Assimp availability (warning only, not fatal)
+        if (!AssimpBootstrap.isAvailable()) {
+            LOGGER.warn("===========================================");
+            LOGGER.warn("LWJGL Assimp class not found in classpath");
+            LOGGER.warn("===========================================");
+            LOGGER.warn("This may be normal in development environment.");
+            LOGGER.warn("If models fail to load, check LWJGL Assimp dependency.");
+            LOGGER.warn("===========================================");
+        } else {
+            String assimpVersion = AssimpBootstrap.getVersion();
+            LOGGER.info("LWJGL Assimp initialized: version {}", assimpVersion);
+            DebugLogger.info("Assimp version: {}", assimpVersion);
+        }
 
         // ALWAYS enable debug logging for development
         DebugLogger.setEnabled(true);
         DebugLogger.info("=== AssimpLoader Initializing ===");
         DebugLogger.info("Debug logging ENABLED by default");
-        DebugLogger.info("Assimp version: {}", assimpVersion);
-
-        LOGGER.info("Initializing AssimpLoader - Advanced 3D Model Loading System");
 
         // Initialize debug logging if enabled via system property
         if (DEBUG_ENABLED) {

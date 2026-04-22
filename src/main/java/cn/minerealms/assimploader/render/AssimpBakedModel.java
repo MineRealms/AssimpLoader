@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.render;
 
 import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.model.AssimpMaterial;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpScene;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -10,6 +11,7 @@ import net.minecraft.client.renderer.block.model.ItemTransforms;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.client.model.data.ModelData;
@@ -34,39 +36,40 @@ public class AssimpBakedModel implements BakedModel {
     private final TextureAtlasSprite particleIcon;
 
     public AssimpBakedModel(AssimpScene scene, TextureAtlasSprite particleIcon) {
-        AssimpLoader.LOGGER.info("=== AssimpBakedModel Constructor ===");
-        AssimpLoader.LOGGER.info("Scene: {}", scene);
-        AssimpLoader.LOGGER.info("Meshes count: {}", scene != null ? scene.getMeshes().size() : 0);
-
         this.scene = scene;
         this.particleIcon = particleIcon;
         this.quads = new ArrayList<>();
 
-        try {
-            // Convert all meshes to quads
-            for (int i = 0; i < scene.getMeshes().size(); i++) {
-                AssimpMesh mesh = scene.getMeshes().get(i);
-                AssimpLoader.LOGGER.info("Converting mesh {}: {} vertices", i, mesh.getVertices().length / 3);
+        // Convert all meshes to quads
+        AssimpLoader.LOGGER.info("Building BakedModel: {} meshes, {} materials",
+                scene.getMeshes().size(), scene.getMaterials().size());
 
-                // Get material for this mesh
-                int materialIndex = mesh.getMaterialIndex();
-                var material = (materialIndex >= 0 && materialIndex < scene.getMaterials().size())
-                    ? scene.getMaterials().get(materialIndex)
-                    : null;
+        for (int i = 0; i < scene.getMeshes().size(); i++) {
+            AssimpMesh mesh = scene.getMeshes().get(i);
 
-                if (material != null) {
-                    float[] color = material.getDiffuseColor();
-                    AssimpLoader.LOGGER.info("Mesh {} using material {} with color: [{}, {}, {}, {}]",
-                        i, materialIndex, color[0], color[1], color[2], color[3]);
-                }
+            // Get material for this mesh
+            AssimpMaterial material = null;
+            TextureAtlasSprite meshSprite = particleIcon;  // Default to white
 
-                List<BakedQuad> meshQuads = MinecraftMeshConverter.convertToQuads(mesh, material, particleIcon);
-                AssimpLoader.LOGGER.info("Mesh {} produced {} quads", i, meshQuads.size());
-                quads.addAll(meshQuads);
+            if (mesh.getMaterialIndex() >= 0 && mesh.getMaterialIndex() < scene.getMaterials().size()) {
+                material = scene.getMaterials().get(mesh.getMaterialIndex());
+                AssimpLoader.LOGGER.info("Mesh {} using material index {}", i, mesh.getMaterialIndex());
+
+                // Generate solid color texture for this material
+                ResourceLocation colorTextureLoc = MaterialTextureGenerator.getOrCreateColorTexture(material, i);
+
+                // Get sprite for the generated texture
+                // Note: This won't work because generated textures aren't in the atlas
+                // So we'll use white_concrete and pass material color to converter
+                meshSprite = particleIcon;  // Use white sprite
+            } else {
+                AssimpLoader.LOGGER.warn("Mesh {} has invalid material index: {}", i, mesh.getMaterialIndex());
             }
-            AssimpLoader.LOGGER.info("Total quads created: {}", quads.size());
-        } catch (Exception e) {
-            AssimpLoader.LOGGER.error("=== EXCEPTION IN CONSTRUCTOR ===", e);
+
+            // Convert mesh to quads - pass material for color info
+            List<BakedQuad> meshQuads = MinecraftMeshConverter.convertToQuads(mesh, meshSprite, material);
+            AssimpLoader.LOGGER.info("Mesh {} generated {} quads", i, meshQuads.size());
+            quads.addAll(meshQuads);
         }
     }
 
@@ -87,7 +90,7 @@ public class AssimpBakedModel implements BakedModel {
 
     @Override
     public boolean useAmbientOcclusion() {
-        return false; // Disable AO to reduce Z-fighting artifacts
+        return true;  // Enable AO for realistic lighting
     }
 
     @Override
@@ -97,12 +100,12 @@ public class AssimpBakedModel implements BakedModel {
 
     @Override
     public boolean usesBlockLight() {
-        return true;
+        return true;  // Enable block light for proper shading
     }
 
     @Override
     public boolean isCustomRenderer() {
-        return false; // Use standard rendering
+        return false;
     }
 
     @Override

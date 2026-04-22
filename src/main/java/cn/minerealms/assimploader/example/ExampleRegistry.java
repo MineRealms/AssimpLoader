@@ -17,7 +17,7 @@ import net.minecraftforge.registries.RegistryObject;
 
 /**
  * Registry for example blocks and items.
- * Demonstrates how to register blocks that use Assimp models with BlockEntityRenderer.
+ * Demonstrates how to register blocks that use Assimp models with BakedModel.
  */
 public class ExampleRegistry {
     public static final DeferredRegister<Block> BLOCKS =
@@ -26,10 +26,7 @@ public class ExampleRegistry {
     public static final DeferredRegister<Item> ITEMS =
         DeferredRegister.create(ForgeRegistries.ITEMS, AssimpLoader.MODID);
 
-    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
-        DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, AssimpLoader.MODID);
-
-    // CNC Machine block with FBX model
+    // CNC Machine block with FBX model (using BakedModel)
     public static final RegistryObject<Block> CNC_MACHINE = BLOCKS.register("cnc_machine",
         () -> new TestModelBlock(BlockBehaviour.Properties.of()
             .mapColor(MapColor.METAL)
@@ -44,16 +41,9 @@ public class ExampleRegistry {
         () -> new BlockItem(CNC_MACHINE.get(), new Item.Properties())
     );
 
-    // BlockEntity
-    public static final RegistryObject<BlockEntityType<CNCMachineBlockEntity>> CNC_MACHINE_BLOCK_ENTITY =
-        BLOCK_ENTITIES.register("cnc_machine", () ->
-            BlockEntityType.Builder.of(CNCMachineBlockEntity::new, CNC_MACHINE.get()).build(null)
-        );
-
     public static void register(IEventBus modEventBus) {
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
-        BLOCK_ENTITIES.register(modEventBus);
 
         modEventBus.addListener(ExampleRegistry::addCreative);
 
