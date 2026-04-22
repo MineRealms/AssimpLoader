@@ -21,10 +21,13 @@ public class AssimpBootstrap {
         }
 
         try {
-            // Extract native libraries first
-            if (!NativeLibraryExtractor.extractAndLoadNatives()) {
-                AssimpLoader.LOGGER.error("Failed to extract Assimp native libraries");
-                throw new RuntimeException("Failed to extract Assimp native libraries");
+            // Extract native libraries first (may fail in dev environment)
+            try {
+                if (!NativeLibraryExtractor.extractAndLoadNatives()) {
+                    AssimpLoader.LOGGER.warn("Failed to extract Assimp native libraries (may be normal in dev)");
+                }
+            } catch (Exception e) {
+                AssimpLoader.LOGGER.warn("Native library extraction failed (may be normal in dev): {}", e.getMessage());
             }
 
             // Set Assimp library name
