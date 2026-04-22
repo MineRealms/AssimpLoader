@@ -36,16 +36,23 @@ import static org.lwjgl.assimp.Assimp.*;
 public class AssimpModelLoader {
 
     // Default post-processing flags for Minecraft rendering
+    // REDUCED FLAGS: Some flags cause crashes with LWJGL 3.3.1 Assimp on certain FBX files
     private static final int DEFAULT_FLAGS =
             aiProcess_Triangulate |           // Convert to triangles
-            aiProcess_GenSmoothNormals |      // Generate smooth normals
-            aiProcess_CalcTangentSpace |      // Calculate tangent space for normal maps
             aiProcess_JoinIdenticalVertices | // Merge duplicate vertices
-            aiProcess_OptimizeMeshes |        // Optimize mesh count
-            aiProcess_OptimizeGraph |         // Optimize scene graph
-            aiProcess_FlipUVs |               // Flip UV coordinates for OpenGL
-            aiProcess_MakeLeftHanded |        // Convert to left-handed (Minecraft)
-            aiProcess_FlipWindingOrder;       // Flip face winding for left-handed
+            aiProcess_FlipUVs;                // Flip UV coordinates for OpenGL
+
+    // Full flags (may cause crashes with some files)
+    private static final int FULL_FLAGS =
+            aiProcess_Triangulate |
+            aiProcess_GenSmoothNormals |
+            aiProcess_CalcTangentSpace |
+            aiProcess_JoinIdenticalVertices |
+            aiProcess_OptimizeMeshes |
+            aiProcess_OptimizeGraph |
+            aiProcess_FlipUVs |
+            aiProcess_MakeLeftHanded |
+            aiProcess_FlipWindingOrder;
 
     private boolean autoConvertCoordinates = true;
 
@@ -122,23 +129,83 @@ public class AssimpModelLoader {
      * @return AssimpScene containing all model data
      */
     public AssimpScene loadModelFromMemory(String resourcePath, byte[] data) {
-        AssimpLoader.LOGGER.info("Loading model from memory: {}", resourcePath);
+        AssimpLoader.LOGGER.info("Loading model from memory: {}, size: {} bytes", resourcePath, data.length);
 
-        String extension = getFileExtension(resourcePath);
-
-        AIScene aiScene = aiImportFileFromMemory(
-                ByteBuffer.wrap(data),
-                DEFAULT_FLAGS,
-                extension
-        );
-
-        if (aiScene == null) {
-            String error = aiGetErrorString();
-            AssimpLoader.LOGGER.error("Failed to load model from memory: {}", error);
+        // Validate input
+        if (data == null || data.length == 0) {
+            AssimpLoader.LOGGER.error("Invalid input: data is null or empty");
             return null;
         }
 
-        AssimpLoader.LOGGER.info("Model loaded from memory: {} meshes", aiScene.mNumMeshes());
+        String extension = getFileExtension(resourcePath);
+        AssimpLoader.LOGGER.info("Detected file extension: {}", extension);
+
+        // Validate extension
+        if (extension == null || extension.isEmpty()) {
+            AssimpLoader.LOGGER.error("Invalid file extension from path: {}", resourcePath);
+            return null;
+        }
+
+        AIScene aiScene = null;
+        try {
+            // Test if Assimp is available before attempting import
+            try {
+                // Use aiGetVersionMajor() instead of aiGetVersionString()
+                int major = aiGetVersionMajor();
+                int minor = aiGetVersionMinor();
+                int revision = aiGetVersionRevision();
+                AssimpLoader.LOGGER.info("Assimp version check: {}.{}.{}", major, minor, revision);
+            } catch (Throwable t) {
+                AssimpLoader.LOGGER.error("Assimp native library not accessible: {}", t.getMessage());
+                return null;
+            }
+
+            AssimpLoader.LOGGER.info("Calling aiImportFileFromMemory with flags: {} (0x{}) for extension: {}",
+                    DEFAULT_FLAGS, Integer.toHexString(DEFAULT_FLAGS), extension);
+
+            // IMPORTANT: Use direct ByteBuffer for native code
+            // Wrapped arrays may cause issues with JNI
+            ByteBuffer buffer = org.lwjgl.BufferUtils.createByteBuffer(data.length);
+            buffer.put(data);
+            buffer.flip();
+            AssimpLoader.LOGGER.info("Direct ByteBuffer created: capacity={}, position={}, limit={}, isDirect={}",
+                    buffer.capacity(), buffer.position(), buffer.limit(), buffer.isDirect());
+
+            // Try to import with reduced flags first (safer)
+            aiScene = aiImportFileFromMemory(buffer, DEFAULT_FLAGS, extension);
+
+            if (aiScene == null) {
+                String error = aiGetErrorString();
+                AssimpLoader.LOGGER.error("Assimp import failed with reduced flags: {}", error);
+                AssimpLoader.LOGGER.info("Trying with minimal flags (triangulate only)...");
+
+                // Try with absolute minimal flags
+                buffer.rewind();
+                aiScene = aiImportFileFromMemory(buffer, aiProcess_Triangulate, extension);
+
+                if (aiScene == null) {
+                    error = aiGetErrorString();
+                    AssimpLoader.LOGGER.error("Assimp import failed even with minimal flags: {}", error);
+                    return null;
+                }
+            }
+
+            AssimpLoader.LOGGER.info("Assimp import successful: {} meshes, {} materials, {} animations",
+                    aiScene.mNumMeshes(), aiScene.mNumMaterials(), aiScene.mNumAnimations());
+
+        } catch (Exception e) {
+            AssimpLoader.LOGGER.error("Exception during Assimp import: {}", e.getMessage(), e);
+            return null;
+        } catch (Error e) {
+            // Catch native errors (like UnsatisfiedLinkError or JVM crashes)
+            AssimpLoader.LOGGER.error("Native error during Assimp import: {}", e.getMessage(), e);
+            return null;
+        }
+
+        if (aiScene == null) {
+            AssimpLoader.LOGGER.error("Failed to load model from memory: aiScene is null");
+            return null;
+        }
 
         // Detect source coordinate system
         String fileExtension = getFileExtension(resourcePath);

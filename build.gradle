@@ -30,12 +30,9 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-            property 'forge.enabledGameTestNamespaces', 'integratedindustrialcraft'
+            property 'forge.enabledGameTestNamespaces', 'assimploader'
 
             mods {
-                integratedindustrialcraft {
-                    source sourceSets.main
-                }
                 assimploader {
                     source sourceSets.main
                 }
@@ -46,12 +43,9 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-            property 'forge.enabledGameTestNamespaces', 'integratedindustrialcraft'
+            property 'forge.enabledGameTestNamespaces', 'assimploader'
 
             mods {
-                integratedindustrialcraft {
-                    source sourceSets.main
-                }
                 assimploader {
                     source sourceSets.main
                 }
@@ -62,12 +56,9 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-            args '--all', '--mod', 'integratedindustrialcraft', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+            args '--all', '--mod', 'assimploader', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
 
             mods {
-                integratedindustrialcraft {
-                    source sourceSets.main
-                }
                 assimploader {
                     source sourceSets.main
                 }
@@ -109,65 +100,81 @@ dependencies {
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
-    // LWJGL Assimp bindings (native Java bindings, no Kotlin needed)
-    implementation platform("org.lwjgl:lwjgl-bom:3.3.3")
-    implementation "org.lwjgl:lwjgl-assimp"
-    runtimeOnly "org.lwjgl:lwjgl-assimp::natives-windows"
-    runtimeOnly "org.lwjgl:lwjgl-assimp::natives-linux"
-    runtimeOnly "org.lwjgl:lwjgl-assimp::natives-macos"
+    // LWJGL Assimp bindings - MUST match Minecraft's LWJGL version (3.3.1)
+    implementation(platform("org.lwjgl:lwjgl-bom:3.3.1"))
+    implementation "org.lwjgl:lwjgl-assimp:3.3.1"
+
+    // Use jarJar to bundle LWJGL Assimp into the mod
+    jarJar(group: 'org.lwjgl', name: 'lwjgl-assimp', version: '[3.3.1,3.3.2)')
+
+    // Natives for development and runtime
+    def nativesClassifier = "natives-windows"
+    if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
+        nativesClassifier = "natives-linux"
+    } else if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
+        nativesClassifier = "natives-macos"
+    }
+
+    runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:${nativesClassifier}"
+
+    // Also include natives in the JAR for distribution
+    implementation "org.lwjgl:lwjgl-assimp:3.3.1:natives-windows"
+    implementation "org.lwjgl:lwjgl-assimp:3.3.1:natives-linux"
+    implementation "org.lwjgl:lwjgl-assimp:3.3.1:natives-macos"
 
     // ImprovedMobs - Required dependency
     implementation fg.deobf("io.github.flemmli97:improvedmobs:${improvedmobs_version}-forge")
     implementation fg.deobf("io.github.flemmli97:tenshilib:${tenshilib_version}-forge")
 
-    // Optional mods
-    runtimeOnly fg.deobf("curse.maven:mobbattle-268746:6456884")
+    // Optional mods for testing
     runtimeOnly fg.deobf("mezz.jei:jei-1.20.1-forge:15.20.0.115")
-    runtimeOnly fg.deobf("curse.maven:pehkui-319596:4684391")
-
-    // EnhancedVisuals - Optional integration (compile-only for mixin support)
-    // Download from: https://www.curseforge.com/minecraft/mc-mods/enhancedvisuals/files/5339265
-    // Place in mods_dev/ folder for compilation support
-    compileOnly fg.deobf(fileTree(dir: 'mods_dev', include: 'EnhancedVisuals*.jar'))
-
-    // GregTech CEu integration
-    implementation fg.deobf("com.gregtechceu.gtceu:gtceu-1.20.1:${gtceu_version}") { transitive = false }
-    implementation fg.deobf("com.lowdragmc.ldlib:ldlib-forge-1.20.1:${ldlib_version}") { transitive = false }
-    implementation fg.deobf("dev.toma.configuration:configuration-forge-1.20.1:${configuration_version}")
-
-    // Spore integration
-    implementation fg.deobf("curse.maven:spore-678295:7881767")
-
-    // Mekanism Turrets
-    implementation fg.deobf("mekanism:Mekanism:${minecraft_version}-${mekanism_version}")
-    implementation fg.deobf("software.bernie.geckolib:geckolib-forge-${minecraft_version}:${geckolib_version}")
-
-    // Utilities
-    runtimeOnly fg.deobf("curse.maven:jade-324717:5339264")
-    //implementation fg.deobf("com.lowdragmc.shimmer:Shimmer-forge:1.20:0.2.4")
-
-    //Others
-    implementation fg.deobf(fileTree(dir: 'mods_dev', include: '*.jar'))
-}
-
-mixin {
-    add sourceSets.main, "integratedindustrialcraft.refmap.json"
-    config "integratedindustrialcraft.mixins.json"
-    config "integratedindustrialcraft.mixins.compat.json"
 }
 
 jar {
     manifest {
         attributes([
-                "Specification-Title"     : "integratedindustrialcraft",
-                "Specification-Vendor"    : "flemmli97",
+                "Specification-Title"     : "assimploader",
+                "Specification-Vendor"    : "minerealms",
                 "Specification-Version"   : "1",
                 "Implementation-Title"    : project.name,
                 "Implementation-Version"  : project.jar.archiveVersion,
-                "Implementation-Vendor"   : "flemmli97",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                "MixinConfigs"            : "integratedindustrialcraft.mixins.json,integratedindustrialcraft.mixins.compat.json"
+                "Implementation-Vendor"   : "minerealms",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         ])
+    }
+
+    // Set duplicate handling strategy
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    // Include LWJGL Assimp natives in the JAR
+    from {
+        configurations.runtimeClasspath.findAll {
+            it.name.contains('lwjgl-assimp') && it.name.contains('natives')
+        }.collect {
+            zipTree(it).matching {
+                exclude 'META-INF/**'  // Exclude META-INF to avoid duplicates
+            }
+        }
+    }
+}
+
+// Enable jarJar to bundle LWJGL Assimp
+jarJar.enable()
+
+// Configure jarJar task to also include natives
+tasks.named('jarJar').configure {
+    // Set duplicate handling strategy
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    // Include LWJGL Assimp natives in the jarJar output
+    from {
+        project.configurations.runtimeClasspath.findAll {
+            it.name.contains('lwjgl-assimp') && it.name.contains('natives')
+        }.collect {
+            zipTree(it).matching {
+                exclude 'META-INF/**'  // Exclude META-INF to avoid duplicates
+            }
+        }
     }
 }
 
@@ -186,64 +193,17 @@ task copyToGameMods(type: Copy) {
     description = 'Copy built JAR to game mods directory'
     group = 'deployment'
 
-    from(jar.archiveFile) {
-        // 只复制主 JAR 文件
+    // Copy the jarJar output (-all.jar now includes both jarJar deps and natives)
+    from("${buildDir}/libs") {
+        include '*-all.jar'
+        rename '(.*)-all.jar', '$1.jar'
     }
     into 'G:\\MinecraftGames\\CTNH-BaopuEdition\\.minecraft\\versions\\Create New Horizon\\mods'
 
-    // 确保在 reobfJar 完成后执行（使用字符串引用）
-    mustRunAfter 'reobfJar'
+    // 确保在 reobfJarJar 完成后执行
+    dependsOn 'reobfJarJar'
 
     doLast {
         println "✓ JAR 已复制到游戏 mods 目录: ${destinationDir}"
     }
 }
-
-/**
- * 启动游戏测试脚本
- */
-task launchTestGame(type: Exec) {
-    description = 'Launch game using testgame.ps1 script'
-    group = 'deployment'
-
-    // Windows PowerShell 执行
-    commandLine 'powershell.exe', '-ExecutionPolicy', 'Bypass', '-File', "${projectDir}\\testgame.ps1"
-
-    // 设置工作目录为项目根目录
-    workingDir projectDir
-
-    // 忽略退出值（因为脚本可能会启动游戏后立即返回）
-    ignoreExitValue = true
-
-    // 确保在复制完成后执行
-    mustRunAfter copyToGameMods
-
-    doFirst {
-        println "⏳ 等待 1 秒后启动游戏..."
-        sleep(1000)
-        println "🚀 正在启动游戏测试脚本..."
-    }
-
-    doLast {
-        println "✓ 游戏启动脚本已执行"
-    }
-}
-
-/**
- * 完整的构建和部署流程
- */
-task buildAndDeploy {
-    description = 'Build, copy to mods, and launch game'
-    group = 'deployment'
-
-    dependsOn 'build', 'copyToGameMods', 'launchTestGame'
-
-    // 确保执行顺序：build -> copyToGameMods -> launchTestGame
-    tasks.findByName('copyToGameMods').mustRunAfter 'build'
-    tasks.findByName('launchTestGame').mustRunAfter 'copyToGameMods'
-}
-
-// 让 build 任务完成后自动执行部署
-build.finalizedBy('copyToGameMods')
-// 如果需要 build 后自动启动游戏，取消下面这行的注释
-// copyToGameMods.finalizedBy('launchTestGame')

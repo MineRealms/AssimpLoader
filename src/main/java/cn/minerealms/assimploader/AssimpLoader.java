@@ -50,10 +50,30 @@ public class AssimpLoader {
     public AssimpLoader() {
         instance = this;
 
+        // Initialize LWJGL Assimp bootstrap FIRST
+        AssimpBootstrap.init();
+
+        // Check LWJGL Assimp availability
+        if (!AssimpBootstrap.isAvailable()) {
+            LOGGER.error("===========================================");
+            LOGGER.error("LWJGL Assimp NOT FOUND!");
+            LOGGER.error("===========================================");
+            LOGGER.error("AssimpLoader requires LWJGL Assimp 3.3.1 (matching Minecraft's LWJGL version).");
+            LOGGER.error("");
+            LOGGER.error("This should not happen if the mod is properly installed.");
+            LOGGER.error("Please report this issue to the mod author.");
+            LOGGER.error("===========================================");
+            throw new RuntimeException("LWJGL Assimp dependency missing!");
+        }
+
+        String assimpVersion = AssimpBootstrap.getVersion();
+        LOGGER.info("LWJGL Assimp initialized: version {}", assimpVersion);
+
         // ALWAYS enable debug logging for development
         DebugLogger.setEnabled(true);
         DebugLogger.info("=== AssimpLoader Initializing ===");
         DebugLogger.info("Debug logging ENABLED by default");
+        DebugLogger.info("Assimp version: {}", assimpVersion);
 
         LOGGER.info("Initializing AssimpLoader - Advanced 3D Model Loading System");
 

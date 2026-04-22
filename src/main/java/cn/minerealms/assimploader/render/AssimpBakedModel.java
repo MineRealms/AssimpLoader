@@ -1,5 +1,6 @@
 package cn.minerealms.assimploader.render;
 
+import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpScene;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -33,14 +34,39 @@ public class AssimpBakedModel implements BakedModel {
     private final TextureAtlasSprite particleIcon;
 
     public AssimpBakedModel(AssimpScene scene, TextureAtlasSprite particleIcon) {
+        AssimpLoader.LOGGER.info("=== AssimpBakedModel Constructor ===");
+        AssimpLoader.LOGGER.info("Scene: {}", scene);
+        AssimpLoader.LOGGER.info("Meshes count: {}", scene != null ? scene.getMeshes().size() : 0);
+
         this.scene = scene;
         this.particleIcon = particleIcon;
         this.quads = new ArrayList<>();
 
-        // Convert all meshes to quads
-        for (AssimpMesh mesh : scene.getMeshes()) {
-            List<BakedQuad> meshQuads = MinecraftMeshConverter.convertToQuads(mesh, particleIcon);
-            quads.addAll(meshQuads);
+        try {
+            // Convert all meshes to quads
+            for (int i = 0; i < scene.getMeshes().size(); i++) {
+                AssimpMesh mesh = scene.getMeshes().get(i);
+                AssimpLoader.LOGGER.info("Converting mesh {}: {} vertices", i, mesh.getVertices().length / 3);
+
+                // Get material for this mesh
+                int materialIndex = mesh.getMaterialIndex();
+                var material = (materialIndex >= 0 && materialIndex < scene.getMaterials().size())
+                    ? scene.getMaterials().get(materialIndex)
+                    : null;
+
+                if (material != null) {
+                    float[] color = material.getDiffuseColor();
+                    AssimpLoader.LOGGER.info("Mesh {} using material {} with color: [{}, {}, {}, {}]",
+                        i, materialIndex, color[0], color[1], color[2], color[3]);
+                }
+
+                List<BakedQuad> meshQuads = MinecraftMeshConverter.convertToQuads(mesh, material, particleIcon);
+                AssimpLoader.LOGGER.info("Mesh {} produced {} quads", i, meshQuads.size());
+                quads.addAll(meshQuads);
+            }
+            AssimpLoader.LOGGER.info("Total quads created: {}", quads.size());
+        } catch (Exception e) {
+            AssimpLoader.LOGGER.error("=== EXCEPTION IN CONSTRUCTOR ===", e);
         }
     }
 
@@ -61,7 +87,7 @@ public class AssimpBakedModel implements BakedModel {
 
     @Override
     public boolean useAmbientOcclusion() {
-        return true;
+        return false; // Disable AO to reduce Z-fighting artifacts
     }
 
     @Override
@@ -76,7 +102,7 @@ public class AssimpBakedModel implements BakedModel {
 
     @Override
     public boolean isCustomRenderer() {
-        return false;
+        return false; // Use standard rendering
     }
 
     @Override
