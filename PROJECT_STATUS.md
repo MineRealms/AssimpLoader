@@ -7,16 +7,17 @@
 AssimpLoader (cn.minerealms.assimploader)
 ├── core/              - 核心加载器 (1个类)
 ├── model/             - 数据模型 (5个类)
-├── render/            - 渲染集成 (3个类)
-├── animation/         - 动画系统 (8个类) ✓ UPDATED
+├── render/            - 渲染集成 (4个类) ✓ UPDATED
+├── animation/         - 动画系统 (8个类)
 ├── material/          - 材质系统 (2个类)
+├── light/             - 灯光系统 (2个类) ✓ NEW
 ├── resource/          - 资源管理 (4个类)
 ├── cache/             - 缓存系统 (1个类)
 ├── util/              - 工具类 (2个类)
 └── example/           - 示例代码 (3个类)
 ```
 
-**总计**: 29个Java类，~5200行代码
+**总计**: 32个Java类，~5900行代码
 
 ---
 
@@ -42,19 +43,28 @@ AssimpLoader (cn.minerealms.assimploader)
   - 支持7个纹理通道
   - Shininess→Roughness转换
 
-- ✓ **阶段3**: 骨骼动画完整实现 ✓ NEW
+- ✓ **阶段3**: 骨骼动画完整实现
   - BoneHierarchyBuilder - 骨骼层次构建
   - AnimationDataExtractor - 动画数据提取
   - SkinnedMeshProcessor - 蒙皮网格处理
   - AnimationBlender - 动画混合系统
+
+- ✓ **阶段4**: 灯光系统支持 ✓ NEW
+  - LightDataExtractor - 灯光数据提取
+  - MinecraftLightConverter - 灯光转换器
+  - 支持5种灯光类型（点光源、方向光、聚光灯、环境光、区域光）
+
+- ✓ **阶段5**: 现代渲染管线集成 ✓ NEW
+  - PBRShaderIntegration - PBR着色器集成
+  - ShaderData容器
+  - 材质应用和纹理绑定
+  - IBL支持
 
 ---
 
 ## 待完成功能
 
 ### FBX完整支持
-- ⏳ **阶段4**: 灯光系统支持
-- ⏳ **阶段5**: 现代渲染管线集成
 - ⏳ **阶段6**: 性能优化和验证
 
 ---
@@ -140,20 +150,20 @@ a46a190 feat: Add Phase 6 - Testing and Examples
 
 ## 下一步计划
 
-### 立即任务 (阶段4):
-1. 实现LightDataExtractor - 从FBX提取灯光数据
-2. 实现LightConverter - 转换为Minecraft光照
-3. 集成到渲染管线
+### 立即任务 (阶段6):
+1. 性能分析和优化
+2. 内存管理优化
+3. 完整测试验证
 
 ### 短期目标:
-- 完成灯光系统（阶段4）
-- 实现PBR渲染管线（阶段5）
-- 性能优化和验证（阶段6）
+- 完成性能优化（阶段6）
+- 创建FBX测试套件
+- 编写使用文档
 
 ### 长期目标:
-- 完整测试套件
 - 示例模型库
-- 文档和教程
+- 教程和最佳实践
+- 社区反馈和改进
 
 ---
 
@@ -179,4 +189,4 @@ a46a190 feat: Add Phase 6 - Testing and Examples
 
 **Last Updated**: 2026-04-22  
 **Branch**: NewModelLoader  
-**Status**: FBX Phase 3 完成，准备开始 Phase 4
+**Status**: FBX Phase 1-5 完成，Phase 6 进行中
