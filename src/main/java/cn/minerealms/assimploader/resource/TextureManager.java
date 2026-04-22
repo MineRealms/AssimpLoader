@@ -72,9 +72,29 @@ public class TextureManager {
      * Embedded textures are stored as byte arrays in the model file.
      */
     public void registerEmbeddedTexture(String name, byte[] data) {
-        // TODO: Implement embedded texture loading
-        // This would create a DynamicTexture from the byte array
-        LOGGER.debug("Registered embedded texture: {}", name);
+        try {
+            // Create NativeImage from byte array
+            NativeImage image = NativeImage.read(java.nio.ByteBuffer.wrap(data));
+
+            // Create dynamic texture
+            DynamicTexture texture = new DynamicTexture(image);
+
+            // Generate resource location for embedded texture
+            ResourceLocation location = new ResourceLocation("assimp", "embedded/" + name);
+
+            // Register with Minecraft texture manager
+            Minecraft.getInstance()
+                .getTextureManager()
+                .register(location, texture);
+
+            // Cache the texture ID
+            textureCache.put(location, texture.getId());
+            embeddedTextures.put(name, location);
+
+            LOGGER.debug("Registered embedded texture: {} -> {}", name, location);
+        } catch (Exception e) {
+            LOGGER.error("Failed to load embedded texture: {}", name, e);
+        }
     }
 
     /**
