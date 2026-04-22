@@ -3,6 +3,7 @@ package cn.minerealms.assimploader;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.cache.ModelCacheManager;
 import cn.minerealms.assimploader.render.AssimpGeometryLoader;
+import cn.minerealms.assimploader.util.DebugLogger;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ModelEvent;
@@ -40,12 +41,21 @@ public class AssimpLoader {
     public static final String MODID = "assimploader";
     public static final Logger LOGGER = LoggerFactory.getLogger("AssimpLoader");
 
+    // Debug toggle - set to true to enable detailed debug logging
+    public static final boolean DEBUG_ENABLED = Boolean.getBoolean("assimploader.debug");
+
     private static AssimpLoader instance;
     private AssimpModelLoader modelLoader;
 
     public AssimpLoader() {
         instance = this;
         LOGGER.info("Initializing AssimpLoader - Advanced 3D Model Loading System");
+
+        // Initialize debug logging if enabled
+        if (DEBUG_ENABLED) {
+            DebugLogger.setEnabled(true);
+            DebugLogger.info("AssimpLoader debug mode enabled via -Dassimploader.debug=true");
+        }
 
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
@@ -68,30 +78,39 @@ public class AssimpLoader {
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         LOGGER.info("AssimpLoader common setup");
+        DebugLogger.debug("Common setup phase starting");
 
         event.enqueueWork(() -> {
             // Cache manager is now a singleton
             LOGGER.info("Model cache manager ready");
+            DebugLogger.debug("Model cache manager initialized");
         });
     }
 
     private void clientSetup(final FMLClientSetupEvent event) {
         LOGGER.info("AssimpLoader client setup");
+        DebugLogger.debug("Client setup phase starting");
 
         event.enqueueWork(() -> {
             // Initialize model loader
             modelLoader = new AssimpModelLoader();
             LOGGER.info("Assimp model loader initialized");
+            DebugLogger.debug("AssimpModelLoader instance created");
 
             // Log supported formats
             LOGGER.info("Supported formats: FBX, GLTF, GLB, DAE, OBJ, BLEND, 3DS, and 40+ more");
+            DebugLogger.debug("Supported formats registered: FBX, GLTF, GLB, DAE, OBJ, BLEND, 3DS, etc.");
         });
     }
 
     private void registerModelLoaders(final ModelEvent.RegisterGeometryLoaders event) {
         LOGGER.info("Registering Assimp geometry loader");
+        DebugLogger.debug("Registering geometry loader for event: {}", event.getClass().getSimpleName());
+
         event.register("assimp", AssimpGeometryLoader.INSTANCE);
+
         LOGGER.info("Assimp geometry loader registered successfully");
+        DebugLogger.debug("Geometry loader 'assimp' registered with Forge");
     }
 
     public static AssimpLoader getInstance() {
@@ -104,5 +123,20 @@ public class AssimpLoader {
 
     public ModelCacheManager getCacheManager() {
         return ModelCacheManager.getInstance();
+    }
+
+    /**
+     * Enable or disable debug logging at runtime
+     */
+    public static void setDebugEnabled(boolean enabled) {
+        DebugLogger.setEnabled(enabled);
+        LOGGER.info("AssimpLoader debug logging {}", enabled ? "enabled" : "disabled");
+    }
+
+    /**
+     * Check if debug logging is enabled
+     */
+    public static boolean isDebugEnabled() {
+        return DebugLogger.isEnabled();
     }
 }
