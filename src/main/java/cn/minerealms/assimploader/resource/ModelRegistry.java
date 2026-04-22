@@ -71,10 +71,31 @@ public class ModelRegistry {
      * Searches in resource packs and mod resources.
      */
     private String resolveModelPath(ModelResourceLocation location) {
-        // For now, assume models are in assets/<namespace>/models/
-        // TODO: Integrate with Minecraft's resource system
         ResourceLocation rl = location.getLocation();
-        return "assets/" + rl.getNamespace() + "/models/" + rl.getPath();
+
+        // Try multiple search paths
+        String[] searchPaths = {
+            "assets/" + rl.getNamespace() + "/models/" + rl.getPath(),
+            "assets/" + rl.getNamespace() + "/models/" + rl.getPath() + ".fbx",
+            "assets/" + rl.getNamespace() + "/models/" + rl.getPath() + ".gltf",
+            "assets/" + rl.getNamespace() + "/models/" + rl.getPath() + ".obj",
+            "models/" + rl.getPath(),
+            "models/" + rl.getPath() + ".fbx"
+        };
+
+        // Check if file exists in any search path
+        for (String path : searchPaths) {
+            java.io.File file = new java.io.File(path);
+            if (file.exists()) {
+                LOGGER.debug("Resolved model path: {} -> {}", location, path);
+                return path;
+            }
+        }
+
+        // Fallback to default path
+        String defaultPath = "assets/" + rl.getNamespace() + "/models/" + rl.getPath();
+        LOGGER.warn("Model file not found, using default path: {}", defaultPath);
+        return defaultPath;
     }
 
     /**
