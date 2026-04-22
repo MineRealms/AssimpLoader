@@ -188,24 +188,20 @@ public class AssimpMesh {
             indices = new int[totalIndices];
             int idx = 0;
 
-            // Determine if we need to flip winding order
-            boolean flipWinding = sourceCoordinateSystem != CoordinateSystemConverter.CoordinateSystem.MINECRAFT_LEFT_HANDED;
+            cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Loading indices for {} faces, source system: {}",
+                    faceCount, sourceCoordinateSystem);
 
+            // DO NOT flip winding order in indices!
+            // Coordinate conversion is already handled in vertex positions.
+            // Flipping indices would break the vertex-to-triangle mapping.
             for (int i = 0; i < faceCount; i++) {
                 AIFace face = faceBuffer.get(i);
                 IntBuffer indicesBuffer = face.mIndices();
                 int numIndices = face.mNumIndices();
 
-                if (flipWinding && numIndices == 3) {
-                    // Flip triangle winding order: [0,1,2] -> [0,2,1]
-                    indices[idx++] = indicesBuffer.get(0);
-                    indices[idx++] = indicesBuffer.get(2);
-                    indices[idx++] = indicesBuffer.get(1);
-                } else {
-                    // Keep original order
-                    for (int j = 0; j < numIndices; j++) {
-                        indices[idx++] = indicesBuffer.get(j);
-                    }
+                // Keep original index order
+                for (int j = 0; j < numIndices; j++) {
+                    indices[idx++] = indicesBuffer.get(j);
                 }
             }
         }

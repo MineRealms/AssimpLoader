@@ -37,9 +37,10 @@ public class AssimpModelLoader {
 
     // Default post-processing flags for Minecraft rendering
     // REDUCED FLAGS: Some flags cause crashes with LWJGL 3.3.1 Assimp on certain FBX files
+    // REMOVED aiProcess_JoinIdenticalVertices: This can cause index corruption when vertices
+    // are shared between faces with different normals/UVs
     private static final int DEFAULT_FLAGS =
             aiProcess_Triangulate |           // Convert to triangles
-            aiProcess_JoinIdenticalVertices | // Merge duplicate vertices
             aiProcess_FlipUVs;                // Flip UV coordinates for OpenGL
 
     // Full flags (may cause crashes with some files)
