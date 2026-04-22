@@ -84,6 +84,7 @@
   "block.integratedindustrialcraft.elite_laser_turret": "Elite Laser Turret",
   "block.integratedindustrialcraft.ultimate_laser_turret": "Ultimate Laser Turret",
   "block.integratedindustrialcraft.energy_pedestal": "Energy Pedestal",
+  "block.integratedindustrialcraft.cnc_machine": "CNC Machine (Test)",
   "message.integratedindustrialcraft.turret_needs_pedestal": "Turrets can only be placed on Energy Pedestals!",
   "message.integratedindustrialcraft.turret_wrong_side": "Cannot place turret on the energy input face!",
   "item_group.integratedindustrialcraft": "Mekanism Turrets",

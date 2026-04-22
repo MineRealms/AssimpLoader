@@ -49,12 +49,17 @@ public class AssimpLoader {
 
     public AssimpLoader() {
         instance = this;
+
+        // ALWAYS enable debug logging for development
+        DebugLogger.setEnabled(true);
+        DebugLogger.info("=== AssimpLoader Initializing ===");
+        DebugLogger.info("Debug logging ENABLED by default");
+
         LOGGER.info("Initializing AssimpLoader - Advanced 3D Model Loading System");
 
-        // Initialize debug logging if enabled
+        // Initialize debug logging if enabled via system property
         if (DEBUG_ENABLED) {
-            DebugLogger.setEnabled(true);
-            DebugLogger.info("AssimpLoader debug mode enabled via -Dassimploader.debug=true");
+            DebugLogger.info("Debug mode also enabled via -Dassimploader.debug=true");
         }
 
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
