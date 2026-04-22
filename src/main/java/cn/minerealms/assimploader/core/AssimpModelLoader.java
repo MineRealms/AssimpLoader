@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.lwjgl.assimp.Assimp.*;
 
@@ -34,6 +36,9 @@ import static org.lwjgl.assimp.Assimp.*;
  * - Optimize meshes: Reduce draw calls
  */
 public class AssimpModelLoader {
+
+    // Hot-reload model cache
+    private static final Map<String, AssimpScene> modelCache = new ConcurrentHashMap<>();
 
     // Default post-processing flags for Minecraft rendering
     // REDUCED FLAGS: Some flags cause crashes with LWJGL 3.3.1 Assimp on certain FBX files
@@ -277,5 +282,47 @@ public class AssimpModelLoader {
 
     public boolean isAutoConvertCoordinates() {
         return autoConvertCoordinates;
+    }
+
+    /**
+     * Update model cache for hot-reload
+     * @param modelName Model name (without extension)
+     * @param scene Loaded scene
+     */
+    public static void updateModelCache(String modelName, AssimpScene scene) {
+        modelCache.put(modelName, scene);
+        AssimpLoader.LOGGER.info("Updated model cache: {}", modelName);
+    }
+
+    /**
+     * Get cached model for hot-reload
+     * @param modelName Model name (without extension)
+     * @return Cached scene or null
+     */
+    public static AssimpScene getCachedModel(String modelName) {
+        return modelCache.get(modelName);
+    }
+
+    /**
+     * Clear model cache
+     */
+    public static void clearCache() {
+        modelCache.clear();
+        AssimpLoader.LOGGER.info("Cleared model cache");
+    }
+
+    /**
+     * Static method for hot-reload - load model from file path string
+     * @param filePath Absolute file path
+     * @return Loaded scene or null
+     */
+    public static AssimpScene loadModelStatic(String filePath) {
+        try {
+            AssimpModelLoader loader = new AssimpModelLoader();
+            return loader.loadModel(Path.of(filePath));
+        } catch (IOException e) {
+            AssimpLoader.LOGGER.error("Failed to load model from: {}", filePath, e);
+            return null;
+        }
     }
 }
