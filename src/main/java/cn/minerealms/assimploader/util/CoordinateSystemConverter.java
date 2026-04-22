@@ -54,13 +54,21 @@ public class CoordinateSystemConverter {
     }
 
     // Transformation matrices for coordinate system conversion
+    // OpenGL: Right-handed, Y-up, -Z-forward
+    // Minecraft: Left-handed, Y-up, +Z-forward
+    // FBX: Right-handed, Y-up, +Z-forward
+
+    // OpenGL to Minecraft: flip Z (right-hand to left-hand)
     private static final Matrix4f OPENGL_TO_MINECRAFT = new Matrix4f()
             .identity()
             .scale(1, 1, -1); // Negate Z to convert right-handed to left-handed
 
+    // FBX to OpenGL: FBX and OpenGL both Y-up, but FBX is +Z forward, OpenGL is -Z forward
+    // However, since we're going FBX -> Minecraft directly, and both use +Z forward,
+    // we only need to flip handedness (negate X or Z)
     private static final Matrix4f FBX_TO_OPENGL = new Matrix4f()
-            .identity()
-            .scale(1, 1, -1); // FBX uses +Z forward, OpenGL uses -Z forward
+            .identity(); // No transformation needed - both are Y-up, right-handed
+            // The Z direction difference is handled by the OPENGL_TO_MINECRAFT conversion
 
     private static final Matrix4f Z_UP_TO_Y_UP = new Matrix4f()
             .identity()
@@ -76,7 +84,16 @@ public class CoordinateSystemConverter {
 
         Vector3f result = new Vector3f(position);
 
-        // Convert to OpenGL as intermediate format
+        // Direct conversion from FBX to Minecraft
+        if (from == CoordinateSystem.FBX_RIGHT_HANDED && to == CoordinateSystem.MINECRAFT_LEFT_HANDED) {
+            // FBX: Right-handed, Y-up, +Z-forward
+            // Minecraft: Left-handed, Y-up, +Z-forward (south)
+            // To convert right-hand to left-hand: negate X axis
+            result.x = -result.x;
+            return result;
+        }
+
+        // Fallback: Convert via OpenGL as intermediate format
         if (from == CoordinateSystem.FBX_RIGHT_HANDED) {
             FBX_TO_OPENGL.transformPosition(result);
         } else if (from == CoordinateSystem.Z_UP_RIGHT_HANDED) {
@@ -102,7 +119,16 @@ public class CoordinateSystemConverter {
 
         Vector3f result = new Vector3f(direction);
 
-        // Convert to OpenGL as intermediate format
+        // Direct conversion from FBX to Minecraft
+        if (from == CoordinateSystem.FBX_RIGHT_HANDED && to == CoordinateSystem.MINECRAFT_LEFT_HANDED) {
+            // FBX: Right-handed, Y-up, +Z-forward
+            // Minecraft: Left-handed, Y-up, +Z-forward (south)
+            // To convert right-hand to left-hand: negate X axis
+            result.x = -result.x;
+            return result;
+        }
+
+        // Fallback: Convert via OpenGL as intermediate format
         if (from == CoordinateSystem.FBX_RIGHT_HANDED) {
             FBX_TO_OPENGL.transformDirection(result);
         } else if (from == CoordinateSystem.Z_UP_RIGHT_HANDED) {
@@ -114,7 +140,7 @@ public class CoordinateSystemConverter {
             OPENGL_TO_MINECRAFT.transformDirection(result);
         }
 
-        return result.normalize();
+        return result;
     }
 
     /**

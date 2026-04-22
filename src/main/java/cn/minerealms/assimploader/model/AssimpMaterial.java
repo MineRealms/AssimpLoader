@@ -1,5 +1,6 @@
 package cn.minerealms.assimploader.model;
 
+import org.lwjgl.assimp.AIColor4D;
 import org.lwjgl.assimp.AIMaterial;
 import org.lwjgl.assimp.AIString;
 
@@ -43,6 +44,14 @@ public class AssimpMaterial {
     }
 
     /**
+     * Check if material has any texture
+     */
+    public boolean hasTexture() {
+        String diffuse = getDiffuseTexture();
+        return diffuse != null && !diffuse.isEmpty();
+    }
+
+    /**
      * Get normal map texture path if exists
      */
     public String getNormalTexture() {
@@ -54,6 +63,41 @@ public class AssimpMaterial {
         }
         path.free();
         return null;
+    }
+
+    /**
+     * Get diffuse color from material
+     * Returns RGBA values in range [0, 1]
+     */
+    public float[] getDiffuseColor() {
+        AIColor4D color = AIColor4D.create();
+        if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_DIFFUSE, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
+            return new float[]{color.r(), color.g(), color.b(), color.a()};
+        }
+        // Default to white if no color found
+        return new float[]{1.0f, 1.0f, 1.0f, 1.0f};
+    }
+
+    /**
+     * Get specular color from material
+     */
+    public float[] getSpecularColor() {
+        AIColor4D color = AIColor4D.create();
+        if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_SPECULAR, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
+            return new float[]{color.r(), color.g(), color.b(), color.a()};
+        }
+        return new float[]{1.0f, 1.0f, 1.0f, 1.0f};
+    }
+
+    /**
+     * Get ambient color from material
+     */
+    public float[] getAmbientColor() {
+        AIColor4D color = AIColor4D.create();
+        if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_AMBIENT, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
+            return new float[]{color.r(), color.g(), color.b(), color.a()};
+        }
+        return new float[]{0.2f, 0.2f, 0.2f, 1.0f};
     }
 
     public AIMaterial getNativeMaterial() {

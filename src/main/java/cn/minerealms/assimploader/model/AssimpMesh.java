@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.model;
 
 import cn.minerealms.assimploader.util.CoordinateSystemConverter;
+import org.joml.Vector3f;
 import org.lwjgl.assimp.AIFace;
 import org.lwjgl.assimp.AIMesh;
 import org.lwjgl.assimp.AIVector3D;
@@ -45,18 +46,38 @@ public class AssimpMesh {
 
     /**
      * Get vertex positions as flat float array [x,y,z, x,y,z, ...]
+     * Automatically converts from source coordinate system to Minecraft coordinate system
      */
     public float[] getVertices() {
         if (vertices == null) {
             int vertexCount = aiMesh.mNumVertices();
             vertices = new float[vertexCount * 3];
 
+            cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Converting {} vertices from {} to MINECRAFT_LEFT_HANDED",
+                    vertexCount, sourceCoordinateSystem);
+
             AIVector3D.Buffer vertexBuffer = aiMesh.mVertices();
             for (int i = 0; i < vertexCount; i++) {
                 AIVector3D vertex = vertexBuffer.get(i);
-                vertices[i * 3] = vertex.x();
-                vertices[i * 3 + 1] = vertex.y();
-                vertices[i * 3 + 2] = vertex.z();
+
+                // Apply coordinate system conversion
+                Vector3f pos = new Vector3f(vertex.x(), vertex.y(), vertex.z());
+                Vector3f converted = CoordinateSystemConverter.convertPosition(
+                    pos,
+                    sourceCoordinateSystem,
+                    CoordinateSystemConverter.CoordinateSystem.MINECRAFT_LEFT_HANDED
+                );
+
+                vertices[i * 3] = converted.x;
+                vertices[i * 3 + 1] = converted.y;
+                vertices[i * 3 + 2] = converted.z;
+
+                // Log first vertex for debugging
+                if (i == 0) {
+                    cn.minerealms.assimploader.AssimpLoader.LOGGER.info("First vertex: ({}, {}, {}) -> ({}, {}, {})",
+                            vertex.x(), vertex.y(), vertex.z(),
+                            converted.x, converted.y, converted.z);
+                }
             }
         }
         return vertices;
@@ -64,6 +85,7 @@ public class AssimpMesh {
 
     /**
      * Get normals as flat float array [nx,ny,nz, nx,ny,nz, ...]
+     * Automatically converts from source coordinate system to Minecraft coordinate system
      */
     public float[] getNormals() {
         if (normals == null && aiMesh.mNormals() != null) {
@@ -73,9 +95,18 @@ public class AssimpMesh {
             AIVector3D.Buffer normalBuffer = aiMesh.mNormals();
             for (int i = 0; i < vertexCount; i++) {
                 AIVector3D normal = normalBuffer.get(i);
-                normals[i * 3] = normal.x();
-                normals[i * 3 + 1] = normal.y();
-                normals[i * 3 + 2] = normal.z();
+
+                // Apply coordinate system conversion for normals (direction vectors)
+                Vector3f dir = new Vector3f(normal.x(), normal.y(), normal.z());
+                Vector3f converted = CoordinateSystemConverter.convertDirection(
+                    dir,
+                    sourceCoordinateSystem,
+                    CoordinateSystemConverter.CoordinateSystem.MINECRAFT_LEFT_HANDED
+                );
+
+                normals[i * 3] = converted.x;
+                normals[i * 3 + 1] = converted.y;
+                normals[i * 3 + 2] = converted.z;
             }
         }
         return normals;
@@ -141,6 +172,7 @@ public class AssimpMesh {
     /**
      * Get face indices as flat int array [i0,i1,i2, i0,i1,i2, ...]
      * All faces are triangulated by Assimp post-processing
+     * Automatically flips winding order for coordinate system conversion (right-hand to left-hand)
      */
     public int[] getIndices() {
         if (indices == null) {
@@ -156,13 +188,24 @@ public class AssimpMesh {
             indices = new int[totalIndices];
             int idx = 0;
 
+            // Determine if we need to flip winding order
+            boolean flipWinding = sourceCoordinateSystem != CoordinateSystemConverter.CoordinateSystem.MINECRAFT_LEFT_HANDED;
+
             for (int i = 0; i < faceCount; i++) {
                 AIFace face = faceBuffer.get(i);
                 IntBuffer indicesBuffer = face.mIndices();
                 int numIndices = face.mNumIndices();
 
-                for (int j = 0; j < numIndices; j++) {
-                    indices[idx++] = indicesBuffer.get(j);
+                if (flipWinding && numIndices == 3) {
+                    // Flip triangle winding order: [0,1,2] -> [0,2,1]
+                    indices[idx++] = indicesBuffer.get(0);
+                    indices[idx++] = indicesBuffer.get(2);
+                    indices[idx++] = indicesBuffer.get(1);
+                } else {
+                    // Keep original order
+                    for (int j = 0; j < numIndices; j++) {
+                        indices[idx++] = indicesBuffer.get(j);
+                    }
                 }
             }
         }
@@ -199,6 +242,35 @@ public class AssimpMesh {
 
     public boolean hasTexCoords() {
         return aiMesh.mTextureCoords(0) != null;
+    }
+
+    /**
+     * Check if mesh has vertex colors
+     */
+    public boolean hasVertexColors() {
+        return aiMesh.mColors(0) != null;
+    }
+
+    /**
+     * Get vertex colors as flat float array [r,g,b,a, r,g,b,a, ...]
+     * Returns first color channel (index 0)
+     */
+    public float[] getVertexColors() {
+        if (aiMesh.mColors(0) != null) {
+            int vertexCount = aiMesh.mNumVertices();
+            float[] colors = new float[vertexCount * 4];
+
+            org.lwjgl.assimp.AIColor4D.Buffer colorBuffer = aiMesh.mColors(0);
+            for (int i = 0; i < vertexCount; i++) {
+                org.lwjgl.assimp.AIColor4D color = colorBuffer.get(i);
+                colors[i * 4] = color.r();
+                colors[i * 4 + 1] = color.g();
+                colors[i * 4 + 2] = color.b();
+                colors[i * 4 + 3] = color.a();
+            }
+            return colors;
+        }
+        return null;
     }
 
     public boolean hasTangentsAndBitangents() {

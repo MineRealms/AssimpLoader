@@ -1,4 +1,3 @@
 {
-  "block.assimploader.test_model_block": "测试模型方块",
-  "entity.assimploader.test_animated_entity": "测试动画实体"
+  "block.assimploader.cnc_machine": "CNC 机床（FBX 测试）"
 }
