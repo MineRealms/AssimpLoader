@@ -61,10 +61,32 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
                 try {
                     AssimpModelLoader loader = AssimpLoader.getInstance().getModelLoader();
                     if (loader != null) {
-                        // Try to load from resource pack or file system
-                        Path path = Paths.get("resourcepacks", modelPath);
-                        cachedScene = loader.loadModel(path);
-                        AssimpLoader.LOGGER.info("Loaded Assimp model: {}", modelPath);
+                        // Parse ResourceLocation from model path
+                        ResourceLocation resourceLoc;
+                        if (modelPath.contains(":")) {
+                            resourceLoc = new ResourceLocation(modelPath);
+                        } else {
+                            // Use the same namespace as the model JSON
+                            resourceLoc = new ResourceLocation(modelLocation.getNamespace(), modelPath);
+                        }
+
+                        AssimpLoader.LOGGER.info("Attempting to load Assimp model from ResourceLocation: {}", resourceLoc);
+
+                        // Load from resource system (works with JAR and file system)
+                        var resourceManager = net.minecraft.client.Minecraft.getInstance().getResourceManager();
+                        var resource = resourceManager.getResource(resourceLoc);
+
+                        if (resource.isPresent()) {
+                            try (var inputStream = resource.get().open()) {
+                                byte[] modelData = inputStream.readAllBytes();
+                                String fileName = resourceLoc.getPath();
+
+                                cachedScene = loader.loadModelFromMemory(fileName, modelData);
+                                AssimpLoader.LOGGER.info("Loaded Assimp model: {}", modelPath);
+                            }
+                        } else {
+                            throw new IOException("Resource not found: " + resourceLoc);
+                        }
                     }
                 } catch (IOException e) {
                     AssimpLoader.LOGGER.error("Failed to load Assimp model: {}", modelPath, e);

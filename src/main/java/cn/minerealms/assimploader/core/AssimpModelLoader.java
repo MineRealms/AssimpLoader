@@ -51,7 +51,7 @@ public class AssimpModelLoader {
 
     public AssimpModelLoader() {
         AssimpLoader.LOGGER.info("AssimpModelLoader initialized with LWJGL Assimp bindings");
-        logSupportedFormats();
+        // logSupportedFormats(); // Temporarily disabled - requires LWJGL Assimp natives
     }
 
     /**

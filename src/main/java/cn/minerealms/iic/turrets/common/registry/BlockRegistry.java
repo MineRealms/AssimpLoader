@@ -1,5 +1,6 @@
 package cn.minerealms.iic.turrets.common.registry;
 import cn.minerealms.iic.IntegratedIndustrialCraft;
+import cn.minerealms.iic.test.CNCBlock;
 import io.github.flemmli97.improvedmobs.ImprovedMobs;
 
 import cn.minerealms.iic.turrets.common.block.ElectricFenceBlock;
@@ -42,6 +43,10 @@ public class BlockRegistry {
 
     public static final BlockRegistryObject<FlameThrowerTurretBlock, FlameThrowerTurretBlockItem> FLAMETHROWER_TURRET = BLOCKS.register("flamethrower_turret",
             () -> new FlameThrowerTurretBlock(BlockTypeRegistry.FLAMETHROWER_TURRET), FlameThrowerTurretBlockItem::new);
+
+    // CNC Machine - Test block for AssimpLoader FBX model loading
+    public static final BlockRegistryObject<CNCBlock, BlockItem> CNC_MACHINE = BLOCKS.register("cnc_machine",
+            CNCBlock::new);
 
     private static BlockRegistryObject<LaserTurretBlock, LaserTurretBlockItem> registerLaserTurret(BlockTypeTile<LaserTurretBlockEntity> type) {
         return registerTieredBlock(type, "_laser_turret", () -> new LaserTurretBlock(type), LaserTurretBlockItem::new);

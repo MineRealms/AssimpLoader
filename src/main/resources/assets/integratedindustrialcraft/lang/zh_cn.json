@@ -80,6 +80,7 @@
   "block.integratedindustrialcraft.elite_laser_turret": "精英激光炮塔",
   "block.integratedindustrialcraft.ultimate_laser_turret": "终极激光炮塔",
   "block.integratedindustrialcraft.energy_pedestal": "能量底座",
+  "block.integratedindustrialcraft.cnc_machine": "CNC机床（测试）",
   "message.integratedindustrialcraft.turret_needs_pedestal": "炮塔只能放置在能量底座上！",
   "message.integratedindustrialcraft.turret_wrong_side": "不能在能量输入面放置炮塔！",
   "item_group.integratedindustrialcraft": "通用机械炮塔",
