@@ -56,6 +56,15 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
 
         @Override
         public BakedModel bake(IGeometryBakingContext context, ModelBaker baker, Function<Material, TextureAtlasSprite> spriteGetter, ModelState modelState, ItemOverrides overrides, ResourceLocation modelLocation) {
+            // Check for hot-reloaded model first
+            String modelName = extractModelName(modelPath);
+            AssimpScene hotReloadedScene = AssimpModelLoader.getCachedModel(modelName);
+
+            if (hotReloadedScene != null) {
+                AssimpLoader.LOGGER.info("Using hot-reloaded model: {}", modelName);
+                cachedScene = hotReloadedScene;
+            }
+
             // Load the model if not cached
             if (cachedScene == null) {
                 try {
@@ -109,6 +118,15 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
             );
 
             return new AssimpBakedModel(cachedScene, whiteSprite);
+        }
+
+        /**
+         * Extract model name from path (e.g., "models/block/cnc.fbx" -> "cnc")
+         */
+        private String extractModelName(String path) {
+            String fileName = path.substring(path.lastIndexOf('/') + 1);
+            int dotIndex = fileName.lastIndexOf('.');
+            return dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
         }
 
         @Override
