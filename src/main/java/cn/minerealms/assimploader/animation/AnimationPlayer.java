@@ -114,6 +114,30 @@ public class AnimationPlayer {
     }
 
     /**
+     * Get bone position at current time
+     */
+    public Vector3f getBonePosition(String boneName) {
+        BoneTransform transform = boneTransforms.get(boneName);
+        return transform != null ? new Vector3f(transform.position) : null;
+    }
+
+    /**
+     * Get bone rotation at current time
+     */
+    public Quaternionf getBoneRotation(String boneName) {
+        BoneTransform transform = boneTransforms.get(boneName);
+        return transform != null ? new Quaternionf(transform.rotation) : null;
+    }
+
+    /**
+     * Get bone scale at current time
+     */
+    public Vector3f getBoneScale(String boneName) {
+        BoneTransform transform = boneTransforms.get(boneName);
+        return transform != null ? new Vector3f(transform.scale) : null;
+    }
+
+    /**
      * Bone transformation data (position, rotation, scale)
      */
     public static class BoneTransform {
