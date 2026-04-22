@@ -8,15 +8,15 @@ AssimpLoader (cn.minerealms.assimploader)
 ├── core/              - 核心加载器 (1个类)
 ├── model/             - 数据模型 (5个类)
 ├── render/            - 渲染集成 (3个类)
-├── animation/         - 动画系统 (5个类)
-├── material/          - 材质系统 (2个类) ✓ NEW
+├── animation/         - 动画系统 (8个类) ✓ UPDATED
+├── material/          - 材质系统 (2个类)
 ├── resource/          - 资源管理 (4个类)
 ├── cache/             - 缓存系统 (1个类)
-├── util/              - 工具类 (2个类) ✓ NEW
+├── util/              - 工具类 (2个类)
 └── example/           - 示例代码 (3个类)
 ```
 
-**总计**: 26个Java类，~4500行代码
+**总计**: 29个Java类，~5200行代码
 
 ---
 
@@ -42,16 +42,11 @@ AssimpLoader (cn.minerealms.assimploader)
   - 支持7个纹理通道
   - Shininess→Roughness转换
 
----
-
-## 进行中功能
-
-### FBX完整支持
-- ⚠ **阶段3**: 骨骼动画完整实现
-  - BoneHierarchyBuilder (待实现)
-  - AnimationDataExtractor (待实现)
-  - SkinnedMeshProcessor (待实现)
-  - AnimationBlender (待实现)
+- ✓ **阶段3**: 骨骼动画完整实现 ✓ NEW
+  - BoneHierarchyBuilder - 骨骼层次构建
+  - AnimationDataExtractor - 动画数据提取
+  - SkinnedMeshProcessor - 蒙皮网格处理
+  - AnimationBlender - 动画混合系统
 
 ---
 
@@ -67,7 +62,7 @@ AssimpLoader (cn.minerealms.assimploader)
 ## 技术特性
 
 ### 支持的模型格式
-- FBX (完整支持：坐标系✓, 材质✓, 动画⚠)
+- FBX (完整支持：坐标系✓, 材质✓, 动画✓) ✓ UPDATED
 - GLTF/GLB (基础支持)
 - OBJ (基础支持)
 - Collada (基础支持)
@@ -88,11 +83,12 @@ AssimpLoader (cn.minerealms.assimploader)
 - ✓ Alpha模式（Opaque, Mask, Blend）
 
 ### 动画系统
-- ✓ 动画播放器（基础）
+- ✓ 动画播放器（完整）
 - ✓ 关键帧插值（LERP/SLERP）
 - ✓ 动画状态机
-- ⚠ 骨骼层次（待完善）
-- ⚠ 蒙皮网格（待实现）
+- ✓ 骨骼层次构建 ✓ NEW
+- ✓ 蒙皮网格处理 ✓ NEW
+- ✓ 动画混合系统 ✓ NEW
 
 ---
 
@@ -144,21 +140,20 @@ a46a190 feat: Add Phase 6 - Testing and Examples
 
 ## 下一步计划
 
-### 立即任务 (阶段3):
-1. 实现BoneHierarchyBuilder - 从AINode构建骨骼树
-2. 实现AnimationDataExtractor - 提取关键帧数据
-3. 实现SkinnedMeshProcessor - 蒙皮网格处理
-4. 实现AnimationBlender - 动画混合
+### 立即任务 (阶段4):
+1. 实现LightDataExtractor - 从FBX提取灯光数据
+2. 实现LightConverter - 转换为Minecraft光照
+3. 集成到渲染管线
 
 ### 短期目标:
-- 完成骨骼动画系统
-- 测试FBX动画模型
-- 性能优化
+- 完成灯光系统（阶段4）
+- 实现PBR渲染管线（阶段5）
+- 性能优化和验证（阶段6）
 
 ### 长期目标:
-- 灯光系统（阶段4）
-- PBR渲染管线（阶段5）
-- 完整测试套件（阶段6）
+- 完整测试套件
+- 示例模型库
+- 文档和教程
 
 ---
 
@@ -184,4 +179,4 @@ a46a190 feat: Add Phase 6 - Testing and Examples
 
 **Last Updated**: 2026-04-22  
 **Branch**: NewModelLoader  
-**Status**: FBX Phase 2 完成，Phase 3 进行中
+**Status**: FBX Phase 3 完成，准备开始 Phase 4
