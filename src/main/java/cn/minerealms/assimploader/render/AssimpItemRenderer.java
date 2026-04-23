@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.render;
 
 import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.compat.OculusCompat;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.model.AssimpMaterial;
 import cn.minerealms.assimploader.model.AssimpMesh;
@@ -116,17 +117,8 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
                 }
             }
 
-            // Choose render type based on material
-            RenderType renderType;
-            if (material != null && material.isTransparent()) {
-                renderType = RenderType.entityTranslucent(
-                    textureLocation != null ? textureLocation : new ResourceLocation("minecraft", "textures/block/white_concrete.png")
-                );
-            } else {
-                renderType = RenderType.entityCutout(
-                    textureLocation != null ? textureLocation : new ResourceLocation("minecraft", "textures/block/white_concrete.png")
-                );
-            }
+            // Choose render type based on material and shader status
+            RenderType renderType = getRenderType(material, textureLocation);
 
             VertexConsumer consumer = buffer.getBuffer(renderType);
 
@@ -302,6 +294,35 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
                 poseStack.translate(0.5, 0.5, 0.5);
                 poseStack.scale(0.5f, 0.5f, 0.5f);
                 break;
+        }
+    }
+
+    /**
+     * Get the appropriate render type based on material properties and shader status.
+     * When Oculus shaders are active, uses shader-compatible render types.
+     */
+    private RenderType getRenderType(AssimpMaterial material, ResourceLocation texture) {
+        ResourceLocation textureLocation = texture != null ? texture :
+            new ResourceLocation("minecraft", "textures/block/white_concrete.png");
+
+        boolean shadersActive = OculusCompat.isShadersActive();
+        boolean isTransparent = material != null && material.isTransparent();
+
+        if (shadersActive) {
+            // Shader-enhanced rendering
+            if (isTransparent) {
+                return RenderType.entityTranslucent(textureLocation);
+            } else {
+                // Use cutout for better shader compatibility (supports alpha testing)
+                return RenderType.entityCutout(textureLocation);
+            }
+        } else {
+            // Vanilla rendering
+            if (isTransparent) {
+                return RenderType.entityTranslucent(textureLocation);
+            } else {
+                return RenderType.entityCutout(textureLocation);
+            }
         }
     }
 }
