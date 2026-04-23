@@ -265,12 +265,23 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
 
         float[] diffuseColor = material != null ? material.getDiffuseColor() : new float[]{1.0f, 1.0f, 1.0f, 1.0f};
 
+        // When shaders are active, use white color and let shader handle lighting
+        // Otherwise use material diffuse color for vertex lighting
+        boolean shadersActive = OculusCompat.isShadersActive();
+        Vector4f color;
+        if (shadersActive) {
+            // Use white color with material alpha - let shader calculate lighting from normals
+            color = new Vector4f(1.0f, 1.0f, 1.0f, diffuseColor[3]);
+        } else {
+            // Use material color for vanilla lighting
+            color = new Vector4f(diffuseColor[0], diffuseColor[1], diffuseColor[2], diffuseColor[3]);
+        }
+
         Matrix4f pose = poseStack.last().pose();
         Matrix3f normal = poseStack.last().normal();
 
         Vector3f pos = new Vector3f();
         Vector3f norm = new Vector3f();
-        Vector4f color = new Vector4f(diffuseColor[0], diffuseColor[1], diffuseColor[2], diffuseColor[3]);
 
         // Render triangles with reversed winding order for Minecraft
         for (int i = 0; i < indices.length; i += 3) {
@@ -321,12 +332,19 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
     private void addVertex(VertexConsumer consumer, Matrix4f pose, Matrix3f normal,
                           Vector3f position, Vector3f norm, float u, float v,
                           Vector4f color, int packedLight, int packedOverlay) {
+        // Normalize the normal vector to ensure correct lighting
+        Vector3f normalizedNorm = new Vector3f(norm);
+        normalizedNorm.normalize();
+
+        // Transform normal to world space using the normal matrix
+        normalizedNorm.mul(normal);
+
         consumer.vertex(pose, position.x, position.y, position.z)
             .color(color.x, color.y, color.z, color.w)
             .uv(u, v)
             .overlayCoords(packedOverlay)
             .uv2(packedLight)
-            .normal(normal, norm.x, norm.y, norm.z)
+            .normal(normalizedNorm.x, normalizedNorm.y, normalizedNorm.z)
             .endVertex();
     }
 }
