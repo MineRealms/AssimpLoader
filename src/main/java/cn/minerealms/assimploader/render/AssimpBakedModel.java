@@ -141,7 +141,10 @@ public class AssimpBakedModel implements BakedModel {
 
     @Override
     public boolean isCustomRenderer() {
-        return false;
+        // IMPORTANT: Return true to use BlockEntityRenderer for items too
+        // This allows embedded textures to work in hand/inventory
+        // BakedModel cannot use DynamicTexture, only TextureAtlas sprites
+        return scene.hasEmbeddedTextures();
     }
 
     @Override

@@ -286,7 +286,8 @@ public class AssimpModelLoader {
      */
     public static void updateModelCache(String modelName, AssimpScene scene) {
         modelCache.put(modelName, scene);
-        AssimpLoader.LOGGER.info("Updated model cache: {}", modelName);
+        AssimpLoader.LOGGER.info("Updated model cache: {}, scene object: {}, has textures: {}, texture count: {}",
+            modelName, System.identityHashCode(scene), scene.hasEmbeddedTextures(), scene.getTextureCount());
     }
 
     /**

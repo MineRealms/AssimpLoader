@@ -6,6 +6,7 @@ import cn.minerealms.assimploader.model.AssimpMaterial;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.model.AssimpTexture;
+import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -13,6 +14,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.ResourceLocation;
@@ -21,6 +23,10 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,6 +37,8 @@ import java.util.Map;
 public class TestModelBlockEntityRenderer implements BlockEntityRenderer<TestModelBlockEntity> {
 
     private static final Map<String, ResourceLocation> textureCache = new HashMap<>();
+    private static boolean textureDebugLogged = false;  // Only log texture registration once
+    private static int renderCount = 0;  // Track render calls
 
     public TestModelBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
     }
@@ -39,17 +47,41 @@ public class TestModelBlockEntityRenderer implements BlockEntityRenderer<TestMod
     public void render(TestModelBlockEntity blockEntity, float partialTick, PoseStack poseStack,
                       MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
 
+        renderCount++;
+        boolean isFirstRender = renderCount <= 3;  // Log first 3 renders
+
+        if (isFirstRender) {
+            AssimpLoader.LOGGER.info("DEBUG: ========== BlockEntityRenderer.render() called #{} ==========", renderCount);
+        }
+
         // Get the cached model (from hot-reload or resource loading)
         String modelName = "cnc"; // TODO: Make this configurable per block
         AssimpScene scene = AssimpModelLoader.getCachedModel(modelName);
 
         if (scene == null) {
+            if (isFirstRender) {
+                AssimpLoader.LOGGER.error("DEBUG: Scene is NULL! Model not loaded.");
+            }
             return;
+        }
+
+        if (isFirstRender) {
+            AssimpLoader.LOGGER.info("DEBUG: Scene loaded, has embedded textures: {}", scene.hasEmbeddedTextures());
+            AssimpLoader.LOGGER.info("DEBUG: Scene texture count: {}", scene.getTextureCount());
+            AssimpLoader.LOGGER.info("DEBUG: Scene object: {}", System.identityHashCode(scene));
+            AssimpLoader.LOGGER.info("DEBUG: Texture cache contains 'cnc_0': {}", textureCache.containsKey(modelName + "_0"));
+            AssimpLoader.LOGGER.info("DEBUG: Texture cache keys: {}", textureCache.keySet());
         }
 
         // Load embedded textures if not already loaded
         if (scene.hasEmbeddedTextures() && !textureCache.containsKey(modelName + "_0")) {
+            if (isFirstRender) {
+                AssimpLoader.LOGGER.info("DEBUG: Loading embedded textures NOW...");
+            }
             loadEmbeddedTextures(scene, modelName);
+        } else if (isFirstRender) {
+            AssimpLoader.LOGGER.warn("DEBUG: Skipping texture load - hasEmbedded: {}, cacheContains: {}",
+                scene.hasEmbeddedTextures(), textureCache.containsKey(modelName + "_0"));
         }
 
         poseStack.pushPose();
@@ -68,12 +100,36 @@ public class TestModelBlockEntityRenderer implements BlockEntityRenderer<TestMod
             if (mesh.getMaterialIndex() >= 0 && mesh.getMaterialIndex() < scene.getMaterials().size()) {
                 material = scene.getMaterials().get(mesh.getMaterialIndex());
 
-                // Check for embedded texture
-                String texPath = material.getDiffuseTexture();
-                if (texPath != null && material.isEmbeddedTexture(texPath)) {
-                    int texIndex = material.getEmbeddedTextureIndex(texPath);
-                    textureLocation = textureCache.get(modelName + "_" + texIndex);
+                // CRITICAL: If scene has embedded textures, use them regardless of material's texture path
+                // FBX materials often reference external file paths even when textures are embedded
+                if (scene.hasEmbeddedTextures()) {
+                    // Use first embedded texture (index 0)
+                    // TODO: Support multiple textures per material
+                    String cacheKey = modelName + "_0";
+                    textureLocation = textureCache.get(cacheKey);
+
+                    if (isFirstRender) {
+                        AssimpLoader.LOGGER.info("DEBUG: Mesh {} using embedded texture, cache key: {}, texture: {}",
+                            meshIndex, cacheKey, textureLocation);
+
+                        if (textureLocation != null) {
+                            TextureManager tm = Minecraft.getInstance().getTextureManager();
+                            AbstractTexture tex = tm.getTexture(textureLocation);
+                            AssimpLoader.LOGGER.info("DEBUG: Texture exists in TextureManager: {}", tex != null);
+                        } else {
+                            AssimpLoader.LOGGER.error("DEBUG: Texture NOT in cache! Keys: {}", textureCache.keySet());
+                        }
+                    }
+                } else if (isFirstRender) {
+                    AssimpLoader.LOGGER.info("DEBUG: Mesh {} has no embedded textures, using material color only", meshIndex);
                 }
+            } else if (isFirstRender) {
+                AssimpLoader.LOGGER.warn("DEBUG: Mesh {} has invalid material index: {}", meshIndex, mesh.getMaterialIndex());
+            }
+
+            if (isFirstRender) {
+                AssimpLoader.LOGGER.info("DEBUG: Mesh {} material index: {}, texture: {}",
+                    meshIndex, mesh.getMaterialIndex(), textureLocation);
             }
 
             // Choose render type based on material
@@ -88,17 +144,26 @@ public class TestModelBlockEntityRenderer implements BlockEntityRenderer<TestMod
                 );
             }
 
+            if (isFirstRender) {
+                AssimpLoader.LOGGER.info("DEBUG: Using RenderType: {}, texture: {}",
+                    material != null && material.isTransparent() ? "entityTranslucent" : "entityCutout",
+                    textureLocation);
+            }
+
             VertexConsumer consumer = bufferSource.getBuffer(renderType);
 
             // Render the mesh
-            renderMesh(mesh, material, poseStack, consumer, packedLight, packedOverlay);
+            renderMesh(mesh, material, poseStack, consumer, packedLight, packedOverlay, isFirstRender);
         }
 
+        if (isFirstRender) {
+            AssimpLoader.LOGGER.info("DEBUG: ========== Render complete ==========");
+        }
         poseStack.popPose();
     }
 
     private void renderMesh(AssimpMesh mesh, AssimpMaterial material, PoseStack poseStack,
-                           VertexConsumer consumer, int packedLight, int packedOverlay) {
+                           VertexConsumer consumer, int packedLight, int packedOverlay, boolean isFirstRender) {
 
         float[] vertices = mesh.getVertices();
         float[] normals = mesh.getNormals();
@@ -109,11 +174,20 @@ public class TestModelBlockEntityRenderer implements BlockEntityRenderer<TestMod
             return;
         }
 
-        // Get material color
+        // Get material color (for models without textures)
         Vector4f color = new Vector4f(1, 1, 1, 1);
         if (material != null && material.getDiffuseColor() != null) {
             float[] diffuse = material.getDiffuseColor();
             color.set(diffuse[0], diffuse[1], diffuse[2], diffuse[3]);
+        }
+
+        if (isFirstRender) {
+            AssimpLoader.LOGGER.info("DEBUG: Material diffuse color: ({}, {}, {}, {})",
+                color.x, color.y, color.z, color.w);
+            AssimpLoader.LOGGER.info("DEBUG: Mesh has {} vertices, {} indices, {} triangles",
+                vertices.length / 3, indices.length, indices.length / 3);
+            AssimpLoader.LOGGER.info("DEBUG: Has texCoords: {}, length: {}",
+                texCoords != null, texCoords != null ? texCoords.length : 0);
         }
 
         Matrix4f pose = poseStack.last().pose();
@@ -143,7 +217,7 @@ public class TestModelBlockEntityRenderer implements BlockEntityRenderer<TestMod
                 n0 = n1 = n2 = faceNormal;
             }
 
-            // UVs
+            // TEST 2: Try both original UV and flipped UV
             float u0 = 0, vt0 = 0, u1 = 0, vt1 = 0, u2 = 0, vt2 = 0;
             if (texCoords != null && texCoords.length > 0) {
                 int uvIdx0 = indices[i] * 2;
@@ -156,20 +230,33 @@ public class TestModelBlockEntityRenderer implements BlockEntityRenderer<TestMod
                 vt1 = texCoords[uvIdx1 + 1];
                 u2 = texCoords[uvIdx2];
                 vt2 = texCoords[uvIdx2 + 1];
+
+                if (isFirstRender && i == 0) {
+                    AssimpLoader.LOGGER.info("DEBUG: First triangle UV coords:");
+                    AssimpLoader.LOGGER.info("  v0: ({}, {})", u0, vt0);
+                    AssimpLoader.LOGGER.info("  v1: ({}, {})", u1, vt1);
+                    AssimpLoader.LOGGER.info("  v2: ({}, {})", u2, vt2);
+                }
             }
 
             // Reverse winding order for Minecraft (v2, v1, v0)
-            addVertex(consumer, pose, normal, v2, n2, u2, vt2, color, packedLight, packedOverlay);
-            addVertex(consumer, pose, normal, v1, n1, u1, vt1, color, packedLight, packedOverlay);
-            addVertex(consumer, pose, normal, v0, n0, u0, vt0, color, packedLight, packedOverlay);
+            addVertex(consumer, pose, normal, v2, n2, u2, vt2, color, packedLight, packedOverlay, isFirstRender && i == 0);
+            addVertex(consumer, pose, normal, v1, n1, u1, vt1, color, packedLight, packedOverlay, false);
+            addVertex(consumer, pose, normal, v0, n0, u0, vt0, color, packedLight, packedOverlay, false);
             // Duplicate last vertex for quad
-            addVertex(consumer, pose, normal, v0, n0, u0, vt0, color, packedLight, packedOverlay);
+            addVertex(consumer, pose, normal, v0, n0, u0, vt0, color, packedLight, packedOverlay, false);
         }
     }
 
     private void addVertex(VertexConsumer consumer, Matrix4f pose, Matrix3f normal,
                           Vector3f pos, Vector3f norm, float u, float v,
-                          Vector4f color, int packedLight, int packedOverlay) {
+                          Vector4f color, int packedLight, int packedOverlay, boolean logThis) {
+
+        if (logThis) {
+            AssimpLoader.LOGGER.info("DEBUG: addVertex called with UV: ({}, {}), color: ({}, {}, {}, {})",
+                u, v, color.x, color.y, color.z, color.w);
+        }
+
         consumer.vertex(pose, pos.x, pos.y, pos.z)
                 .color(color.x, color.y, color.z, color.w)
                 .uv(u, v)
@@ -184,14 +271,64 @@ public class TestModelBlockEntityRenderer implements BlockEntityRenderer<TestMod
 
         for (int i = 0; i < scene.getTextures().size(); i++) {
             AssimpTexture texture = scene.getTextures().get(i);
-            DynamicTexture dynamicTexture = texture.createDynamicTexture();
 
-            if (dynamicTexture != null) {
+            try {
+                NativeImage image = texture.loadAsNativeImage();
+                DynamicTexture dynamicTexture = new DynamicTexture(image);
+
                 ResourceLocation textureLoc = new ResourceLocation("assimploader",
                     "embedded/" + modelName + "_" + i);
+
+                AssimpLoader.LOGGER.info("DEBUG: ========== Texture Registration ==========");
+                AssimpLoader.LOGGER.info("DEBUG: About to register texture:");
+                AssimpLoader.LOGGER.info("  ResourceLocation: {}", textureLoc);
+                AssimpLoader.LOGGER.info("  Cache key: {}", modelName + "_" + i);
+                AssimpLoader.LOGGER.info("  Image size: {}x{}", image.getWidth(), image.getHeight());
+
+                // Save original texture snapshot to disk
+                try {
+                    Path debugPath = Paths.get("H:/MinecraftMods/ImprovedMobs/debug/embedded_texture_" + modelName + "_" + i + ".png");
+                    Files.createDirectories(debugPath.getParent());
+                    image.writeToFile(debugPath);
+                    AssimpLoader.LOGGER.info("DEBUG: Saved embedded texture snapshot to: {}", debugPath);
+                } catch (IOException e) {
+                    AssimpLoader.LOGGER.error("Failed to save texture snapshot: {}", e.getMessage());
+                }
+
                 textureManager.register(textureLoc, dynamicTexture);
                 textureCache.put(modelName + "_" + i, textureLoc);
-                AssimpLoader.LOGGER.info("Registered embedded texture for BlockEntityRenderer: {}", textureLoc);
+
+                // CRITICAL: Verify texture was actually registered
+                AbstractTexture registeredTexture = textureManager.getTexture(textureLoc);
+                AssimpLoader.LOGGER.info("DEBUG: Texture registered successfully: {}", registeredTexture != null);
+
+                if (registeredTexture instanceof DynamicTexture) {
+                    DynamicTexture dt = (DynamicTexture) registeredTexture;
+                    NativeImage verifyImage = dt.getPixels();
+                    if (verifyImage != null) {
+                        AssimpLoader.LOGGER.info("DEBUG: Verified texture in TextureManager: {}x{}",
+                            verifyImage.getWidth(), verifyImage.getHeight());
+
+                        // Save the verified texture from Minecraft to disk
+                        try {
+                            Path verifyPath = Paths.get("H:/MinecraftMods/ImprovedMobs/debug/minecraft_verified_" + modelName + "_" + i + ".png");
+                            Files.createDirectories(verifyPath.getParent());
+                            verifyImage.writeToFile(verifyPath);
+                            AssimpLoader.LOGGER.info("DEBUG: Saved verified texture from Minecraft to: {}", verifyPath);
+                        } catch (IOException e) {
+                            AssimpLoader.LOGGER.error("Failed to save verified texture: {}", e.getMessage());
+                        }
+                    } else {
+                        AssimpLoader.LOGGER.error("DEBUG: DynamicTexture.getPixels() returned null!");
+                    }
+                } else {
+                    AssimpLoader.LOGGER.error("DEBUG: Registered texture is not a DynamicTexture! Type: {}",
+                        registeredTexture != null ? registeredTexture.getClass().getName() : "null");
+                }
+
+                AssimpLoader.LOGGER.info("DEBUG: ==========================================");
+            } catch (Exception e) {
+                AssimpLoader.LOGGER.error("Failed to load embedded texture {}: {}", i, e.getMessage(), e);
             }
         }
     }
