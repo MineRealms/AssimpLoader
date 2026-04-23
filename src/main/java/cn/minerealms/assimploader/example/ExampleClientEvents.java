@@ -24,7 +24,11 @@ public class ExampleClientEvents {
             ExampleRegistry.TEST_MODEL_BLOCK_ENTITY.get(),
             TestModelBlockEntityRenderer::new
         );
-        AssimpLoader.LOGGER.info("Registered TestModelBlockEntityRenderer");
+        event.registerBlockEntityRenderer(
+            ExampleRegistry.CCB_BLOCK_ENTITY.get(),
+            CCBBlockEntityRenderer::new
+        );
+        AssimpLoader.LOGGER.info("Registered TestModelBlockEntityRenderer and CCBBlockEntityRenderer");
     }
 
     public static BlockEntityWithoutLevelRenderer getItemRenderer() {
