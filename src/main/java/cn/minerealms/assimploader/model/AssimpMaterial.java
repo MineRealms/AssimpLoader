@@ -90,6 +90,72 @@ public class AssimpMaterial {
     }
 
     /**
+     * Get specular map texture path if exists
+     */
+    public String getSpecularTexture() {
+        AIString path = AIString.calloc();
+        if (aiGetMaterialTexture(aiMaterial, aiTextureType_SPECULAR, 0, path, (int[]) null, null, null, null, null, null) == aiReturn_SUCCESS) {
+            String texPath = path.dataString();
+            path.free();
+            return texPath;
+        }
+        path.free();
+        return null;
+    }
+
+    /**
+     * Get normal map path for PBR rendering.
+     * Returns the path from material if available, otherwise generates conventional path.
+     *
+     * @return Normal map path, or null if no diffuse texture exists
+     */
+    public String getNormalMapPath() {
+        // First check if material has explicit normal map
+        String normalTex = getNormalTexture();
+        if (normalTex != null && !normalTex.isEmpty()) {
+            return normalTex;
+        }
+
+        // Generate conventional path from diffuse texture
+        String diffuseTex = getDiffuseTexture();
+        if (diffuseTex != null && !diffuseTex.isEmpty() && !isEmbeddedTexture(diffuseTex)) {
+            // Convention: texture.png -> texture_n.png
+            int dotIndex = diffuseTex.lastIndexOf('.');
+            if (dotIndex > 0) {
+                return diffuseTex.substring(0, dotIndex) + "_n" + diffuseTex.substring(dotIndex);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get specular map path for PBR rendering.
+     * Returns the path from material if available, otherwise generates conventional path.
+     *
+     * @return Specular map path, or null if no diffuse texture exists
+     */
+    public String getSpecularMapPath() {
+        // First check if material has explicit specular map
+        String specularTex = getSpecularTexture();
+        if (specularTex != null && !specularTex.isEmpty()) {
+            return specularTex;
+        }
+
+        // Generate conventional path from diffuse texture
+        String diffuseTex = getDiffuseTexture();
+        if (diffuseTex != null && !diffuseTex.isEmpty() && !isEmbeddedTexture(diffuseTex)) {
+            // Convention: texture.png -> texture_s.png
+            int dotIndex = diffuseTex.lastIndexOf('.');
+            if (dotIndex > 0) {
+                return diffuseTex.substring(0, dotIndex) + "_s" + diffuseTex.substring(dotIndex);
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Get diffuse color from material
      * Returns RGBA values in range [0, 1]
      */
