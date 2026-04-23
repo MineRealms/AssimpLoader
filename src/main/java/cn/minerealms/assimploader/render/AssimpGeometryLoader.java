@@ -58,6 +58,15 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
         public BakedModel bake(IGeometryBakingContext context, ModelBaker baker, Function<Material, TextureAtlasSprite> spriteGetter, ModelState modelState, ItemOverrides overrides, ResourceLocation modelLocation) {
             String modelName = extractModelName(modelPath);
 
+            // Extract simple model name (just filename without extension) for backward compatibility
+            String simpleModelName = modelPath;
+            if (simpleModelName.contains("/")) {
+                simpleModelName = simpleModelName.substring(simpleModelName.lastIndexOf('/') + 1);
+            }
+            if (simpleModelName.endsWith(".fbx")) {
+                simpleModelName = simpleModelName.substring(0, simpleModelName.length() - 4);
+            }
+
             // Parse ResourceLocation from model path
             ResourceLocation resourceLoc;
             if (modelPath.contains(":")) {
@@ -81,7 +90,8 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
                     if (scene != null) {
                         cachedScene = scene;
                         AssimpModelLoader.updateModelCache(modelName, scene);
-                        AssimpLoader.LOGGER.info("Successfully loaded external model: {}", modelName);
+                        AssimpModelLoader.updateModelCache(simpleModelName, scene); // Also cache with simple name
+                        AssimpLoader.LOGGER.info("Successfully loaded external model: {} (also as: {})", modelName, simpleModelName);
                     }
                 } catch (Exception e) {
                     AssimpLoader.LOGGER.error("Failed to load external model from {}: {}", externalModelsPath, e.getMessage());
@@ -107,7 +117,8 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
 
                                 if (cachedScene != null) {
                                     AssimpModelLoader.updateModelCache(modelName, cachedScene);
-                                    AssimpLoader.LOGGER.info("Successfully loaded resource pack model: {}", modelName);
+                                    AssimpModelLoader.updateModelCache(simpleModelName, cachedScene); // Also cache with simple name
+                                    AssimpLoader.LOGGER.info("Successfully loaded resource pack model: {} (also as: {})", modelName, simpleModelName);
                                 }
                             }
                         } else {
