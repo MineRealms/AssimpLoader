@@ -39,15 +39,36 @@ public class ExampleRegistry {
         )
     );
 
+    // CCB block with FBX model (using BlockEntityRenderer)
+    public static final RegistryObject<Block> CCB = BLOCKS.register("ccb",
+        () -> new CCBBlock(BlockBehaviour.Properties.of()
+            .mapColor(MapColor.METAL)
+            .strength(3.0F, 6.0F)
+            .sound(SoundType.METAL)
+            .requiresCorrectToolForDrops()
+        )
+    );
+
     // Block entity
     public static final RegistryObject<BlockEntityType<TestModelBlockEntity>> TEST_MODEL_BLOCK_ENTITY =
         BLOCK_ENTITIES.register("test_model_block_entity",
             () -> BlockEntityType.Builder.of(TestModelBlockEntity::new, CNC_MACHINE.get()).build(null)
         );
 
+    // CCB block entity
+    public static final RegistryObject<BlockEntityType<CCBBlockEntity>> CCB_BLOCK_ENTITY =
+        BLOCK_ENTITIES.register("ccb_block_entity",
+            () -> BlockEntityType.Builder.of(CCBBlockEntity::new, CCB.get()).build(null)
+        );
+
     // Block item
     public static final RegistryObject<Item> CNC_MACHINE_ITEM = ITEMS.register("cnc_machine",
         () -> new AssimpBlockItem(CNC_MACHINE.get(), new Item.Properties())
+    );
+
+    // CCB block item
+    public static final RegistryObject<Item> CCB_ITEM = ITEMS.register("ccb",
+        () -> new AssimpBlockItem(CCB.get(), new Item.Properties())
     );
 
     public static void register(IEventBus modEventBus) {
@@ -63,6 +84,7 @@ public class ExampleRegistry {
     private static void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
             event.accept(CNC_MACHINE_ITEM);
+            event.accept(CCB_ITEM);
         }
     }
 }
