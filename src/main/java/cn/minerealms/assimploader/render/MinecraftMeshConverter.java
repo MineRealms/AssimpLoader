@@ -83,12 +83,27 @@ public class MinecraftMeshConverter {
                 n0 = n1 = n2 = normal;
             }
 
-            // Get texture coordinates - use sprite center to avoid atlas bleeding
-            // Material color is applied via vertex color, not texture
-            // We use white_concrete texture, so vertex_color × white = vertex_color
-            float u0 = sprite.getU0() + (sprite.getU1() - sprite.getU0()) * 0.5f;
-            float vt0 = sprite.getV0() + (sprite.getV1() - sprite.getV0()) * 0.5f;
-            float u1 = u0, vt1 = vt0, u2 = u0, vt2 = vt0;
+            // Get texture coordinates
+            float u0, vt0, u1, vt1, u2, vt2;
+            if (texCoords != null && texCoords.length > 0) {
+                // Use actual UV coordinates from mesh
+                int uvIdx0 = indices[i] * 2;
+                int uvIdx1 = indices[i + 1] * 2;
+                int uvIdx2 = indices[i + 2] * 2;
+
+                // Map UV coordinates to sprite atlas coordinates
+                u0 = sprite.getU(texCoords[uvIdx0]);
+                vt0 = sprite.getV(texCoords[uvIdx0 + 1]);
+                u1 = sprite.getU(texCoords[uvIdx1]);
+                vt1 = sprite.getV(texCoords[uvIdx1 + 1]);
+                u2 = sprite.getU(texCoords[uvIdx2]);
+                vt2 = sprite.getV(texCoords[uvIdx2 + 1]);
+            } else {
+                // Fallback: use sprite center to avoid atlas bleeding
+                u0 = sprite.getU0() + (sprite.getU1() - sprite.getU0()) * 0.5f;
+                vt0 = sprite.getV0() + (sprite.getV1() - sprite.getV0()) * 0.5f;
+                u1 = u0; vt1 = vt0; u2 = u0; vt2 = vt0;
+            }
 
             // Determine face direction from normal
             Direction direction = getDirectionFromNormal(n0);

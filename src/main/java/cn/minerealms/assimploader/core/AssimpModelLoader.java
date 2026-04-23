@@ -299,6 +299,13 @@ public class AssimpModelLoader {
     }
 
     /**
+     * Get all cached models
+     */
+    public static Map<String, AssimpScene> getAllCachedModels() {
+        return new ConcurrentHashMap<>(modelCache);
+    }
+
+    /**
      * Clear model cache
      */
     public static void clearCache() {
