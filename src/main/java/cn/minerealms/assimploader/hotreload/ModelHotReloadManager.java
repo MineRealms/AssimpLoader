@@ -24,6 +24,7 @@ public class ModelHotReloadManager {
 
     /**
      * Reload all FBX models from external directory
+     * Scans recursively and preserves directory structure for model names
      * @return Number of models successfully reloaded
      */
     public static int reloadModels() {
@@ -47,20 +48,31 @@ public class ModelHotReloadManager {
                 }
 
                 try {
-                    String modelName = fileName.substring(0, fileName.lastIndexOf('.'));
+                    // Get relative path from EXTERNAL_MODEL_DIR to preserve directory structure
+                    // Example: models/models/block/cnc.fbx -> models/block/cnc
+                    Path relativePath = EXTERNAL_MODEL_DIR.relativize(file);
+                    String relativePathStr = relativePath.toString().replace('\\', '/');
+                    String modelName = relativePathStr.substring(0, relativePathStr.lastIndexOf('.'));
+
                     AssimpLoader.LOGGER.info("Hot-reloading model: {} from {}", modelName, file);
 
                     // Load the model using AssimpModelLoader
                     AssimpScene scene = AssimpModelLoader.loadModelStatic(file.toString());
 
                     if (scene != null) {
+                        // Store with full path as key (e.g., "models/block/cnc")
                         loadedModels.put(modelName, scene);
 
-                        // Update the model cache in AssimpModelLoader
-                        AssimpModelLoader.updateModelCache(modelName, scene);
+                        // Also store with just filename for backward compatibility (e.g., "cnc")
+                        String simpleModelName = fileName.substring(0, fileName.lastIndexOf('.'));
+                        loadedModels.put(simpleModelName, scene);
+
+                        // CRITICAL: Update global cache so all systems use the new model
+                        // This ensures hot-reload takes priority over resource pack and JAR resources
+                        AssimpModelLoader.updateModelCache(simpleModelName, scene);
 
                         reloadedCount++;
-                        AssimpLoader.LOGGER.info("Successfully reloaded model: {}", modelName);
+                        AssimpLoader.LOGGER.info("Successfully reloaded model: {} (also as: {})", modelName, simpleModelName);
                     } else {
                         AssimpLoader.LOGGER.error("Failed to load model: {}", file);
                     }
@@ -97,24 +109,12 @@ public class ModelHotReloadManager {
 
     /**
      * Refresh the Minecraft model manager to apply changes
+     * Hot-reload only updates external model cache, does NOT trigger resource pack reload
      */
     private static void refreshModelManager() {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft != null) {
-            minecraft.execute(() -> {
-                try {
-                    AssimpLoader.LOGGER.info("Refreshing model manager...");
-                    ModelManager modelManager = minecraft.getModelManager();
-
-                    // Force model baker to rebuild models
-                    // This will trigger re-baking of all models that use our geometry loader
-                    minecraft.reloadResourcePacks();
-
-                    AssimpLoader.LOGGER.info("Model manager refresh complete");
-                } catch (Exception e) {
-                    AssimpLoader.LOGGER.error("Error refreshing model manager", e);
-                }
-            });
-        }
+        // Hot-reload models are stored in loadedModels cache
+        // BlockEntityRenderer will automatically use them on next render
+        // No need to trigger resource pack reload
+        AssimpLoader.LOGGER.info("Hot-reload cache updated. BlockEntityRenderer will use new models on next render.");
     }
 }

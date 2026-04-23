@@ -47,7 +47,7 @@ public class ExampleRegistry {
 
     // Block item
     public static final RegistryObject<Item> CNC_MACHINE_ITEM = ITEMS.register("cnc_machine",
-        () -> new BlockItem(CNC_MACHINE.get(), new Item.Properties())
+        () -> new AssimpBlockItem(CNC_MACHINE.get(), new Item.Properties())
     );
 
     public static void register(IEventBus modEventBus) {

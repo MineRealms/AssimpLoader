@@ -47,6 +47,26 @@ public class MinecraftMeshConverter {
             return quads;
         }
 
+        // Calculate bounding box to detect if model needs scaling
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, minZ = Float.MAX_VALUE;
+        float maxX = Float.MIN_VALUE, maxY = Float.MIN_VALUE, maxZ = Float.MIN_VALUE;
+
+        for (int i = 0; i < vertices.length; i += 3) {
+            minX = Math.min(minX, vertices[i]);
+            minY = Math.min(minY, vertices[i + 1]);
+            minZ = Math.min(minZ, vertices[i + 2]);
+            maxX = Math.max(maxX, vertices[i]);
+            maxY = Math.max(maxY, vertices[i + 1]);
+            maxZ = Math.max(maxZ, vertices[i + 2]);
+        }
+
+        float sizeX = maxX - minX;
+        float sizeY = maxY - minY;
+        float sizeZ = maxZ - minZ;
+
+        cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Mesh bounding box: ({}, {}, {}) to ({}, {}, {}), size: ({}, {}, {})",
+            minX, minY, minZ, maxX, maxY, maxZ, sizeX, sizeY, sizeZ);
+
         // Get material color (PhongE diffuse color)
         Vector4f materialColor = new Vector4f(1, 1, 1, 1);
         if (material != null && material.getDiffuseColor() != null) {

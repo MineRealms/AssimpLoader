@@ -56,71 +56,78 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
 
         @Override
         public BakedModel bake(IGeometryBakingContext context, ModelBaker baker, Function<Material, TextureAtlasSprite> spriteGetter, ModelState modelState, ItemOverrides overrides, ResourceLocation modelLocation) {
-            // Check for hot-reloaded model first (always check, even if we have a cached scene)
             String modelName = extractModelName(modelPath);
-            AssimpScene hotReloadedScene = AssimpModelLoader.getCachedModel(modelName);
 
-            if (hotReloadedScene != null) {
-                AssimpLoader.LOGGER.info("Using hot-reloaded model: {}", modelName);
-                // Always use the hot-reloaded version if available
-                cachedScene = hotReloadedScene;
-            } else if (cachedScene == null) {
-                // Only load from resources if we don't have a cached scene and no hot-reload available
+            // Parse ResourceLocation from model path
+            ResourceLocation resourceLoc;
+            if (modelPath.contains(":")) {
+                resourceLoc = new ResourceLocation(modelPath);
+            } else {
+                // Use the same namespace as the model JSON
+                resourceLoc = new ResourceLocation(modelLocation.getNamespace(), modelPath);
+            }
+
+            // PRIORITY 1: Try external models directory first
+            // Convert resource path to external path: assimploader:models/block/cnc.fbx -> H:/MinecraftMods/ImprovedMobs/models/models/block/cnc.fbx
+            String externalModelsPath = "H:/MinecraftMods/ImprovedMobs/models/" +
+                                       resourceLoc.getPath();
+
+            java.nio.file.Path externalPath = java.nio.file.Paths.get(externalModelsPath);
+
+            if (java.nio.file.Files.exists(externalPath)) {
+                AssimpLoader.LOGGER.info("Loading model from external models directory: {}", externalModelsPath);
                 try {
-                    AssimpModelLoader loader = AssimpLoader.getInstance().getModelLoader();
-                    if (loader != null) {
-                        // Parse ResourceLocation from model path
-                        ResourceLocation resourceLoc;
-                        if (modelPath.contains(":")) {
-                            resourceLoc = new ResourceLocation(modelPath);
-                        } else {
-                            // Use the same namespace as the model JSON
-                            resourceLoc = new ResourceLocation(modelLocation.getNamespace(), modelPath);
-                        }
-
-                        // PRIORITY 1: Check hot-reload cache first
-                        if (cn.minerealms.assimploader.hotreload.ModelHotReloadManager.hasModel(modelName)) {
-                            cachedScene = cn.minerealms.assimploader.hotreload.ModelHotReloadManager.getModel(modelName);
-                            AssimpLoader.LOGGER.info("Using hot-reloaded model: {}", modelName);
-
-                            // Update cache to ensure consistency
-                            if (cachedScene != null) {
-                                AssimpModelLoader.updateModelCache(modelName, cachedScene);
-                            }
-                        } else {
-                            // PRIORITY 2: Load from resource system
-                            AssimpLoader.LOGGER.info("Attempting to load Assimp model from ResourceLocation: {}", resourceLoc);
-
-                            var resourceManager = net.minecraft.client.Minecraft.getInstance().getResourceManager();
-                            var resource = resourceManager.getResource(resourceLoc);
-
-                            if (resource.isPresent()) {
-                                try (var inputStream = resource.get().open()) {
-                                    byte[] modelData = inputStream.readAllBytes();
-                                    String fileName = resourceLoc.getPath();
-
-                                    cachedScene = loader.loadModelFromMemory(fileName, modelData);
-
-                                    // IMPORTANT: Cache the scene so BlockEntityRenderer can access it
-                                    if (cachedScene != null) {
-                                        AssimpModelLoader.updateModelCache(modelName, cachedScene);
-                                        AssimpLoader.LOGGER.info("Loaded and cached Assimp model: {} -> {}", modelPath, modelName);
-                                    }
-                                }
-                            } else {
-                                throw new IOException("Resource not found: " + resourceLoc);
-                            }
-                        }
+                    AssimpScene scene = AssimpModelLoader.loadModelStatic(externalModelsPath);
+                    if (scene != null) {
+                        cachedScene = scene;
+                        AssimpModelLoader.updateModelCache(modelName, scene);
+                        AssimpLoader.LOGGER.info("Successfully loaded external model: {}", modelName);
                     }
-                } catch (IOException e) {
-                    AssimpLoader.LOGGER.error("Failed to load Assimp model: {}", modelPath, e);
-                    return null;
+                } catch (Exception e) {
+                    AssimpLoader.LOGGER.error("Failed to load external model from {}: {}", externalModelsPath, e.getMessage());
                 }
             }
 
+            // PRIORITY 2: Try resource pack (internal)
             if (cachedScene == null) {
-                AssimpLoader.LOGGER.error("Failed to bake model, scene is null: {}", modelPath);
-                return null;
+                try {
+                    AssimpModelLoader loader = AssimpLoader.getInstance().getModelLoader();
+                    if (loader != null) {
+                        AssimpLoader.LOGGER.info("Loading model from resource pack: {}", resourceLoc);
+
+                        var resourceManager = net.minecraft.client.Minecraft.getInstance().getResourceManager();
+                        var resource = resourceManager.getResource(resourceLoc);
+
+                        if (resource.isPresent()) {
+                            try (var inputStream = resource.get().open()) {
+                                byte[] modelData = inputStream.readAllBytes();
+                                String fileName = resourceLoc.getPath();
+
+                                cachedScene = loader.loadModelFromMemory(fileName, modelData);
+
+                                if (cachedScene != null) {
+                                    AssimpModelLoader.updateModelCache(modelName, cachedScene);
+                                    AssimpLoader.LOGGER.info("Successfully loaded resource pack model: {}", modelName);
+                                }
+                            }
+                        } else {
+                            AssimpLoader.LOGGER.error("Resource not found: {}", resourceLoc);
+                        }
+                    }
+                } catch (IOException e) {
+                    AssimpLoader.LOGGER.error("Failed to load resource pack model: {}", modelPath, e);
+                }
+            }
+
+            // PRIORITY 3: Create placeholder if both failed
+            if (cachedScene == null) {
+                AssimpLoader.LOGGER.error("FAILED TO LOAD MODEL: {} - Returning fallback model", modelName);
+                AssimpLoader.LOGGER.error("  Tried external: {}", externalModelsPath);
+                AssimpLoader.LOGGER.error("  Tried resource: {}", resourceLoc);
+
+                // Return Minecraft's missing model (purple/black checkerboard)
+                // We can't create a placeholder AssimpScene because those classes now wrap native Assimp objects
+                return baker.bake(new ResourceLocation("minecraft", "block/stone"), modelState);
             }
 
             // Use white concrete texture so vertex colors display correctly
@@ -132,16 +139,29 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
                     )
             );
 
-            return new AssimpBakedModel(cachedScene, whiteSprite);
+            return new AssimpBakedModel(cachedScene, whiteSprite, modelLocation);
         }
 
         /**
-         * Extract model name from path (e.g., "models/block/cnc.fbx" -> "cnc")
+         * Extract model name from path
+         * Returns the full path without extension (e.g., "models/block/cnc.fbx" -> "models/block/cnc")
+         * This ensures unique cache keys and matches the resource location structure
          */
         private String extractModelName(String path) {
-            String fileName = path.substring(path.lastIndexOf('/') + 1);
-            int dotIndex = fileName.lastIndexOf('.');
-            return dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
+            // Remove .fbx extension
+            int dotIndex = path.lastIndexOf('.');
+            return dotIndex > 0 ? path.substring(0, dotIndex) : path;
+        }
+
+        /**
+         * Create a placeholder scene when model loading fails
+         * NOTE: This method is deprecated and should not be used.
+         * AssimpScene/Mesh/Material classes now wrap native Assimp objects and cannot be constructed from raw data.
+         * Instead, return null and let the bake() method handle the fallback.
+         */
+        private AssimpScene createPlaceholderScene() {
+            AssimpLoader.LOGGER.warn("createPlaceholderScene() called - this is deprecated, returning null");
+            return null;
         }
 
         @Override

@@ -37,6 +37,7 @@ import java.util.Map;
 public class TestModelBlockEntityRenderer implements BlockEntityRenderer<TestModelBlockEntity> {
 
     private static final Map<String, ResourceLocation> textureCache = new HashMap<>();
+    private static final Map<String, Integer> sceneHashCache = new HashMap<>();  // Track scene identity to detect changes
     private static boolean textureDebugLogged = false;  // Only log texture registration once
     private static int renderCount = 0;  // Track render calls
 
@@ -54,8 +55,10 @@ public class TestModelBlockEntityRenderer implements BlockEntityRenderer<TestMod
             AssimpLoader.LOGGER.info("DEBUG: ========== BlockEntityRenderer.render() called #{} ==========", renderCount);
         }
 
-        // Get the cached model (from hot-reload or resource loading)
+        // Get the cached model with priority: external hot-reload > resource pack > JAR
+        // Priority is handled by AssimpModelLoader.getCachedModel()
         String modelName = "cnc"; // TODO: Make this configurable per block
+
         AssimpScene scene = AssimpModelLoader.getCachedModel(modelName);
 
         if (scene == null) {
@@ -71,6 +74,22 @@ public class TestModelBlockEntityRenderer implements BlockEntityRenderer<TestMod
             AssimpLoader.LOGGER.info("DEBUG: Scene object: {}", System.identityHashCode(scene));
             AssimpLoader.LOGGER.info("DEBUG: Texture cache contains 'cnc_0': {}", textureCache.containsKey(modelName + "_0"));
             AssimpLoader.LOGGER.info("DEBUG: Texture cache keys: {}", textureCache.keySet());
+        }
+
+        // Detect if scene has changed (hot-reload) and clear texture cache
+        int currentSceneHash = System.identityHashCode(scene);
+        Integer cachedSceneHash = sceneHashCache.get(modelName);
+
+        if (cachedSceneHash == null || cachedSceneHash != currentSceneHash) {
+            // Scene changed! Clear texture cache for this model
+            AssimpLoader.LOGGER.info("DEBUG: Scene changed for model '{}' (old hash: {}, new hash: {}), clearing texture cache",
+                modelName, cachedSceneHash, currentSceneHash);
+
+            // Remove old textures from cache
+            textureCache.keySet().removeIf(key -> key.startsWith(modelName + "_"));
+
+            // Update scene hash
+            sceneHashCache.put(modelName, currentSceneHash);
         }
 
         // Load embedded textures if not already loaded
