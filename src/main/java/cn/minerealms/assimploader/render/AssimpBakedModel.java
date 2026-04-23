@@ -44,10 +44,12 @@ public class AssimpBakedModel implements BakedModel {
     private final TextureAtlasSprite particleIcon;
     private final boolean hasTransparency;
     private final Map<Integer, ResourceLocation> embeddedTextureCache;
+    private final ResourceLocation modelLocation;
 
-    public AssimpBakedModel(AssimpScene scene, TextureAtlasSprite particleIcon) {
+    public AssimpBakedModel(AssimpScene scene, TextureAtlasSprite particleIcon, ResourceLocation modelLocation) {
         this.scene = scene;
         this.particleIcon = particleIcon;
+        this.modelLocation = modelLocation;
         this.quads = new ArrayList<>();
         this.embeddedTextureCache = new HashMap<>();
         boolean transparent = false;
@@ -141,10 +143,9 @@ public class AssimpBakedModel implements BakedModel {
 
     @Override
     public boolean isCustomRenderer() {
-        // IMPORTANT: Return true to use BlockEntityRenderer for items too
-        // This allows embedded textures to work in hand/inventory
-        // BakedModel cannot use DynamicTexture, only TextureAtlas sprites
-        return scene.hasEmbeddedTextures();
+        // Return true to use BlockEntityWithoutLevelRenderer for items
+        // This allows items to render with embedded textures just like blocks in world
+        return true;
     }
 
     @Override
@@ -185,13 +186,22 @@ public class AssimpBakedModel implements BakedModel {
 
         AssimpLoader.LOGGER.info("Loading {} embedded texture(s)", textures.size());
 
+        // Get a safe name for the texture cache key
+        String modelName;
+        if (scene.getSourcePath() != null) {
+            modelName = scene.getSourcePath().getFileName().toString();
+        } else {
+            // Fallback: use the model location path
+            modelName = modelLocation.getPath().replace("/", "_").replace(".fbx", "");
+        }
+
         for (int i = 0; i < textures.size(); i++) {
             AssimpTexture texture = textures.get(i);
             DynamicTexture dynamicTexture = texture.createDynamicTexture();
 
             if (dynamicTexture != null) {
                 ResourceLocation textureLoc = new ResourceLocation("assimploader",
-                    "embedded/" + scene.getSourcePath().getFileName().toString() + "_" + i);
+                    "embedded/" + modelName + "_" + i);
                 textureManager.register(textureLoc, dynamicTexture);
                 embeddedTextureCache.put(i, textureLoc);
                 AssimpLoader.LOGGER.info("Registered embedded texture {}: {}", i, textureLoc);
