@@ -129,7 +129,8 @@ public class MinecraftMeshConverter {
         builder.setSprite(sprite);
         builder.setDirection(direction);
         builder.setTintIndex(-1);  // No tint - use vertex color directly
-        builder.setShade(true);  // CRITICAL: Enable shading for lighting calculation
+        builder.setShade(false);  // CRITICAL: Disable face-based shading for smooth curved surfaces
+                                   // We apply lighting via vertex colors and normals instead
 
         // Vertex 0
         putVertex(builder, v0, n0, u0, vt0, color);
@@ -147,17 +148,45 @@ public class MinecraftMeshConverter {
      * Put a single vertex into the builder
      */
     private static void putVertex(QuadBakingVertexConsumer builder, Vector3f pos, Vector3f normal, float u, float v, Vector4f color) {
-        int r = (int) (color.x * 255);
-        int g = (int) (color.y * 255);
-        int b = (int) (color.z * 255);
+        // Apply simple diffuse lighting based on normal direction
+        // This gives smoother lighting for curved surfaces
+        float diffuse = calculateDiffuseLighting(normal);
+
+        int r = (int) (color.x * 255 * diffuse);
+        int g = (int) (color.y * 255 * diffuse);
+        int b = (int) (color.z * 255 * diffuse);
         int a = (int) (color.w * 255);
 
+        // Clamp to valid range
+        r = Math.max(0, Math.min(255, r));
+        g = Math.max(0, Math.min(255, g));
+        b = Math.max(0, Math.min(255, b));
+
+        // Use default lightmap (0, 0) to let world lighting apply naturally
+        // Combined with setShade(false), this gives smooth vertex-based lighting
         builder.vertex(pos.x, pos.y, pos.z)
                 .color(r, g, b, a)
                 .uv(u, v)
-                .uv2(0, 0)  // Lightmap UV - (0,0) means use world lighting
+                .uv2(0, 0)  // Use world lighting
                 .normal(normal.x, normal.y, normal.z)
                 .endVertex();
+    }
+
+    /**
+     * Calculate diffuse lighting factor based on normal direction
+     * Simulates light coming from above and slightly from the front
+     */
+    private static float calculateDiffuseLighting(Vector3f normal) {
+        // Light direction: slightly from above and front (like Minecraft's default lighting)
+        Vector3f lightDir = new Vector3f(0.2f, 1.0f, 0.3f);
+        lightDir.normalize();
+
+        // Dot product gives us the angle between normal and light
+        float dotProduct = normal.dot(lightDir);
+
+        // Remap from [-1, 1] to [0.5, 1.0] for ambient + diffuse
+        // 0.5 = minimum ambient light, 1.0 = fully lit
+        return 0.5f + (dotProduct * 0.5f);
     }
 
     /**

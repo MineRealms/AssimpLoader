@@ -93,17 +93,11 @@ public class AssimpModelLoader {
             throw new IOException("Model file not found: " + filePath);
         }
 
-        // Load file into memory
-        byte[] fileData = Files.readAllBytes(filePath);
-        String fileName = filePath.getFileName().toString();
-        String extension = getFileExtension(fileName);
+        // Use aiImportFile directly for file paths (more stable than memory import)
+        String absolutePath = filePath.toAbsolutePath().toString();
+        AssimpLoader.LOGGER.info("Importing from file: {}", absolutePath);
 
-        // Import scene from memory
-        AIScene aiScene = aiImportFileFromMemory(
-                ByteBuffer.wrap(fileData),
-                flags,
-                extension
-        );
+        AIScene aiScene = aiImportFile(absolutePath, flags);
 
         if (aiScene == null) {
             String error = aiGetErrorString();
@@ -116,6 +110,7 @@ public class AssimpModelLoader {
                 aiScene.mNumAnimations());
 
         // Detect source coordinate system
+        String fileName = filePath.getFileName().toString();
         String fileExtension = getFileExtension(fileName);
         CoordinateSystemConverter.CoordinateSystem sourceSystem =
                 CoordinateSystemConverter.detectCoordinateSystem(fileExtension);

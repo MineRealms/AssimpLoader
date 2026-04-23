@@ -56,17 +56,16 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
 
         @Override
         public BakedModel bake(IGeometryBakingContext context, ModelBaker baker, Function<Material, TextureAtlasSprite> spriteGetter, ModelState modelState, ItemOverrides overrides, ResourceLocation modelLocation) {
-            // Check for hot-reloaded model first
+            // Check for hot-reloaded model first (always check, even if we have a cached scene)
             String modelName = extractModelName(modelPath);
             AssimpScene hotReloadedScene = AssimpModelLoader.getCachedModel(modelName);
 
             if (hotReloadedScene != null) {
                 AssimpLoader.LOGGER.info("Using hot-reloaded model: {}", modelName);
+                // Always use the hot-reloaded version if available
                 cachedScene = hotReloadedScene;
-            }
-
-            // Load the model if not cached
-            if (cachedScene == null) {
+            } else if (cachedScene == null) {
+                // Only load from resources if we don't have a cached scene and no hot-reload available
                 try {
                     AssimpModelLoader loader = AssimpLoader.getInstance().getModelLoader();
                     if (loader != null) {
