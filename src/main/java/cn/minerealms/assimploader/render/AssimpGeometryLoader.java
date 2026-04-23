@@ -78,27 +78,38 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
                             resourceLoc = new ResourceLocation(modelLocation.getNamespace(), modelPath);
                         }
 
-                        AssimpLoader.LOGGER.info("Attempting to load Assimp model from ResourceLocation: {}", resourceLoc);
+                        // PRIORITY 1: Check hot-reload cache first
+                        if (cn.minerealms.assimploader.hotreload.ModelHotReloadManager.hasModel(modelName)) {
+                            cachedScene = cn.minerealms.assimploader.hotreload.ModelHotReloadManager.getModel(modelName);
+                            AssimpLoader.LOGGER.info("Using hot-reloaded model: {}", modelName);
 
-                        // Load from resource system (works with JAR and file system)
-                        var resourceManager = net.minecraft.client.Minecraft.getInstance().getResourceManager();
-                        var resource = resourceManager.getResource(resourceLoc);
-
-                        if (resource.isPresent()) {
-                            try (var inputStream = resource.get().open()) {
-                                byte[] modelData = inputStream.readAllBytes();
-                                String fileName = resourceLoc.getPath();
-
-                                cachedScene = loader.loadModelFromMemory(fileName, modelData);
-
-                                // IMPORTANT: Cache the scene so BlockEntityRenderer can access it
-                                if (cachedScene != null) {
-                                    AssimpModelLoader.updateModelCache(modelName, cachedScene);
-                                    AssimpLoader.LOGGER.info("Loaded and cached Assimp model: {} -> {}", modelPath, modelName);
-                                }
+                            // Update cache to ensure consistency
+                            if (cachedScene != null) {
+                                AssimpModelLoader.updateModelCache(modelName, cachedScene);
                             }
                         } else {
-                            throw new IOException("Resource not found: " + resourceLoc);
+                            // PRIORITY 2: Load from resource system
+                            AssimpLoader.LOGGER.info("Attempting to load Assimp model from ResourceLocation: {}", resourceLoc);
+
+                            var resourceManager = net.minecraft.client.Minecraft.getInstance().getResourceManager();
+                            var resource = resourceManager.getResource(resourceLoc);
+
+                            if (resource.isPresent()) {
+                                try (var inputStream = resource.get().open()) {
+                                    byte[] modelData = inputStream.readAllBytes();
+                                    String fileName = resourceLoc.getPath();
+
+                                    cachedScene = loader.loadModelFromMemory(fileName, modelData);
+
+                                    // IMPORTANT: Cache the scene so BlockEntityRenderer can access it
+                                    if (cachedScene != null) {
+                                        AssimpModelLoader.updateModelCache(modelName, cachedScene);
+                                        AssimpLoader.LOGGER.info("Loaded and cached Assimp model: {} -> {}", modelPath, modelName);
+                                    }
+                                }
+                            } else {
+                                throw new IOException("Resource not found: " + resourceLoc);
+                            }
                         }
                     }
                 } catch (IOException e) {
