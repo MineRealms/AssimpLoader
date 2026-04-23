@@ -70,6 +70,7 @@ public class ModelHotReloadManager {
                         // CRITICAL: Update global cache so all systems use the new model
                         // This ensures hot-reload takes priority over resource pack and JAR resources
                         AssimpModelLoader.updateModelCache(simpleModelName, scene);
+                        AssimpModelLoader.updateModelCache(modelName, scene); // Also update full path key
 
                         reloadedCount++;
                         AssimpLoader.LOGGER.info("Successfully reloaded model: {} (also as: {})", modelName, simpleModelName);
