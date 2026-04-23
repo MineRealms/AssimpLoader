@@ -120,8 +120,7 @@ public class AssimpMaterial {
             return result;
         }
 
-        // Log warning and return white as default
-        cn.minerealms.assimploader.AssimpLoader.LOGGER.warn("Material {} has no diffuse or base color, using white", index);
+        // Return white as default (no warning needed - this is normal for some FBX materials)
         return new float[]{1.0f, 1.0f, 1.0f, 1.0f};
     }
 

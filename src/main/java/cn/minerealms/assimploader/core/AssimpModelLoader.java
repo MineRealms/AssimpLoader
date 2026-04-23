@@ -291,11 +291,18 @@ public class AssimpModelLoader {
     }
 
     /**
-     * Get cached model for hot-reload
+     * Get cached model with priority: hot-reload > resource pack
      * @param modelName Model name (without extension)
      * @return Cached scene or null
      */
     public static AssimpScene getCachedModel(String modelName) {
+        // PRIORITY 1: Check hot-reload cache (external models)
+        AssimpScene hotReloadScene = cn.minerealms.assimploader.hotreload.ModelHotReloadManager.getModel(modelName);
+        if (hotReloadScene != null) {
+            return hotReloadScene;
+        }
+
+        // PRIORITY 2: Check resource pack cache
         return modelCache.get(modelName);
     }
 
