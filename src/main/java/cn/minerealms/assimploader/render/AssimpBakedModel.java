@@ -186,14 +186,11 @@ public class AssimpBakedModel implements BakedModel {
 
         AssimpLoader.LOGGER.info("Loading {} embedded texture(s)", textures.size());
 
-        // Get a safe name for the texture cache key
-        String modelName;
-        if (scene.getSourcePath() != null) {
-            modelName = scene.getSourcePath().getFileName().toString();
-        } else {
-            // Fallback: use the model location path
-            modelName = modelLocation.getPath().replace("/", "_").replace(".fbx", "");
-        }
+        // Normalize model name for texture cache key (use full path, replace / with _)
+        String modelName = modelLocation.getPath()
+            .replace(".json", "")
+            .replace("/", "_")
+            .replace(".fbx", "");
 
         for (int i = 0; i < textures.size(); i++) {
             AssimpTexture texture = textures.get(i);
