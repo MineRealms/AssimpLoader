@@ -31,6 +31,7 @@ public class AssimpMaterial {
 
     /**
      * Get diffuse texture path if exists
+     * Returns either a file path or an embedded texture reference like "*0", "*1", etc.
      */
     public String getDiffuseTexture() {
         AIString path = AIString.calloc();
@@ -41,6 +42,29 @@ public class AssimpMaterial {
         }
         path.free();
         return null;
+    }
+
+    /**
+     * Check if the texture path refers to an embedded texture
+     * Embedded textures are referenced as "*0", "*1", "*2", etc.
+     */
+    public boolean isEmbeddedTexture(String texturePath) {
+        return texturePath != null && texturePath.startsWith("*");
+    }
+
+    /**
+     * Get the embedded texture index from a texture path like "*0", "*1"
+     * Returns -1 if not an embedded texture reference
+     */
+    public int getEmbeddedTextureIndex(String texturePath) {
+        if (isEmbeddedTexture(texturePath)) {
+            try {
+                return Integer.parseInt(texturePath.substring(1));
+            } catch (NumberFormatException e) {
+                return -1;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -81,11 +105,6 @@ public class AssimpMaterial {
             if (opacity >= 0.0f && opacity < 0.99f) {
                 // Use the opacity property if it's explicitly set and not fully opaque
                 result[3] = opacity;
-                cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} diffuse color: R={}, G={}, B={}, A={} (overridden by opacity: {})",
-                    index, result[0], result[1], result[2], result[3], opacity);
-            } else {
-                cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} diffuse color: R={}, G={}, B={}, A={}",
-                    index, result[0], result[1], result[2], result[3]);
             }
             return result;
         }
@@ -97,11 +116,6 @@ public class AssimpMaterial {
             float opacity = getOpacityFromProperties();
             if (opacity >= 0.0f && opacity < 0.99f) {
                 result[3] = opacity;
-                cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} base color: R={}, G={}, B={}, A={} (overridden by opacity: {})",
-                    index, result[0], result[1], result[2], result[3], opacity);
-            } else {
-                cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} base color: R={}, G={}, B={}, A={}",
-                    index, result[0], result[1], result[2], result[3]);
             }
             return result;
         }
@@ -128,7 +142,6 @@ public class AssimpMaterial {
         if (aiGetMaterialFloatArray(aiMaterial, AI_MATKEY_OPACITY, aiTextureType_NONE, 0, value, pMax) == aiReturn_SUCCESS) {
             // Only use if it's explicitly set (not default 0.0 or 1.0)
             if (value[0] > 0.01f && value[0] < 0.99f) {
-                cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} Opacity: {}", index, value[0]);
                 return value[0];
             }
         }
@@ -139,8 +152,6 @@ public class AssimpMaterial {
             // Only use if it's explicitly set (not default 0.0 or 1.0)
             if (value[0] > 0.01f && value[0] < 0.99f) {
                 float opacity = 1.0f - value[0];  // Invert: 0 becomes 1 (opaque), 1 becomes 0 (transparent)
-                cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} TransparencyFactor: {} -> opacity: {}",
-                    index, value[0], opacity);
                 return opacity;
             }
         }
@@ -153,13 +164,10 @@ public class AssimpMaterial {
             float avgTransparency = (transparentColor.r() + transparentColor.g() + transparentColor.b()) / 3.0f;
             if (avgTransparency > 0.01f) {
                 float opacity = 1.0f - avgTransparency;
-                cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} TransparentColor: ({},{},{}) -> opacity: {}",
-                    index, transparentColor.r(), transparentColor.g(), transparentColor.b(), opacity);
                 return opacity;
             }
         }
 
-        cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} has no transparency properties", index);
         return -1.0f;  // No opacity property found
     }
 
@@ -178,15 +186,7 @@ public class AssimpMaterial {
      */
     public boolean isTransparent() {
         float opacity = getOpacity();
-        cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} final opacity: {}", index, opacity);
-
-        if (opacity < 0.99f) {
-            cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} is TRANSPARENT (opacity < 0.99)", index);
-            return true;
-        }
-
-        cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material {} is OPAQUE", index);
-        return false;
+        return opacity < 0.99f;
     }
 
     /**

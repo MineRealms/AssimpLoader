@@ -4,12 +4,16 @@ import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.model.AssimpMaterial;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpScene;
+import cn.minerealms.assimploader.model.AssimpTexture;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.ItemOverrides;
 import net.minecraft.client.renderer.block.model.ItemTransforms;
+import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -21,7 +25,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Custom BakedModel implementation for Assimp-loaded models.
@@ -37,12 +43,19 @@ public class AssimpBakedModel implements BakedModel {
     private final List<BakedQuad> quads;
     private final TextureAtlasSprite particleIcon;
     private final boolean hasTransparency;
+    private final Map<Integer, ResourceLocation> embeddedTextureCache;
 
     public AssimpBakedModel(AssimpScene scene, TextureAtlasSprite particleIcon) {
         this.scene = scene;
         this.particleIcon = particleIcon;
         this.quads = new ArrayList<>();
+        this.embeddedTextureCache = new HashMap<>();
         boolean transparent = false;
+
+        // Load embedded textures first
+        if (scene.hasEmbeddedTextures()) {
+            loadEmbeddedTextures();
+        }
 
         // Convert all meshes to quads
         AssimpLoader.LOGGER.info("Building BakedModel: {} meshes, {} materials",
@@ -66,13 +79,20 @@ public class AssimpBakedModel implements BakedModel {
                         mesh.getMaterialIndex(), material.getDiffuseColor()[3]);
                 }
 
-                // Generate solid color texture for this material
-                ResourceLocation colorTextureLoc = MaterialTextureGenerator.getOrCreateColorTexture(material, i);
+                // Check for embedded texture
+                String texPath = material.getDiffuseTexture();
+                if (texPath != null && material.isEmbeddedTexture(texPath)) {
+                    int texIndex = material.getEmbeddedTextureIndex(texPath);
+                    ResourceLocation embeddedTexLoc = embeddedTextureCache.get(texIndex);
+                    if (embeddedTexLoc != null) {
+                        AssimpLoader.LOGGER.info("Using embedded texture {} for mesh {}", embeddedTexLoc, i);
+                        // Note: Embedded textures are registered as dynamic textures
+                        // BakedModel uses white_concrete sprite, actual texture binding happens in BlockEntityRenderer
+                    }
+                }
 
-                // Get sprite for the generated texture
-                // Note: This won't work because generated textures aren't in the atlas
-                // So we'll use white_concrete and pass material color to converter
-                meshSprite = particleIcon;  // Use white sprite
+                // Use white sprite with material color
+                meshSprite = particleIcon;
             } else {
                 AssimpLoader.LOGGER.warn("Mesh {} has invalid material index: {}", i, mesh.getMaterialIndex());
             }
@@ -141,6 +161,39 @@ public class AssimpBakedModel implements BakedModel {
 
     public AssimpScene getScene() {
         return scene;
+    }
+
+    /**
+     * Get the first embedded texture location (for Mixin texture binding)
+     */
+    public ResourceLocation getEmbeddedTextureLocation() {
+        if (!embeddedTextureCache.isEmpty()) {
+            return embeddedTextureCache.values().iterator().next();
+        }
+        return null;
+    }
+
+    /**
+     * Load embedded textures from the scene and register them with Minecraft's TextureManager
+     */
+    private void loadEmbeddedTextures() {
+        TextureManager textureManager = Minecraft.getInstance().getTextureManager();
+        List<AssimpTexture> textures = scene.getTextures();
+
+        AssimpLoader.LOGGER.info("Loading {} embedded texture(s)", textures.size());
+
+        for (int i = 0; i < textures.size(); i++) {
+            AssimpTexture texture = textures.get(i);
+            DynamicTexture dynamicTexture = texture.createDynamicTexture();
+
+            if (dynamicTexture != null) {
+                ResourceLocation textureLoc = new ResourceLocation("assimploader",
+                    "embedded/" + scene.getSourcePath().getFileName().toString() + "_" + i);
+                textureManager.register(textureLoc, dynamicTexture);
+                embeddedTextureCache.put(i, textureLoc);
+                AssimpLoader.LOGGER.info("Registered embedded texture {}: {}", i, textureLoc);
+            }
+        }
     }
 
     /**

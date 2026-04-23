@@ -90,7 +90,12 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
                                 String fileName = resourceLoc.getPath();
 
                                 cachedScene = loader.loadModelFromMemory(fileName, modelData);
-                                AssimpLoader.LOGGER.info("Loaded Assimp model: {}", modelPath);
+
+                                // IMPORTANT: Cache the scene so BlockEntityRenderer can access it
+                                if (cachedScene != null) {
+                                    AssimpModelLoader.updateModelCache(modelName, cachedScene);
+                                    AssimpLoader.LOGGER.info("Loaded and cached Assimp model: {} -> {}", modelPath, modelName);
+                                }
                             }
                         } else {
                             throw new IOException("Resource not found: " + resourceLoc);
