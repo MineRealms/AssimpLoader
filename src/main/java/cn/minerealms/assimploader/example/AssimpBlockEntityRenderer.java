@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.example;
 
 import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.compat.OculusCompat;
+import cn.minerealms.assimploader.compat.OculusPBRSupport;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.model.AssimpMaterial;
 import cn.minerealms.assimploader.model.AssimpMesh;
@@ -114,6 +115,11 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
             RenderType renderType = getRenderType(material, textureLocation);
 
             VertexConsumer consumer = bufferSource.getBuffer(renderType);
+
+            // Register PBR textures if shaders support it
+            if (textureLocation != null && material != null) {
+                OculusPBRSupport.registerPBRTextures(textureLocation, material);
+            }
 
             // Render the mesh
             renderMesh(mesh, material, poseStack, consumer, packedLight, packedOverlay);
