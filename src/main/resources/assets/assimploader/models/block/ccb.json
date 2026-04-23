@@ -1,0 +1,4 @@
+{
+  "loader": "assimploader:assimp",
+  "model": "assimploader:models/block/ccb.fbx"
+}
