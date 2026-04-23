@@ -5,6 +5,7 @@ import cn.minerealms.assimploader.model.AssimpMaterial;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpScene;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.ItemOverrides;
 import net.minecraft.client.renderer.block.model.ItemTransforms;
@@ -14,6 +15,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraftforge.client.ChunkRenderTypeSet;
 import net.minecraftforge.client.model.data.ModelData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -34,11 +36,13 @@ public class AssimpBakedModel implements BakedModel {
     private final AssimpScene scene;
     private final List<BakedQuad> quads;
     private final TextureAtlasSprite particleIcon;
+    private final boolean hasTransparency;
 
     public AssimpBakedModel(AssimpScene scene, TextureAtlasSprite particleIcon) {
         this.scene = scene;
         this.particleIcon = particleIcon;
         this.quads = new ArrayList<>();
+        boolean transparent = false;
 
         // Convert all meshes to quads
         AssimpLoader.LOGGER.info("Building BakedModel: {} meshes, {} materials",
@@ -54,6 +58,13 @@ public class AssimpBakedModel implements BakedModel {
             if (mesh.getMaterialIndex() >= 0 && mesh.getMaterialIndex() < scene.getMaterials().size()) {
                 material = scene.getMaterials().get(mesh.getMaterialIndex());
                 AssimpLoader.LOGGER.info("Mesh {} using material index {}", i, mesh.getMaterialIndex());
+
+                // Check if material is transparent
+                if (material.isTransparent()) {
+                    transparent = true;
+                    AssimpLoader.LOGGER.info("Material {} is transparent (alpha={})",
+                        mesh.getMaterialIndex(), material.getDiffuseColor()[3]);
+                }
 
                 // Generate solid color texture for this material
                 ResourceLocation colorTextureLoc = MaterialTextureGenerator.getOrCreateColorTexture(material, i);
@@ -71,6 +82,8 @@ public class AssimpBakedModel implements BakedModel {
             AssimpLoader.LOGGER.info("Mesh {} generated {} quads", i, meshQuads.size());
             quads.addAll(meshQuads);
         }
+
+        this.hasTransparency = transparent;
     }
 
     @Override
@@ -90,7 +103,9 @@ public class AssimpBakedModel implements BakedModel {
 
     @Override
     public boolean useAmbientOcclusion() {
-        return true;  // Enable AO for realistic lighting
+        // Disable AO for smooth models - AO causes stepped lighting on curved surfaces
+        // This gives better results for complex 3D models like donuts, spheres, etc.
+        return false;
     }
 
     @Override
@@ -100,7 +115,8 @@ public class AssimpBakedModel implements BakedModel {
 
     @Override
     public boolean usesBlockLight() {
-        return true;  // Enable block light for proper shading
+        // Enable block light but without AO for smoother appearance
+        return true;
     }
 
     @Override
@@ -125,5 +141,20 @@ public class AssimpBakedModel implements BakedModel {
 
     public AssimpScene getScene() {
         return scene;
+    }
+
+    /**
+     * Forge extension: Specify which render types this model should use
+     * This is critical for transparency support
+     */
+    @Override
+    public ChunkRenderTypeSet getRenderTypes(@NotNull BlockState state, @NotNull RandomSource rand, @NotNull ModelData data) {
+        if (hasTransparency) {
+            // Use translucent render type for transparent materials
+            return ChunkRenderTypeSet.of(RenderType.translucent());
+        } else {
+            // Use solid render type for opaque materials
+            return ChunkRenderTypeSet.of(RenderType.solid());
+        }
     }
 }
