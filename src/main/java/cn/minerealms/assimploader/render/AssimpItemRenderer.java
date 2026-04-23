@@ -37,6 +37,7 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
 
     private final Map<String, Map<Integer, ResourceLocation>> textureCache = new HashMap<>();
     private final Map<String, Integer> sceneHashCache = new HashMap<>();
+    private final Map<String, Boolean> loggedItems = new HashMap<>(); // Track which items we've logged
 
     public AssimpItemRenderer(BlockEntityRenderDispatcher dispatcher) {
         super(dispatcher, Minecraft.getInstance().getEntityModels());
@@ -46,16 +47,17 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
     public void renderByItem(@NotNull ItemStack stack, @NotNull ItemDisplayContext displayContext,
                              @NotNull PoseStack poseStack, @NotNull MultiBufferSource buffer,
                              int combinedLight, int combinedOverlay) {
-        AssimpLoader.LOGGER.info("========== AssimpItemRenderer.renderByItem() called ==========");
-        AssimpLoader.LOGGER.info("Item: {}, DisplayContext: {}", stack.getItem(), displayContext);
-
         // Get the model name - try multiple formats
         String itemName = ForgeRegistries.ITEMS.getKey(stack.getItem()).getPath();
         String simpleModelName = itemName.replace("_machine", "").replace("_item", "");
         String fullModelName = "models/block/" + simpleModelName;
 
-        AssimpLoader.LOGGER.info("Item registry name: {}, Simple model name: {}, Full model name: {}",
-            itemName, simpleModelName, fullModelName);
+        // Only log once per item type
+        if (!loggedItems.containsKey(itemName)) {
+            AssimpLoader.LOGGER.info("AssimpItemRenderer: Rendering item '{}' (model: {} or {})",
+                itemName, simpleModelName, fullModelName);
+            loggedItems.put(itemName, true);
+        }
 
         // Try to load the model - try simple name first, then full path
         AssimpScene scene = AssimpModelLoader.getCachedModel(simpleModelName);
@@ -67,11 +69,12 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
         }
 
         if (scene == null) {
-            AssimpLoader.LOGGER.warn("Model not found for item. Tried: {} and {}", simpleModelName, fullModelName);
+            if (!loggedItems.containsKey(itemName + "_error")) {
+                AssimpLoader.LOGGER.warn("Model not found for item. Tried: {} and {}", simpleModelName, fullModelName);
+                loggedItems.put(itemName + "_error", true);
+            }
             return; // Model not found
         }
-
-        AssimpLoader.LOGGER.info("Scene loaded: {}, has embedded textures: {}", modelName, scene.hasEmbeddedTextures());
 
         // Detect if scene has changed (hot-reload) and clear texture cache
         int currentSceneHash = System.identityHashCode(scene);
@@ -138,15 +141,27 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
         TextureManager textureManager = Minecraft.getInstance().getTextureManager();
         textureCache.put(modelName, new HashMap<>());
 
+        // Normalize model name for texture cache key (replace / with _)
+        String normalizedName = modelName.replace("/", "_").replace(".fbx", "");
+
         for (int i = 0; i < scene.getTextures().size(); i++) {
             AssimpTexture texture = scene.getTextures().get(i);
 
+            // Use the same ResourceLocation format as AssimpBakedModel
+            ResourceLocation textureLoc = new ResourceLocation("assimploader",
+                "embedded/" + normalizedName + "_" + i);
+
+            // Check if texture is already registered by AssimpBakedModel
+            if (textureManager.getTexture(textureLoc) != null) {
+                // Texture already registered, just cache the location
+                textureCache.get(modelName).put(i, textureLoc);
+                continue;
+            }
+
+            // Texture not registered yet, load it now
             try {
                 NativeImage image = texture.loadAsNativeImage();
                 DynamicTexture dynamicTexture = new DynamicTexture(image);
-
-                ResourceLocation textureLoc = new ResourceLocation("assimploader",
-                    "embedded/" + modelName + "_" + i);
 
                 textureManager.register(textureLoc, dynamicTexture);
                 textureCache.get(modelName).put(i, textureLoc);
