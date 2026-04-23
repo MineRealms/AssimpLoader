@@ -173,7 +173,9 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
         if (shadersActive) {
             // Shader-enhanced rendering
             if (isTransparent) {
-                return RenderType.entityTranslucent(textureLocation);
+                // Use entityTranslucentCull for better shader compatibility
+                // Some shader packs (like Kappa) handle this better than entityTranslucent
+                return RenderType.entityTranslucentCull(textureLocation);
             } else {
                 // Use cutout for better shader compatibility (supports alpha testing)
                 return RenderType.entityCutout(textureLocation);
