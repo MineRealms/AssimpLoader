@@ -243,7 +243,17 @@ public class AssimpMaterial {
      */
     public float getOpacity() {
         float[] diffuse = getDiffuseColor();
-        return diffuse[3];  // Return the alpha from diffuse color (which may have been overridden)
+        float opacity = diffuse[3];  // Return the alpha from diffuse color (which may have been overridden)
+
+        // Debug log for transparency detection
+        if (opacity < 0.99f) {
+            cn.minerealms.assimploader.AssimpLoader.LOGGER.debug(
+                "Material {} has transparency: opacity={}, diffuse alpha={}",
+                index, opacity, diffuse[3]
+            );
+        }
+
+        return opacity;
     }
 
     /**

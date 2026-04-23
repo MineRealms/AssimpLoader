@@ -128,6 +128,9 @@ public class AssimpLoader {
             // Log supported formats
             LOGGER.info("Supported formats: FBX, GLTF, GLB, DAE, OBJ, BLEND, 3DS, and 40+ more");
             DebugLogger.debug("Supported formats registered: FBX, GLTF, GLB, DAE, OBJ, BLEND, 3DS, etc.");
+
+            // Check Oculus compatibility
+            cn.minerealms.assimploader.compat.OculusCompat.isOculusLoaded();
         });
     }
 
