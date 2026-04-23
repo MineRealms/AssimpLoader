@@ -235,6 +235,8 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
         int width = image.getWidth();
         int height = image.getHeight();
 
+        AssimpLoader.LOGGER.info("DEBUG: Applying opacity {} to texture {}x{}", opacity, width, height);
+
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 int pixel = image.getPixelRGBA(x, y);
@@ -247,6 +249,11 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
 
                 // Apply material opacity to alpha channel
                 int newAlpha = (int)(a * opacity);
+
+                // Debug: log first pixel
+                if (x == 0 && y == 0) {
+                    AssimpLoader.LOGGER.info("DEBUG: First pixel - Original alpha: {}, New alpha: {}", a, newAlpha);
+                }
 
                 // Reconstruct pixel with new alpha
                 int newPixel = (newAlpha << 24) | (b << 16) | (g << 8) | r;
