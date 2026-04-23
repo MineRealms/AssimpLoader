@@ -9,6 +9,7 @@ import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.model.AssimpTexture;
 import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -105,6 +106,14 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
             if (mesh.getMaterialIndex() >= 0 && mesh.getMaterialIndex() < scene.getMaterials().size()) {
                 material = scene.getMaterials().get(mesh.getMaterialIndex());
 
+                // Debug: Log material transparency info on first render
+                if (isFirstRender && material != null) {
+                    float opacity = material.getOpacity();
+                    boolean isTransparent = material.isTransparent();
+                    AssimpLoader.LOGGER.info("DEBUG: Material {} - Opacity: {}, IsTransparent: {}",
+                        mesh.getMaterialIndex(), opacity, isTransparent);
+                }
+
                 // If scene has embedded textures, use them
                 if (scene.hasEmbeddedTextures() && textureCache.containsKey(modelName + "_0")) {
                     textureLocation = textureCache.get(modelName + "_0");
@@ -113,6 +122,12 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
 
             // Choose render type based on material and shader status
             RenderType renderType = getRenderType(material, textureLocation);
+
+            // Enable blending for transparent materials
+            if (material != null && material.isTransparent()) {
+                RenderSystem.enableBlend();
+                RenderSystem.defaultBlendFunc();
+            }
 
             VertexConsumer consumer = bufferSource.getBuffer(renderType);
 
@@ -147,6 +162,14 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
         boolean shadersActive = OculusCompat.isShadersActive();
         boolean isTransparent = material != null && material.isTransparent();
 
+        // Debug log for first few renders
+        String modelName = getModelName();
+        int renderCount = renderCountMap.getOrDefault(modelName, 0);
+        if (renderCount <= 3) {
+            AssimpLoader.LOGGER.info("DEBUG: getRenderType - ShadersActive: {}, IsTransparent: {}, Material: {}",
+                shadersActive, isTransparent, material != null ? material.getIndex() : "null");
+        }
+
         if (shadersActive) {
             // Shader-enhanced rendering
             if (isTransparent) {
@@ -173,6 +196,19 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
 
             try {
                 NativeImage image = texture.loadAsNativeImage();
+
+                // Apply material opacity to texture if material is transparent
+                // Find which material uses this texture and apply its opacity
+                for (AssimpMaterial material : scene.getMaterials()) {
+                    if (material.isTransparent()) {
+                        float opacity = material.getOpacity();
+                        applyOpacityToTexture(image, opacity);
+                        AssimpLoader.LOGGER.info("Applied opacity {} to texture {} for model {}",
+                            opacity, i, modelName);
+                        break; // Only apply once
+                    }
+                }
+
                 DynamicTexture dynamicTexture = new DynamicTexture(image);
 
                 ResourceLocation textureLoc = new ResourceLocation("assimploader",
@@ -190,6 +226,33 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
         }
 
         textureDebugLogged.put(modelName, true);
+    }
+
+    /**
+     * Apply material opacity to all pixels in the texture
+     */
+    private void applyOpacityToTexture(NativeImage image, float opacity) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int pixel = image.getPixelRGBA(x, y);
+
+                // Extract RGBA components (ABGR format in NativeImage)
+                int a = (pixel >> 24) & 0xFF;
+                int b = (pixel >> 16) & 0xFF;
+                int g = (pixel >> 8) & 0xFF;
+                int r = pixel & 0xFF;
+
+                // Apply material opacity to alpha channel
+                int newAlpha = (int)(a * opacity);
+
+                // Reconstruct pixel with new alpha
+                int newPixel = (newAlpha << 24) | (b << 16) | (g << 8) | r;
+                image.setPixelRGBA(x, y, newPixel);
+            }
+        }
     }
 
     private void renderMesh(AssimpMesh mesh, AssimpMaterial material, PoseStack poseStack,
