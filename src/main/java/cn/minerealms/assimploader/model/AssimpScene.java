@@ -25,6 +25,7 @@ public class AssimpScene {
     private final List<AssimpMesh> meshes;
     private final List<AssimpMaterial> materials;
     private final List<AssimpAnimation> animations;
+    private final List<AssimpTexture> textures;
     private final AssimpNode rootNode;
     private final CoordinateSystemConverter.CoordinateSystem sourceCoordinateSystem;
 
@@ -68,12 +69,24 @@ public class AssimpScene {
             }
         }
 
+        // Parse embedded textures
+        this.textures = new ArrayList<>();
+        int textureCount = aiScene.mNumTextures();
+        if (textureCount > 0) {
+            PointerBuffer texturesBuffer = aiScene.mTextures();
+            for (int i = 0; i < textureCount; i++) {
+                AITexture aiTexture = AITexture.create(texturesBuffer.get(i));
+                textures.add(new AssimpTexture(aiTexture, i));
+            }
+            AssimpLoader.LOGGER.info("Found {} embedded texture(s)", textureCount);
+        }
+
         // Parse scene graph
         AINode aiRootNode = aiScene.mRootNode();
         this.rootNode = aiRootNode != null ? new AssimpNode(aiRootNode) : null;
 
-        AssimpLoader.LOGGER.debug("AssimpScene created: {} meshes, {} materials, {} animations, coordinate system: {}",
-                meshes.size(), materials.size(), animations.size(), coordinateSystem);
+        AssimpLoader.LOGGER.debug("AssimpScene created: {} meshes, {} materials, {} animations, {} textures, coordinate system: {}",
+                meshes.size(), materials.size(), animations.size(), textures.size(), coordinateSystem);
     }
 
     public List<AssimpMesh> getMeshes() {
@@ -86,6 +99,10 @@ public class AssimpScene {
 
     public List<AssimpAnimation> getAnimations() {
         return animations;
+    }
+
+    public List<AssimpTexture> getTextures() {
+        return textures;
     }
 
     @Nullable
@@ -120,6 +137,14 @@ public class AssimpScene {
 
     public int getAnimationCount() {
         return animations.size();
+    }
+
+    public int getTextureCount() {
+        return textures.size();
+    }
+
+    public boolean hasEmbeddedTextures() {
+        return !textures.isEmpty();
     }
 
     /**
