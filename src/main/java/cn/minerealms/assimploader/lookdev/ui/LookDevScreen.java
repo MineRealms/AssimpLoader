@@ -67,21 +67,21 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
         ));
 
         // Left panel: Model tree (20% width)
-        View leftPanel = createPanel("Model Tree\n(Phase 5)", 0xFF2C2C2C);
+        View leftPanel = modelTreeFragment.onCreateView(inflater, root, savedInstanceState);
         LinearLayout.LayoutParams leftParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
         leftParams.weight = 0.2f;
         leftPanel.setLayoutParams(leftParams);
         root.addView(leftPanel);
 
         // Center panel: Preview (60% width)
-        View centerPanel = createPanel("3D Preview\n(Phase 4)", 0xFF1E1E1E);
+        View centerPanel = previewFragment.onCreateView(inflater, root, savedInstanceState);
         LinearLayout.LayoutParams centerParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
         centerParams.weight = 0.6f;
         centerPanel.setLayoutParams(centerParams);
         root.addView(centerPanel);
 
         // Right panel: Parameters (20% width)
-        View rightPanel = createPanel("Parameters\n(Phase 3)", 0xFF2C2C2C);
+        View rightPanel = parameterPanelFragment.onCreateView(inflater, root, savedInstanceState);
         LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
         rightParams.weight = 0.2f;
         rightPanel.setLayoutParams(rightParams);
@@ -96,28 +96,40 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
 
         AssimpLoader.LOGGER.info("LookDevScreen view created");
 
-        // TODO: Add child fragments to their containers
-        // For now, just showing placeholder panels
+        // Notify child fragments
+        modelTreeFragment.onViewCreated(view, savedInstanceState);
+        previewFragment.onViewCreated(view, savedInstanceState);
+        parameterPanelFragment.onViewCreated(view, savedInstanceState);
+
+        // Load test data
+        loadTestData();
     }
 
     /**
-     * Create a placeholder panel with text
+     * Load test data for development
      */
-    private View createPanel(String text, int backgroundColor) {
-        LinearLayout panel = new LinearLayout(requireContext());
-        panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setBackground(new icyllis.modernui.graphics.drawable.ColorDrawable(backgroundColor));
-        panel.setGravity(Gravity.CENTER);
+    private void loadTestData() {
+        // Create test materials
+        PBRMaterial mat1 = new PBRMaterial("Test Material 1");
+        mat1.setRoughnessFactor(0.3f);
+        mat1.setMetallicFactor(0.8f);
 
-        TextView textView = new TextView(requireContext());
-        textView.setText(text);
-        textView.setTextSize(16);
-        textView.setTextColor(0xFFCCCCCC);
-        textView.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        PBRMaterial mat2 = new PBRMaterial("Test Material 2");
+        mat2.setRoughnessFactor(0.7f);
+        mat2.setMetallicFactor(0.2f);
 
-        panel.addView(textView);
+        materials.add(mat1);
+        materials.add(mat2);
 
-        return panel;
+        // Select first material
+        if (!materials.isEmpty()) {
+            selectMaterial(0);
+        }
+
+        // Update tree
+        if (modelTreeFragment != null) {
+            modelTreeFragment.updateModel();
+        }
     }
 
     // ==================== IModelProvider Implementation ====================
@@ -133,6 +145,37 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
         // TODO Phase 5: Implement model loading
         AssimpLoader.LOGGER.info("Loading model: {}", modelPath);
         return false;
+    }
+
+    /**
+     * Extract PBR materials from AssimpScene
+     */
+    private void extractMaterials(AssimpScene scene) {
+        materials.clear();
+
+        if (scene == null) {
+            return;
+        }
+
+        // Get Assimp materials
+        var assimpMaterials = scene.getMaterials();
+
+        // Convert to PBR materials
+        for (int i = 0; i < assimpMaterials.size(); i++) {
+            var assimpMat = assimpMaterials.get(i);
+
+            // Create PBR material with basic properties
+            // TODO: Implement full conversion from AssimpMaterial to PBRMaterial
+            PBRMaterial pbrMat = new PBRMaterial("Material_" + i);
+
+            // Set default PBR values
+            pbrMat.setRoughnessFactor(0.5f);
+            pbrMat.setMetallicFactor(0.0f);
+
+            materials.add(pbrMat);
+        }
+
+        AssimpLoader.LOGGER.info("Extracted {} materials from model", materials.size());
     }
 
     // ==================== IMaterialProvider Implementation ====================
@@ -204,9 +247,12 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
 
         // Extract materials from model
         if (currentModel != null) {
-            // TODO Phase 5: Extract materials from AssimpScene
-            materials.clear();
-            selectedMaterialIndex = -1;
+            extractMaterials(currentModel);
+
+            // Auto-select first material if available
+            if (!materials.isEmpty()) {
+                selectMaterial(0);
+            }
         }
 
         // Update preview with new model
