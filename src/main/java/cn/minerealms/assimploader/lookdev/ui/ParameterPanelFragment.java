@@ -515,6 +515,10 @@ public class ParameterPanelFragment extends Fragment {
      * Notify parent that material has changed
      */
     private void notifyMaterialChanged() {
-        // TODO: Notify PreviewFragment to re-render
+        // Notify parent LookDevScreen to refresh preview
+        Fragment parent = getParentFragment();
+        if (parent instanceof LookDevScreen) {
+            ((LookDevScreen) parent).onMaterialParametersChanged();
+        }
     }
 }
