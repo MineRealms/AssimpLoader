@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.lookdev.preset;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.material.MaterialOverride;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -31,16 +32,17 @@ public class PresetManager {
     private final Path presetsPath;
 
     public PresetManager() {
-        // Get Minecraft directory
-        Path minecraftDir = Paths.get(".").toAbsolutePath().normalize();
-        this.presetsPath = minecraftDir.resolve(PRESETS_DIR);
-
-        // Create presets directory if it doesn't exist
         try {
+            // Get Minecraft directory
+            Path minecraftDir = Paths.get(".").toAbsolutePath().normalize();
+            this.presetsPath = minecraftDir.resolve(PRESETS_DIR);
+
+            // Create presets directory if it doesn't exist
             Files.createDirectories(presetsPath);
-            AssimpLoader.LOGGER.info("Presets directory: {}", presetsPath);
+            DebugManager.info(DebugCategory.LOOKDEV, "Presets directory: %s", presetsPath);
         } catch (IOException e) {
-            AssimpLoader.LOGGER.error("Failed to create presets directory", e);
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to create presets directory", e);
+            throw new RuntimeException("Failed to initialize PresetManager", e);
         }
     }
 
@@ -52,7 +54,7 @@ public class PresetManager {
      */
     public boolean savePreset(MaterialPreset preset) {
         if (preset == null || preset.getName() == null || preset.getName().isEmpty()) {
-            AssimpLoader.LOGGER.error("Cannot save preset: invalid name");
+            DebugManager.error(DebugCategory.LOOKDEV, "Cannot save preset: invalid name");
             return false;
         }
 
@@ -61,17 +63,19 @@ public class PresetManager {
             String filename = sanitizeFilename(preset.getName()) + ".json";
             Path presetFile = presetsPath.resolve(filename);
 
+            DebugManager.debug(DebugCategory.LOOKDEV, "Saving preset to: %s", presetFile);
+
             // Serialize to JSON
             String json = GSON.toJson(preset);
 
             // Write to file
             Files.writeString(presetFile, json);
 
-            AssimpLoader.LOGGER.info("Saved preset: {}", presetFile);
+            DebugManager.info(DebugCategory.LOOKDEV, "Saved preset: %s", preset.getName());
             return true;
 
         } catch (IOException e) {
-            AssimpLoader.LOGGER.error("Failed to save preset: {}", preset.getName(), e);
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to save preset: " + preset.getName(), e);
             return false;
         }
     }
@@ -85,6 +89,7 @@ public class PresetManager {
     @Nullable
     public MaterialPreset loadPreset(String name) {
         if (name == null || name.isEmpty()) {
+            DebugManager.warn(DebugCategory.LOOKDEV, "Cannot load preset: name is null or empty");
             return null;
         }
 
@@ -94,9 +99,11 @@ public class PresetManager {
             Path presetFile = presetsPath.resolve(filename);
 
             if (!Files.exists(presetFile)) {
-                AssimpLoader.LOGGER.warn("Preset not found: {}", name);
+                DebugManager.warn(DebugCategory.LOOKDEV, "Preset not found: %s", name);
                 return null;
             }
+
+            DebugManager.debug(DebugCategory.LOOKDEV, "Loading preset from: %s", presetFile);
 
             // Read from file
             String json = Files.readString(presetFile);
@@ -104,11 +111,11 @@ public class PresetManager {
             // Deserialize from JSON
             MaterialPreset preset = GSON.fromJson(json, MaterialPreset.class);
 
-            AssimpLoader.LOGGER.info("Loaded preset: {}", name);
+            DebugManager.info(DebugCategory.LOOKDEV, "Loaded preset: %s", name);
             return preset;
 
         } catch (IOException | JsonSyntaxException e) {
-            AssimpLoader.LOGGER.error("Failed to load preset: {}", name, e);
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to load preset: " + name, e);
             return null;
         }
     }
@@ -121,6 +128,7 @@ public class PresetManager {
      */
     public boolean deletePreset(String name) {
         if (name == null || name.isEmpty()) {
+            DebugManager.warn(DebugCategory.LOOKDEV, "Cannot delete preset: name is null or empty");
             return false;
         }
 
@@ -129,16 +137,16 @@ public class PresetManager {
             Path presetFile = presetsPath.resolve(filename);
 
             if (!Files.exists(presetFile)) {
-                AssimpLoader.LOGGER.warn("Preset not found: {}", name);
+                DebugManager.warn(DebugCategory.LOOKDEV, "Preset not found: %s", name);
                 return false;
             }
 
             Files.delete(presetFile);
-            AssimpLoader.LOGGER.info("Deleted preset: {}", name);
+            DebugManager.info(DebugCategory.LOOKDEV, "Deleted preset: %s", name);
             return true;
 
         } catch (IOException e) {
-            AssimpLoader.LOGGER.error("Failed to delete preset: {}", name, e);
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to delete preset: " + name, e);
             return false;
         }
     }
@@ -153,6 +161,7 @@ public class PresetManager {
 
         try {
             if (!Files.exists(presetsPath)) {
+                DebugManager.debug(DebugCategory.LOOKDEV, "Presets directory does not exist yet");
                 return presets;
             }
 
@@ -167,8 +176,10 @@ public class PresetManager {
                         .collect(Collectors.toList());
             }
 
+            DebugManager.debug(DebugCategory.LOOKDEV, "Found %d presets", presets.size());
+
         } catch (IOException e) {
-            AssimpLoader.LOGGER.error("Failed to list presets", e);
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to list presets", e);
         }
 
         return presets;
