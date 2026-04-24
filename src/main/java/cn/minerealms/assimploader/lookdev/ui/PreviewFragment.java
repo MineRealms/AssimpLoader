@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.lookdev.ui;
 
 import cn.minerealms.assimploader.lookdev.camera.OrbitCamera;
+import cn.minerealms.assimploader.lookdev.comparison.ComparisonSnapshot;
 import cn.minerealms.assimploader.material.PBRMaterial;
 import cn.minerealms.assimploader.model.AssimpScene;
 import icyllis.modernui.fragment.Fragment;
@@ -41,10 +42,19 @@ public class PreviewFragment extends Fragment {
     private AssimpScene currentModel;
     private PBRMaterial currentMaterial;
 
+    // Comparison mode
+    private boolean comparisonMode = false;
+    private ComparisonSnapshot comparisonSnapshot = null;
+
     // Mouse interaction state
     private float lastMouseX;
     private float lastMouseY;
     private boolean isDragging;
+
+    // Performance optimization
+    private long lastRenderTime = 0;
+    private static final long RENDER_THROTTLE_MS = 16; // ~60 FPS
+    private boolean needsRedraw = true;
 
     @Nullable
     @Override
@@ -115,7 +125,7 @@ public class PreviewFragment extends Fragment {
                         lastMouseX = x;
                         lastMouseY = y;
 
-                        surfaceView.invalidate();
+                        requestRender();
                         return true;
                     }
                     break;
@@ -133,7 +143,7 @@ public class PreviewFragment extends Fragment {
         surfaceView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
             float delta = (scrollY - oldScrollY) * 0.01f;
             camera.zoom(delta);
-            surfaceView.invalidate();
+            requestRender();
         });
     }
 
@@ -169,8 +179,41 @@ public class PreviewFragment extends Fragment {
      * Refresh the preview (called when material parameters change)
      */
     public void refresh() {
-        if (surfaceView != null) {
+        needsRedraw = true;
+        requestRender();
+    }
+
+    /**
+     * Set comparison mode
+     */
+    public void setComparisonMode(boolean enabled, @Nullable ComparisonSnapshot snapshot) {
+        this.comparisonMode = enabled;
+        this.comparisonSnapshot = snapshot;
+        updateInfoText();
+        refresh();
+    }
+
+    /**
+     * Reset camera to default position
+     */
+    public void resetCamera() {
+        if (camera != null) {
+            camera.reset();
+            updateInfoText();
+            requestRender();
+        }
+    }
+
+    /**
+     * Request a render with throttling
+     */
+    private void requestRender() {
+        if (surfaceView == null) return;
+
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastRenderTime >= RENDER_THROTTLE_MS) {
             surfaceView.invalidate();
+            lastRenderTime = currentTime;
         }
     }
 
@@ -179,6 +222,14 @@ public class PreviewFragment extends Fragment {
 
         StringBuilder info = new StringBuilder();
         info.append("3D Preview\n\n");
+
+        if (comparisonMode) {
+            info.append("MODE: COMPARISON\n");
+            if (comparisonSnapshot != null) {
+                info.append("Snapshot: ").append(comparisonSnapshot.getLabel()).append("\n");
+            }
+            info.append("\n");
+        }
 
         if (currentModel != null) {
             info.append("Model: Loaded\n");
@@ -197,6 +248,9 @@ public class PreviewFragment extends Fragment {
         info.append("Right-drag: Pan\n");
         info.append("Scroll: Zoom\n");
         info.append("R: Reset camera\n");
+        if (comparisonMode) {
+            info.append("ESC: Exit comparison\n");
+        }
 
         info.append("\nCamera:\n");
         info.append(String.format("Azimuth: %.1f°\n", camera.getAzimuth()));

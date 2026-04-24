@@ -1,5 +1,6 @@
 package cn.minerealms.assimploader.lookdev.ui;
 
+import cn.minerealms.assimploader.lookdev.comparison.ComparisonManager;
 import cn.minerealms.assimploader.lookdev.material.MaterialOverrideManager;
 import cn.minerealms.assimploader.lookdev.preset.MaterialPreset;
 import cn.minerealms.assimploader.lookdev.preset.PresetManager;
@@ -32,6 +33,7 @@ public class ParameterPanelFragment extends Fragment {
 
     private MaterialOverrideManager overrideManager;
     private PresetManager presetManager;
+    private ComparisonManager comparisonManager;
     private ScrollView scrollView;
     private LinearLayout contentLayout;
 
@@ -61,6 +63,11 @@ public class ParameterPanelFragment extends Fragment {
     private Button loadPresetButton;
     private EditText presetNameInput;
 
+    // Comparison controls
+    private Button captureSnapshotButton;
+    private Button compareSnapshotButton;
+    private TextView snapshotCountText;
+
     @Nullable
     @Override
     public View onCreateView(@Nonnull LayoutInflater inflater,
@@ -70,6 +77,9 @@ public class ParameterPanelFragment extends Fragment {
 
         // Initialize preset manager
         presetManager = new PresetManager();
+
+        // Initialize comparison manager
+        comparisonManager = new ComparisonManager();
 
         // Root scroll view
         scrollView = new ScrollView(context);
@@ -125,6 +135,11 @@ public class ParameterPanelFragment extends Fragment {
         addSpacer(16);
         addSectionTitle("Presets");
         addPresetControls();
+
+        // Comparison section
+        addSpacer(16);
+        addSectionTitle("Before/After Comparison");
+        addComparisonControls();
 
         // Reset button
         addSpacer(16);
@@ -537,6 +552,86 @@ public class ParameterPanelFragment extends Fragment {
     }
 
     /**
+     * Add comparison controls (capture, compare)
+     */
+    private void addComparisonControls() {
+        var context = requireContext();
+
+        // Snapshot count display
+        snapshotCountText = new TextView(context);
+        snapshotCountText.setText("Snapshots: 0");
+        snapshotCountText.setTextColor(0xFFCCCCCC);
+        var countParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        countParams.setMargins(0, contentLayout.dp(4), 0, contentLayout.dp(4));
+        contentLayout.addView(snapshotCountText, countParams);
+
+        // Button row
+        var buttonRow = new LinearLayout(context);
+        buttonRow.setOrientation(LinearLayout.HORIZONTAL);
+
+        // Capture snapshot button
+        captureSnapshotButton = new Button(context);
+        captureSnapshotButton.setText("Capture");
+        captureSnapshotButton.setOnClickListener(v -> captureSnapshot());
+        var captureParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        captureParams.setMargins(0, 0, contentLayout.dp(4), 0);
+        buttonRow.addView(captureSnapshotButton, captureParams);
+
+        // Compare button
+        compareSnapshotButton = new Button(context);
+        compareSnapshotButton.setText("Compare");
+        compareSnapshotButton.setOnClickListener(v -> compareWithSnapshot());
+        var compareParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        compareParams.setMargins(contentLayout.dp(4), 0, 0, 0);
+        buttonRow.addView(compareSnapshotButton, compareParams);
+
+        var rowParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowParams.setMargins(0, contentLayout.dp(4), 0, 0);
+        contentLayout.addView(buttonRow, rowParams);
+    }
+
+    /**
+     * Capture current material state as snapshot
+     */
+    private void captureSnapshot() {
+        if (overrideManager == null) return;
+
+        String label = "Snapshot_" + (comparisonManager.getSnapshotCount() + 1);
+        comparisonManager.captureSnapshot(label, overrideManager.getCurrentOverride());
+        updateSnapshotCount();
+    }
+
+    /**
+     * Compare current state with latest snapshot
+     */
+    private void compareWithSnapshot() {
+        var snapshot = comparisonManager.getLatestSnapshot();
+        if (snapshot == null) {
+            // TODO: Show "No snapshots" message
+            return;
+        }
+
+        // Notify parent to show comparison view
+        var parent = getParentFragment();
+        if (parent instanceof LookDevScreen) {
+            ((LookDevScreen) parent).showComparison(snapshot);
+        }
+    }
+
+    /**
+     * Update snapshot count display
+     */
+    private void updateSnapshotCount() {
+        if (snapshotCountText != null) {
+            snapshotCountText.setText("Snapshots: " + comparisonManager.getSnapshotCount());
+        }
+    }
+
+    /**
      * Add preset controls (save, load, dropdown)
      */
     private void addPresetControls() {
@@ -610,6 +705,27 @@ public class ParameterPanelFragment extends Fragment {
             updateUIFromMaterial();
             notifyMaterialChanged();
             // TODO: Show success message
+        }
+    }
+
+    /**
+     * Toggle a channel by index (for keyboard shortcuts)
+     * 0: BaseColor, 1: Normal, 2: Metallic, 3: Roughness, 4: Emissive, 5: AO, 6: Height
+     */
+    public void toggleChannel(int channelIndex) {
+        Switch toggle = null;
+        switch (channelIndex) {
+            case 0: toggle = baseColorToggle; break;
+            case 1: toggle = normalToggle; break;
+            case 2: toggle = metallicToggle; break;
+            case 3: toggle = roughnessToggle; break;
+            case 4: toggle = emissiveToggle; break;
+            case 5: toggle = aoToggle; break;
+            case 6: toggle = heightToggle; break;
+        }
+
+        if (toggle != null) {
+            toggle.setChecked(!toggle.isChecked());
         }
     }
 }

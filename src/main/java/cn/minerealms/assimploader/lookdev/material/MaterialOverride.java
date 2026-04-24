@@ -370,4 +370,40 @@ public class MaterialOverride {
                ", overrides=" + (hasOverrides() ? "active" : "none") +
                '}';
     }
+
+    /**
+     * Create a deep copy of this override
+     */
+    public MaterialOverride copy() {
+        MaterialOverride copy = new MaterialOverride();
+
+        // Copy channel toggles
+        copy.enableBaseColor = this.enableBaseColor;
+        copy.enableNormal = this.enableNormal;
+        copy.enableMetallic = this.enableMetallic;
+        copy.enableRoughness = this.enableRoughness;
+        copy.enableAO = this.enableAO;
+        copy.enableEmissive = this.enableEmissive;
+        copy.enableAlpha = this.enableAlpha;
+
+        // Copy parameter overrides
+        copy.roughnessOverride = this.roughnessOverride;
+        copy.metallicOverride = this.metallicOverride;
+        copy.emissionStrengthOverride = this.emissionStrengthOverride;
+        copy.alphaCutoffOverride = this.alphaCutoffOverride;
+        copy.normalStrengthOverride = this.normalStrengthOverride;
+        copy.aoFactorOverride = this.aoFactorOverride;
+        copy.alphaModeOverride = this.alphaModeOverride;
+        copy.doubleSidedOverride = this.doubleSidedOverride;
+
+        // Copy color arrays
+        if (this.baseColorOverride != null) {
+            copy.baseColorOverride = this.baseColorOverride.clone();
+        }
+        if (this.emissiveOverride != null) {
+            copy.emissiveOverride = this.emissiveOverride.clone();
+        }
+
+        return copy;
+    }
 }
