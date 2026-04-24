@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.material;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderStateShard;
@@ -201,11 +202,11 @@ public class MaterialConverter {
      * Log material conversion info
      */
     public static void logConversion(PBRMaterial material, RenderType renderType) {
-        AssimpLoader.LOGGER.debug("Converted material '{}' to RenderType: {}",
+        DebugManager.debug(DebugCategory.MATERIAL, "Converted material '{}' to RenderType: {}",
             material.getName(), renderType);
 
         if (requiresCustomRendering(material)) {
-            AssimpLoader.LOGGER.warn("Material '{}' requires custom rendering (PBR properties present)",
+            DebugManager.warn(DebugCategory.MATERIAL, "Material '{}' requires custom rendering (PBR properties present)",
                 material.getName());
         }
     }

@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.util;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -79,7 +80,7 @@ public class PerformanceProfiler {
      */
     public static void enable() {
         enabled = true;
-        AssimpLoader.LOGGER.info("Performance profiling enabled");
+        DebugManager.info(DebugCategory.CORE, "Performance profiling enabled");
     }
 
     /**
@@ -87,7 +88,7 @@ public class PerformanceProfiler {
      */
     public static void disable() {
         enabled = false;
-        AssimpLoader.LOGGER.info("Performance profiling disabled");
+        DebugManager.info(DebugCategory.CORE, "Performance profiling disabled");
     }
 
     /**
@@ -150,7 +151,7 @@ public class PerformanceProfiler {
     public static void reset() {
         timers.clear();
         counters.clear();
-        AssimpLoader.LOGGER.info("Performance statistics reset");
+        DebugManager.info(DebugCategory.CORE, "Performance statistics reset");
     }
 
     /**
@@ -158,17 +159,17 @@ public class PerformanceProfiler {
      */
     public static void printStats() {
         if (timers.isEmpty() && counters.isEmpty()) {
-            AssimpLoader.LOGGER.info("No performance data collected");
+            DebugManager.info(DebugCategory.CORE, "No performance data collected");
             return;
         }
 
-        AssimpLoader.LOGGER.info("=== Performance Statistics ===");
+        DebugManager.info(DebugCategory.CORE, "=== Performance Statistics ===");
 
         // Print timers
         if (!timers.isEmpty()) {
-            AssimpLoader.LOGGER.info("Timers:");
+            DebugManager.info(DebugCategory.CORE, "Timers:");
             timers.forEach((name, timer) -> {
-                AssimpLoader.LOGGER.info("  {}: count={}, avg={:.2f}ms, min={:.2f}ms, max={:.2f}ms, total={:.2f}ms",
+                DebugManager.info(DebugCategory.CORE, "  {}: count={}, avg={:.2f}ms, min={:.2f}ms, max={:.2f}ms, total={:.2f}ms",
                     name,
                     timer.getCount(),
                     timer.getAverageMs(),
@@ -181,16 +182,16 @@ public class PerformanceProfiler {
 
         // Print counters
         if (!counters.isEmpty()) {
-            AssimpLoader.LOGGER.info("Counters:");
+            DebugManager.info(DebugCategory.CORE, "Counters:");
             counters.forEach((name, value) -> {
-                AssimpLoader.LOGGER.info("  {}: {}", name, value);
+                DebugManager.info(DebugCategory.CORE, "  {}: {}", name, value);
             });
         }
 
         // Print memory usage
         printMemoryStats();
 
-        AssimpLoader.LOGGER.info("==============================");
+        DebugManager.info(DebugCategory.CORE, "==============================");
     }
 
     /**
@@ -203,11 +204,11 @@ public class PerformanceProfiler {
         long usedMemory = totalMemory - freeMemory;
         long maxMemory = runtime.maxMemory();
 
-        AssimpLoader.LOGGER.info("Memory:");
-        AssimpLoader.LOGGER.info("  Used: {:.2f} MB", usedMemory / 1_048_576.0);
-        AssimpLoader.LOGGER.info("  Free: {:.2f} MB", freeMemory / 1_048_576.0);
-        AssimpLoader.LOGGER.info("  Total: {:.2f} MB", totalMemory / 1_048_576.0);
-        AssimpLoader.LOGGER.info("  Max: {:.2f} MB", maxMemory / 1_048_576.0);
+        DebugManager.info(DebugCategory.CORE, "Memory:");
+        DebugManager.info(DebugCategory.CORE, "  Used: {:.2f} MB", usedMemory / 1_048_576.0);
+        DebugManager.info(DebugCategory.CORE, "  Free: {:.2f} MB", freeMemory / 1_048_576.0);
+        DebugManager.info(DebugCategory.CORE, "  Total: {:.2f} MB", totalMemory / 1_048_576.0);
+        DebugManager.info(DebugCategory.CORE, "  Max: {:.2f} MB", maxMemory / 1_048_576.0);
     }
 
     /**

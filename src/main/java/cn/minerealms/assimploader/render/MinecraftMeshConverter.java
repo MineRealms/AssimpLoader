@@ -1,5 +1,7 @@
 package cn.minerealms.assimploader.render;
 
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpMaterial;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -64,7 +66,7 @@ public class MinecraftMeshConverter {
         float sizeY = maxY - minY;
         float sizeZ = maxZ - minZ;
 
-        cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Mesh bounding box: ({}, {}, {}) to ({}, {}, {}), size: ({}, {}, {})",
+        DebugManager.info(DebugCategory.RENDER, "Mesh bounding box: ({}, {}, {}) to ({}, {}, {}), size: ({}, {}, {})",
             minX, minY, minZ, maxX, maxY, maxZ, sizeX, sizeY, sizeZ);
 
         // Get material color (PhongE diffuse color)
@@ -72,10 +74,10 @@ public class MinecraftMeshConverter {
         if (material != null && material.getDiffuseColor() != null) {
             float[] diffuse = material.getDiffuseColor();
             materialColor.set(diffuse[0], diffuse[1], diffuse[2], diffuse[3]);
-            cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Material color: R={}, G={}, B={}, A={}",
+            DebugManager.info(DebugCategory.RENDER, "Material color: R={}, G={}, B={}, A={}",
                 diffuse[0], diffuse[1], diffuse[2], diffuse[3]);
         } else {
-            cn.minerealms.assimploader.AssimpLoader.LOGGER.warn("No material or diffuse color found, using white");
+            DebugManager.warn(DebugCategory.RENDER, "No material or diffuse color found, using white");
         }
 
         // Process triangles (indices come in groups of 3)

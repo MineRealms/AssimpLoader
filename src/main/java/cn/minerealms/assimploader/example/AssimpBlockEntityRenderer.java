@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.example;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.compat.OculusCompat;
 import cn.minerealms.assimploader.compat.OculusPBRSupport;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
@@ -58,7 +59,7 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
         boolean isFirstRender = renderCount <= 3;
 
         if (isFirstRender) {
-            AssimpLoader.LOGGER.info("DEBUG: ========== AssimpBlockEntityRenderer.render() for {} #{} ==========", modelName, renderCount);
+            DebugManager.info(DebugCategory.CORE, "DEBUG: ========== AssimpBlockEntityRenderer.render() for {} #{} ==========", modelName, renderCount);
         }
 
         // Get the cached model
@@ -66,19 +67,19 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
 
         if (scene == null) {
             if (isFirstRender) {
-                AssimpLoader.LOGGER.error("DEBUG: Scene is NULL! Model not loaded for {}.", modelName);
+                DebugManager.error(DebugCategory.CORE, "DEBUG: Scene is NULL! Model not loaded for {}.", modelName);
             }
             return;
         }
 
         if (isFirstRender) {
-            AssimpLoader.LOGGER.info("DEBUG: {} Scene loaded, has embedded textures: {}", modelName, scene.hasEmbeddedTextures());
-            AssimpLoader.LOGGER.info("DEBUG: {} Scene texture count: {}", modelName, scene.getTextureCount());
+            DebugManager.info(DebugCategory.CORE, "DEBUG: {} Scene loaded, has embedded textures: {}", modelName, scene.hasEmbeddedTextures());
+            DebugManager.info(DebugCategory.CORE, "DEBUG: {} Scene texture count: {}", modelName, scene.getTextureCount());
         }
 
         // Log import mode once per model
         if (!modeLoggedMap.containsKey(modelName)) {
-            AssimpLoader.LOGGER.info("Model '{}' import mode: {} (isDynamic: {})",
+            DebugManager.info(DebugCategory.CORE, "Model '{}' import mode: {} (isDynamic: {})",
                 modelName, scene.getImportMode(), scene.isDynamic());
             modeLoggedMap.put(modelName, true);
         }
@@ -135,7 +136,7 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
                 if (isFirstRender && material != null) {
                     float opacity = material.getOpacity();
                     boolean isTransparent = material.isTransparent();
-                    AssimpLoader.LOGGER.info("DEBUG: Material {} - Opacity: {}, IsTransparent: {}",
+                    DebugManager.info(DebugCategory.CORE, "DEBUG: Material {} - Opacity: {}, IsTransparent: {}",
                         mesh.getMaterialIndex(), opacity, isTransparent);
                 }
 
@@ -174,13 +175,13 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
         cn.minerealms.assimploader.model.AssimpNode rootNode = scene.getRootNode();
         if (rootNode != null) {
             if (isFirstRender) {
-                AssimpLoader.LOGGER.info("DEBUG: {} Rendering in DYNAMIC mode, traversing scene graph from root: {}",
+                DebugManager.info(DebugCategory.CORE, "DEBUG: {} Rendering in DYNAMIC mode, traversing scene graph from root: {}",
                     modelName, rootNode.getName());
             }
             renderNode(scene, rootNode, poseStack, bufferSource, packedLight, packedOverlay, modelName, isFirstRender, 0);
         } else {
             if (isFirstRender) {
-                AssimpLoader.LOGGER.warn("DEBUG: {} DYNAMIC mode but root node is null!", modelName);
+                DebugManager.warn(DebugCategory.CORE, "DEBUG: {} DYNAMIC mode but root node is null!", modelName);
             }
         }
     }
@@ -192,7 +193,7 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
                            PoseStack poseStack, MultiBufferSource bufferSource,
                            int packedLight, int packedOverlay, String modelName, boolean isFirstRender, int depth) {
         if (isFirstRender && depth < 5) {  // Only log first 5 levels to avoid spam
-            AssimpLoader.LOGGER.info("DEBUG: {} Node[depth={}]: '{}', meshes: {}, children: {}",
+            DebugManager.info(DebugCategory.CORE, "DEBUG: {} Node[depth={}]: '{}', meshes: {}, children: {}",
                 modelName, depth, node.getName(), node.getMeshIndices().length, node.getChildren().size());
         }
 
@@ -270,7 +271,7 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
         String modelName = getModelName();
         int renderCount = renderCountMap.getOrDefault(modelName, 0);
         if (renderCount <= 3) {
-            AssimpLoader.LOGGER.info("DEBUG: getRenderType - ShadersActive: {}, IsTransparent: {}, Material: {}",
+            DebugManager.info(DebugCategory.CORE, "DEBUG: getRenderType - ShadersActive: {}, IsTransparent: {}, Material: {}",
                 shadersActive, isTransparent, material != null ? material.getIndex() : "null");
         }
 
@@ -309,7 +310,7 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
                     if (material.isTransparent()) {
                         float opacity = material.getOpacity();
                         applyOpacityToTexture(image, opacity);
-                        AssimpLoader.LOGGER.info("Applied opacity {} to texture {} for model {}",
+                        DebugManager.info(DebugCategory.CORE, "Applied opacity {} to texture {} for model {}",
                             opacity, i, modelName);
                         break; // Only apply once
                     }
@@ -324,10 +325,10 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
                 textureCache.put(modelName + "_" + i, textureLoc);
 
                 if (!textureDebugLogged.getOrDefault(modelName, false)) {
-                    AssimpLoader.LOGGER.info("Loaded embedded texture {} for {}: {}", i, modelName, textureLoc);
+                    DebugManager.info(DebugCategory.CORE, "Loaded embedded texture {} for {}: {}", i, modelName, textureLoc);
                 }
             } catch (Exception e) {
-                AssimpLoader.LOGGER.error("Failed to load embedded texture {} for {}", i, modelName, e);
+                DebugManager.error(DebugCategory.CORE, "Failed to load embedded texture {} for {}", i, modelName, e);
             }
         }
 
@@ -341,7 +342,7 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
         int width = image.getWidth();
         int height = image.getHeight();
 
-        AssimpLoader.LOGGER.info("DEBUG: Applying opacity {} to texture {}x{}", opacity, width, height);
+        DebugManager.info(DebugCategory.CORE, "DEBUG: Applying opacity {} to texture {}x{}", opacity, width, height);
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -358,7 +359,7 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
 
                 // Debug: log first pixel
                 if (x == 0 && y == 0) {
-                    AssimpLoader.LOGGER.info("DEBUG: First pixel - Original alpha: {}, New alpha: {}", a, newAlpha);
+                    DebugManager.info(DebugCategory.CORE, "DEBUG: First pixel - Original alpha: {}, New alpha: {}", a, newAlpha);
                 }
 
                 // Reconstruct pixel with new alpha

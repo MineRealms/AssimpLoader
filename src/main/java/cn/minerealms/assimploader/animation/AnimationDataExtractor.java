@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.animation;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -35,7 +36,7 @@ public class AnimationDataExtractor {
         List<BoneAnimationChannel> channels = new ArrayList<>();
 
         int numChannels = aiAnimation.mNumChannels();
-        AssimpLoader.LOGGER.debug("Extracting {} animation channels", numChannels);
+        DebugManager.debug(DebugCategory.ANIMATION, "Extracting {} animation channels", numChannels);
 
         for (int i = 0; i < numChannels; i++) {
             AINodeAnim aiNodeAnim = AINodeAnim.create(aiAnimation.mChannels().get(i));
@@ -55,7 +56,7 @@ public class AnimationDataExtractor {
 
             channels.add(channel);
 
-            AssimpLoader.LOGGER.debug("  Channel: {} ({} pos, {} rot, {} scale keys)",
+            DebugManager.debug(DebugCategory.ANIMATION, "  Channel: {} ({} pos, {} rot, {} scale keys)",
                 boneName,
                 positionKeys.length,
                 rotationKeys.length,

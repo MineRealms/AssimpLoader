@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.util;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

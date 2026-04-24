@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.animation;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.model.AssimpNode;
 import org.joml.Matrix4f;
 import org.lwjgl.assimp.AIBone;
@@ -41,7 +42,7 @@ public class BoneHierarchyBuilder {
             return;
         }
 
-        AssimpLoader.LOGGER.debug("Building bone hierarchy from {} bones", numBones);
+        DebugManager.debug(DebugCategory.ANIMATION, "Building bone hierarchy from {} bones", numBones);
 
         // Extract all bones from mesh
         for (int i = 0; i < numBones; i++) {
@@ -53,7 +54,7 @@ public class BoneHierarchyBuilder {
             Bone bone = new Bone(boneName, offsetMatrix);
 
             boneMap.put(boneName, bone);
-            AssimpLoader.LOGGER.debug("  Bone: {} (offset matrix extracted)", boneName);
+            DebugManager.debug(DebugCategory.ANIMATION, "  Bone: {} (offset matrix extracted)", boneName);
         }
 
         // Build hierarchy from scene graph
@@ -65,7 +66,7 @@ public class BoneHierarchyBuilder {
         for (Bone bone : boneMap.values()) {
             if (bone.getParent() == null) {
                 rootBone = bone;
-                AssimpLoader.LOGGER.debug("Root bone: {}", bone.getName());
+                DebugManager.debug(DebugCategory.ANIMATION, "Root bone: {}", bone.getName());
                 break;
             }
         }
@@ -90,7 +91,7 @@ public class BoneHierarchyBuilder {
             Matrix4f localTransform = convertMatrix(aiNode.mTransformation());
             currentBone.setLocalTransform(localTransform);
 
-            AssimpLoader.LOGGER.debug("  Bone hierarchy: {} -> {}",
+            DebugManager.debug(DebugCategory.ANIMATION, "  Bone hierarchy: {} -> {}",
                 parentBone != null ? parentBone.getName() : "ROOT", nodeName);
         }
 
@@ -200,7 +201,7 @@ public class BoneHierarchyBuilder {
      */
     public void printHierarchy() {
         if (rootBone != null) {
-            AssimpLoader.LOGGER.info("Bone Hierarchy:");
+            DebugManager.info(DebugCategory.ANIMATION, "Bone Hierarchy:");
             printBoneRecursive(rootBone, 0);
         }
     }
@@ -211,7 +212,7 @@ public class BoneHierarchyBuilder {
             indent.append("  ");
         }
 
-        AssimpLoader.LOGGER.info("{}|- {}", indent, bone.getName());
+        DebugManager.info(DebugCategory.ANIMATION, "{}|- {}", indent, bone.getName());
 
         for (Bone child : bone.getChildren()) {
             printBoneRecursive(child, depth + 1);

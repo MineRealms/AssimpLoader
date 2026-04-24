@@ -1,4 +1,6 @@
 package cn.minerealms.assimploader.model;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 
 import org.lwjgl.assimp.AIColor4D;
 import org.lwjgl.assimp.AIMaterial;
@@ -247,7 +249,7 @@ public class AssimpMaterial {
 
         // Debug log for transparency detection
         if (opacity < 0.99f) {
-            cn.minerealms.assimploader.AssimpLoader.LOGGER.debug(
+            DebugManager.debug(DebugCategory.CORE, 
                 "Material {} has transparency: opacity={}, diffuse alpha={}",
                 index, opacity, diffuse[3]
             );

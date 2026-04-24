@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.model;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import org.lwjgl.assimp.AITexel;
@@ -28,7 +29,7 @@ public class AssimpTexture {
         this.formatHint = aiTexture.achFormatHintString();
         this.isCompressed = aiTexture.mHeight() == 0;
 
-        AssimpLoader.LOGGER.info("Embedded texture {}: format={}, compressed={}, width={}, height={}",
+        DebugManager.info(DebugCategory.CORE, "Embedded texture {}: format={}, compressed={}, width={}, height={}",
             index, formatHint, isCompressed, aiTexture.mWidth(), aiTexture.mHeight());
     }
 
@@ -66,7 +67,7 @@ public class AssimpTexture {
         byte[] imageData = new byte[dataSize];
         dataBuffer.get(imageData);
 
-        AssimpLoader.LOGGER.info("Loading compressed texture: {} bytes, format hint: {}", dataSize, formatHint);
+        DebugManager.info(DebugCategory.CORE, "Loading compressed texture: {} bytes, format hint: {}", dataSize, formatHint);
 
         try (ByteArrayInputStream inputStream = new ByteArrayInputStream(imageData)) {
             return NativeImage.read(inputStream);
@@ -80,7 +81,7 @@ public class AssimpTexture {
         int width = aiTexture.mWidth();
         int height = aiTexture.mHeight();
 
-        AssimpLoader.LOGGER.info("Loading raw texture: {}x{}", width, height);
+        DebugManager.info(DebugCategory.CORE, "Loading raw texture: {}x{}", width, height);
 
         NativeImage image = new NativeImage(width, height, false);
 
@@ -113,7 +114,7 @@ public class AssimpTexture {
             NativeImage image = loadAsNativeImage();
             return new DynamicTexture(image);
         } catch (IOException e) {
-            AssimpLoader.LOGGER.error("Failed to load embedded texture {}: {}", index, e.getMessage());
+            DebugManager.error(DebugCategory.CORE, "Failed to load embedded texture {}: {}", index, e.getMessage());
             return null;
         }
     }
