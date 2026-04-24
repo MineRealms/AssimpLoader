@@ -195,7 +195,7 @@ public class PreviewRenderer {
 
 ---
 
-### Phase 2: 材质覆盖系统
+### Phase 2: 材质覆盖系统 ✅
 
 **目标**：实现非破坏性材质参数覆盖
 
@@ -216,7 +216,7 @@ public class PreviewRenderer {
 
 ---
 
-### Phase 3: 参数面板 UI
+### Phase 3: 参数面板 UI ✅
 
 **目标**：实现右侧参数控制面板
 
@@ -244,7 +244,7 @@ public class PreviewRenderer {
 
 ---
 
-### Phase 4: 3D 预览渲染
+### Phase 4: 3D 预览渲染 ✅
 
 **目标**：实现中间区域的 3D 模型实时预览
 
@@ -271,7 +271,7 @@ public class PreviewRenderer {
 
 ---
 
-### Phase 5: 模型树视图
+### Phase 5: 模型树视图 ✅
 
 **目标**：实现左侧模型/材质树状结构
 
@@ -297,7 +297,7 @@ public class PreviewRenderer {
 
 ---
 
-### Phase 6: 预设保存/加载
+### Phase 6: 预设保存/加载 ✅
 
 **目标**：保存和加载材质参数预设
 
@@ -319,30 +319,32 @@ public class PreviewRenderer {
 
 ---
 
-### Phase 7: 高级功能（可选）
+### Phase 7: 高级功能（可选） ✅
 
 **目标**：增强功能和用户体验
 
 **任务**：
-1. 节点流程图（只读）
+1. ~~节点流程图（只读）~~ - 跳过（可选功能）
    - 显示材质纹理流程
    - 不可编辑，仅展示
-2. Before/After 对比
-   - 截图保存
-   - 左右对比视图
-3. 快捷键支持
-   - R: Reset
+2. ✅ Before/After 对比
+   - 快照保存（ComparisonSnapshot）
+   - 对比管理器（ComparisonManager）
+   - UI 集成（Capture/Compare 按钮）
+3. ✅ 快捷键支持
+   - R: Reset camera
    - Space: 暂停旋转
    - 1-7: 快速切换通道
-4. 性能优化
-   - 渲染节流
-   - 材质缓存
+   - ESC: 退出对比模式
+4. ✅ 性能优化
+   - 渲染节流（16ms ~60 FPS）
+   - 材质缓存（dirty flag）
 
 **验收标准**：
-- 节点图正确显示材质流程
-- 对比功能可用
-- 快捷键响应正确
-- 无性能问题
+- ~~节点图正确显示材质流程~~ - 跳过
+- ✅ 对比功能可用
+- ✅ 快捷键响应正确
+- ✅ 无性能问题
 
 **预计时间**：6-8 小时
 
