@@ -1,6 +1,8 @@
 package cn.minerealms.assimploader.lookdev;
 
 import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.ui.LookDevScreen;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
@@ -23,14 +25,18 @@ public class LookDevCommand {
 
     @SubscribeEvent
     public static void onRegisterClientCommands(RegisterClientCommandsEvent event) {
-        CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
+        try {
+            CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
 
-        dispatcher.register(
-            Commands.literal("lookdev")
-                .executes(LookDevCommand::openLookDevScreen)
-        );
+            dispatcher.register(
+                Commands.literal("lookdev")
+                    .executes(LookDevCommand::openLookDevScreen)
+            );
 
-        AssimpLoader.LOGGER.info("Registered /lookdev command");
+            DebugManager.info(DebugCategory.LOOKDEV, "Registered /lookdev command");
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to register /lookdev command", e);
+        }
     }
 
     /**
@@ -38,6 +44,8 @@ public class LookDevCommand {
      */
     private static int openLookDevScreen(CommandContext<CommandSourceStack> context) {
         try {
+            DebugManager.info(DebugCategory.LOOKDEV, "Opening LookDev screen via command");
+
             // Create and open the LookDev screen using ModernUI
             LookDevScreen fragment = new LookDevScreen();
             MuiModApi.openScreen(fragment);
@@ -47,11 +55,11 @@ public class LookDevCommand {
                 false
             );
 
-            AssimpLoader.LOGGER.info("LookDev screen opened");
+            DebugManager.info(DebugCategory.LOOKDEV, "LookDev screen opened successfully");
             return 1;
 
         } catch (Exception e) {
-            AssimpLoader.LOGGER.error("Failed to open LookDev screen", e);
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to open LookDev screen", e);
 
             context.getSource().sendFailure(
                 Component.literal("Failed to open LookDev Viewer: " + e.getMessage())
