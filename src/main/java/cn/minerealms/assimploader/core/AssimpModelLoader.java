@@ -40,15 +40,23 @@ public class AssimpModelLoader {
     // Hot-reload model cache
     private static final Map<String, AssimpScene> modelCache = new ConcurrentHashMap<>();
 
-    // Default post-processing flags for Minecraft rendering
-    // REDUCED FLAGS: Some flags cause crashes with LWJGL 3.3.1 Assimp on certain FBX files
-    // REMOVED aiProcess_JoinIdenticalVertices: This can cause index corruption when vertices
-    // are shared between faces with different normals/UVs
-    private static final int DEFAULT_FLAGS =
+    // Base post-processing flags (common to both modes)
+    private static final int BASE_FLAGS =
             aiProcess_Triangulate |           // Convert to triangles
             aiProcess_GenSmoothNormals |      // Generate smooth normals for better shading
-            aiProcess_FlipUVs |               // Flip UV coordinates for OpenGL
+            aiProcess_FlipUVs;                // Flip UV coordinates for OpenGL
+
+    // Static mode: Bake transformations into vertices
+    private static final int STATIC_MODE_FLAGS =
+            BASE_FLAGS |
             aiProcess_PreTransformVertices;   // Bake node transformations into vertices
+
+    // Dynamic mode: Preserve scene graph
+    private static final int DYNAMIC_MODE_FLAGS =
+            BASE_FLAGS;                       // Keep scene graph intact
+
+    // Default mode
+    private static final int DEFAULT_FLAGS = STATIC_MODE_FLAGS;
 
     // Full flags (may cause crashes with some files)
     private static final int FULL_FLAGS =
@@ -77,7 +85,66 @@ public class AssimpModelLoader {
      * @throws IOException if file cannot be read
      */
     public AssimpScene loadModel(Path filePath) throws IOException {
-        return loadModel(filePath, DEFAULT_FLAGS);
+        return loadModel(filePath, ModelImportMode.STATIC);
+    }
+
+    /**
+     * Load a 3D model with automatic mode detection.
+     * Analyzes the scene to determine if STATIC or DYNAMIC mode is more appropriate.
+     *
+     * Detection heuristics:
+     * - Has animations -> DYNAMIC
+     * - Complex node hierarchy (>3 levels) -> DYNAMIC
+     * - Many transformed nodes (>5) -> DYNAMIC
+     * - Otherwise -> STATIC
+     *
+     * @param filePath Path to the model file
+     * @param autoDetect Set to true to enable automatic mode detection
+     * @return AssimpScene containing all model data
+     * @throws IOException if file cannot be read
+     */
+    public AssimpScene loadModel(Path filePath, boolean autoDetect) throws IOException {
+        if (!autoDetect) {
+            return loadModel(filePath, ModelImportMode.STATIC);
+        }
+
+        AssimpLoader.LOGGER.info("Loading model with auto-detection: {}", filePath);
+
+        if (!Files.exists(filePath)) {
+            throw new IOException("Model file not found: " + filePath);
+        }
+
+        // Load with minimal flags first to analyze structure
+        String absolutePath = filePath.toAbsolutePath().toString();
+        AIScene aiScene = aiImportFile(absolutePath, aiProcess_Triangulate);
+
+        if (aiScene == null) {
+            String error = aiGetErrorString();
+            throw new IOException("Failed to load model for analysis: " + error);
+        }
+
+        // Detect best mode
+        ModelImportMode detectedMode = ModelImportMode.detectFromScene(aiScene);
+        AssimpLoader.LOGGER.info("Auto-detected import mode: {} for {}", detectedMode, filePath.getFileName());
+
+        // Release the analysis scene
+        Assimp.aiReleaseImport(aiScene);
+
+        // Load with proper mode
+        return loadModel(filePath, detectedMode);
+    }
+
+    /**
+     * Load a 3D model with specified import mode
+     *
+     * @param filePath Path to the model file
+     * @param mode Import mode (STATIC or DYNAMIC)
+     * @return AssimpScene containing all model data
+     * @throws IOException if file cannot be read
+     */
+    public AssimpScene loadModel(Path filePath, ModelImportMode mode) throws IOException {
+        int flags = mode == ModelImportMode.STATIC ? STATIC_MODE_FLAGS : DYNAMIC_MODE_FLAGS;
+        return loadModelInternal(filePath, flags, mode);
     }
 
     /**
@@ -89,7 +156,15 @@ public class AssimpModelLoader {
      * @throws IOException if file cannot be read
      */
     public AssimpScene loadModel(Path filePath, int flags) throws IOException {
-        AssimpLoader.LOGGER.info("Loading model: {}", filePath);
+        // Infer mode from flags
+        ModelImportMode mode = (flags & aiProcess_PreTransformVertices) != 0
+            ? ModelImportMode.STATIC
+            : ModelImportMode.DYNAMIC;
+        return loadModelInternal(filePath, flags, mode);
+    }
+
+    private AssimpScene loadModelInternal(Path filePath, int flags, ModelImportMode mode) throws IOException {
+        AssimpLoader.LOGGER.info("Loading model: {} with mode: {}", filePath.getFileName(), mode);
 
         if (!Files.exists(filePath)) {
             throw new IOException("Model file not found: " + filePath);
@@ -120,8 +195,40 @@ public class AssimpModelLoader {
         AssimpLoader.LOGGER.debug("Detected coordinate system: {} for file type: {}",
                 sourceSystem, fileExtension);
 
+        // Log scene graph structure for DYNAMIC mode
+        if (mode == ModelImportMode.DYNAMIC && aiScene.mRootNode() != null) {
+            AssimpLoader.LOGGER.info("Scene graph structure (DYNAMIC mode):");
+            logNodeHierarchy(aiScene.mRootNode(), 0, 3);  // Log up to 3 levels
+        }
+
         // Convert to our internal format
-        return new AssimpScene(aiScene, filePath, sourceSystem);
+        return new AssimpScene(aiScene, filePath, sourceSystem, mode);
+    }
+
+    /**
+     * Log node hierarchy for debugging (limited depth to avoid spam)
+     */
+    private void logNodeHierarchy(org.lwjgl.assimp.AINode node, int depth, int maxDepth) {
+        if (node == null || depth > maxDepth) {
+            return;
+        }
+
+        String indent = "  ".repeat(depth);
+        String nodeName = node.mName().dataString();
+        int numMeshes = node.mNumMeshes();
+        int numChildren = node.mNumChildren();
+
+        AssimpLoader.LOGGER.info("{}├─ {} (meshes: {}, children: {})",
+            indent, nodeName, numMeshes, numChildren);
+
+        // Recursively log children
+        org.lwjgl.PointerBuffer children = node.mChildren();
+        if (children != null && depth < maxDepth) {
+            for (int i = 0; i < numChildren; i++) {
+                org.lwjgl.assimp.AINode child = org.lwjgl.assimp.AINode.create(children.get(i));
+                logNodeHierarchy(child, depth + 1, maxDepth);
+            }
+        }
     }
 
     /**
@@ -215,7 +322,12 @@ public class AssimpModelLoader {
         CoordinateSystemConverter.CoordinateSystem sourceSystem =
                 CoordinateSystemConverter.detectCoordinateSystem(fileExtension);
 
-        return new AssimpScene(aiScene, null, sourceSystem);
+        // Infer mode from flags used
+        ModelImportMode mode = (DEFAULT_FLAGS & aiProcess_PreTransformVertices) != 0
+            ? ModelImportMode.STATIC
+            : ModelImportMode.DYNAMIC;
+
+        return new AssimpScene(aiScene, null, sourceSystem, mode);
     }
 
     /**

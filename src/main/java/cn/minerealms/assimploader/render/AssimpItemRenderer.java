@@ -40,6 +40,7 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
     private final Map<String, Map<Integer, ResourceLocation>> textureCache = new HashMap<>();
     private final Map<String, Integer> sceneHashCache = new HashMap<>();
     private final Map<String, Boolean> loggedItems = new HashMap<>(); // Track which items we've logged
+    private final Map<String, Boolean> modeLoggedMap = new HashMap<>();
 
     public AssimpItemRenderer(BlockEntityRenderDispatcher dispatcher) {
         super(dispatcher, Minecraft.getInstance().getEntityModels());
@@ -93,11 +94,35 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
             loadEmbeddedTextures(scene, modelName);
         }
 
+        // Log import mode once per model
+        if (!modeLoggedMap.containsKey(modelName)) {
+            AssimpLoader.LOGGER.info("Item '{}' import mode: {} (isDynamic: {})",
+                modelName, scene.getImportMode(), scene.isDynamic());
+            modeLoggedMap.put(modelName, true);
+        }
+
         poseStack.pushPose();
 
         // Apply item-specific transforms based on display context
         applyItemTransforms(poseStack, displayContext);
 
+        // Choose rendering path based on import mode
+        if (scene.isDynamic()) {
+            // DYNAMIC mode: Traverse scene graph to preserve node transformations
+            renderSceneGraph(scene, poseStack, buffer, combinedLight, combinedOverlay, modelName);
+        } else {
+            // STATIC mode: Direct mesh iteration (transformations already baked)
+            renderMeshList(scene, poseStack, buffer, combinedLight, combinedOverlay, modelName);
+        }
+
+        poseStack.popPose();
+    }
+
+    /**
+     * Render in STATIC mode - direct mesh iteration with baked transformations
+     */
+    private void renderMeshList(AssimpScene scene, PoseStack poseStack, MultiBufferSource buffer,
+                                int combinedLight, int combinedOverlay, String modelName) {
         // Render each mesh
         for (int meshIndex = 0; meshIndex < scene.getMeshes().size(); meshIndex++) {
             AssimpMesh mesh = scene.getMeshes().get(meshIndex);
@@ -130,6 +155,83 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
 
             // Render the mesh
             renderMesh(mesh, material, poseStack, consumer, combinedLight, combinedOverlay);
+        }
+    }
+
+    /**
+     * Render in DYNAMIC mode - traverse scene graph to apply node transformations
+     */
+    private void renderSceneGraph(AssimpScene scene, PoseStack poseStack, MultiBufferSource buffer,
+                                  int combinedLight, int combinedOverlay, String modelName) {
+        cn.minerealms.assimploader.model.AssimpNode rootNode = scene.getRootNode();
+        if (rootNode != null) {
+            // Only log once per model
+            if (!loggedItems.containsKey(modelName + "_dynamic")) {
+                AssimpLoader.LOGGER.info("Item '{}' rendering in DYNAMIC mode, root node: {}",
+                    modelName, rootNode.getName());
+                loggedItems.put(modelName + "_dynamic", true);
+            }
+            renderNode(scene, rootNode, poseStack, buffer, combinedLight, combinedOverlay, modelName, 0);
+        }
+    }
+
+    /**
+     * Recursively render a node and its children in the scene graph
+     */
+    private void renderNode(AssimpScene scene, cn.minerealms.assimploader.model.AssimpNode node,
+                           PoseStack poseStack, MultiBufferSource buffer,
+                           int combinedLight, int combinedOverlay, String modelName, int depth) {
+        // Log node structure once (only first 5 levels)
+        String logKey = modelName + "_node_" + node.getName();
+        if (!loggedItems.containsKey(logKey) && depth < 5) {
+            AssimpLoader.LOGGER.info("Item '{}' node[depth={}]: '{}', meshes: {}, children: {}",
+                modelName, depth, node.getName(), node.getMeshIndices().length, node.getChildren().size());
+            loggedItems.put(logKey, true);
+        }
+
+        // Apply this node's transformation
+        poseStack.pushPose();
+        poseStack.last().pose().mul(node.getTransformation());
+
+        // Render all meshes attached to this node
+        for (int meshIndex : node.getMeshIndices()) {
+            if (meshIndex >= 0 && meshIndex < scene.getMeshes().size()) {
+                AssimpMesh mesh = scene.getMeshes().get(meshIndex);
+
+                // Get material
+                AssimpMaterial material = null;
+                ResourceLocation textureLocation = null;
+
+                if (mesh.getMaterialIndex() >= 0 && mesh.getMaterialIndex() < scene.getMaterials().size()) {
+                    material = scene.getMaterials().get(mesh.getMaterialIndex());
+
+                    // If scene has embedded textures, use them
+                    if (scene.hasEmbeddedTextures() && textureCache.containsKey(modelName)) {
+                        Map<Integer, ResourceLocation> modelTextures = textureCache.get(modelName);
+                        if (!modelTextures.isEmpty()) {
+                            textureLocation = modelTextures.get(0); // Use first texture
+                        }
+                    }
+                }
+
+                // Choose render type based on material and shader status
+                RenderType renderType = getRenderType(material, textureLocation);
+
+                VertexConsumer consumer = buffer.getBuffer(renderType);
+
+                // Register PBR textures if shaders support it
+                if (textureLocation != null && material != null) {
+                    OculusPBRSupport.registerPBRTextures(textureLocation, material);
+                }
+
+                // Render the mesh
+                renderMesh(mesh, material, poseStack, consumer, combinedLight, combinedOverlay);
+            }
+        }
+
+        // Recursively render child nodes
+        for (cn.minerealms.assimploader.model.AssimpNode child : node.getChildren()) {
+            renderNode(scene, child, poseStack, buffer, combinedLight, combinedOverlay, modelName, depth + 1);
         }
 
         poseStack.popPose();

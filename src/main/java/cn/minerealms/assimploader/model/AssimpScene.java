@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.model;
 
 import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.assimp.*;
@@ -28,13 +29,19 @@ public class AssimpScene {
     private final List<AssimpTexture> textures;
     private final AssimpNode rootNode;
     private final CoordinateSystemConverter.CoordinateSystem sourceCoordinateSystem;
+    private final ModelImportMode importMode;
 
     private boolean released = false;
 
     public AssimpScene(AIScene aiScene, @Nullable Path sourcePath, CoordinateSystemConverter.CoordinateSystem coordinateSystem) {
+        this(aiScene, sourcePath, coordinateSystem, ModelImportMode.STATIC);
+    }
+
+    public AssimpScene(AIScene aiScene, @Nullable Path sourcePath, CoordinateSystemConverter.CoordinateSystem coordinateSystem, ModelImportMode importMode) {
         this.aiScene = aiScene;
         this.sourcePath = sourcePath;
         this.sourceCoordinateSystem = coordinateSystem;
+        this.importMode = importMode;
 
         // Parse meshes
         this.meshes = new ArrayList<>();
@@ -145,6 +152,49 @@ public class AssimpScene {
 
     public boolean hasEmbeddedTextures() {
         return !textures.isEmpty();
+    }
+
+    /**
+     * Get the import mode used for this scene.
+     */
+    public ModelImportMode getImportMode() {
+        return importMode;
+    }
+
+    /**
+     * Check if this scene was loaded in dynamic mode (preserves scene graph).
+     */
+    public boolean isDynamic() {
+        return importMode == ModelImportMode.DYNAMIC;
+    }
+
+    /**
+     * Find a node by name in the scene graph.
+     * Only works in DYNAMIC mode where scene graph is preserved.
+     *
+     * @param name The name of the node to find
+     * @return The node if found, null otherwise
+     */
+    @Nullable
+    public AssimpNode findNodeByName(String name) {
+        if (rootNode == null) {
+            return null;
+        }
+        return findNodeByNameRecursive(rootNode, name);
+    }
+
+    @Nullable
+    private AssimpNode findNodeByNameRecursive(AssimpNode node, String name) {
+        if (node.getName().equals(name)) {
+            return node;
+        }
+        for (AssimpNode child : node.getChildren()) {
+            AssimpNode found = findNodeByNameRecursive(child, name);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
     }
 
     /**
