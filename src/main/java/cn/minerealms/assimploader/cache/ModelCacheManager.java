@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.cache;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.model.AssimpScene;
 
 import java.util.Map;
@@ -21,7 +22,7 @@ public class ModelCacheManager {
     private long totalMemoryUsage = 0;
 
     private ModelCacheManager() {
-        AssimpLoader.LOGGER.info("ModelCacheManager initialized");
+        DebugManager.info(DebugCategory.CACHE, "ModelCacheManager initialized");
     }
 
     public static ModelCacheManager getInstance() {
@@ -34,13 +35,13 @@ public class ModelCacheManager {
     public AssimpScene loadModel(String resourcePath) {
         // Check cache first
         if (cache.containsKey(resourcePath)) {
-            AssimpLoader.LOGGER.debug("Model loaded from cache: {}", resourcePath);
+            DebugManager.debug(DebugCategory.CACHE, "Model loaded from cache: {}", resourcePath);
             return cache.get(resourcePath);
         }
 
         // Load model (implementation depends on resource system)
         // For now, return null - will be implemented with resource pack integration
-        AssimpLoader.LOGGER.warn("Model loading not yet implemented: {}", resourcePath);
+        DebugManager.warn(DebugCategory.CACHE, "Model loading not yet implemented: {}", resourcePath);
         return null;
     }
 
@@ -56,7 +57,7 @@ public class ModelCacheManager {
      */
     public void put(String resourcePath, AssimpScene scene) {
         cache.put(resourcePath, scene);
-        AssimpLoader.LOGGER.debug("Cached model: {}", resourcePath);
+        DebugManager.debug(DebugCategory.CACHE, "Cached model: {}", resourcePath);
     }
 
     /**
@@ -73,7 +74,7 @@ public class ModelCacheManager {
         AssimpScene scene = cache.remove(resourcePath);
         if (scene != null) {
             scene.release();
-            AssimpLoader.LOGGER.debug("Removed from cache: {}", resourcePath);
+            DebugManager.debug(DebugCategory.CACHE, "Removed from cache: {}", resourcePath);
         }
     }
 
@@ -86,7 +87,7 @@ public class ModelCacheManager {
         }
         cache.clear();
         totalMemoryUsage = 0;
-        AssimpLoader.LOGGER.info("Model cache cleared");
+        DebugManager.info(DebugCategory.CACHE, "Model cache cleared");
     }
 
     /**

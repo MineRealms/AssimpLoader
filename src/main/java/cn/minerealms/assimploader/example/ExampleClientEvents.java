@@ -1,6 +1,8 @@
 package cn.minerealms.assimploader.example;
 
 import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.render.AssimpItemRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
@@ -28,13 +30,13 @@ public class ExampleClientEvents {
             ExampleRegistry.CCB_BLOCK_ENTITY.get(),
             CCBBlockEntityRenderer::new
         );
-        AssimpLoader.LOGGER.info("Registered TestModelBlockEntityRenderer and CCBBlockEntityRenderer");
+        DebugManager.info(DebugCategory.CORE, "Registered TestModelBlockEntityRenderer and CCBBlockEntityRenderer");
     }
 
     public static BlockEntityWithoutLevelRenderer getItemRenderer() {
         if (itemRenderer == null) {
             itemRenderer = new AssimpItemRenderer(Minecraft.getInstance().getBlockEntityRenderDispatcher());
-            AssimpLoader.LOGGER.info("Lazy-initialized AssimpItemRenderer for FBX items");
+            DebugManager.info(DebugCategory.CORE, "Lazy-initialized AssimpItemRenderer for FBX items");
         }
         return itemRenderer;
     }

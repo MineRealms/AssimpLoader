@@ -1,6 +1,8 @@
 package cn.minerealms.assimploader.render;
 
 import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.model.AssimpMaterial;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
@@ -58,12 +60,12 @@ public class MaterialTextureGenerator {
 
                 Minecraft.getInstance().getTextureManager().register(textureLoc, dynamicTexture);
 
-                AssimpLoader.LOGGER.info("Generated color texture: {} for material color ({}, {}, {}, {})",
+                DebugManager.info(DebugCategory.RENDER, "Generated color texture: {} for material color ({}, {}, {}, {})",
                     textureLoc, color[0], color[1], color[2], color[3]);
 
                 return textureLoc;
             } catch (Exception e) {
-                AssimpLoader.LOGGER.error("Failed to generate color texture for material {}", materialIndex, e);
+                DebugManager.error(DebugCategory.RENDER, "Failed to generate color texture for material {}", materialIndex, e);
                 return new ResourceLocation("minecraft", "white");
             }
         });

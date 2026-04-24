@@ -1,6 +1,8 @@
 package cn.minerealms.assimploader.example;
 
 import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
@@ -78,7 +80,7 @@ public class ExampleRegistry {
 
         modEventBus.addListener(ExampleRegistry::addCreative);
 
-        AssimpLoader.LOGGER.info("Example registry initialized");
+        DebugManager.info(DebugCategory.CORE, "Example registry initialized");
     }
 
     private static void addCreative(BuildCreativeModeTabContentsEvent event) {

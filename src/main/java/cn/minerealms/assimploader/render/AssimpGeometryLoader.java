@@ -1,6 +1,8 @@
 package cn.minerealms.assimploader.render;
 
 import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.model.AssimpScene;
 import com.google.gson.JsonDeserializationContext;
@@ -84,17 +86,17 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
             java.nio.file.Path externalPath = java.nio.file.Paths.get(externalModelsPath);
 
             if (java.nio.file.Files.exists(externalPath)) {
-                AssimpLoader.LOGGER.info("Loading model from external models directory: {}", externalModelsPath);
+                DebugManager.info(DebugCategory.RENDER, "Loading model from external models directory: {}", externalModelsPath);
                 try {
                     AssimpScene scene = AssimpModelLoader.loadModelStatic(externalModelsPath);
                     if (scene != null) {
                         cachedScene = scene;
                         AssimpModelLoader.updateModelCache(modelName, scene);
                         AssimpModelLoader.updateModelCache(simpleModelName, scene); // Also cache with simple name
-                        AssimpLoader.LOGGER.info("Successfully loaded external model: {} (also as: {})", modelName, simpleModelName);
+                        DebugManager.info(DebugCategory.RENDER, "Successfully loaded external model: {} (also as: {})", modelName, simpleModelName);
                     }
                 } catch (Exception e) {
-                    AssimpLoader.LOGGER.error("Failed to load external model from {}: {}", externalModelsPath, e.getMessage());
+                    DebugManager.error(DebugCategory.RENDER, "Failed to load external model from {}: {}", externalModelsPath, e.getMessage());
                 }
             }
 
@@ -103,7 +105,7 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
                 try {
                     AssimpModelLoader loader = AssimpLoader.getInstance().getModelLoader();
                     if (loader != null) {
-                        AssimpLoader.LOGGER.info("Loading model from resource pack: {}", resourceLoc);
+                        DebugManager.info(DebugCategory.RENDER, "Loading model from resource pack: {}", resourceLoc);
 
                         var resourceManager = net.minecraft.client.Minecraft.getInstance().getResourceManager();
                         var resource = resourceManager.getResource(resourceLoc);
@@ -118,23 +120,23 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
                                 if (cachedScene != null) {
                                     AssimpModelLoader.updateModelCache(modelName, cachedScene);
                                     AssimpModelLoader.updateModelCache(simpleModelName, cachedScene); // Also cache with simple name
-                                    AssimpLoader.LOGGER.info("Successfully loaded resource pack model: {} (also as: {})", modelName, simpleModelName);
+                                    DebugManager.info(DebugCategory.RENDER, "Successfully loaded resource pack model: {} (also as: {})", modelName, simpleModelName);
                                 }
                             }
                         } else {
-                            AssimpLoader.LOGGER.error("Resource not found: {}", resourceLoc);
+                            DebugManager.error(DebugCategory.RENDER, "Resource not found: {}", resourceLoc);
                         }
                     }
                 } catch (IOException e) {
-                    AssimpLoader.LOGGER.error("Failed to load resource pack model: {}", modelPath, e);
+                    DebugManager.error(DebugCategory.RENDER, "Failed to load resource pack model: {}", modelPath, e);
                 }
             }
 
             // PRIORITY 3: Create placeholder if both failed
             if (cachedScene == null) {
-                AssimpLoader.LOGGER.error("FAILED TO LOAD MODEL: {} - Returning fallback model", modelName);
-                AssimpLoader.LOGGER.error("  Tried external: {}", externalModelsPath);
-                AssimpLoader.LOGGER.error("  Tried resource: {}", resourceLoc);
+                DebugManager.error(DebugCategory.RENDER, "FAILED TO LOAD MODEL: {} - Returning fallback model", modelName);
+                DebugManager.error(DebugCategory.RENDER, "  Tried external: {}", externalModelsPath);
+                DebugManager.error(DebugCategory.RENDER, "  Tried resource: {}", resourceLoc);
 
                 // Return Minecraft's missing model (purple/black checkerboard)
                 // We can't create a placeholder AssimpScene because those classes now wrap native Assimp objects
@@ -171,7 +173,7 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
          * Instead, return null and let the bake() method handle the fallback.
          */
         private AssimpScene createPlaceholderScene() {
-            AssimpLoader.LOGGER.warn("createPlaceholderScene() called - this is deprecated, returning null");
+            DebugManager.warn(DebugCategory.RENDER, "createPlaceholderScene() called - this is deprecated, returning null");
             return null;
         }
 

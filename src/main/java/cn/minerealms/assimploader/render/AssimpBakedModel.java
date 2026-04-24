@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.render;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.model.AssimpMaterial;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpScene;
@@ -60,7 +61,7 @@ public class AssimpBakedModel implements BakedModel {
         }
 
         // Convert all meshes to quads
-        AssimpLoader.LOGGER.info("Building BakedModel: {} meshes, {} materials",
+        DebugManager.info(DebugCategory.RENDER, "Building BakedModel: {} meshes, {} materials",
                 scene.getMeshes().size(), scene.getMaterials().size());
 
         for (int i = 0; i < scene.getMeshes().size(); i++) {
@@ -72,12 +73,12 @@ public class AssimpBakedModel implements BakedModel {
 
             if (mesh.getMaterialIndex() >= 0 && mesh.getMaterialIndex() < scene.getMaterials().size()) {
                 material = scene.getMaterials().get(mesh.getMaterialIndex());
-                AssimpLoader.LOGGER.info("Mesh {} using material index {}", i, mesh.getMaterialIndex());
+                DebugManager.info(DebugCategory.RENDER, "Mesh {} using material index {}", i, mesh.getMaterialIndex());
 
                 // Check if material is transparent
                 if (material.isTransparent()) {
                     transparent = true;
-                    AssimpLoader.LOGGER.info("Material {} is transparent (alpha={})",
+                    DebugManager.info(DebugCategory.RENDER, "Material {} is transparent (alpha={})",
                         mesh.getMaterialIndex(), material.getDiffuseColor()[3]);
                 }
 
@@ -87,7 +88,7 @@ public class AssimpBakedModel implements BakedModel {
                     int texIndex = material.getEmbeddedTextureIndex(texPath);
                     ResourceLocation embeddedTexLoc = embeddedTextureCache.get(texIndex);
                     if (embeddedTexLoc != null) {
-                        AssimpLoader.LOGGER.info("Using embedded texture {} for mesh {}", embeddedTexLoc, i);
+                        DebugManager.info(DebugCategory.RENDER, "Using embedded texture {} for mesh {}", embeddedTexLoc, i);
                         // Note: Embedded textures are registered as dynamic textures
                         // BakedModel uses white_concrete sprite, actual texture binding happens in BlockEntityRenderer
                     }
@@ -96,12 +97,12 @@ public class AssimpBakedModel implements BakedModel {
                 // Use white sprite with material color
                 meshSprite = particleIcon;
             } else {
-                AssimpLoader.LOGGER.warn("Mesh {} has invalid material index: {}", i, mesh.getMaterialIndex());
+                DebugManager.warn(DebugCategory.RENDER, "Mesh {} has invalid material index: {}", i, mesh.getMaterialIndex());
             }
 
             // Convert mesh to quads - pass material for color info
             List<BakedQuad> meshQuads = MinecraftMeshConverter.convertToQuads(mesh, meshSprite, material);
-            AssimpLoader.LOGGER.info("Mesh {} generated {} quads", i, meshQuads.size());
+            DebugManager.info(DebugCategory.RENDER, "Mesh {} generated {} quads", i, meshQuads.size());
             quads.addAll(meshQuads);
         }
 
@@ -184,7 +185,7 @@ public class AssimpBakedModel implements BakedModel {
         TextureManager textureManager = Minecraft.getInstance().getTextureManager();
         List<AssimpTexture> textures = scene.getTextures();
 
-        AssimpLoader.LOGGER.info("Loading {} embedded texture(s)", textures.size());
+        DebugManager.info(DebugCategory.RENDER, "Loading {} embedded texture(s)", textures.size());
 
         // Normalize model name for texture cache key (use full path, replace / with _)
         String modelName = modelLocation.getPath()
@@ -201,7 +202,7 @@ public class AssimpBakedModel implements BakedModel {
                     "embedded/" + modelName + "_" + i);
                 textureManager.register(textureLoc, dynamicTexture);
                 embeddedTextureCache.put(i, textureLoc);
-                AssimpLoader.LOGGER.info("Registered embedded texture {}: {}", i, textureLoc);
+                DebugManager.info(DebugCategory.RENDER, "Registered embedded texture {}: {}", i, textureLoc);
             }
         }
     }

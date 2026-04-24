@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.compat;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.model.AssimpMaterial;
 import net.minecraft.resources.ResourceLocation;
 
@@ -40,18 +41,18 @@ public class OculusPBRSupport {
                 pbrTextureManager = instanceField.get(null);
 
                 if (pbrTextureManager != null) {
-                    AssimpLoader.LOGGER.info("PBR texture system initialized successfully");
+                    DebugManager.info(DebugCategory.CORE, "PBR texture system initialized successfully");
                 }
             }
 
             return pbrTextureManager != null;
 
         } catch (ClassNotFoundException e) {
-            AssimpLoader.LOGGER.debug("PBR texture system not available (Oculus version may not support it)");
+            DebugManager.debug(DebugCategory.CORE, "PBR texture system not available (Oculus version may not support it)");
             pbrInitFailed = true;
             return false;
         } catch (Exception e) {
-            AssimpLoader.LOGGER.warn("Failed to initialize PBR texture system: {}", e.getMessage());
+            DebugManager.warn(DebugCategory.CORE, "Failed to initialize PBR texture system: {}", e.getMessage());
             pbrInitFailed = true;
             return false;
         }
@@ -85,7 +86,7 @@ public class OculusPBRSupport {
             }
 
         } catch (Exception e) {
-            AssimpLoader.LOGGER.debug("Failed to register PBR textures for {}: {}",
+            DebugManager.debug(DebugCategory.CORE, "Failed to register PBR textures for {}: {}",
                 albedoTexture, e.getMessage());
         }
     }
@@ -107,13 +108,13 @@ public class OculusPBRSupport {
                 .getMethod("setNormalTexture", ResourceLocation.class, ResourceLocation.class);
             setNormalTexture.invoke(pbrTextureManager, albedoTexture, normalMap);
 
-            AssimpLoader.LOGGER.debug("Bound normal map {} to {}", normalMap, albedoTexture);
+            DebugManager.debug(DebugCategory.CORE, "Bound normal map {} to {}", normalMap, albedoTexture);
 
         } catch (NoSuchMethodException e) {
             // Method signature might be different in this Oculus version
-            AssimpLoader.LOGGER.debug("PBR normal map binding not supported in this Oculus version");
+            DebugManager.debug(DebugCategory.CORE, "PBR normal map binding not supported in this Oculus version");
         } catch (Exception e) {
-            AssimpLoader.LOGGER.debug("Failed to bind normal map: {}", e.getMessage());
+            DebugManager.debug(DebugCategory.CORE, "Failed to bind normal map: {}", e.getMessage());
         }
     }
 
@@ -134,13 +135,13 @@ public class OculusPBRSupport {
                 .getMethod("setSpecularTexture", ResourceLocation.class, ResourceLocation.class);
             setSpecularTexture.invoke(pbrTextureManager, albedoTexture, specularMap);
 
-            AssimpLoader.LOGGER.debug("Bound specular map {} to {}", specularMap, albedoTexture);
+            DebugManager.debug(DebugCategory.CORE, "Bound specular map {} to {}", specularMap, albedoTexture);
 
         } catch (NoSuchMethodException e) {
             // Method signature might be different in this Oculus version
-            AssimpLoader.LOGGER.debug("PBR specular map binding not supported in this Oculus version");
+            DebugManager.debug(DebugCategory.CORE, "PBR specular map binding not supported in this Oculus version");
         } catch (Exception e) {
-            AssimpLoader.LOGGER.debug("Failed to bind specular map: {}", e.getMessage());
+            DebugManager.debug(DebugCategory.CORE, "Failed to bind specular map: {}", e.getMessage());
         }
     }
 
@@ -190,6 +191,6 @@ public class OculusPBRSupport {
     public static void reset() {
         pbrTextureManager = null;
         pbrInitFailed = false;
-        AssimpLoader.LOGGER.debug("OculusPBRSupport state reset");
+        DebugManager.debug(DebugCategory.CORE, "OculusPBRSupport state reset");
     }
 }

@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.util;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import org.lwjgl.assimp.AIScene;
 import org.lwjgl.assimp.Assimp;
 
@@ -70,7 +71,7 @@ public class MemoryManager {
      */
     public static void register(AIScene scene, String source) {
         if (scene == null) {
-            AssimpLoader.LOGGER.warn("Attempted to register null scene");
+            DebugManager.warn(DebugCategory.CORE, "Attempted to register null scene");
             return;
         }
 
@@ -80,7 +81,7 @@ public class MemoryManager {
         weakScenes.add(new WeakReference<>(scene));
         totalAllocated++;
 
-        AssimpLoader.LOGGER.debug("Registered scene: address={}, source={}, total={}",
+        DebugManager.debug(DebugCategory.CORE, "Registered scene: address={}, source={}, total={}",
             address, source, scenes.size());
     }
 
@@ -89,7 +90,7 @@ public class MemoryManager {
      */
     public static void free(AIScene scene) {
         if (scene == null) {
-            AssimpLoader.LOGGER.warn("Attempted to free null scene");
+            DebugManager.warn(DebugCategory.CORE, "Attempted to free null scene");
             return;
         }
 
@@ -97,12 +98,12 @@ public class MemoryManager {
         SceneReference ref = scenes.get(address);
 
         if (ref == null) {
-            AssimpLoader.LOGGER.warn("Attempted to free unregistered scene: address={}", address);
+            DebugManager.warn(DebugCategory.CORE, "Attempted to free unregistered scene: address={}", address);
             return;
         }
 
         if (ref.isFreed()) {
-            AssimpLoader.LOGGER.warn("Attempted to free already freed scene: address={}", address);
+            DebugManager.warn(DebugCategory.CORE, "Attempted to free already freed scene: address={}", address);
             return;
         }
 
@@ -113,7 +114,7 @@ public class MemoryManager {
         totalFreed++;
 
         long lifetime = System.currentTimeMillis() - ref.getTimestamp();
-        AssimpLoader.LOGGER.debug("Freed scene: address={}, source={}, lifetime={}ms, remaining={}",
+        DebugManager.debug(DebugCategory.CORE, "Freed scene: address={}, source={}, lifetime={}ms, remaining={}",
             address, ref.getSource(), lifetime, scenes.size());
     }
 
@@ -121,7 +122,7 @@ public class MemoryManager {
      * Free all registered scenes
      */
     public static void freeAll() {
-        AssimpLoader.LOGGER.info("Freeing all registered scenes: count={}", scenes.size());
+        DebugManager.info(DebugCategory.CORE, "Freeing all registered scenes: count={}", scenes.size());
 
         List<AIScene> toFree = new ArrayList<>();
         scenes.values().forEach(ref -> {
@@ -132,7 +133,7 @@ public class MemoryManager {
 
         toFree.forEach(MemoryManager::free);
 
-        AssimpLoader.LOGGER.info("All scenes freed");
+        DebugManager.info(DebugCategory.CORE, "All scenes freed");
     }
 
     /**
@@ -157,7 +158,7 @@ public class MemoryManager {
                 if (sceneRef != null && !sceneRef.isFreed()) {
                     // Scene still exists but Java object might be unreachable
                     // Free it to prevent memory leak
-                    AssimpLoader.LOGGER.warn("Scene GC'd without explicit free: address={}, source={}",
+                    DebugManager.warn(DebugCategory.CORE, "Scene GC'd without explicit free: address={}, source={}",
                         address, sceneRef.getSource());
                     free(scene);
                 }
@@ -165,7 +166,7 @@ public class MemoryManager {
         }
 
         if (cleaned > 0) {
-            AssimpLoader.LOGGER.debug("Cleaned {} weak references", cleaned);
+            DebugManager.debug(DebugCategory.CORE, "Cleaned {} weak references", cleaned);
         }
     }
 
@@ -187,23 +188,23 @@ public class MemoryManager {
     public static void printStats() {
         MemoryStats stats = getStats();
 
-        AssimpLoader.LOGGER.info("=== Memory Statistics ===");
-        AssimpLoader.LOGGER.info("Active scenes: {}", stats.activeScenes);
-        AssimpLoader.LOGGER.info("Total allocated: {}", stats.totalAllocated);
-        AssimpLoader.LOGGER.info("Total freed: {}", stats.totalFreed);
-        AssimpLoader.LOGGER.info("Weak references: {}", stats.weakReferences);
-        AssimpLoader.LOGGER.info("Memory leak potential: {}", stats.activeScenes > 0 ? "YES" : "NO");
+        DebugManager.info(DebugCategory.CORE, "=== Memory Statistics ===");
+        DebugManager.info(DebugCategory.CORE, "Active scenes: {}", stats.activeScenes);
+        DebugManager.info(DebugCategory.CORE, "Total allocated: {}", stats.totalAllocated);
+        DebugManager.info(DebugCategory.CORE, "Total freed: {}", stats.totalFreed);
+        DebugManager.info(DebugCategory.CORE, "Weak references: {}", stats.weakReferences);
+        DebugManager.info(DebugCategory.CORE, "Memory leak potential: {}", stats.activeScenes > 0 ? "YES" : "NO");
 
         if (stats.activeScenes > 0) {
-            AssimpLoader.LOGGER.info("Active scenes:");
+            DebugManager.info(DebugCategory.CORE, "Active scenes:");
             scenes.values().forEach(ref -> {
                 long lifetime = System.currentTimeMillis() - ref.getTimestamp();
-                AssimpLoader.LOGGER.info("  address={}, source={}, lifetime={}ms",
+                DebugManager.info(DebugCategory.CORE, "  address={}, source={}, lifetime={}ms",
                     ref.getAddress(), ref.getSource(), lifetime);
             });
         }
 
-        AssimpLoader.LOGGER.info("========================");
+        DebugManager.info(DebugCategory.CORE, "========================");
     }
 
     /**
@@ -247,11 +248,11 @@ public class MemoryManager {
      * Initialize memory manager
      */
     public static void initialize() {
-        AssimpLoader.LOGGER.info("Memory manager initialized");
+        DebugManager.info(DebugCategory.CORE, "Memory manager initialized");
 
         // Register shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            AssimpLoader.LOGGER.info("Shutdown hook: cleaning up memory");
+            DebugManager.info(DebugCategory.CORE, "Shutdown hook: cleaning up memory");
             printStats();
             freeAll();
         }));
@@ -261,7 +262,7 @@ public class MemoryManager {
      * Shutdown memory manager
      */
     public static void shutdown() {
-        AssimpLoader.LOGGER.info("Memory manager shutting down");
+        DebugManager.info(DebugCategory.CORE, "Memory manager shutting down");
         printStats();
         freeAll();
     }

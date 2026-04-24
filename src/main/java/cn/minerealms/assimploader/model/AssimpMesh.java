@@ -1,4 +1,6 @@
 package cn.minerealms.assimploader.model;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 
 import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 import org.joml.Vector3f;
@@ -53,7 +55,7 @@ public class AssimpMesh {
             int vertexCount = aiMesh.mNumVertices();
             vertices = new float[vertexCount * 3];
 
-            cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Converting {} vertices from {} to MINECRAFT_LEFT_HANDED",
+            DebugManager.info(DebugCategory.CORE, "Converting {} vertices from {} to MINECRAFT_LEFT_HANDED",
                     vertexCount, sourceCoordinateSystem);
 
             AIVector3D.Buffer vertexBuffer = aiMesh.mVertices();
@@ -74,7 +76,7 @@ public class AssimpMesh {
 
                 // Log first vertex for debugging
                 if (i == 0) {
-                    cn.minerealms.assimploader.AssimpLoader.LOGGER.info("First vertex: ({}, {}, {}) -> ({}, {}, {})",
+                    DebugManager.info(DebugCategory.CORE, "First vertex: ({}, {}, {}) -> ({}, {}, {})",
                             vertex.x(), vertex.y(), vertex.z(),
                             converted.x, converted.y, converted.z);
                 }
@@ -188,7 +190,7 @@ public class AssimpMesh {
             indices = new int[totalIndices];
             int idx = 0;
 
-            cn.minerealms.assimploader.AssimpLoader.LOGGER.info("Loading indices for {} faces, source system: {}",
+            DebugManager.info(DebugCategory.CORE, "Loading indices for {} faces, source system: {}",
                     faceCount, sourceCoordinateSystem);
 
             // DO NOT flip winding order in indices!

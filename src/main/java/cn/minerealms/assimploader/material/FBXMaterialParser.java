@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.material;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import net.minecraft.resources.ResourceLocation;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -45,7 +46,7 @@ public class FBXMaterialParser {
 
         PBRMaterial material = new PBRMaterial(materialName);
 
-        AssimpLoader.LOGGER.debug("Parsing material: {}", materialName);
+        DebugManager.debug(DebugCategory.MATERIAL, "Parsing material: {}", materialName);
 
         // Parse colors
         parseBaseColor(aiMaterial, material);
@@ -63,7 +64,7 @@ public class FBXMaterialParser {
         // Determine alpha mode
         determineAlphaMode(material);
 
-        AssimpLoader.LOGGER.debug("Material parsed: {}", material);
+        DebugManager.debug(DebugCategory.MATERIAL, "Material parsed: {}", material);
 
         return material;
     }
@@ -76,7 +77,7 @@ public class FBXMaterialParser {
 
         if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_DIFFUSE, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
             material.setBaseColor(color.r(), color.g(), color.b(), color.a());
-            AssimpLoader.LOGGER.debug("  Base color: ({}, {}, {}, {})", color.r(), color.g(), color.b(), color.a());
+            DebugManager.debug(DebugCategory.MATERIAL, "  Base color: ({}, {}, {}, {})", color.r(), color.g(), color.b(), color.a());
         }
     }
 
@@ -88,7 +89,7 @@ public class FBXMaterialParser {
 
         if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_SPECULAR, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
             material.setSpecularColor(new Vector3f(color.r(), color.g(), color.b()));
-            AssimpLoader.LOGGER.debug("  Specular color: ({}, {}, {})", color.r(), color.g(), color.b());
+            DebugManager.debug(DebugCategory.MATERIAL, "  Specular color: ({}, {}, {})", color.r(), color.g(), color.b());
         }
     }
 
@@ -100,7 +101,7 @@ public class FBXMaterialParser {
 
         if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_EMISSIVE, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
             material.setEmissiveFactor(color.r(), color.g(), color.b());
-            AssimpLoader.LOGGER.debug("  Emissive color: ({}, {}, {})", color.r(), color.g(), color.b());
+            DebugManager.debug(DebugCategory.MATERIAL, "  Emissive color: ({}, {}, {})", color.r(), color.g(), color.b());
         }
     }
 
@@ -114,13 +115,13 @@ public class FBXMaterialParser {
         // Try to get PBR metallic factor
         if (aiGetMaterialFloatArray(aiMaterial, AI_MATKEY_METALLIC_FACTOR, aiTextureType_NONE, 0, metallic, new int[]{1}) == aiReturn_SUCCESS) {
             material.setMetallicFactor(metallic[0]);
-            AssimpLoader.LOGGER.debug("  Metallic factor: {}", metallic[0]);
+            DebugManager.debug(DebugCategory.MATERIAL, "  Metallic factor: {}", metallic[0]);
         }
 
         // Try to get PBR roughness factor
         if (aiGetMaterialFloatArray(aiMaterial, AI_MATKEY_ROUGHNESS_FACTOR, aiTextureType_NONE, 0, roughness, new int[]{1}) == aiReturn_SUCCESS) {
             material.setRoughnessFactor(roughness[0]);
-            AssimpLoader.LOGGER.debug("  Roughness factor: {}", roughness[0]);
+            DebugManager.debug(DebugCategory.MATERIAL, "  Roughness factor: {}", roughness[0]);
         }
     }
 
@@ -141,7 +142,7 @@ public class FBXMaterialParser {
                 material.setRoughnessFactor(roughness);
             }
 
-            AssimpLoader.LOGGER.debug("  Shininess: {} (roughness: {})", shininess[0], material.getRoughnessFactor());
+            DebugManager.debug(DebugCategory.MATERIAL, "  Shininess: {} (roughness: {})", shininess[0], material.getRoughnessFactor());
         }
     }
 
@@ -155,7 +156,7 @@ public class FBXMaterialParser {
             Vector4f baseColor = material.getBaseColor();
             baseColor.w = opacity[0];
             material.setBaseColor(baseColor);
-            AssimpLoader.LOGGER.debug("  Opacity: {}", opacity[0]);
+            DebugManager.debug(DebugCategory.MATERIAL, "  Opacity: {}", opacity[0]);
         }
     }
 
@@ -203,36 +204,36 @@ public class FBXMaterialParser {
                 switch (targetType) {
                     case BASE_COLOR:
                         material.setBaseColorTexture(textureLocation);
-                        AssimpLoader.LOGGER.debug("  Base color texture: {}", textureLocation);
+                        DebugManager.debug(DebugCategory.MATERIAL, "  Base color texture: {}", textureLocation);
                         break;
                     case NORMAL:
                         material.setNormalTexture(textureLocation);
-                        AssimpLoader.LOGGER.debug("  Normal texture: {}", textureLocation);
+                        DebugManager.debug(DebugCategory.MATERIAL, "  Normal texture: {}", textureLocation);
                         break;
                     case METALLIC:
                         material.setMetallicRoughnessTexture(textureLocation);
-                        AssimpLoader.LOGGER.debug("  Metallic texture: {}", textureLocation);
+                        DebugManager.debug(DebugCategory.MATERIAL, "  Metallic texture: {}", textureLocation);
                         break;
                     case ROUGHNESS:
                         if (material.getMetallicRoughnessTexture() == null) {
                             material.setMetallicRoughnessTexture(textureLocation);
                         }
-                        AssimpLoader.LOGGER.debug("  Roughness texture: {}", textureLocation);
+                        DebugManager.debug(DebugCategory.MATERIAL, "  Roughness texture: {}", textureLocation);
                         break;
                     case EMISSIVE:
                         material.setEmissiveTexture(textureLocation);
-                        AssimpLoader.LOGGER.debug("  Emissive texture: {}", textureLocation);
+                        DebugManager.debug(DebugCategory.MATERIAL, "  Emissive texture: {}", textureLocation);
                         break;
                     case AO:
                         material.setAoTexture(textureLocation);
-                        AssimpLoader.LOGGER.debug("  AO texture: {}", textureLocation);
+                        DebugManager.debug(DebugCategory.MATERIAL, "  AO texture: {}", textureLocation);
                         break;
                     case OPACITY:
                         // Opacity is usually in base color alpha channel
                         if (material.getBaseColorTexture() == null) {
                             material.setBaseColorTexture(textureLocation);
                         }
-                        AssimpLoader.LOGGER.debug("  Opacity texture: {}", textureLocation);
+                        DebugManager.debug(DebugCategory.MATERIAL, "  Opacity texture: {}", textureLocation);
                         break;
                 }
             }

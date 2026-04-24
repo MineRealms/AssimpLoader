@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.animation;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import org.lwjgl.assimp.AIBone;
 import org.lwjgl.assimp.AIMesh;
 import org.lwjgl.assimp.AIVertexWeight;
@@ -37,7 +38,7 @@ public class SkinnedMeshProcessor {
 
         void addBoneData(int boneIndex, float weight) {
             if (count >= MAX_BONES_PER_VERTEX) {
-                AssimpLoader.LOGGER.warn("Vertex has more than {} bones, ignoring extra bones", MAX_BONES_PER_VERTEX);
+                DebugManager.warn(DebugCategory.ANIMATION, "Vertex has more than {} bones, ignoring extra bones", MAX_BONES_PER_VERTEX);
                 return;
             }
 
@@ -67,7 +68,7 @@ public class SkinnedMeshProcessor {
         int numVertices = aiMesh.mNumVertices();
         int numBones = aiMesh.mNumBones();
 
-        AssimpLoader.LOGGER.debug("Extracting bone weights: {} vertices, {} bones", numVertices, numBones);
+        DebugManager.debug(DebugCategory.ANIMATION, "Extracting bone weights: {} vertices, {} bones", numVertices, numBones);
 
         // Initialize vertex bone data
         VertexBoneData[] vertexBoneData = new VertexBoneData[numVertices];
@@ -83,7 +84,7 @@ public class SkinnedMeshProcessor {
             // Get bone index from map
             Integer boneId = boneNameToIndexMap.get(boneName);
             if (boneId == null) {
-                AssimpLoader.LOGGER.warn("Bone {} not found in bone map", boneName);
+                DebugManager.warn(DebugCategory.ANIMATION, "Bone {} not found in bone map", boneName);
                 continue;
             }
 

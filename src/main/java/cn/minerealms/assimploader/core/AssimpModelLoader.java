@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.core;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 import org.lwjgl.PointerBuffer;
@@ -73,7 +74,7 @@ public class AssimpModelLoader {
     private boolean autoConvertCoordinates = true;
 
     public AssimpModelLoader() {
-        AssimpLoader.LOGGER.info("AssimpModelLoader initialized with LWJGL Assimp bindings");
+        DebugManager.info(DebugCategory.CORE, "AssimpModelLoader initialized with LWJGL Assimp bindings");
         // logSupportedFormats(); // Temporarily disabled - requires LWJGL Assimp natives
     }
 
@@ -108,7 +109,7 @@ public class AssimpModelLoader {
             return loadModel(filePath, ModelImportMode.STATIC);
         }
 
-        AssimpLoader.LOGGER.info("Loading model with auto-detection: {}", filePath);
+        DebugManager.info(DebugCategory.CORE, "Loading model with auto-detection: {}", filePath);
 
         if (!Files.exists(filePath)) {
             throw new IOException("Model file not found: " + filePath);
@@ -125,7 +126,7 @@ public class AssimpModelLoader {
 
         // Detect best mode
         ModelImportMode detectedMode = ModelImportMode.detectFromScene(aiScene);
-        AssimpLoader.LOGGER.info("Auto-detected import mode: {} for {}", detectedMode, filePath.getFileName());
+        DebugManager.info(DebugCategory.CORE, "Auto-detected import mode: {} for {}", detectedMode, filePath.getFileName());
 
         // Release the analysis scene
         Assimp.aiReleaseImport(aiScene);
@@ -164,7 +165,7 @@ public class AssimpModelLoader {
     }
 
     private AssimpScene loadModelInternal(Path filePath, int flags, ModelImportMode mode) throws IOException {
-        AssimpLoader.LOGGER.info("Loading model: {} with mode: {}", filePath.getFileName(), mode);
+        DebugManager.info(DebugCategory.CORE, "Loading model: {} with mode: {}", filePath.getFileName(), mode);
 
         if (!Files.exists(filePath)) {
             throw new IOException("Model file not found: " + filePath);
@@ -172,7 +173,7 @@ public class AssimpModelLoader {
 
         // Use aiImportFile directly for file paths (more stable than memory import)
         String absolutePath = filePath.toAbsolutePath().toString();
-        AssimpLoader.LOGGER.info("Importing from file: {}", absolutePath);
+        DebugManager.info(DebugCategory.CORE, "Importing from file: {}", absolutePath);
 
         AIScene aiScene = aiImportFile(absolutePath, flags);
 
@@ -181,7 +182,7 @@ public class AssimpModelLoader {
             throw new IOException("Failed to load model: " + error);
         }
 
-        AssimpLoader.LOGGER.info("Model loaded successfully: {} meshes, {} materials, {} animations",
+        DebugManager.info(DebugCategory.CORE, "Model loaded successfully: {} meshes, {} materials, {} animations",
                 aiScene.mNumMeshes(),
                 aiScene.mNumMaterials(),
                 aiScene.mNumAnimations());
@@ -192,12 +193,12 @@ public class AssimpModelLoader {
         CoordinateSystemConverter.CoordinateSystem sourceSystem =
                 CoordinateSystemConverter.detectCoordinateSystem(fileExtension);
 
-        AssimpLoader.LOGGER.debug("Detected coordinate system: {} for file type: {}",
+        DebugManager.debug(DebugCategory.CORE, "Detected coordinate system: {} for file type: {}",
                 sourceSystem, fileExtension);
 
         // Log scene graph structure for DYNAMIC mode
         if (mode == ModelImportMode.DYNAMIC && aiScene.mRootNode() != null) {
-            AssimpLoader.LOGGER.info("Scene graph structure (DYNAMIC mode):");
+            DebugManager.info(DebugCategory.CORE, "Scene graph structure (DYNAMIC mode):");
             logNodeHierarchy(aiScene.mRootNode(), 0, 3);  // Log up to 3 levels
         }
 
@@ -218,7 +219,7 @@ public class AssimpModelLoader {
         int numMeshes = node.mNumMeshes();
         int numChildren = node.mNumChildren();
 
-        AssimpLoader.LOGGER.info("{}├─ {} (meshes: {}, children: {})",
+        DebugManager.info(DebugCategory.CORE, "{}├─ {} (meshes: {}, children: {})",
             indent, nodeName, numMeshes, numChildren);
 
         // Recursively log children
@@ -239,20 +240,20 @@ public class AssimpModelLoader {
      * @return AssimpScene containing all model data
      */
     public AssimpScene loadModelFromMemory(String resourcePath, byte[] data) {
-        AssimpLoader.LOGGER.info("Loading model from memory: {}, size: {} bytes", resourcePath, data.length);
+        DebugManager.info(DebugCategory.CORE, "Loading model from memory: {}, size: {} bytes", resourcePath, data.length);
 
         // Validate input
         if (data == null || data.length == 0) {
-            AssimpLoader.LOGGER.error("Invalid input: data is null or empty");
+            DebugManager.error(DebugCategory.CORE, "Invalid input: data is null or empty");
             return null;
         }
 
         String extension = getFileExtension(resourcePath);
-        AssimpLoader.LOGGER.info("Detected file extension: {}", extension);
+        DebugManager.info(DebugCategory.CORE, "Detected file extension: {}", extension);
 
         // Validate extension
         if (extension == null || extension.isEmpty()) {
-            AssimpLoader.LOGGER.error("Invalid file extension from path: {}", resourcePath);
+            DebugManager.error(DebugCategory.CORE, "Invalid file extension from path: {}", resourcePath);
             return null;
         }
 
@@ -264,13 +265,13 @@ public class AssimpModelLoader {
                 int major = aiGetVersionMajor();
                 int minor = aiGetVersionMinor();
                 int revision = aiGetVersionRevision();
-                AssimpLoader.LOGGER.info("Assimp version check: {}.{}.{}", major, minor, revision);
+                DebugManager.info(DebugCategory.CORE, "Assimp version check: {}.{}.{}", major, minor, revision);
             } catch (Throwable t) {
-                AssimpLoader.LOGGER.error("Assimp native library not accessible: {}", t.getMessage());
+                DebugManager.error(DebugCategory.CORE, "Assimp native library not accessible: {}", t.getMessage());
                 return null;
             }
 
-            AssimpLoader.LOGGER.info("Calling aiImportFileFromMemory with flags: {} (0x{}) for extension: {}",
+            DebugManager.info(DebugCategory.CORE, "Calling aiImportFileFromMemory with flags: {} (0x{}) for extension: {}",
                     DEFAULT_FLAGS, Integer.toHexString(DEFAULT_FLAGS), extension);
 
             // IMPORTANT: Use direct ByteBuffer for native code
@@ -278,7 +279,7 @@ public class AssimpModelLoader {
             ByteBuffer buffer = org.lwjgl.BufferUtils.createByteBuffer(data.length);
             buffer.put(data);
             buffer.flip();
-            AssimpLoader.LOGGER.info("Direct ByteBuffer created: capacity={}, position={}, limit={}, isDirect={}",
+            DebugManager.info(DebugCategory.CORE, "Direct ByteBuffer created: capacity={}, position={}, limit={}, isDirect={}",
                     buffer.capacity(), buffer.position(), buffer.limit(), buffer.isDirect());
 
             // Try to import with reduced flags first (safer)
@@ -286,8 +287,8 @@ public class AssimpModelLoader {
 
             if (aiScene == null) {
                 String error = aiGetErrorString();
-                AssimpLoader.LOGGER.error("Assimp import failed with reduced flags: {}", error);
-                AssimpLoader.LOGGER.info("Trying with minimal flags (triangulate only)...");
+                DebugManager.error(DebugCategory.CORE, "Assimp import failed with reduced flags: {}", error);
+                DebugManager.info(DebugCategory.CORE, "Trying with minimal flags (triangulate only)...");
 
                 // Try with absolute minimal flags
                 buffer.rewind();
@@ -295,25 +296,25 @@ public class AssimpModelLoader {
 
                 if (aiScene == null) {
                     error = aiGetErrorString();
-                    AssimpLoader.LOGGER.error("Assimp import failed even with minimal flags: {}", error);
+                    DebugManager.error(DebugCategory.CORE, "Assimp import failed even with minimal flags: {}", error);
                     return null;
                 }
             }
 
-            AssimpLoader.LOGGER.info("Assimp import successful: {} meshes, {} materials, {} animations",
+            DebugManager.info(DebugCategory.CORE, "Assimp import successful: {} meshes, {} materials, {} animations",
                     aiScene.mNumMeshes(), aiScene.mNumMaterials(), aiScene.mNumAnimations());
 
         } catch (Exception e) {
-            AssimpLoader.LOGGER.error("Exception during Assimp import: {}", e.getMessage(), e);
+            DebugManager.error(DebugCategory.CORE, "Exception during Assimp import: {}", e.getMessage(), e);
             return null;
         } catch (Error e) {
             // Catch native errors (like UnsatisfiedLinkError or JVM crashes)
-            AssimpLoader.LOGGER.error("Native error during Assimp import: {}", e.getMessage(), e);
+            DebugManager.error(DebugCategory.CORE, "Native error during Assimp import: {}", e.getMessage(), e);
             return null;
         }
 
         if (aiScene == null) {
-            AssimpLoader.LOGGER.error("Failed to load model from memory: aiScene is null");
+            DebugManager.error(DebugCategory.CORE, "Failed to load model from memory: aiScene is null");
             return null;
         }
 
@@ -349,14 +350,14 @@ public class AssimpModelLoader {
             AIString description = AIString.calloc(stack);
             int count = (int) aiGetImportFormatCount();
 
-            AssimpLoader.LOGGER.info("Assimp supports {} import formats:", count);
+            DebugManager.info(DebugCategory.CORE, "Assimp supports {} import formats:", count);
 
             for (int i = 0; i < count; i++) {
                 AIImporterDesc desc = aiGetImportFormatDescription(i);
                 if (desc != null) {
                     String name = desc.mNameString();
                     String extensions = desc.mFileExtensionsString();
-                    AssimpLoader.LOGGER.debug("  - {} ({})", name, extensions);
+                    DebugManager.debug(DebugCategory.CORE, "  - {} ({})", name, extensions);
                 }
             }
         }
@@ -400,7 +401,7 @@ public class AssimpModelLoader {
      */
     public static void updateModelCache(String modelName, AssimpScene scene) {
         modelCache.put(modelName, scene);
-        AssimpLoader.LOGGER.info("Updated model cache: {}, scene object: {}, has textures: {}, texture count: {}",
+        DebugManager.info(DebugCategory.CORE, "Updated model cache: {}, scene object: {}, has textures: {}, texture count: {}",
             modelName, System.identityHashCode(scene), scene.hasEmbeddedTextures(), scene.getTextureCount());
     }
 
@@ -432,7 +433,7 @@ public class AssimpModelLoader {
      */
     public static void clearCache() {
         modelCache.clear();
-        AssimpLoader.LOGGER.info("Cleared model cache");
+        DebugManager.info(DebugCategory.CORE, "Cleared model cache");
     }
 
     /**
@@ -445,7 +446,7 @@ public class AssimpModelLoader {
             AssimpModelLoader loader = new AssimpModelLoader();
             return loader.loadModel(Path.of(filePath));
         } catch (IOException e) {
-            AssimpLoader.LOGGER.error("Failed to load model from: {}", filePath, e);
+            DebugManager.error(DebugCategory.CORE, "Failed to load model from: {}", filePath, e);
             return null;
         }
     }

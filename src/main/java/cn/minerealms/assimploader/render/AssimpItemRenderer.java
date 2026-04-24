@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.render;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.compat.OculusCompat;
 import cn.minerealms.assimploader.compat.OculusPBRSupport;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
@@ -57,7 +58,7 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
 
         // Only log once per item type
         if (!loggedItems.containsKey(itemName)) {
-            AssimpLoader.LOGGER.info("AssimpItemRenderer: Rendering item '{}' (model: {} or {})",
+            DebugManager.info(DebugCategory.RENDER, "AssimpItemRenderer: Rendering item '{}' (model: {} or {})",
                 itemName, simpleModelName, fullModelName);
             loggedItems.put(itemName, true);
         }
@@ -73,7 +74,7 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
 
         if (scene == null) {
             if (!loggedItems.containsKey(itemName + "_error")) {
-                AssimpLoader.LOGGER.warn("Model not found for item. Tried: {} and {}", simpleModelName, fullModelName);
+                DebugManager.warn(DebugCategory.RENDER, "Model not found for item. Tried: {} and {}", simpleModelName, fullModelName);
                 loggedItems.put(itemName + "_error", true);
             }
             return; // Model not found
@@ -96,7 +97,7 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
 
         // Log import mode once per model
         if (!modeLoggedMap.containsKey(modelName)) {
-            AssimpLoader.LOGGER.info("Item '{}' import mode: {} (isDynamic: {})",
+            DebugManager.info(DebugCategory.RENDER, "Item '{}' import mode: {} (isDynamic: {})",
                 modelName, scene.getImportMode(), scene.isDynamic());
             modeLoggedMap.put(modelName, true);
         }
@@ -167,7 +168,7 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
         if (rootNode != null) {
             // Only log once per model
             if (!loggedItems.containsKey(modelName + "_dynamic")) {
-                AssimpLoader.LOGGER.info("Item '{}' rendering in DYNAMIC mode, root node: {}",
+                DebugManager.info(DebugCategory.RENDER, "Item '{}' rendering in DYNAMIC mode, root node: {}",
                     modelName, rootNode.getName());
                 loggedItems.put(modelName + "_dynamic", true);
             }
@@ -184,7 +185,7 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
         // Log node structure once (only first 5 levels)
         String logKey = modelName + "_node_" + node.getName();
         if (!loggedItems.containsKey(logKey) && depth < 5) {
-            AssimpLoader.LOGGER.info("Item '{}' node[depth={}]: '{}', meshes: {}, children: {}",
+            DebugManager.info(DebugCategory.RENDER, "Item '{}' node[depth={}]: '{}', meshes: {}, children: {}",
                 modelName, depth, node.getName(), node.getMeshIndices().length, node.getChildren().size());
             loggedItems.put(logKey, true);
         }
@@ -266,9 +267,9 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
                 textureManager.register(textureLoc, dynamicTexture);
                 textureCache.get(modelName).put(i, textureLoc);
 
-                AssimpLoader.LOGGER.info("Loaded embedded texture {} for item model {}", i, modelName);
+                DebugManager.info(DebugCategory.RENDER, "Loaded embedded texture {} for item model {}", i, modelName);
             } catch (Exception e) {
-                AssimpLoader.LOGGER.error("Failed to load embedded texture {} for item model {}", i, modelName, e);
+                DebugManager.error(DebugCategory.RENDER, "Failed to load embedded texture {} for item model {}", i, modelName, e);
             }
         }
     }

@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.model;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 import org.lwjgl.PointerBuffer;
@@ -85,14 +86,14 @@ public class AssimpScene {
                 AITexture aiTexture = AITexture.create(texturesBuffer.get(i));
                 textures.add(new AssimpTexture(aiTexture, i));
             }
-            AssimpLoader.LOGGER.info("Found {} embedded texture(s)", textureCount);
+            DebugManager.info(DebugCategory.CORE, "Found {} embedded texture(s)", textureCount);
         }
 
         // Parse scene graph
         AINode aiRootNode = aiScene.mRootNode();
         this.rootNode = aiRootNode != null ? new AssimpNode(aiRootNode) : null;
 
-        AssimpLoader.LOGGER.debug("AssimpScene created: {} meshes, {} materials, {} animations, {} textures, coordinate system: {}",
+        DebugManager.debug(DebugCategory.CORE, "AssimpScene created: {} meshes, {} materials, {} animations, {} textures, coordinate system: {}",
                 meshes.size(), materials.size(), animations.size(), textures.size(), coordinateSystem);
     }
 
@@ -205,14 +206,14 @@ public class AssimpScene {
         if (!released) {
             Assimp.aiReleaseImport(aiScene);
             released = true;
-            AssimpLoader.LOGGER.debug("AssimpScene released");
+            DebugManager.debug(DebugCategory.CORE, "AssimpScene released");
         }
     }
 
     @Override
     protected void finalize() throws Throwable {
         if (!released) {
-            AssimpLoader.LOGGER.warn("AssimpScene was not properly released! Memory leak detected.");
+            DebugManager.warn(DebugCategory.CORE, "AssimpScene was not properly released! Memory leak detected.");
             release();
         }
         super.finalize();
