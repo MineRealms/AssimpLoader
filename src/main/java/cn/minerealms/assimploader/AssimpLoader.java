@@ -101,6 +101,12 @@ public class AssimpLoader {
         // Register to Forge event bus
         MinecraftForge.EVENT_BUS.register(this);
 
+        // Register auto-test manager (client-side only)
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            MinecraftForge.EVENT_BUS.register(cn.minerealms.assimploader.debug.AutoTestManager.class);
+            LOGGER.info("AutoTestManager registered (enabled: {})", cn.minerealms.assimploader.debug.AutoTestManager.AUTO_TEST_ENABLED);
+        }
+
         LOGGER.info("AssimpLoader mod instance created");
     }
 
