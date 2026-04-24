@@ -47,7 +47,8 @@ public class AssimpModelLoader {
     private static final int DEFAULT_FLAGS =
             aiProcess_Triangulate |           // Convert to triangles
             aiProcess_GenSmoothNormals |      // Generate smooth normals for better shading
-            aiProcess_FlipUVs;                // Flip UV coordinates for OpenGL
+            aiProcess_FlipUVs |               // Flip UV coordinates for OpenGL
+            aiProcess_PreTransformVertices;   // Bake node transformations into vertices
 
     // Full flags (may cause crashes with some files)
     private static final int FULL_FLAGS =
