@@ -38,13 +38,13 @@ public class ParameterPanelFragment extends Fragment {
     private LinearLayout contentLayout;
 
     // Channel toggles
-    private Switch baseColorToggle;
-    private Switch normalToggle;
-    private Switch metallicToggle;
-    private Switch roughnessToggle;
-    private Switch emissiveToggle;
-    private Switch aoToggle;
-    private Switch heightToggle;
+    private SwitchButton baseColorToggle;
+    private SwitchButton normalToggle;
+    private SwitchButton metallicToggle;
+    private SwitchButton roughnessToggle;
+    private SwitchButton emissiveToggle;
+    private SwitchButton aoToggle;
+    private SwitchButton heightToggle;
 
     // Parameter sliders
     private SeekBar roughnessSlider;
@@ -348,7 +348,7 @@ public class ParameterPanelFragment extends Fragment {
         contentLayout.addView(textView, params);
     }
 
-    private Switch addChannelToggle(String label) {
+    private SwitchButton addChannelToggle(String label) {
         var layout = new LinearLayout(requireContext());
         layout.setOrientation(LinearLayout.HORIZONTAL);
         layout.setHorizontalGravity(Gravity.START);
@@ -360,7 +360,7 @@ public class ParameterPanelFragment extends Fragment {
         textParams.gravity = Gravity.CENTER_VERTICAL;
         layout.addView(textView, textParams);
 
-        var toggle = new Switch(requireContext());
+        var toggle = new SwitchButton(requireContext());
         toggle.setChecked(true);
         var toggleParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -713,7 +713,7 @@ public class ParameterPanelFragment extends Fragment {
      * 0: BaseColor, 1: Normal, 2: Metallic, 3: Roughness, 4: Emissive, 5: AO, 6: Height
      */
     public void toggleChannel(int channelIndex) {
-        Switch toggle = null;
+        SwitchButton toggle = null;
         switch (channelIndex) {
             case 0: toggle = baseColorToggle; break;
             case 1: toggle = normalToggle; break;
