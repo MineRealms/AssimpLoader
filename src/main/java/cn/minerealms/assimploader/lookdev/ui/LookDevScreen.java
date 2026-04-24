@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.lookdev.ui;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.comparison.ComparisonSnapshot;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.lookdev.IModelProvider;
@@ -51,12 +52,19 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
     public void onCreate(@Nullable DataSet savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        AssimpLoader.LOGGER.info("LookDevScreen created");
+        try {
+            DebugManager.info(DebugCategory.LOOKDEV, "LookDevScreen created");
 
-        // Initialize child fragments
-        modelTreeFragment = new ModelTreeFragment();
-        previewFragment = new PreviewFragment();
-        parameterPanelFragment = new ParameterPanelFragment();
+            // Initialize child fragments
+            modelTreeFragment = new ModelTreeFragment();
+            previewFragment = new PreviewFragment();
+            parameterPanelFragment = new ParameterPanelFragment();
+
+            DebugManager.debug(DebugCategory.LOOKDEV, "Child fragments initialized: ModelTree, Preview, ParameterPanel");
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to create LookDevScreen", e);
+            throw e;
+        }
     }
 
     @Nullable
@@ -100,18 +108,26 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
     public void onViewCreated(@Nonnull View view, @Nullable DataSet savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        AssimpLoader.LOGGER.info("LookDevScreen view created");
+        try {
+            DebugManager.info(DebugCategory.LOOKDEV, "LookDevScreen view created");
 
-        // Setup keyboard shortcuts
-        setupKeyboardShortcuts(view);
+            // Setup keyboard shortcuts
+            setupKeyboardShortcuts(view);
+            DebugManager.debug(DebugCategory.LOOKDEV, "Keyboard shortcuts configured");
 
-        // Notify child fragments
-        modelTreeFragment.onViewCreated(view, savedInstanceState);
-        previewFragment.onViewCreated(view, savedInstanceState);
-        parameterPanelFragment.onViewCreated(view, savedInstanceState);
+            // Notify child fragments
+            modelTreeFragment.onViewCreated(view, savedInstanceState);
+            previewFragment.onViewCreated(view, savedInstanceState);
+            parameterPanelFragment.onViewCreated(view, savedInstanceState);
+            DebugManager.debug(DebugCategory.LOOKDEV, "Child fragments view created");
 
-        // Load test data
-        loadTestData();
+            // Load test data
+            loadTestData();
+            DebugManager.debug(DebugCategory.LOOKDEV, "Test data loaded");
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to create view", e);
+            throw e;
+        }
     }
 
     /**
@@ -230,7 +246,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
     @Override
     public boolean loadModel(String modelPath) {
         // TODO Phase 5: Implement model loading
-        AssimpLoader.LOGGER.info("Loading model: {}", modelPath);
+        DebugManager.info(DebugCategory.LOOKDEV, "Loading model: %s", modelPath);
         return false;
     }
 
@@ -238,31 +254,38 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
      * Extract PBR materials from AssimpScene
      */
     private void extractMaterials(AssimpScene scene) {
-        materials.clear();
+        try {
+            materials.clear();
 
-        if (scene == null) {
-            return;
+            if (scene == null) {
+                DebugManager.warn(DebugCategory.LOOKDEV, "Cannot extract materials: scene is null");
+                return;
+            }
+
+            // Get Assimp materials
+            var assimpMaterials = scene.getMaterials();
+            DebugManager.debug(DebugCategory.LOOKDEV, "Found %d Assimp materials in scene", assimpMaterials.size());
+
+            // Convert to PBR materials
+            for (int i = 0; i < assimpMaterials.size(); i++) {
+                var assimpMat = assimpMaterials.get(i);
+
+                // Create PBR material with basic properties
+                // TODO: Implement full conversion from AssimpMaterial to PBRMaterial
+                PBRMaterial pbrMat = new PBRMaterial("Material_" + i);
+
+                // Set default PBR values
+                pbrMat.setRoughnessFactor(0.5f);
+                pbrMat.setMetallicFactor(0.0f);
+
+                materials.add(pbrMat);
+                DebugManager.debug(DebugCategory.LOOKDEV, "Converted material %d: %s", i, pbrMat.getName());
+            }
+
+            DebugManager.info(DebugCategory.LOOKDEV, "Extracted %d materials from model", materials.size());
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to extract materials", e);
         }
-
-        // Get Assimp materials
-        var assimpMaterials = scene.getMaterials();
-
-        // Convert to PBR materials
-        for (int i = 0; i < assimpMaterials.size(); i++) {
-            var assimpMat = assimpMaterials.get(i);
-
-            // Create PBR material with basic properties
-            // TODO: Implement full conversion from AssimpMaterial to PBRMaterial
-            PBRMaterial pbrMat = new PBRMaterial("Material_" + i);
-
-            // Set default PBR values
-            pbrMat.setRoughnessFactor(0.5f);
-            pbrMat.setMetallicFactor(0.0f);
-
-            materials.add(pbrMat);
-        }
-
-        AssimpLoader.LOGGER.info("Extracted {} materials from model", materials.size());
     }
 
     // ==================== IMaterialProvider Implementation ====================
@@ -300,19 +323,28 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
      * Called when a material is selected
      */
     private void onMaterialSelected() {
-        PBRMaterial material = getSelectedMaterial();
-        if (material == null) return;
+        try {
+            PBRMaterial material = getSelectedMaterial();
+            if (material == null) {
+                DebugManager.warn(DebugCategory.LOOKDEV, "Cannot select material: material is null");
+                return;
+            }
 
-        AssimpLoader.LOGGER.info("Material selected: {}", material.getName());
+            DebugManager.info(DebugCategory.LOOKDEV, "Material selected: %s (index: %d)", material.getName(), selectedMaterialIndex);
 
-        // Update preview with new material
-        if (previewFragment != null) {
-            previewFragment.setMaterial(material);
-        }
+            // Update preview with new material
+            if (previewFragment != null) {
+                previewFragment.setMaterial(material);
+                DebugManager.debug(DebugCategory.LOOKDEV, "Preview fragment updated with material");
+            }
 
-        // Update parameters with selected material
-        if (parameterPanelFragment != null) {
-            parameterPanelFragment.setMaterial(material);
+            // Update parameters with selected material
+            if (parameterPanelFragment != null) {
+                parameterPanelFragment.setMaterial(material);
+                DebugManager.debug(DebugCategory.LOOKDEV, "Parameter panel updated with material");
+            }
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to handle material selection", e);
         }
     }
 
@@ -330,16 +362,21 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
      * Show comparison with snapshot
      */
     public void showComparison(ComparisonSnapshot snapshot) {
-        this.currentSnapshot = snapshot;
-        this.comparisonMode = true;
+        try {
+            this.currentSnapshot = snapshot;
+            this.comparisonMode = true;
 
-        AssimpLoader.LOGGER.info("Entering comparison mode with snapshot: {}", snapshot.getLabel());
+            DebugManager.info(DebugCategory.LOOKDEV, "Entering comparison mode with snapshot: %s", snapshot.getLabel());
 
-        // TODO: Update preview to show split-screen comparison
-        // Left side: snapshot state
-        // Right side: current state
-        if (previewFragment != null) {
-            previewFragment.setComparisonMode(true, snapshot);
+            // TODO: Update preview to show split-screen comparison
+            // Left side: snapshot state
+            // Right side: current state
+            if (previewFragment != null) {
+                previewFragment.setComparisonMode(true, snapshot);
+                DebugManager.debug(DebugCategory.LOOKDEV, "Preview fragment set to comparison mode");
+            }
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to show comparison", e);
         }
     }
 
@@ -347,13 +384,18 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
      * Exit comparison mode
      */
     public void exitComparisonMode() {
-        this.comparisonMode = false;
-        this.currentSnapshot = null;
+        try {
+            this.comparisonMode = false;
+            this.currentSnapshot = null;
 
-        AssimpLoader.LOGGER.info("Exiting comparison mode");
+            DebugManager.info(DebugCategory.LOOKDEV, "Exiting comparison mode");
 
-        if (previewFragment != null) {
-            previewFragment.setComparisonMode(false, null);
+            if (previewFragment != null) {
+                previewFragment.setComparisonMode(false, null);
+                DebugManager.debug(DebugCategory.LOOKDEV, "Preview fragment exited comparison mode");
+            }
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to exit comparison mode", e);
         }
     }
 
@@ -368,26 +410,33 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
      * Called when model is loaded
      */
     private void onModelLoaded() {
-        AssimpLoader.LOGGER.info("Model loaded");
+        try {
+            DebugManager.info(DebugCategory.LOOKDEV, "Model loaded");
 
-        // Extract materials from model
-        if (currentModel != null) {
-            extractMaterials(currentModel);
+            // Extract materials from model
+            if (currentModel != null) {
+                extractMaterials(currentModel);
 
-            // Auto-select first material if available
-            if (!materials.isEmpty()) {
-                selectMaterial(0);
+                // Auto-select first material if available
+                if (!materials.isEmpty()) {
+                    selectMaterial(0);
+                    DebugManager.debug(DebugCategory.LOOKDEV, "Auto-selected first material");
+                }
             }
-        }
 
-        // Update preview with new model
-        if (previewFragment != null) {
-            previewFragment.setModel(currentModel);
-        }
+            // Update preview with new model
+            if (previewFragment != null) {
+                previewFragment.setModel(currentModel);
+                DebugManager.debug(DebugCategory.LOOKDEV, "Preview fragment updated with model");
+            }
 
-        // Update tree view
-        if (modelTreeFragment != null) {
-            modelTreeFragment.updateModel();
+            // Update tree view
+            if (modelTreeFragment != null) {
+                modelTreeFragment.updateModel();
+                DebugManager.debug(DebugCategory.LOOKDEV, "Model tree updated");
+            }
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to handle model loaded", e);
         }
     }
 }
