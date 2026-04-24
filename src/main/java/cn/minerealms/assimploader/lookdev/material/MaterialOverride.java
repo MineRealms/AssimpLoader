@@ -111,6 +111,20 @@ public class MaterialOverride {
     @Nullable
     public Float aoFactorOverride = null;
 
+    /**
+     * Override base color (RGBA, 0-1 range).
+     * null = use original value
+     */
+    @Nullable
+    public float[] baseColorOverride = null;
+
+    /**
+     * Override emissive color (RGB, 0-1 range).
+     * null = use original value
+     */
+    @Nullable
+    public float[] emissiveOverride = null;
+
     // ==================== RenderType Override ====================
 
     /**
@@ -242,6 +256,17 @@ public class MaterialOverride {
      * Apply parameter overrides
      */
     private void applyParameterOverrides(PBRMaterial material) {
+        // Base color override
+        if (baseColorOverride != null && baseColorOverride.length == 4) {
+            material.setBaseColor(baseColorOverride[0], baseColorOverride[1],
+                                 baseColorOverride[2], baseColorOverride[3]);
+        }
+
+        // Emissive color override
+        if (emissiveOverride != null && emissiveOverride.length == 3) {
+            material.setEmissiveFactor(emissiveOverride[0], emissiveOverride[1], emissiveOverride[2]);
+        }
+
         // Roughness override
         if (roughnessOverride != null) {
             material.setRoughnessFactor(roughnessOverride);
@@ -307,6 +332,8 @@ public class MaterialOverride {
         aoFactorOverride = null;
         alphaModeOverride = null;
         doubleSidedOverride = null;
+        baseColorOverride = null;
+        emissiveOverride = null;
     }
 
     /**
