@@ -60,8 +60,12 @@ if (Test-Path $GAME_LAUNCHER) {
 if ($LAUNCH_GAME) {
     Write-Host ""
     Write-Host "[4/4] Launching game..." -ForegroundColor Yellow
-    Set-Location (Split-Path $GAME_LAUNCHER)
-    & $GAME_LAUNCHER
+
+    # Use Start-Process to launch in new window
+    $gameDir = Split-Path $GAME_LAUNCHER
+    Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File `"$GAME_LAUNCHER`"" -WorkingDirectory $gameDir
+
+    Write-Host "✅ Game launched in new window" -ForegroundColor Green
 } else {
     Write-Host ""
     Write-Host "[4/4] Skipped game launch" -ForegroundColor Yellow
