@@ -30,6 +30,12 @@ minecraft {
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             property 'forge.enabledGameTestNamespaces', 'assimploader'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+
+            lazyToken('minecraft_classpath') {
+                configurations.library.copyRecursive().resolve().collect { it.absolutePath }.join(File.pathSeparator)
+            }
 
             mods {
                 assimploader {
@@ -43,6 +49,12 @@ minecraft {
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             property 'forge.enabledGameTestNamespaces', 'assimploader'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+
+            lazyToken('minecraft_classpath') {
+                configurations.library.copyRecursive().resolve().collect { it.absolutePath }.join(File.pathSeparator)
+            }
 
             mods {
                 assimploader {
@@ -55,7 +67,13 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
             args '--all', '--mod', 'assimploader', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+
+            lazyToken('minecraft_classpath') {
+                configurations.library.copyRecursive().resolve().collect { it.absolutePath }.join(File.pathSeparator)
+            }
 
             mods {
                 assimploader {
@@ -67,6 +85,11 @@ minecraft {
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+configurations {
+    library
+    implementation.extendsFrom library
+}
 
 repositories {
     mavenLocal()
@@ -88,8 +111,11 @@ repositories {
     maven { url 'https://www.cursemaven.com' }
     maven { url "https://maven.firstdarkdev.xyz/snapshots"  }
 
-
-
+    // ModernUI-MC
+    maven {
+        name 'IzzelAliz Maven'
+        url 'https://maven.izzel.io/releases/'
+    }
 
     mavenCentral()
 }
@@ -124,6 +150,11 @@ dependencies {
     // ImprovedMobs - Required dependency
     implementation fg.deobf("io.github.flemmli97:improvedmobs:${improvedmobs_version}-forge")
     implementation fg.deobf("io.github.flemmli97:tenshilib:${tenshilib_version}-forge")
+
+    // ModernUI-MC
+    library "icyllis.modernui:ModernUI-Core:${modernui_version}"
+    // library "icyllis.modernui:ModernUI-Markdown:${modernui_version}"  // Not needed for LookDev viewer
+    implementation fg.deobf("icyllis.modernui:ModernUI-Forge:1.20.1-${modernui_version}.+")
 
     // Optional mods for testing
     runtimeOnly fg.deobf("mezz.jei:jei-1.20.1-forge:15.20.0.115")
