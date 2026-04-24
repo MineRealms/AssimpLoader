@@ -177,9 +177,9 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             previewFragment.refresh();
         }
 
-        // Update parameters
-        if (parameterPanelFragment != null) {
-            parameterPanelFragment.updateMaterial();
+        // Update parameters with selected material
+        if (parameterPanelFragment != null && selectedMaterialIndex >= 0 && selectedMaterialIndex < materials.size()) {
+            parameterPanelFragment.setMaterial(materials.get(selectedMaterialIndex));
         }
     }
 

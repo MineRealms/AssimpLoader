@@ -231,6 +231,106 @@ public class MaterialOverrideManager {
         setNormalEnabled(true);
     }
 
+    /**
+     * Enable base color channel
+     */
+    public void enableBaseColor() {
+        setBaseColorEnabled(true);
+    }
+
+    /**
+     * Disable base color channel
+     */
+    public void disableBaseColor() {
+        setBaseColorEnabled(false);
+    }
+
+    /**
+     * Enable metallic channel
+     */
+    public void enableMetallic() {
+        setMetallicEnabled(true);
+    }
+
+    /**
+     * Disable metallic channel
+     */
+    public void disableMetallic() {
+        setMetallicEnabled(false);
+    }
+
+    /**
+     * Enable roughness channel
+     */
+    public void enableRoughness() {
+        setRoughnessEnabled(true);
+    }
+
+    /**
+     * Disable roughness channel
+     */
+    public void disableRoughness() {
+        setRoughnessEnabled(false);
+    }
+
+    /**
+     * Enable emissive channel
+     */
+    public void enableEmissive() {
+        setEmissiveEnabled(true);
+    }
+
+    /**
+     * Disable emissive channel
+     */
+    public void disableEmissive() {
+        setEmissiveEnabled(false);
+    }
+
+    /**
+     * Enable AO channel
+     */
+    public void enableAO() {
+        setAOEnabled(true);
+    }
+
+    /**
+     * Disable AO channel
+     */
+    public void disableAO() {
+        setAOEnabled(false);
+    }
+
+    /**
+     * Enable height channel
+     */
+    public void enableHeight() {
+        setAlphaEnabled(true);
+    }
+
+    /**
+     * Disable height channel
+     */
+    public void disableHeight() {
+        setAlphaEnabled(false);
+    }
+
+    /**
+     * Set base color override (RGBA, 0-1 range)
+     */
+    public void setBaseColorOverride(float r, float g, float b, float a) {
+        currentOverride.baseColorOverride = new float[]{r, g, b, a};
+        markDirty();
+    }
+
+    /**
+     * Set emissive color override (RGB, 0-1 range)
+     */
+    public void setEmissiveOverride(float r, float g, float b) {
+        currentOverride.emissiveOverride = new float[]{r, g, b};
+        markDirty();
+    }
+
     // ==================== Core Methods ====================
 
     /**
