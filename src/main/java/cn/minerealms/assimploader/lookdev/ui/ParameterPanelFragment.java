@@ -1,6 +1,8 @@
 package cn.minerealms.assimploader.lookdev.ui;
 
 import cn.minerealms.assimploader.lookdev.material.MaterialOverrideManager;
+import cn.minerealms.assimploader.lookdev.preset.MaterialPreset;
+import cn.minerealms.assimploader.lookdev.preset.PresetManager;
 import cn.minerealms.assimploader.material.PBRMaterial;
 import icyllis.modernui.R;
 import icyllis.modernui.fragment.Fragment;
@@ -29,6 +31,7 @@ import javax.annotation.Nullable;
 public class ParameterPanelFragment extends Fragment {
 
     private MaterialOverrideManager overrideManager;
+    private PresetManager presetManager;
     private ScrollView scrollView;
     private LinearLayout contentLayout;
 
@@ -54,6 +57,9 @@ public class ParameterPanelFragment extends Fragment {
     private TextView emissiveRValue, emissiveGValue, emissiveBValue;
 
     private Button resetButton;
+    private Button savePresetButton;
+    private Button loadPresetButton;
+    private EditText presetNameInput;
 
     @Nullable
     @Override
@@ -61,6 +67,9 @@ public class ParameterPanelFragment extends Fragment {
                              @Nullable ViewGroup container,
                              @Nullable DataSet savedInstanceState) {
         var context = requireContext();
+
+        // Initialize preset manager
+        presetManager = new PresetManager();
 
         // Root scroll view
         scrollView = new ScrollView(context);
@@ -111,6 +120,11 @@ public class ParameterPanelFragment extends Fragment {
         emissiveGValue = getLastValueLabel();
         emissiveB = addColorSlider("B", 0, 255);
         emissiveBValue = getLastValueLabel();
+
+        // Preset section
+        addSpacer(16);
+        addSectionTitle("Presets");
+        addPresetControls();
 
         // Reset button
         addSpacer(16);
@@ -519,6 +533,83 @@ public class ParameterPanelFragment extends Fragment {
         Fragment parent = getParentFragment();
         if (parent instanceof LookDevScreen) {
             ((LookDevScreen) parent).onMaterialParametersChanged();
+        }
+    }
+
+    /**
+     * Add preset controls (save, load, dropdown)
+     */
+    private void addPresetControls() {
+        var context = requireContext();
+
+        // Preset name input
+        presetNameInput = new EditText(context);
+        presetNameInput.setHint("Preset name");
+        var inputParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        inputParams.setMargins(0, contentLayout.dp(4), 0, contentLayout.dp(4));
+        contentLayout.addView(presetNameInput, inputParams);
+
+        // Button row
+        var buttonRow = new LinearLayout(context);
+        buttonRow.setOrientation(LinearLayout.HORIZONTAL);
+
+        // Save button
+        savePresetButton = new Button(context);
+        savePresetButton.setText("Save");
+        savePresetButton.setOnClickListener(v -> savePreset());
+        var saveParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        saveParams.setMargins(0, 0, contentLayout.dp(4), 0);
+        buttonRow.addView(savePresetButton, saveParams);
+
+        // Load button
+        loadPresetButton = new Button(context);
+        loadPresetButton.setText("Load");
+        loadPresetButton.setOnClickListener(v -> loadPreset());
+        var loadParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        loadParams.setMargins(contentLayout.dp(4), 0, 0, 0);
+        buttonRow.addView(loadPresetButton, loadParams);
+
+        var rowParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowParams.setMargins(0, contentLayout.dp(4), 0, 0);
+        contentLayout.addView(buttonRow, rowParams);
+    }
+
+    /**
+     * Save current parameters as preset
+     */
+    private void savePreset() {
+        if (overrideManager == null) return;
+
+        String presetName = presetNameInput.getText().toString().trim();
+        if (presetName.isEmpty()) {
+            presetName = "Preset_" + System.currentTimeMillis();
+        }
+
+        var preset = new MaterialPreset(presetName, overrideManager.getCurrentOverride());
+        if (presetManager.savePreset(preset)) {
+            // TODO: Show success message
+        }
+    }
+
+    /**
+     * Load selected preset
+     */
+    private void loadPreset() {
+        if (overrideManager == null) return;
+
+        String presetName = presetNameInput.getText().toString().trim();
+        if (presetName.isEmpty()) return;
+
+        var preset = presetManager.loadPreset(presetName);
+        if (preset != null) {
+            overrideManager.setCurrentOverride(preset.getOverride());
+            updateUIFromMaterial();
+            notifyMaterialChanged();
+            // TODO: Show success message
         }
     }
 }

@@ -366,6 +366,37 @@ public class MaterialOverrideManager {
     }
 
     /**
+     * Set the current override settings (for loading presets)
+     *
+     * @param override Override to apply
+     */
+    public void setCurrentOverride(MaterialOverride override) {
+        if (override == null) return;
+
+        // Copy all override values
+        currentOverride.enableBaseColor = override.enableBaseColor;
+        currentOverride.enableNormal = override.enableNormal;
+        currentOverride.enableMetallic = override.enableMetallic;
+        currentOverride.enableRoughness = override.enableRoughness;
+        currentOverride.enableAO = override.enableAO;
+        currentOverride.enableEmissive = override.enableEmissive;
+        currentOverride.enableAlpha = override.enableAlpha;
+
+        currentOverride.roughnessOverride = override.roughnessOverride;
+        currentOverride.metallicOverride = override.metallicOverride;
+        currentOverride.emissionStrengthOverride = override.emissionStrengthOverride;
+        currentOverride.alphaCutoffOverride = override.alphaCutoffOverride;
+        currentOverride.normalStrengthOverride = override.normalStrengthOverride;
+        currentOverride.aoFactorOverride = override.aoFactorOverride;
+        currentOverride.alphaModeOverride = override.alphaModeOverride;
+        currentOverride.doubleSidedOverride = override.doubleSidedOverride;
+        currentOverride.baseColorOverride = override.baseColorOverride;
+        currentOverride.emissiveOverride = override.emissiveOverride;
+
+        markDirty();
+    }
+
+    /**
      * Reset all overrides to defaults
      */
     public void resetOverrides() {
