@@ -9,6 +9,10 @@ $LOG_DIR = "G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New H
 $LATEST_LOG = Join-Path $LOG_DIR "latest.log"
 $CRASH_REPORTS = "G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\crash-reports"
 
+# Status marker files for Claude to monitor
+$STATUS_FILE = Join-Path $PROJECT_DIR "test-status.txt"
+$CRASH_FILE = Join-Path $PROJECT_DIR "last-crash.txt"
+
 # Configuration
 $MAX_ITERATIONS = 10
 $WAIT_FOR_CRASH_SECONDS = 60
@@ -21,19 +25,32 @@ Write-Host "This script will:" -ForegroundColor Yellow
 Write-Host "  1. Build and deploy the mod" -ForegroundColor Yellow
 Write-Host "  2. Launch the game" -ForegroundColor Yellow
 Write-Host "  3. Wait for crash or success" -ForegroundColor Yellow
-Write-Host "  4. Analyze crash logs" -ForegroundColor Yellow
-Write-Host "  5. Report to Claude for fixing" -ForegroundColor Yellow
+Write-Host "  4. Write status to test-status.txt" -ForegroundColor Yellow
+Write-Host "  5. Claude monitors and fixes issues" -ForegroundColor Yellow
 Write-Host "  6. Repeat until stable" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Max iterations: $MAX_ITERATIONS" -ForegroundColor Cyan
 Write-Host "Crash wait timeout: $WAIT_FOR_CRASH_SECONDS seconds" -ForegroundColor Cyan
 Write-Host ""
+Write-Host "STATUS FILE: $STATUS_FILE" -ForegroundColor Cyan
+Write-Host "CRASH FILE: $CRASH_FILE" -ForegroundColor Cyan
+Write-Host ""
 
 for ($iteration = 1; $iteration -le $MAX_ITERATIONS; $iteration++) {
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
     Write-Host "=========================================" -ForegroundColor Magenta
     Write-Host "ITERATION $iteration / $MAX_ITERATIONS" -ForegroundColor Magenta
     Write-Host "=========================================" -ForegroundColor Magenta
     Write-Host ""
+
+    # Update status: Building
+    @"
+STATUS: BUILDING
+ITERATION: $iteration / $MAX_ITERATIONS
+TIMESTAMP: $timestamp
+PHASE: Compiling and deploying mod
+"@ | Out-File -FilePath $STATUS_FILE -Encoding UTF8
 
     # Step 1: Build and deploy
     Write-Host "[Step 1] Building and deploying..." -ForegroundColor Yellow
@@ -41,12 +58,29 @@ for ($iteration = 1; $iteration -le $MAX_ITERATIONS; $iteration++) {
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host "❌ Build failed! Check compilation errors above." -ForegroundColor Red
+
+        # Update status: Build failed
+        @"
+STATUS: BUILD_FAILED
+ITERATION: $iteration / $MAX_ITERATIONS
+TIMESTAMP: $timestamp
+ERROR: Compilation failed
+ACTION: Fix compilation errors and restart
+"@ | Out-File -FilePath $STATUS_FILE -Encoding UTF8
+
         Write-Host ""
-        Write-Host "ACTION REQUIRED:" -ForegroundColor Red
-        Write-Host "  - Fix compilation errors" -ForegroundColor Red
-        Write-Host "  - Run this script again" -ForegroundColor Red
+        Write-Host "Status written to: $STATUS_FILE" -ForegroundColor Cyan
         exit 1
     }
+
+    # Update status: Game launching
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    @"
+STATUS: GAME_LAUNCHING
+ITERATION: $iteration / $MAX_ITERATIONS
+TIMESTAMP: $timestamp
+PHASE: Game starting, waiting $WAIT_FOR_CRASH_SECONDS seconds
+"@ | Out-File -FilePath $STATUS_FILE -Encoding UTF8
 
     Write-Host ""
     Write-Host "[Step 2] Waiting for game to start..." -ForegroundColor Yellow
@@ -92,28 +126,42 @@ for ($iteration = 1; $iteration -le $MAX_ITERATIONS; $iteration++) {
 
         Write-Host "=========================================" -ForegroundColor Red
         Write-Host ""
-        Write-Host "Full crash report saved at:" -ForegroundColor Yellow
-        Write-Host "  $($latestCrash.FullName)" -ForegroundColor Cyan
-        Write-Host ""
-        Write-Host "ACTION REQUIRED:" -ForegroundColor Red
-        Write-Host "  - Read the crash report above" -ForegroundColor Red
-        Write-Host "  - Tell Claude to fix the crash" -ForegroundColor Red
-        Write-Host "  - Run this script again after fix" -ForegroundColor Red
-        Write-Host ""
 
         # Save crash summary for Claude
         $crashSummary = @"
 CRASH DETECTED - Iteration $iteration
-
+Timestamp: $timestamp
 Crash Report: $($latestCrash.Name)
-Time: $($latestCrash.LastWriteTime)
+Crash Time: $($latestCrash.LastWriteTime)
+
+========================================
+FULL CRASH REPORT
+========================================
 
 $crashContent
 "@
-        $crashSummary | Out-File -FilePath "$PROJECT_DIR\last-crash.txt" -Encoding UTF8
+        $crashSummary | Out-File -FilePath $CRASH_FILE -Encoding UTF8
 
-        Write-Host "Crash summary saved to: $PROJECT_DIR\last-crash.txt" -ForegroundColor Cyan
-        Write-Host "You can read it with: cat H:\MinecraftMods\ImprovedMobs\last-crash.txt" -ForegroundColor Cyan
+        # Update status: Crashed
+        @"
+STATUS: CRASHED
+ITERATION: $iteration / $MAX_ITERATIONS
+TIMESTAMP: $timestamp
+CRASH_REPORT: $($latestCrash.Name)
+CRASH_TIME: $($latestCrash.LastWriteTime)
+CRASH_FILE: $CRASH_FILE
+ACTION: Read crash file and fix the issue
+"@ | Out-File -FilePath $STATUS_FILE -Encoding UTF8
+
+        Write-Host "Status written to: $STATUS_FILE" -ForegroundColor Cyan
+        Write-Host "Crash report written to: $CRASH_FILE" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "⏸️  PAUSED - Waiting for Claude to fix..." -ForegroundColor Yellow
+        Write-Host "   Claude should:" -ForegroundColor Yellow
+        Write-Host "   1. Read: cat $STATUS_FILE" -ForegroundColor Cyan
+        Write-Host "   2. Read: cat $CRASH_FILE" -ForegroundColor Cyan
+        Write-Host "   3. Fix the crash" -ForegroundColor Cyan
+        Write-Host "   4. Restart this script" -ForegroundColor Cyan
 
         exit 1
 
@@ -121,13 +169,9 @@ $crashContent
         Write-Host "✅ No crash detected!" -ForegroundColor Green
         Write-Host "   Game appears stable." -ForegroundColor Green
         Write-Host ""
-        Write-Host "ACTION:" -ForegroundColor Yellow
-        Write-Host "  - Check if game is running" -ForegroundColor Yellow
-        Write-Host "  - Test /lookdev command manually" -ForegroundColor Yellow
-        Write-Host "  - If stable, testing complete!" -ForegroundColor Yellow
-        Write-Host ""
 
         # Check latest.log for errors
+        $hasErrors = $false
         if (Test-Path $LATEST_LOG) {
             $recentErrors = Get-Content $LATEST_LOG -Tail 100 | Select-String -Pattern "\[ERROR\]|\[FATAL\]" -Context 0,2
 
@@ -135,9 +179,23 @@ $crashContent
                 Write-Host "⚠️  Found errors in latest.log:" -ForegroundColor Yellow
                 $recentErrors | ForEach-Object { Write-Host $_.Line -ForegroundColor Red }
                 Write-Host ""
+                $hasErrors = $true
             }
         }
 
+        # Update status: Success
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        @"
+STATUS: SUCCESS
+ITERATION: $iteration / $MAX_ITERATIONS
+TIMESTAMP: $timestamp
+RESULT: No crash detected, game appears stable
+ERRORS_IN_LOG: $hasErrors
+ACTION: Verify game is running and test /lookdev command
+"@ | Out-File -FilePath $STATUS_FILE -Encoding UTF8
+
+        Write-Host "Status written to: $STATUS_FILE" -ForegroundColor Cyan
+        Write-Host ""
         Write-Host "=========================================" -ForegroundColor Green
         Write-Host "✅ ITERATION $iteration COMPLETE - NO CRASH" -ForegroundColor Green
         Write-Host "=========================================" -ForegroundColor Green
