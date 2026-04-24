@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.compat;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import net.minecraftforge.fml.ModList;
 
 /**
@@ -34,9 +35,9 @@ public class OculusCompat {
         if (OCULUS_LOADED == null) {
             OCULUS_LOADED = ModList.get().isLoaded("oculus");
             if (OCULUS_LOADED) {
-                AssimpLoader.LOGGER.info("Oculus detected - shader support enabled");
+                DebugManager.info(DebugCategory.CORE, "Oculus detected - shader support enabled");
             } else {
-                AssimpLoader.LOGGER.debug("Oculus not found - using vanilla rendering");
+                DebugManager.debug(DebugCategory.CORE, "Oculus not found - using vanilla rendering");
             }
         }
         return OCULUS_LOADED;
@@ -58,7 +59,7 @@ public class OculusCompat {
                 Class<?> irisApiClass = Class.forName("net.irisshaders.iris.api.v0.IrisApi");
                 java.lang.reflect.Method getInstance = irisApiClass.getMethod("getInstance");
                 irisApi = getInstance.invoke(null);
-                AssimpLoader.LOGGER.info("IrisApi initialized successfully");
+                DebugManager.info(DebugCategory.CORE, "IrisApi initialized successfully");
             }
 
             // Call isShaderPackInUse()
@@ -67,11 +68,11 @@ public class OculusCompat {
             return (Boolean) isShaderPackInUse.invoke(irisApi);
 
         } catch (ClassNotFoundException e) {
-            AssimpLoader.LOGGER.warn("Oculus API not found - disabling shader support");
+            DebugManager.warn(DebugCategory.CORE, "Oculus API not found - disabling shader support");
             apiInitFailed = true;
             return false;
         } catch (Exception e) {
-            AssimpLoader.LOGGER.error("Failed to check shader status: {}", e.getMessage());
+            DebugManager.error(DebugCategory.CORE, "Failed to check shader status: {}", e.getMessage());
             return false;
         }
     }
@@ -94,7 +95,7 @@ public class OculusCompat {
             return (Boolean) isRenderingShadowPass.invoke(irisApi);
 
         } catch (Exception e) {
-            AssimpLoader.LOGGER.debug("Failed to check shadow pass status: {}", e.getMessage());
+            DebugManager.debug(DebugCategory.CORE, "Failed to check shadow pass status: {}", e.getMessage());
             return false;
         }
     }
@@ -131,7 +132,7 @@ public class OculusCompat {
             return phase != null ? phase.toString() : "NONE";
 
         } catch (Exception e) {
-            AssimpLoader.LOGGER.debug("Failed to get rendering phase: {}", e.getMessage());
+            DebugManager.debug(DebugCategory.CORE, "Failed to get rendering phase: {}", e.getMessage());
             return "NONE";
         }
     }
@@ -165,7 +166,7 @@ public class OculusCompat {
             return true; // Assume PBR support if shaders are active
 
         } catch (Exception e) {
-            AssimpLoader.LOGGER.debug("Failed to check PBR support: {}", e.getMessage());
+            DebugManager.debug(DebugCategory.CORE, "Failed to check PBR support: {}", e.getMessage());
             return false;
         }
     }
@@ -177,6 +178,6 @@ public class OculusCompat {
         OCULUS_LOADED = null;
         irisApi = null;
         apiInitFailed = false;
-        AssimpLoader.LOGGER.debug("OculusCompat state reset");
+        DebugManager.debug(DebugCategory.CORE, "OculusCompat state reset");
     }
 }

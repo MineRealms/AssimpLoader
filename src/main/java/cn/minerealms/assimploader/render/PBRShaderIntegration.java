@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.render;
 
-import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.material.PBRMaterial;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -130,7 +131,7 @@ public class PBRShaderIntegration {
      */
     public static void applyMaterial(PBRMaterial material, TextureManager textureManager) {
         if (material == null) {
-            AssimpLoader.LOGGER.warn("Null material provided to shader");
+            DebugManager.warn(DebugCategory.RENDER, "Null material provided to shader");
             return;
         }
 
@@ -138,7 +139,7 @@ public class PBRShaderIntegration {
         // Note: Actual uniform setting would require shader program access
         // This is a placeholder for the integration structure
 
-        AssimpLoader.LOGGER.debug("Applying PBR material: {}", material.getName());
+        DebugManager.debug(DebugCategory.RENDER, "Applying PBR material: {}", material.getName());
 
         // Base color
         RenderSystem.setShaderColor(
@@ -162,7 +163,7 @@ public class PBRShaderIntegration {
     private static void bindTexture(ResourceLocation texture, int unit, TextureManager textureManager) {
         if (texture != null) {
             RenderSystem.setShaderTexture(unit, texture);
-            AssimpLoader.LOGGER.debug("Bound texture {} to unit {}", texture, unit);
+            DebugManager.debug(DebugCategory.RENDER, "Bound texture {} to unit {}", texture, unit);
         }
     }
 
@@ -171,23 +172,23 @@ public class PBRShaderIntegration {
      */
     public static void applyShaderData(ShaderData data) {
         if (data == null) {
-            AssimpLoader.LOGGER.warn("Null shader data provided");
+            DebugManager.warn(DebugCategory.RENDER, "Null shader data provided");
             return;
         }
 
         // Apply material
         if (data.getMaterial() != null) {
             // Material uniforms would be set here
-            AssimpLoader.LOGGER.debug("Applying material: {}", data.getMaterial().getName());
+            DebugManager.debug(DebugCategory.RENDER, "Applying material: {}", data.getMaterial().getName());
         }
 
         // Apply matrices
         // Matrix uniforms would be set here
-        AssimpLoader.LOGGER.debug("Applying matrices");
+        DebugManager.debug(DebugCategory.RENDER, "Applying matrices");
 
         // Apply lighting
         if (data.getLightCount() > 0) {
-            AssimpLoader.LOGGER.debug("Applying {} lights", data.getLightCount());
+            DebugManager.debug(DebugCategory.RENDER, "Applying {} lights", data.getLightCount());
         }
     }
 
@@ -230,25 +231,25 @@ public class PBRShaderIntegration {
      * Initialize PBR rendering system
      */
     public static void initialize() {
-        AssimpLoader.LOGGER.info("Initializing PBR shader integration");
+        DebugManager.info(DebugCategory.RENDER, "Initializing PBR shader integration");
 
         // Load shaders
         // Setup IBL textures
         // Initialize uniform buffers
 
-        AssimpLoader.LOGGER.info("PBR shader integration initialized");
+        DebugManager.info(DebugCategory.RENDER, "PBR shader integration initialized");
     }
 
     /**
      * Cleanup PBR rendering system
      */
     public static void cleanup() {
-        AssimpLoader.LOGGER.info("Cleaning up PBR shader integration");
+        DebugManager.info(DebugCategory.RENDER, "Cleaning up PBR shader integration");
 
         // Release shaders
         // Release textures
         // Release buffers
 
-        AssimpLoader.LOGGER.info("PBR shader integration cleaned up");
+        DebugManager.info(DebugCategory.RENDER, "PBR shader integration cleaned up");
     }
 }
