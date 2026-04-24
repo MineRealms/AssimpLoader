@@ -80,26 +80,67 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             ViewGroup.LayoutParams.MATCH_PARENT
         ));
 
+        // Generate unique IDs for fragment containers
+        int leftContainerId = View.generateViewId();
+        int centerContainerId = View.generateViewId();
+        int rightContainerId = View.generateViewId();
+
         // Left panel: Model tree (20% width)
-        View leftPanel = modelTreeFragment.onCreateView(inflater, root, savedInstanceState);
+        ViewGroup leftContainer = new ViewGroup(requireContext()) {
+            @Override
+            protected void onLayout(boolean changed, int l, int t, int r, int b) {
+                // Layout children to fill container
+                for (int i = 0; i < getChildCount(); i++) {
+                    View child = getChildAt(i);
+                    child.layout(0, 0, r - l, b - t);
+                }
+            }
+        };
+        leftContainer.setId(leftContainerId);
         LinearLayout.LayoutParams leftParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
         leftParams.weight = 0.2f;
-        leftPanel.setLayoutParams(leftParams);
-        root.addView(leftPanel);
+        leftContainer.setLayoutParams(leftParams);
+        root.addView(leftContainer);
 
         // Center panel: Preview (60% width)
-        View centerPanel = previewFragment.onCreateView(inflater, root, savedInstanceState);
+        ViewGroup centerContainer = new ViewGroup(requireContext()) {
+            @Override
+            protected void onLayout(boolean changed, int l, int t, int r, int b) {
+                for (int i = 0; i < getChildCount(); i++) {
+                    View child = getChildAt(i);
+                    child.layout(0, 0, r - l, b - t);
+                }
+            }
+        };
+        centerContainer.setId(centerContainerId);
         LinearLayout.LayoutParams centerParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
         centerParams.weight = 0.6f;
-        centerPanel.setLayoutParams(centerParams);
-        root.addView(centerPanel);
+        centerContainer.setLayoutParams(centerParams);
+        root.addView(centerContainer);
 
         // Right panel: Parameters (20% width)
-        View rightPanel = parameterPanelFragment.onCreateView(inflater, root, savedInstanceState);
+        ViewGroup rightContainer = new ViewGroup(requireContext()) {
+            @Override
+            protected void onLayout(boolean changed, int l, int t, int r, int b) {
+                for (int i = 0; i < getChildCount(); i++) {
+                    View child = getChildAt(i);
+                    child.layout(0, 0, r - l, b - t);
+                }
+            }
+        };
+        rightContainer.setId(rightContainerId);
         LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
         rightParams.weight = 0.2f;
-        rightPanel.setLayoutParams(rightParams);
-        root.addView(rightPanel);
+        rightContainer.setLayoutParams(rightParams);
+        root.addView(rightContainer);
+
+        // Use FragmentManager to add child fragments
+        var ft = getChildFragmentManager().beginTransaction();
+        ft.add(leftContainerId, modelTreeFragment, "model_tree");
+        ft.add(centerContainerId, previewFragment, "preview");
+        ft.add(rightContainerId, parameterPanelFragment, "parameters");
+        ft.setReorderingAllowed(true);
+        ft.commit();
 
         return root;
     }
@@ -115,11 +156,8 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             setupKeyboardShortcuts(view);
             DebugManager.debug(DebugCategory.LOOKDEV, "Keyboard shortcuts configured");
 
-            // Notify child fragments
-            modelTreeFragment.onViewCreated(view, savedInstanceState);
-            previewFragment.onViewCreated(view, savedInstanceState);
-            parameterPanelFragment.onViewCreated(view, savedInstanceState);
-            DebugManager.debug(DebugCategory.LOOKDEV, "Child fragments view created");
+            // FragmentManager will automatically call child fragments' lifecycle methods
+            // No need to manually call onViewCreated()
 
             // Load test data
             loadTestData();
