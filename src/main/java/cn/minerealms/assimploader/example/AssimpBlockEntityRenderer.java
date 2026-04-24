@@ -38,6 +38,7 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
     private static final Map<String, Integer> sceneHashCache = new HashMap<>();
     private static final Map<String, Boolean> textureDebugLogged = new HashMap<>();
     private static final Map<String, Integer> renderCountMap = new HashMap<>();
+    private static final Map<String, Boolean> modeLoggedMap = new HashMap<>();
 
     /**
      * Get the model name for this block entity.
@@ -75,6 +76,13 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
             AssimpLoader.LOGGER.info("DEBUG: {} Scene texture count: {}", modelName, scene.getTextureCount());
         }
 
+        // Log import mode once per model
+        if (!modeLoggedMap.containsKey(modelName)) {
+            AssimpLoader.LOGGER.info("Model '{}' import mode: {} (isDynamic: {})",
+                modelName, scene.getImportMode(), scene.isDynamic());
+            modeLoggedMap.put(modelName, true);
+        }
+
         // Detect if scene has changed (hot-reload) and clear texture cache
         int currentSceneHash = System.identityHashCode(scene);
         Integer cachedSceneHash = sceneHashCache.get(modelName);
@@ -95,6 +103,23 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
         // Allow subclasses to apply custom transformations
         applyTransformations(poseStack, blockEntity, partialTick);
 
+        // Choose rendering path based on import mode
+        if (scene.isDynamic()) {
+            // DYNAMIC mode: Traverse scene graph to preserve node transformations
+            renderSceneGraph(scene, poseStack, bufferSource, packedLight, packedOverlay, modelName, isFirstRender);
+        } else {
+            // STATIC mode: Direct mesh iteration (transformations already baked)
+            renderMeshList(scene, poseStack, bufferSource, packedLight, packedOverlay, modelName, isFirstRender);
+        }
+
+        poseStack.popPose();
+    }
+
+    /**
+     * Render in STATIC mode - direct mesh iteration with baked transformations
+     */
+    private void renderMeshList(AssimpScene scene, PoseStack poseStack, MultiBufferSource bufferSource,
+                                int packedLight, int packedOverlay, String modelName, boolean isFirstRender) {
         // Render each mesh
         for (int meshIndex = 0; meshIndex < scene.getMeshes().size(); meshIndex++) {
             AssimpMesh mesh = scene.getMeshes().get(meshIndex);
@@ -138,6 +163,85 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
 
             // Render the mesh
             renderMesh(mesh, material, poseStack, consumer, packedLight, packedOverlay);
+        }
+    }
+
+    /**
+     * Render in DYNAMIC mode - traverse scene graph to apply node transformations
+     */
+    private void renderSceneGraph(AssimpScene scene, PoseStack poseStack, MultiBufferSource bufferSource,
+                                  int packedLight, int packedOverlay, String modelName, boolean isFirstRender) {
+        cn.minerealms.assimploader.model.AssimpNode rootNode = scene.getRootNode();
+        if (rootNode != null) {
+            if (isFirstRender) {
+                AssimpLoader.LOGGER.info("DEBUG: {} Rendering in DYNAMIC mode, traversing scene graph from root: {}",
+                    modelName, rootNode.getName());
+            }
+            renderNode(scene, rootNode, poseStack, bufferSource, packedLight, packedOverlay, modelName, isFirstRender, 0);
+        } else {
+            if (isFirstRender) {
+                AssimpLoader.LOGGER.warn("DEBUG: {} DYNAMIC mode but root node is null!", modelName);
+            }
+        }
+    }
+
+    /**
+     * Recursively render a node and its children in the scene graph
+     */
+    private void renderNode(AssimpScene scene, cn.minerealms.assimploader.model.AssimpNode node,
+                           PoseStack poseStack, MultiBufferSource bufferSource,
+                           int packedLight, int packedOverlay, String modelName, boolean isFirstRender, int depth) {
+        if (isFirstRender && depth < 5) {  // Only log first 5 levels to avoid spam
+            AssimpLoader.LOGGER.info("DEBUG: {} Node[depth={}]: '{}', meshes: {}, children: {}",
+                modelName, depth, node.getName(), node.getMeshIndices().length, node.getChildren().size());
+        }
+
+        // Apply this node's transformation
+        poseStack.pushPose();
+        poseStack.last().pose().mul(node.getTransformation());
+
+        // Render all meshes attached to this node
+        for (int meshIndex : node.getMeshIndices()) {
+            if (meshIndex >= 0 && meshIndex < scene.getMeshes().size()) {
+                AssimpMesh mesh = scene.getMeshes().get(meshIndex);
+
+                // Get material
+                AssimpMaterial material = null;
+                ResourceLocation textureLocation = null;
+
+                if (mesh.getMaterialIndex() >= 0 && mesh.getMaterialIndex() < scene.getMaterials().size()) {
+                    material = scene.getMaterials().get(mesh.getMaterialIndex());
+
+                    // If scene has embedded textures, use them
+                    if (scene.hasEmbeddedTextures() && textureCache.containsKey(modelName + "_0")) {
+                        textureLocation = textureCache.get(modelName + "_0");
+                    }
+                }
+
+                // Choose render type based on material and shader status
+                RenderType renderType = getRenderType(material, textureLocation);
+
+                // Enable blending for transparent materials
+                if (material != null && material.isTransparent()) {
+                    RenderSystem.enableBlend();
+                    RenderSystem.defaultBlendFunc();
+                }
+
+                VertexConsumer consumer = bufferSource.getBuffer(renderType);
+
+                // Register PBR textures if shaders support it
+                if (textureLocation != null && material != null) {
+                    OculusPBRSupport.registerPBRTextures(textureLocation, material);
+                }
+
+                // Render the mesh
+                renderMesh(mesh, material, poseStack, consumer, packedLight, packedOverlay);
+            }
+        }
+
+        // Recursively render child nodes
+        for (cn.minerealms.assimploader.model.AssimpNode child : node.getChildren()) {
+            renderNode(scene, child, poseStack, bufferSource, packedLight, packedOverlay, modelName, isFirstRender, depth + 1);
         }
 
         poseStack.popPose();
