@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.lookdev.ui;
 
 import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.lookdev.comparison.ComparisonSnapshot;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.lookdev.IModelProvider;
 import cn.minerealms.assimploader.lookdev.IMaterialProvider;
@@ -8,6 +9,7 @@ import cn.minerealms.assimploader.material.PBRMaterial;
 import icyllis.modernui.fragment.Fragment;
 import icyllis.modernui.util.DataSet;
 import icyllis.modernui.view.Gravity;
+import icyllis.modernui.view.KeyEvent;
 import icyllis.modernui.view.LayoutInflater;
 import icyllis.modernui.view.View;
 import icyllis.modernui.view.ViewGroup;
@@ -40,6 +42,10 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
     private AssimpScene currentModel;
     private List<PBRMaterial> materials = new ArrayList<>();
     private int selectedMaterialIndex = -1;
+
+    // Comparison state
+    private boolean comparisonMode = false;
+    private ComparisonSnapshot currentSnapshot = null;
 
     @Override
     public void onCreate(@Nullable DataSet savedInstanceState) {
@@ -96,6 +102,9 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
 
         AssimpLoader.LOGGER.info("LookDevScreen view created");
 
+        // Setup keyboard shortcuts
+        setupKeyboardShortcuts(view);
+
         // Notify child fragments
         modelTreeFragment.onViewCreated(view, savedInstanceState);
         previewFragment.onViewCreated(view, savedInstanceState);
@@ -103,6 +112,84 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
 
         // Load test data
         loadTestData();
+    }
+
+    /**
+     * Setup keyboard shortcuts
+     * R: Reset camera
+     * Space: Pause rotation (TODO)
+     * 1-7: Toggle channels
+     */
+    private void setupKeyboardShortcuts(View view) {
+        view.setFocusable(true);
+        view.setFocusableInTouchMode(true);
+        view.requestFocus();
+
+        view.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() != KeyEvent.ACTION_DOWN) {
+                return false;
+            }
+
+            switch (keyCode) {
+                case KeyEvent.KEY_R:
+                    // Reset camera
+                    if (previewFragment != null) {
+                        previewFragment.resetCamera();
+                    }
+                    return true;
+
+                case KeyEvent.KEY_ESCAPE:
+                    // Exit comparison mode
+                    if (comparisonMode) {
+                        exitComparisonMode();
+                        return true;
+                    }
+                    return false;
+
+                case KeyEvent.KEY_SPACE:
+                    // TODO: Pause/resume rotation
+                    return true;
+
+                case KeyEvent.KEY_1:
+                    toggleChannel(0); // BaseColor
+                    return true;
+
+                case KeyEvent.KEY_2:
+                    toggleChannel(1); // Normal
+                    return true;
+
+                case KeyEvent.KEY_3:
+                    toggleChannel(2); // Metallic
+                    return true;
+
+                case KeyEvent.KEY_4:
+                    toggleChannel(3); // Roughness
+                    return true;
+
+                case KeyEvent.KEY_5:
+                    toggleChannel(4); // Emissive
+                    return true;
+
+                case KeyEvent.KEY_6:
+                    toggleChannel(5); // AO
+                    return true;
+
+                case KeyEvent.KEY_7:
+                    toggleChannel(6); // Height
+                    return true;
+            }
+
+            return false;
+        });
+    }
+
+    /**
+     * Toggle a material channel by index
+     */
+    private void toggleChannel(int channelIndex) {
+        if (parameterPanelFragment != null) {
+            parameterPanelFragment.toggleChannel(channelIndex);
+        }
     }
 
     /**
@@ -237,6 +324,44 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
         if (previewFragment != null) {
             previewFragment.refresh();
         }
+    }
+
+    /**
+     * Show comparison with snapshot
+     */
+    public void showComparison(ComparisonSnapshot snapshot) {
+        this.currentSnapshot = snapshot;
+        this.comparisonMode = true;
+
+        AssimpLoader.LOGGER.info("Entering comparison mode with snapshot: {}", snapshot.getLabel());
+
+        // TODO: Update preview to show split-screen comparison
+        // Left side: snapshot state
+        // Right side: current state
+        if (previewFragment != null) {
+            previewFragment.setComparisonMode(true, snapshot);
+        }
+    }
+
+    /**
+     * Exit comparison mode
+     */
+    public void exitComparisonMode() {
+        this.comparisonMode = false;
+        this.currentSnapshot = null;
+
+        AssimpLoader.LOGGER.info("Exiting comparison mode");
+
+        if (previewFragment != null) {
+            previewFragment.setComparisonMode(false, null);
+        }
+    }
+
+    /**
+     * Check if in comparison mode
+     */
+    public boolean isComparisonMode() {
+        return comparisonMode;
     }
 
     /**
