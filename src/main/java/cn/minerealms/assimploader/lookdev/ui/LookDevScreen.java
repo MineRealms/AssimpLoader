@@ -170,16 +170,29 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
      * Called when a material is selected
      */
     private void onMaterialSelected() {
-        AssimpLoader.LOGGER.info("Material selected: {}", getMaterialName());
+        PBRMaterial material = getSelectedMaterial();
+        if (material == null) return;
 
-        // Update preview
+        AssimpLoader.LOGGER.info("Material selected: {}", material.getName());
+
+        // Update preview with new material
         if (previewFragment != null) {
-            previewFragment.refresh();
+            previewFragment.setMaterial(material);
         }
 
         // Update parameters with selected material
-        if (parameterPanelFragment != null && selectedMaterialIndex >= 0 && selectedMaterialIndex < materials.size()) {
-            parameterPanelFragment.setMaterial(materials.get(selectedMaterialIndex));
+        if (parameterPanelFragment != null) {
+            parameterPanelFragment.setMaterial(material);
+        }
+    }
+
+    /**
+     * Called when material parameters change
+     */
+    public void onMaterialParametersChanged() {
+        // Refresh preview to show updated material
+        if (previewFragment != null) {
+            previewFragment.refresh();
         }
     }
 
@@ -187,13 +200,18 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
      * Called when model is loaded
      */
     private void onModelLoaded() {
-        AssimpLoader.LOGGER.info("Model loaded: {}", getModelName());
+        AssimpLoader.LOGGER.info("Model loaded");
 
         // Extract materials from model
         if (currentModel != null) {
-            // TODO Phase 5: Extract materials from AssimpModel
+            // TODO Phase 5: Extract materials from AssimpScene
             materials.clear();
             selectedMaterialIndex = -1;
+        }
+
+        // Update preview with new model
+        if (previewFragment != null) {
+            previewFragment.setModel(currentModel);
         }
 
         // Update tree view
