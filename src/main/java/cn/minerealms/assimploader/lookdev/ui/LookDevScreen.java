@@ -444,16 +444,17 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
 
             DebugManager.info(DebugCategory.LOOKDEV, "Material selected: {} (index: {})", material.getName(), selectedMaterialIndex);
 
-            // Update preview with new material
+            // Update preview with new material (this creates the override manager)
             if (previewFragment != null) {
                 previewFragment.setMaterial(material);
                 DebugManager.debug(DebugCategory.LOOKDEV, "Preview fragment updated with material");
             }
 
-            // Update parameters with selected material
-            if (parameterPanelFragment != null) {
+            // Update parameters with selected material and override manager
+            if (parameterPanelFragment != null && previewFragment != null) {
                 parameterPanelFragment.setMaterial(material);
-                DebugManager.debug(DebugCategory.LOOKDEV, "Parameter panel updated with material");
+                parameterPanelFragment.setOverrideManager(previewFragment.getOverrideManager());
+                DebugManager.debug(DebugCategory.LOOKDEV, "Parameter panel updated with material and override manager");
             }
         } catch (Exception e) {
             DebugManager.error(DebugCategory.LOOKDEV, "Failed to handle material selection", e);
