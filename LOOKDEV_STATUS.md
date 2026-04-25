@@ -107,37 +107,41 @@ src/main/java/cn/minerealms/assimploader/
 
 ### 核心组件
 
-#### 1. AutoTestManager（自动命令执行）
-**位置**: `src/main/java/cn/minerealms/assimploader/debug/AutoTestManager.java`
+#### 1. AutoTestClient（事件驱动自动测试）
+**位置**: `src/main/java/cn/minerealms/assimploader/client/AutoTestClient.java`
 
-**功能**: 进入世界后自动执行测试命令
+**功能**: 
+- 标题画面自动加载世界
+- 进入世界后自动执行 `/lookdev` 命令
+- 状态机管理测试流程
+- 看门狗超时保护
 
-**配置**:
-```java
-public static boolean AUTO_TEST_ENABLED = false; // 改为 true 启用
-private static final String[] TEST_COMMANDS = {
-    "/lookdev"
-};
-private static final int DELAY_TICKS = 100; // 5秒延迟
+**JVM 参数**:
+```
+-Dautotest.enabled=true          # 启用自动测试
+-Dautotest.world="世界名称"       # 指定要加载的世界
 ```
 
-**注册**: 已在 `AssimpLoader.java` 构造函数中注册到 Forge 事件总线
+**状态流程**: WAIT_TITLE → WAIT_OPEN_WORLD → WAIT_IN_WORLD → WAIT_CMD → DONE
 
-#### 2. auto-test-loop.ps1（自动化测试循环）
+#### 2. auto-test-loop.ps1（集成测试循环）
 **位置**: `H:\MinecraftMods\ImprovedMobs\auto-test-loop.ps1`
 
 **功能**:
-1. 编译和部署 mod
-2. 启动游戏
-3. 等待 60 秒检测崩溃
-4. 写入状态到 `test-status.txt`
-5. 如果崩溃，写入详细信息到 `last-crash.txt`
+1. 构建 mod（内联 Gradle 构建）
+2. 部署 JAR 到游戏 mods 目录
+3. 启动游戏（调用 testgame.ps1）
+4. 监控崩溃报告
+5. 写入状态到 `test-status.txt`
+6. 失败时自动重试（最多 10 次）
 
 **使用**:
 ```powershell
 cd H:\MinecraftMods\ImprovedMobs
 .\auto-test-loop.ps1
 ```
+
+**注意**: 已整合所有逻辑，不再调用 build-and-run.ps1 避免重复构建
 
 #### 3. monitor-test.ps1（状态监控）
 **位置**: `H:\MinecraftMods\ImprovedMobs\monitor-test.ps1`
@@ -243,6 +247,25 @@ grep "\[ASSIMPLOADER\]" "G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions
 **原因**: 直接调用子 Fragment 的 `onCreateView()`
 
 **修复**: 使用 `FragmentManager.beginTransaction()` 管理子 Fragment
+
+### 2. 日志格式化占位符错误（已修复 2026-04-25）
+**问题**: 日志输出显示 `%s` 和 `%d` 未替换
+
+**原因**: DebugManager 使用 SLF4J，应使用 `{}` 而非 `%s`/`%d`
+
+**修复文件**:
+- `PresetManager.java:42` - "Presets directory: {}"
+- `LookDevScreen.java:371` - "Material selected: {} (index: {})"
+
+### 3. LookDev 界面只显示灰色背景（调查中）
+**问题**: 进入 LookDev 后只有灰色背景，没有控件显示
+
+**调查步骤**:
+- 已添加 Fragment 生命周期调试日志
+- 检查 ModelTreeFragment/PreviewFragment/ParameterPanelFragment 的 onCreateView 是否被调用
+- 验证 Fragment 容器是否正确接收子视图
+
+**待验证**: 运行测试查看日志输出
 
 **提交**: `c157f66`
 

@@ -7,7 +7,7 @@ $PROJECT_DIR = "H:\MinecraftMods\ImprovedMobs"
 $MOD_JAR = "assimploader-1.0.0-all.jar"
 $TARGET_DIR = "G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods"
 $TARGET_JAR = "integratedindustrialcraft.jar"
-$GAME_LAUNCHER = "G:\MinecraftGames\CTNH-BaopuEdition\testgame.ps1"
+$GAME_LAUNCHER = Join-Path $PROJECT_DIR "testgame.ps1"
 
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "AssimpLoader Auto-Build & Deploy" -ForegroundColor Cyan
