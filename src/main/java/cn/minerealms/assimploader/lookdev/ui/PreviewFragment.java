@@ -1,42 +1,40 @@
 package cn.minerealms.assimploader.lookdev.ui;
 
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.camera.OrbitCamera;
 import cn.minerealms.assimploader.lookdev.comparison.ComparisonSnapshot;
+import cn.minerealms.assimploader.lookdev.render.OffscreenRenderer;
 import cn.minerealms.assimploader.material.PBRMaterial;
 import cn.minerealms.assimploader.model.AssimpScene;
 import icyllis.modernui.fragment.Fragment;
 import icyllis.modernui.graphics.Canvas;
 import icyllis.modernui.graphics.Paint;
 import icyllis.modernui.graphics.drawable.ColorDrawable;
-import icyllis.modernui.mc.MinecraftSurfaceView;
 import icyllis.modernui.util.DataSet;
-import icyllis.modernui.view.Gravity;
 import icyllis.modernui.view.LayoutInflater;
 import icyllis.modernui.view.MotionEvent;
 import icyllis.modernui.view.View;
 import icyllis.modernui.view.ViewGroup;
-import icyllis.modernui.widget.FrameLayout;
 import icyllis.modernui.widget.LinearLayout;
 import icyllis.modernui.widget.TextView;
-import net.minecraft.client.gui.GuiGraphics;
+import org.joml.Vector3f;
 
-import javax.annotation.Nonnull;
+import icyllis.modernui.annotation.NonNull;
 import javax.annotation.Nullable;
 
 /**
  * Fragment for 3D model preview rendering.
  *
  * Center panel of the LookDev viewer.
- * Shows:
- * - Real-time 3D model rendering
- * - Camera controls (rotate, zoom, pan)
- * - Material preview with overrides applied
+ * Uses offscreen rendering to display 3D models.
  */
 public class PreviewFragment extends Fragment {
 
-    private MinecraftSurfaceView surfaceView;
-    private OrbitCamera camera;
     private TextView infoText;
+    private PreviewView previewView;
+    private OrbitCamera camera;
+    private OffscreenRenderer offscreenRenderer;
 
     // Current model and material
     private AssimpScene currentModel;
@@ -51,99 +49,165 @@ public class PreviewFragment extends Fragment {
     private float lastMouseY;
     private boolean isDragging;
 
-    // Performance optimization
-    private long lastRenderTime = 0;
-    private static final long RENDER_THROTTLE_MS = 16; // ~60 FPS
-    private boolean needsRedraw = true;
+    // Render mode
+    public enum RenderMode {
+        ITEM_RENDERER("Item Renderer"),
+        ENTITY_RENDERER("Entity Renderer"),
+        DIRECT_MESH("Direct Mesh");
+
+        private final String displayName;
+        RenderMode(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+    }
+    private RenderMode renderMode = RenderMode.DIRECT_MESH;
 
     @Nullable
     @Override
-    public View onCreateView(@Nonnull LayoutInflater inflater,
+    public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable DataSet savedInstanceState) {
-        var context = requireContext();
+        DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] onCreateView START");
 
-        // Initialize camera
-        camera = new OrbitCamera(45, 30, 5);
+        try {
+            var context = requireContext();
 
-        // Root layout
-        var root = new FrameLayout(context);
-        root.setBackground(new ColorDrawable(0xFF1E1E1E));
+            // Initialize camera
+            camera = new OrbitCamera(45, 30, 5);
+            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Camera initialized");
 
-        // Surface view for 3D rendering
-        surfaceView = new MinecraftSurfaceView(context);
-        surfaceView.setRenderer(new PreviewRenderer());
-        var surfaceParams = new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT);
-        root.addView(surfaceView, surfaceParams);
+            // Initialize offscreen renderer
+            offscreenRenderer = new OffscreenRenderer(512, 512);
+            offscreenRenderer.setCamera(camera);
+            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] OffscreenRenderer initialized");
 
-        // Info overlay
-        infoText = new TextView(context);
-        infoText.setText("3D Preview\n\nControls:\nLeft-drag: Rotate\nRight-drag: Pan\nScroll: Zoom\nR: Reset camera");
-        infoText.setTextSize(12);
-        infoText.setTextColor(0xFFCCCCCC);
-        infoText.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-        var infoParams = new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT);
-        infoParams.gravity = Gravity.CENTER;
-        root.addView(infoText, infoParams);
+            // Root layout
+            var root = new LinearLayout(context);
+            root.setOrientation(LinearLayout.VERTICAL);
+            root.setBackground(new ColorDrawable(0xFF1E1E1E));
+            root.setPadding(root.dp(10), root.dp(10), root.dp(10), root.dp(10));
 
-        return root;
+            // Title
+            var titleText = new TextView(context);
+            titleText.setText("3D Preview");
+            titleText.setTextSize(16);
+            titleText.setTextColor(0xFFFFFFFF);
+            var titleParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            titleParams.setMargins(0, 0, 0, root.dp(10));
+            root.addView(titleText, titleParams);
+
+            // Preview view (renders the offscreen texture)
+            previewView = new PreviewView();
+            var previewParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0
+            );
+            previewParams.weight = 1.0f;
+            previewParams.setMargins(0, 0, 0, root.dp(10));
+            root.addView(previewView, previewParams);
+
+            // Info text
+            infoText = new TextView(context);
+            infoText.setText("No model loaded");
+            infoText.setTextSize(11);
+            infoText.setTextColor(0xFFCCCCCC);
+            var infoParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            root.addView(infoText, infoParams);
+
+            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] onCreateView COMPLETE");
+            return root;
+
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] FATAL ERROR in onCreateView", e);
+            throw e;
+        }
     }
 
     @Override
-    public void onViewCreated(@Nonnull View view, @Nullable DataSet savedInstanceState) {
+    public void onViewCreated(@NonNull View view, @Nullable DataSet savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] onViewCreated START");
 
-        // Setup mouse input
-        setupMouseInput();
+        try {
+            setupMouseInput();
+
+            // If model was set before view was created, update now
+            if (currentModel != null && camera != null) {
+                DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Model already set, framing camera");
+                camera.frame(new Vector3f(-1, -1, -1), new Vector3f(1, 1, 1));
+                updateOffscreenRenderer();
+                updateInfoText();
+            }
+
+            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] onViewCreated COMPLETE");
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] ERROR in onViewCreated", e);
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+
+        if (offscreenRenderer != null) {
+            offscreenRenderer.destroy();
+            offscreenRenderer = null;
+        }
+
+        DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] View destroyed, overlay renderer disabled");
     }
 
     private void setupMouseInput() {
-        surfaceView.setOnTouchListener((v, event) -> {
-            int action = event.getAction();
-            float x = event.getX();
-            float y = event.getY();
+        if (previewView == null) return;
 
-            switch (action) {
-                case MotionEvent.ACTION_DOWN:
-                    lastMouseX = x;
-                    lastMouseY = y;
-                    isDragging = true;
-                    return true;
+        previewView.setOnTouchListener((v, event) -> {
+            try {
+                float x = event.getX();
+                float y = event.getY();
 
-                case MotionEvent.ACTION_MOVE:
-                    if (isDragging) {
-                        float deltaX = x - lastMouseX;
-                        float deltaY = y - lastMouseY;
-
-                        // Left button: orbit
-                        camera.orbit(deltaX * 0.5f, -deltaY * 0.5f);
-
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
                         lastMouseX = x;
                         lastMouseY = y;
-
-                        requestRender();
+                        isDragging = true;
                         return true;
-                    }
-                    break;
 
-                case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
-                    isDragging = false;
-                    return true;
+                    case MotionEvent.ACTION_MOVE:
+                        if (isDragging && camera != null) {
+                            float dx = x - lastMouseX;
+                            float dy = y - lastMouseY;
+
+                            // Orbit camera
+                            camera.orbit(dx * 0.5f, -dy * 0.5f);
+
+                            lastMouseX = x;
+                            lastMouseY = y;
+
+                            updateOffscreenRenderer();
+                            updateInfoText();
+                            previewView.invalidate();
+                        }
+                        return true;
+
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        isDragging = false;
+                        return true;
+                }
+            } catch (Exception e) {
+                DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] Mouse input error", e);
             }
-
             return false;
-        });
-
-        // Scroll for zoom
-        surfaceView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
-            float delta = (scrollY - oldScrollY) * 0.01f;
-            camera.zoom(delta);
-            requestRender();
         });
     }
 
@@ -151,190 +215,239 @@ public class PreviewFragment extends Fragment {
      * Set the model to preview
      */
     public void setModel(AssimpScene model) {
-        this.currentModel = model;
+        try {
+            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] setModel called: {}",
+                model != null ? "model present" : "null");
 
-        if (model != null) {
-            // Frame camera to model bounds
-            // TODO: Get actual model bounds
-            camera.frame(
-                new org.joml.Vector3f(-1, -1, -1),
-                new org.joml.Vector3f(1, 1, 1)
-            );
+            this.currentModel = model;
+
+            if (model != null && camera != null) {
+                // Frame camera to model bounds
+                camera.frame(new Vector3f(-1, -1, -1), new Vector3f(1, 1, 1));
+                DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Camera framed to model");
+            }
+
+            updateOffscreenRenderer();
+            updateInfoText();
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] ERROR in setModel", e);
         }
-
-        updateInfoText();
-        refresh();
     }
 
     /**
      * Set the material to preview
      */
     public void setMaterial(PBRMaterial material) {
-        this.currentMaterial = material;
-        updateInfoText();
-        refresh();
+        try {
+            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] setMaterial: {}",
+                material != null ? material.getName() : "null");
+
+            this.currentMaterial = material;
+            updateOffscreenRenderer();
+            updateInfoText();
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] ERROR in setMaterial", e);
+        }
+    }
+
+    /**
+     * Set render mode
+     */
+    public void setRenderMode(RenderMode mode) {
+        try {
+            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] setRenderMode: {}", mode);
+            this.renderMode = mode;
+            updateOffscreenRenderer();
+            updateInfoText();
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] ERROR in setRenderMode", e);
+        }
     }
 
     /**
      * Refresh the preview (called when material parameters change)
      */
     public void refresh() {
-        needsRedraw = true;
-        requestRender();
+        try {
+            updateOffscreenRenderer();
+            updateInfoText();
+            if (previewView != null) {
+                previewView.invalidate();
+            }
+            DebugManager.debug(DebugCategory.LOOKDEV, "[PreviewFragment] Refreshed");
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] ERROR in refresh", e);
+        }
     }
 
     /**
      * Set comparison mode
      */
     public void setComparisonMode(boolean enabled, @Nullable ComparisonSnapshot snapshot) {
-        this.comparisonMode = enabled;
-        this.comparisonSnapshot = snapshot;
-        updateInfoText();
-        refresh();
+        try {
+            this.comparisonMode = enabled;
+            this.comparisonSnapshot = snapshot;
+            updateInfoText();
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] ERROR in setComparisonMode", e);
+        }
     }
 
     /**
      * Reset camera to default position
      */
     public void resetCamera() {
-        if (camera != null) {
-            camera.reset();
-            updateInfoText();
-            requestRender();
+        try {
+            if (camera != null) {
+                camera.reset();
+                updateOffscreenRenderer();
+                updateInfoText();
+                if (previewView != null) {
+                    previewView.invalidate();
+                }
+                DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Camera reset");
+            }
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] ERROR in resetCamera", e);
         }
     }
 
-    /**
-     * Request a render with throttling
-     */
-    private void requestRender() {
-        if (surfaceView == null) return;
+    private void updateOffscreenRenderer() {
+        if (offscreenRenderer == null) return;
 
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastRenderTime >= RENDER_THROTTLE_MS) {
-            surfaceView.invalidate();
-            lastRenderTime = currentTime;
-        }
+        offscreenRenderer.setModel(currentModel);
+        offscreenRenderer.setMaterial(currentMaterial);
+        offscreenRenderer.setCamera(camera);
+        offscreenRenderer.requestRender();
     }
 
     private void updateInfoText() {
-        if (infoText == null) return;
+        try {
+            if (infoText == null) return;
 
-        StringBuilder info = new StringBuilder();
-        info.append("3D Preview\n\n");
+            StringBuilder info = new StringBuilder();
 
-        if (comparisonMode) {
-            info.append("MODE: COMPARISON\n");
-            if (comparisonSnapshot != null) {
-                info.append("Snapshot: ").append(comparisonSnapshot.getLabel()).append("\n");
+            if (comparisonMode) {
+                info.append("MODE: COMPARISON\n");
+                if (comparisonSnapshot != null) {
+                    info.append("Snapshot: ").append(comparisonSnapshot.getLabel()).append("\n");
+                }
+                info.append("\n");
             }
-            info.append("\n");
+
+            info.append("Render Mode: ").append(renderMode.getDisplayName()).append("\n");
+
+            if (currentModel != null) {
+                info.append("Model: Loaded (").append(currentModel.getMeshCount()).append(" meshes)\n");
+            } else {
+                info.append("Model: None\n");
+            }
+
+            if (currentMaterial != null) {
+                info.append("Material: ").append(currentMaterial.getName());
+            } else {
+                info.append("Material: None");
+            }
+
+            infoText.setText(info.toString());
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] ERROR in updateInfoText", e);
         }
-
-        if (currentModel != null) {
-            info.append("Model: Loaded\n");
-        } else {
-            info.append("Model: None\n");
-        }
-
-        if (currentMaterial != null) {
-            info.append("Material: ").append(currentMaterial.getName()).append("\n");
-        } else {
-            info.append("Material: None\n");
-        }
-
-        info.append("\nControls:\n");
-        info.append("Left-drag: Rotate\n");
-        info.append("Right-drag: Pan\n");
-        info.append("Scroll: Zoom\n");
-        info.append("R: Reset camera\n");
-        if (comparisonMode) {
-            info.append("ESC: Exit comparison\n");
-        }
-
-        info.append("\nCamera:\n");
-        info.append(String.format("Azimuth: %.1f°\n", camera.getAzimuth()));
-        info.append(String.format("Elevation: %.1f°\n", camera.getElevation()));
-        info.append(String.format("Distance: %.2f", camera.getDistance()));
-
-        infoText.setText(info.toString());
     }
 
     /**
-     * Renderer for the preview surface
+     * Custom view that displays the offscreen-rendered texture
+     * Draws pixels directly from the FBO pixel buffer
      */
-    private class PreviewRenderer implements MinecraftSurfaceView.Renderer {
+    private class PreviewView extends View {
 
-        private int surfaceWidth;
-        private int surfaceHeight;
+        private Paint paint;
+
+        public PreviewView() {
+            super(requireContext());
+            paint = new Paint();
+            setBackground(new ColorDrawable(0xFF2A2A2A));
+        }
+
+        private long lastLogTime = 0;
+        private static final long LOG_INTERVAL = 2000; // 每2秒打印一次日志
 
         @Override
-        public void onSurfaceChanged(int width, int height) {
-            surfaceWidth = width;
-            surfaceHeight = height;
-        }
+        protected void onDraw(@NonNull Canvas canvas) {
+            super.onDraw(canvas);
 
-        @Override
-        public void onDraw(@Nonnull GuiGraphics gr, int mouseX, int mouseY, float deltaTick,
-                          double guiScale, float alpha) {
-            // TODO Phase 4: Implement actual 3D model rendering
-            // For now, just draw a placeholder
+            try {
+                int width = getWidth();
+                int height = getHeight();
 
-            if (currentModel == null || currentMaterial == null) {
-                return;
+                // Draw background
+                paint.setColor(0xFF2A2A2A);
+                canvas.drawRect(0, 0, width, height, paint);
+
+                if (offscreenRenderer != null && currentModel != null) {
+                    // Request render on render thread (async)
+                    offscreenRenderer.requestRender();
+
+                    // Try to get pixel buffer
+                    int[] pixels = offscreenRenderer.getPixelBuffer();
+
+                    long now = System.currentTimeMillis();
+                    if (now - lastLogTime > LOG_INTERVAL) {
+                        if (pixels != null) {
+                            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewView] Got pixel buffer: {} pixels, first=0x{}",
+                                pixels.length, Integer.toHexString(pixels[0]));
+                        } else {
+                            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewView] No pixel buffer available");
+                        }
+                        lastLogTime = now;
+                    }
+
+                    if (pixels != null) {
+                        drawPixelBuffer(canvas, pixels, width, height);
+                    } else {
+                        // Draw loading indicator
+                        paint.setColor(0xFF888888);
+                        canvas.drawRect(width / 2f - 50, height / 2f - 10, width / 2f + 50, height / 2f + 10, paint);
+                    }
+
+                    // Request continuous updates (~30 FPS)
+                    postInvalidateDelayed(33);
+                } else {
+                    // No model loaded - draw placeholder
+                    paint.setColor(0xFF888888);
+                    canvas.drawRect(width / 2f - 50, height / 2f - 10, width / 2f + 50, height / 2f + 10, paint);
+                }
+            } catch (Exception e) {
+                DebugManager.error(DebugCategory.LOOKDEV, "[PreviewView] onDraw error", e);
             }
-
-            // Draw grid
-            drawGrid(gr);
-
-            // Draw axes
-            drawAxes(gr);
-
-            // TODO: Render actual model with material
-            // This requires:
-            // 1. Setup camera matrices
-            // 2. Bind material textures
-            // 3. Render model meshes
-            // 4. Apply lighting
         }
 
-        private void drawGrid(GuiGraphics gr) {
-            // Simple grid visualization
-            int centerX = surfaceWidth / 2;
-            int centerY = surfaceHeight / 2;
-            int gridSize = 50;
+        /**
+         * Draw pixel buffer from FBO
+         */
+        private void drawPixelBuffer(Canvas canvas, int[] pixels, int viewWidth, int viewHeight) {
+            // OffscreenRenderer is 512x512
+            int bufferWidth = 512;
+            int bufferHeight = 512;
 
-            // Draw grid lines
-            for (int i = -5; i <= 5; i++) {
-                int x = centerX + i * gridSize;
-                int y = centerY + i * gridSize;
+            // Calculate centered position
+            int drawWidth = Math.min(viewWidth, bufferWidth);
+            int drawHeight = Math.min(viewHeight, bufferHeight);
+            int offsetX = (viewWidth - drawWidth) / 2;
+            int offsetY = (viewHeight - drawHeight) / 2;
 
-                // Vertical lines
-                gr.fill(x, centerY - 250, x + 1, centerY + 250, 0x33FFFFFF);
-
-                // Horizontal lines
-                gr.fill(centerX - 250, y, centerX + 250, y + 1, 0x33FFFFFF);
+            // Draw pixels
+            for (int y = 0; y < drawHeight; y++) {
+                for (int x = 0; x < drawWidth; x++) {
+                    int pixelIndex = y * bufferWidth + x;
+                    if (pixelIndex < pixels.length) {
+                        int color = pixels[pixelIndex];
+                        paint.setColor(color);
+                        canvas.drawPoint(offsetX + x, offsetY + y, paint);
+                    }
+                }
             }
-
-            // Draw center cross
-            gr.fill(centerX - 10, centerY, centerX + 10, centerY + 1, 0xFFFFFFFF);
-            gr.fill(centerX, centerY - 10, centerX + 1, centerY + 10, 0xFFFFFFFF);
-        }
-
-        private void drawAxes(GuiGraphics gr) {
-            // Draw coordinate axes
-            int centerX = surfaceWidth / 2;
-            int centerY = surfaceHeight / 2;
-            int axisLength = 100;
-
-            // X axis (red)
-            gr.fill(centerX, centerY, centerX + axisLength, centerY + 2, 0xFFFF0000);
-
-            // Y axis (green)
-            gr.fill(centerX, centerY - axisLength, centerX + 2, centerY, 0xFF00FF00);
-
-            // Z axis (blue) - diagonal for perspective
-            gr.fill(centerX, centerY, centerX - axisLength / 2, centerY + axisLength / 2, 0xFF0000FF);
         }
     }
 }
+

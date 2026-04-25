@@ -14,7 +14,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 public class AutoTestManager {
 
     // Configuration
-    public static boolean AUTO_TEST_ENABLED = false; // Set to true to enable auto-testing
+    public static boolean AUTO_TEST_ENABLED = Boolean.getBoolean("autotest.enabled"); // Enable via -Dautotest.enabled=true
     private static final String[] TEST_COMMANDS = {
         "/lookdev"
     };

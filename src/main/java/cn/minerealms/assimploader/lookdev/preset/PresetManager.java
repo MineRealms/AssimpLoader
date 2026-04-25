@@ -39,7 +39,7 @@ public class PresetManager {
 
             // Create presets directory if it doesn't exist
             Files.createDirectories(presetsPath);
-            DebugManager.info(DebugCategory.LOOKDEV, "Presets directory: %s", presetsPath);
+            DebugManager.info(DebugCategory.LOOKDEV, "Presets directory: {}", presetsPath);
         } catch (IOException e) {
             DebugManager.error(DebugCategory.LOOKDEV, "Failed to create presets directory", e);
             throw new RuntimeException("Failed to initialize PresetManager", e);

@@ -15,7 +15,7 @@ $CRASH_FILE = Join-Path $PROJECT_DIR "last-crash.txt"
 
 # Configuration
 $MAX_ITERATIONS = 10
-$WAIT_FOR_CRASH_SECONDS = 60
+$WAIT_FOR_CRASH_SECONDS = 300  # 5 minutes for modpack to load
 
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "AssimpLoader Auto-Test Loop" -ForegroundColor Cyan
@@ -52,9 +52,10 @@ TIMESTAMP: $timestamp
 PHASE: Compiling and deploying mod
 "@ | Out-File -FilePath $STATUS_FILE -Encoding UTF8
 
-    # Step 1: Build and deploy
-    Write-Host "[Step 1] Building and deploying..." -ForegroundColor Yellow
-    & "$PROJECT_DIR\build-and-run.ps1"
+    # Step 1: Build the mod
+    Write-Host "[Step 1] Building mod..." -ForegroundColor Yellow
+    Set-Location $PROJECT_DIR
+    & .\gradlew.bat build --console=plain
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host "❌ Build failed! Check compilation errors above." -ForegroundColor Red
@@ -73,6 +74,33 @@ ACTION: Fix compilation errors and restart
         exit 1
     }
 
+    Write-Host "✅ Build successful!" -ForegroundColor Green
+
+    # Step 2: Deploy to mods folder
+    Write-Host ""
+    Write-Host "[Step 2] Deploying to mods folder..." -ForegroundColor Yellow
+
+    $MOD_JAR = "assimploader-1.0.0-all.jar"
+    $TARGET_DIR = "G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods"
+    $TARGET_JAR = "integratedindustrialcraft.jar"
+
+    $SOURCE_JAR = Join-Path $PROJECT_DIR "build\libs\$MOD_JAR"
+    $DEST_JAR = Join-Path $TARGET_DIR $TARGET_JAR
+
+    if (-not (Test-Path $SOURCE_JAR)) {
+        Write-Host "❌ Source JAR not found: $SOURCE_JAR" -ForegroundColor Red
+        exit 1
+    }
+
+    Copy-Item -Path $SOURCE_JAR -Destination $DEST_JAR -Force
+    Write-Host "✅ Deployed: $TARGET_JAR" -ForegroundColor Green
+
+    # Step 3: Launch game
+    Write-Host ""
+    Write-Host "[Step 3] Launching game..." -ForegroundColor Yellow
+    $gameProcess = Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File `"$PROJECT_DIR\testgame.ps1`"" -WorkingDirectory $PROJECT_DIR -PassThru
+    Write-Host "✅ Game launched (PID: $($gameProcess.Id))" -ForegroundColor Green
+
     # Update status: Game launching
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     @"
@@ -83,15 +111,15 @@ PHASE: Game starting, waiting $WAIT_FOR_CRASH_SECONDS seconds
 "@ | Out-File -FilePath $STATUS_FILE -Encoding UTF8
 
     Write-Host ""
-    Write-Host "[Step 2] Waiting for game to start..." -ForegroundColor Yellow
+    Write-Host "[Step 4] Waiting for game to start..." -ForegroundColor Yellow
     Write-Host "  (Waiting $WAIT_FOR_CRASH_SECONDS seconds for crash or stabilization)" -ForegroundColor Gray
 
     # Wait for game to crash or stabilize
     Start-Sleep -Seconds $WAIT_FOR_CRASH_SECONDS
 
-    # Step 2: Check for crashes
+    # Step 5: Check for crashes
     Write-Host ""
-    Write-Host "[Step 3] Checking for crashes..." -ForegroundColor Yellow
+    Write-Host "[Step 5] Checking for crashes..." -ForegroundColor Yellow
 
     # Find latest crash report
     $latestCrash = Get-ChildItem -Path $CRASH_REPORTS -Filter "crash-*.txt" -ErrorAction SilentlyContinue |

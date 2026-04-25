@@ -17,7 +17,7 @@ import icyllis.modernui.view.ViewGroup;
 import icyllis.modernui.widget.LinearLayout;
 import icyllis.modernui.widget.TextView;
 
-import javax.annotation.Nonnull;
+import icyllis.modernui.annotation.NonNull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,95 +69,91 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
 
     @Nullable
     @Override
-    public View onCreateView(@Nonnull LayoutInflater inflater,
+    public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable DataSet savedInstanceState) {
-        // Create root horizontal layout
-        LinearLayout root = new LinearLayout(requireContext());
-        root.setOrientation(LinearLayout.HORIZONTAL);
-        root.setLayoutParams(new ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        ));
+        DebugManager.info(DebugCategory.LOOKDEV, "=== LookDevScreen.onCreateView START ===");
 
-        // Generate unique IDs for fragment containers
-        int leftContainerId = View.generateViewId();
-        int centerContainerId = View.generateViewId();
-        int rightContainerId = View.generateViewId();
+        try {
+            // Create root horizontal layout
+            DebugManager.debug(DebugCategory.LOOKDEV, "Creating root LinearLayout...");
+            LinearLayout root = new LinearLayout(requireContext());
+            root.setOrientation(LinearLayout.HORIZONTAL);
+            root.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            ));
+            DebugManager.debug(DebugCategory.LOOKDEV, "Root layout created successfully");
 
-        // Left panel: Model tree (20% width)
-        ViewGroup leftContainer = new ViewGroup(requireContext()) {
-            @Override
-            protected void onLayout(boolean changed, int l, int t, int r, int b) {
-                // Layout children to fill container
-                for (int i = 0; i < getChildCount(); i++) {
-                    View child = getChildAt(i);
-                    child.layout(0, 0, r - l, b - t);
-                }
-            }
-        };
-        leftContainer.setId(leftContainerId);
-        LinearLayout.LayoutParams leftParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
-        leftParams.weight = 0.2f;
-        leftContainer.setLayoutParams(leftParams);
-        root.addView(leftContainer);
+            // Left panel: Model tree (20% width)
+            DebugManager.debug(DebugCategory.LOOKDEV, "Creating left container for ModelTreeFragment...");
+            icyllis.modernui.fragment.FragmentContainerView leftContainer =
+                new icyllis.modernui.fragment.FragmentContainerView(requireContext());
+            LinearLayout.LayoutParams leftParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
+            leftParams.weight = 0.2f;
+            leftContainer.setLayoutParams(leftParams);
+            leftContainer.setId(View.generateViewId());
+            DebugManager.debug(DebugCategory.LOOKDEV, "Left container created with ID: " + leftContainer.getId());
+            root.addView(leftContainer);
 
-        // Center panel: Preview (60% width)
-        ViewGroup centerContainer = new ViewGroup(requireContext()) {
-            @Override
-            protected void onLayout(boolean changed, int l, int t, int r, int b) {
-                for (int i = 0; i < getChildCount(); i++) {
-                    View child = getChildAt(i);
-                    child.layout(0, 0, r - l, b - t);
-                }
-            }
-        };
-        centerContainer.setId(centerContainerId);
-        LinearLayout.LayoutParams centerParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
-        centerParams.weight = 0.6f;
-        centerContainer.setLayoutParams(centerParams);
-        root.addView(centerContainer);
+            // Center panel: Preview (60% width)
+            DebugManager.debug(DebugCategory.LOOKDEV, "Creating center container for PreviewFragment...");
+            icyllis.modernui.fragment.FragmentContainerView centerContainer =
+                new icyllis.modernui.fragment.FragmentContainerView(requireContext());
+            LinearLayout.LayoutParams centerParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
+            centerParams.weight = 0.6f;
+            centerContainer.setLayoutParams(centerParams);
+            centerContainer.setId(View.generateViewId());
+            DebugManager.debug(DebugCategory.LOOKDEV, "Center container created with ID: " + centerContainer.getId());
+            root.addView(centerContainer);
 
-        // Right panel: Parameters (20% width)
-        ViewGroup rightContainer = new ViewGroup(requireContext()) {
-            @Override
-            protected void onLayout(boolean changed, int l, int t, int r, int b) {
-                for (int i = 0; i < getChildCount(); i++) {
-                    View child = getChildAt(i);
-                    child.layout(0, 0, r - l, b - t);
-                }
-            }
-        };
-        rightContainer.setId(rightContainerId);
-        LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
-        rightParams.weight = 0.2f;
-        rightContainer.setLayoutParams(rightParams);
-        root.addView(rightContainer);
+            // Right panel: Parameters (20% width)
+            DebugManager.debug(DebugCategory.LOOKDEV, "Creating right container for ParameterPanelFragment...");
+            icyllis.modernui.fragment.FragmentContainerView rightContainer =
+                new icyllis.modernui.fragment.FragmentContainerView(requireContext());
+            LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
+            rightParams.weight = 0.2f;
+            rightContainer.setLayoutParams(rightParams);
+            rightContainer.setId(View.generateViewId());
+            DebugManager.debug(DebugCategory.LOOKDEV, "Right container created with ID: " + rightContainer.getId());
+            root.addView(rightContainer);
 
-        // Use FragmentManager to add child fragments
-        var ft = getChildFragmentManager().beginTransaction();
-        ft.add(leftContainerId, modelTreeFragment, "model_tree");
-        ft.add(centerContainerId, previewFragment, "preview");
-        ft.add(rightContainerId, parameterPanelFragment, "parameters");
-        ft.setReorderingAllowed(true);
-        ft.commit();
+            DebugManager.info(DebugCategory.LOOKDEV, "=== LookDevScreen.onCreateView COMPLETE - returning root ===");
+            return root;
 
-        return root;
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "FATAL ERROR in LookDevScreen.onCreateView", e);
+            throw e;
+        }
     }
 
     @Override
-    public void onViewCreated(@Nonnull View view, @Nullable DataSet savedInstanceState) {
+    public void onViewCreated(@NonNull View view, @Nullable DataSet savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
         try {
-            DebugManager.info(DebugCategory.LOOKDEV, "LookDevScreen view created");
+            DebugManager.info(DebugCategory.LOOKDEV, "=== LookDevScreen.onViewCreated START ===");
+
+            // Add child fragments using FragmentManager
+            LinearLayout root = (LinearLayout) view;
+            icyllis.modernui.fragment.FragmentContainerView leftContainer =
+                (icyllis.modernui.fragment.FragmentContainerView) root.getChildAt(0);
+            icyllis.modernui.fragment.FragmentContainerView centerContainer =
+                (icyllis.modernui.fragment.FragmentContainerView) root.getChildAt(1);
+            icyllis.modernui.fragment.FragmentContainerView rightContainer =
+                (icyllis.modernui.fragment.FragmentContainerView) root.getChildAt(2);
+
+            DebugManager.debug(DebugCategory.LOOKDEV, "Adding child fragments via FragmentManager...");
+            getChildFragmentManager().beginTransaction()
+                .add(leftContainer.getId(), modelTreeFragment, "model_tree")
+                .add(centerContainer.getId(), previewFragment, "preview")
+                .add(rightContainer.getId(), parameterPanelFragment, "parameters")
+                .commit();
+            DebugManager.info(DebugCategory.LOOKDEV, "✓ Child fragments added successfully");
 
             // Setup keyboard shortcuts
             setupKeyboardShortcuts(view);
             DebugManager.debug(DebugCategory.LOOKDEV, "Keyboard shortcuts configured");
-
-            // FragmentManager will automatically call child fragments' lifecycle methods
-            // No need to manually call onViewCreated()
 
             // Load test data
             loadTestData();
@@ -250,17 +246,40 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
      * Load test data for development
      */
     private void loadTestData() {
-        // Create test materials
-        PBRMaterial mat1 = new PBRMaterial("Test Material 1");
-        mat1.setRoughnessFactor(0.3f);
-        mat1.setMetallicFactor(0.8f);
+        // Try to load first available model from cache
+        var cachedModels = cn.minerealms.assimploader.core.AssimpModelLoader.getAllCachedModels();
 
-        PBRMaterial mat2 = new PBRMaterial("Test Material 2");
-        mat2.setRoughnessFactor(0.7f);
-        mat2.setMetallicFactor(0.2f);
+        if (!cachedModels.isEmpty()) {
+            // Get first model from cache
+            var firstEntry = cachedModels.entrySet().iterator().next();
+            String modelName = firstEntry.getKey();
+            AssimpScene scene = firstEntry.getValue();
 
-        materials.add(mat1);
-        materials.add(mat2);
+            DebugManager.info(DebugCategory.LOOKDEV, "Loading model from cache: {}", modelName);
+            currentModel = scene;
+
+            // Extract materials from the loaded model
+            extractMaterials(scene);
+
+            // Update preview with model
+            if (previewFragment != null) {
+                previewFragment.setModel(currentModel);
+            }
+        } else {
+            DebugManager.warn(DebugCategory.LOOKDEV, "No models in cache, creating test materials only");
+
+            // Create test materials as fallback
+            PBRMaterial mat1 = new PBRMaterial("Test Material 1");
+            mat1.setRoughnessFactor(0.3f);
+            mat1.setMetallicFactor(0.8f);
+
+            PBRMaterial mat2 = new PBRMaterial("Test Material 2");
+            mat2.setRoughnessFactor(0.7f);
+            mat2.setMetallicFactor(0.2f);
+
+            materials.add(mat1);
+            materials.add(mat2);
+        }
 
         // Select first material
         if (!materials.isEmpty()) {
@@ -283,9 +302,49 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
 
     @Override
     public boolean loadModel(String modelPath) {
-        // TODO Phase 5: Implement model loading
-        DebugManager.info(DebugCategory.LOOKDEV, "Loading model: %s", modelPath);
-        return false;
+        try {
+            DebugManager.info(DebugCategory.LOOKDEV, "Loading model: {}", modelPath);
+
+            // Get model from cache
+            AssimpScene scene = cn.minerealms.assimploader.core.AssimpModelLoader.getCachedModel(modelPath);
+
+            if (scene == null) {
+                DebugManager.error(DebugCategory.LOOKDEV, "Model not found in cache: {}", modelPath);
+                return false;
+            }
+
+            // Set as current model
+            currentModel = scene;
+            DebugManager.info(DebugCategory.LOOKDEV, "Model loaded: {} meshes, {} materials",
+                scene.getMeshCount(), scene.getMaterialCount());
+
+            // Extract materials from the model
+            extractMaterials(scene);
+
+            // Update preview with new model
+            if (previewFragment != null) {
+                previewFragment.setModel(currentModel);
+                DebugManager.debug(DebugCategory.LOOKDEV, "Preview fragment updated with model");
+            }
+
+            // Update tree view
+            if (modelTreeFragment != null) {
+                modelTreeFragment.updateModel();
+                DebugManager.debug(DebugCategory.LOOKDEV, "Model tree updated");
+            }
+
+            // Auto-select first material if available
+            if (!materials.isEmpty()) {
+                selectMaterial(0);
+                DebugManager.debug(DebugCategory.LOOKDEV, "Auto-selected first material");
+            }
+
+            return true;
+
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to load model: " + modelPath, e);
+            return false;
+        }
     }
 
     /**
@@ -302,25 +361,40 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
 
             // Get Assimp materials
             var assimpMaterials = scene.getMaterials();
-            DebugManager.debug(DebugCategory.LOOKDEV, "Found %d Assimp materials in scene", assimpMaterials.size());
+            DebugManager.debug(DebugCategory.LOOKDEV, "Found {} Assimp materials in scene", assimpMaterials.size());
 
             // Convert to PBR materials
             for (int i = 0; i < assimpMaterials.size(); i++) {
                 var assimpMat = assimpMaterials.get(i);
 
-                // Create PBR material with basic properties
-                // TODO: Implement full conversion from AssimpMaterial to PBRMaterial
-                PBRMaterial pbrMat = new PBRMaterial("Material_" + i);
+                // Create PBR material with name from index
+                String materialName = "Material " + (i + 1);
+                PBRMaterial pbrMat = new PBRMaterial(materialName);
 
-                // Set default PBR values
+                // Set default PBR values (will be overridable in UI)
                 pbrMat.setRoughnessFactor(0.5f);
                 pbrMat.setMetallicFactor(0.0f);
 
+                // Extract texture paths if available
+                String diffuseTex = assimpMat.getDiffuseTexture();
+                String normalTex = assimpMat.getNormalTexture();
+                String specularTex = assimpMat.getSpecularTexture();
+
+                if (diffuseTex != null) {
+                    DebugManager.debug(DebugCategory.LOOKDEV, "Material {} has diffuse texture: {}", i, diffuseTex);
+                }
+                if (normalTex != null) {
+                    DebugManager.debug(DebugCategory.LOOKDEV, "Material {} has normal texture: {}", i, normalTex);
+                }
+                if (specularTex != null) {
+                    DebugManager.debug(DebugCategory.LOOKDEV, "Material {} has specular texture: {}", i, specularTex);
+                }
+
                 materials.add(pbrMat);
-                DebugManager.debug(DebugCategory.LOOKDEV, "Converted material %d: %s", i, pbrMat.getName());
+                DebugManager.debug(DebugCategory.LOOKDEV, "Converted material {}: {}", i, pbrMat.getName());
             }
 
-            DebugManager.info(DebugCategory.LOOKDEV, "Extracted %d materials from model", materials.size());
+            DebugManager.info(DebugCategory.LOOKDEV, "Extracted {} materials from model", materials.size());
         } catch (Exception e) {
             DebugManager.error(DebugCategory.LOOKDEV, "Failed to extract materials", e);
         }
@@ -368,7 +442,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
                 return;
             }
 
-            DebugManager.info(DebugCategory.LOOKDEV, "Material selected: %s (index: %d)", material.getName(), selectedMaterialIndex);
+            DebugManager.info(DebugCategory.LOOKDEV, "Material selected: {} (index: {})", material.getName(), selectedMaterialIndex);
 
             // Update preview with new material
             if (previewFragment != null) {
