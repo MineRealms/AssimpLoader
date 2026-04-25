@@ -82,8 +82,8 @@ public class PreviewFragment extends Fragment {
             camera = new OrbitCamera(45, 30, 5);
             DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Camera initialized");
 
-            // Initialize offscreen renderer
-            offscreenRenderer = new OffscreenRenderer(512, 512);
+            // Initialize offscreen renderer (256x256 for better performance)
+            offscreenRenderer = new OffscreenRenderer(256, 256);
             offscreenRenderer.setCamera(camera);
             DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] OffscreenRenderer initialized");
 
@@ -393,6 +393,9 @@ public class PreviewFragment extends Fragment {
     private class PreviewView extends View {
 
         private Paint paint;
+        private int[] cachedPixels = null;
+        private long lastRenderTime = 0;
+        private static final long RENDER_INTERVAL = 100; // Render every 100ms (10 FPS) instead of 33ms (30 FPS)
 
         public PreviewView() {
             super(requireContext());
@@ -416,33 +419,40 @@ public class PreviewFragment extends Fragment {
                 canvas.drawRect(0, 0, width, height, paint);
 
                 if (offscreenRenderer != null && currentModel != null) {
-                    // Request render on render thread (async)
-                    offscreenRenderer.requestRender();
-
-                    // Try to get pixel buffer
-                    int[] pixels = offscreenRenderer.getPixelBuffer();
-
                     long now = System.currentTimeMillis();
-                    if (now - lastLogTime > LOG_INTERVAL) {
+
+                    // Only request new render if enough time has passed
+                    if (now - lastRenderTime > RENDER_INTERVAL) {
+                        offscreenRenderer.requestRender();
+                        lastRenderTime = now;
+
+                        // Try to get updated pixel buffer
+                        int[] pixels = offscreenRenderer.getPixelBuffer();
                         if (pixels != null) {
-                            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewView] Got pixel buffer: {} pixels, first=0x{}",
-                                pixels.length, Integer.toHexString(pixels[0]));
+                            cachedPixels = pixels;
+                        }
+                    }
+
+                    if (now - lastLogTime > LOG_INTERVAL) {
+                        if (cachedPixels != null) {
+                            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewView] Using cached pixels: {} pixels",
+                                cachedPixels.length);
                         } else {
                             DebugManager.info(DebugCategory.LOOKDEV, "[PreviewView] No pixel buffer available");
                         }
                         lastLogTime = now;
                     }
 
-                    if (pixels != null) {
-                        drawPixelBuffer(canvas, pixels, width, height);
+                    if (cachedPixels != null) {
+                        drawPixelBuffer(canvas, cachedPixels, width, height);
                     } else {
                         // Draw loading indicator
                         paint.setColor(0xFF888888);
                         canvas.drawRect(width / 2f - 50, height / 2f - 10, width / 2f + 50, height / 2f + 10, paint);
                     }
 
-                    // Request continuous updates (~30 FPS)
-                    postInvalidateDelayed(33);
+                    // Request continuous updates at reduced rate (10 FPS)
+                    postInvalidateDelayed(RENDER_INTERVAL);
                 } else {
                     // No model loaded - draw placeholder
                     paint.setColor(0xFF888888);
@@ -455,29 +465,56 @@ public class PreviewFragment extends Fragment {
 
         /**
          * Draw pixel buffer from FBO
+         * Optimized: Draw horizontal lines instead of individual pixels
          */
         private void drawPixelBuffer(Canvas canvas, int[] pixels, int viewWidth, int viewHeight) {
-            // OffscreenRenderer is 512x512
-            int bufferWidth = 512;
-            int bufferHeight = 512;
+            // OffscreenRenderer is 256x256 (reduced from 512x512 for performance)
+            int bufferWidth = 256;
+            int bufferHeight = 256;
 
-            // Calculate centered position
-            int drawWidth = Math.min(viewWidth, bufferWidth);
-            int drawHeight = Math.min(viewHeight, bufferHeight);
+            // Calculate centered position with scaling
+            float scale = Math.min((float) viewWidth / bufferWidth, (float) viewHeight / bufferHeight);
+            int drawWidth = (int) (bufferWidth * scale);
+            int drawHeight = (int) (bufferHeight * scale);
             int offsetX = (viewWidth - drawWidth) / 2;
             int offsetY = (viewHeight - drawHeight) / 2;
 
-            // Draw pixels
-            for (int y = 0; y < drawHeight; y++) {
-                for (int x = 0; x < drawWidth; x++) {
-                    int pixelIndex = y * bufferWidth + x;
-                    if (pixelIndex < pixels.length) {
-                        int color = pixels[pixelIndex];
-                        paint.setColor(color);
-                        canvas.drawPoint(offsetX + x, offsetY + y, paint);
+            // Draw with scaling (each pixel becomes scale x scale block)
+            float pixelScale = scale;
+
+            for (int y = 0; y < bufferHeight; y++) {
+                int rowStart = y * bufferWidth;
+
+                // Draw line segments with same color
+                int currentColor = pixels[rowStart];
+                int segmentStart = 0;
+
+                for (int x = 0; x <= bufferWidth; x++) {
+                    int pixelIndex = rowStart + x;
+                    int nextColor = (x < bufferWidth && pixelIndex < pixels.length) ? pixels[pixelIndex] : -1;
+
+                    // Color changed or end of line - draw accumulated segment
+                    if (nextColor != currentColor) {
+                        if (segmentStart < x) {
+                            paint.setColor(currentColor);
+                            float y0 = offsetY + y * pixelScale;
+                            float x0 = offsetX + segmentStart * pixelScale;
+                            float x1 = offsetX + x * pixelScale;
+
+                            // Draw thick line if scaling up
+                            if (pixelScale > 1.5f) {
+                                paint.setStrokeWidth(pixelScale);
+                            }
+                            canvas.drawLine(x0, y0, x1, y0, paint);
+                        }
+                        currentColor = nextColor;
+                        segmentStart = x;
                     }
                 }
             }
+
+            // Reset stroke width
+            paint.setStrokeWidth(1.0f);
         }
     }
 }
