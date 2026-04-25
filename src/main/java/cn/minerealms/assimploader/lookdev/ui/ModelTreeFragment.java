@@ -69,6 +69,9 @@ public class ModelTreeFragment extends Fragment {
             // Root scroll view
             DebugManager.debug(DebugCategory.LOOKDEV, "Creating ScrollView...");
             scrollView = new ScrollView(context);
+            scrollView.setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
             scrollView.setBackground(new ColorDrawable(0xFF2C2C2C));
             DebugManager.debug(DebugCategory.LOOKDEV, "ScrollView created with dark background");
 
