@@ -9,6 +9,9 @@ import icyllis.modernui.view.MotionEvent;
 import icyllis.modernui.view.View;
 import net.minecraft.client.Minecraft;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Custom canvas view for node editor.
  *
@@ -16,6 +19,7 @@ import net.minecraft.client.Minecraft;
  * - Pan: Click and drag to move viewport
  * - Zoom: Mouse wheel to zoom in/out
  * - Grid background
+ * - Node rendering and interaction
  */
 public class NodeEditorCanvas extends View {
 
@@ -28,6 +32,11 @@ public class NodeEditorCanvas extends View {
     private boolean isPanning = false;
     private float lastMouseX = 0.0f;
     private float lastMouseY = 0.0f;
+
+    // Nodes
+    private List<Node> nodes = new ArrayList<>();
+    private Node selectedNode = null;
+    private boolean isDraggingNode = false;
 
     // Grid settings
     private static final float GRID_SIZE = 20.0f;
@@ -74,7 +83,12 @@ public class NodeEditorCanvas extends View {
         // Draw grid
         drawGrid(canvas, width, height);
 
-        // TODO: Draw nodes and connections here
+        // Draw nodes
+        for (Node node : nodes) {
+            node.draw(canvas, paint);
+        }
+
+        // TODO: Draw connections here
 
         // Restore canvas state
         canvas.restore();
@@ -128,16 +142,53 @@ public class NodeEditorCanvas extends View {
         float x = event.getX();
         float y = event.getY();
 
+        // Transform to canvas coordinates
+        float canvasX = (x - offsetX) / zoom;
+        float canvasY = (y - offsetY) / zoom;
+
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                // Start panning
-                isPanning = true;
-                lastMouseX = x;
-                lastMouseY = y;
+                // Check if clicking on a node
+                Node clickedNode = getNodeAt(canvasX, canvasY);
+                if (clickedNode != null) {
+                    // Select node
+                    selectNode(clickedNode);
+
+                    // Check if clicking on title bar (for dragging)
+                    if (clickedNode.containsTitleBar(canvasX, canvasY)) {
+                        isDraggingNode = true;
+                        lastMouseX = x;
+                        lastMouseY = y;
+                        return true;
+                    }
+                } else {
+                    // Deselect all nodes
+                    selectNode(null);
+
+                    // Start panning
+                    isPanning = true;
+                    lastMouseX = x;
+                    lastMouseY = y;
+                }
                 return true;
 
             case MotionEvent.ACTION_MOVE:
-                if (isPanning) {
+                if (isDraggingNode && selectedNode != null) {
+                    // Drag node
+                    float dx = (x - lastMouseX) / zoom;
+                    float dy = (y - lastMouseY) / zoom;
+
+                    selectedNode.setPosition(
+                        selectedNode.getX() + dx,
+                        selectedNode.getY() + dy
+                    );
+
+                    lastMouseX = x;
+                    lastMouseY = y;
+
+                    invalidate();
+                    return true;
+                } else if (isPanning) {
                     // Pan viewport
                     float dx = x - lastMouseX;
                     float dy = y - lastMouseY;
@@ -156,6 +207,7 @@ public class NodeEditorCanvas extends View {
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
                 isPanning = false;
+                isDraggingNode = false;
                 return true;
         }
 
@@ -219,5 +271,75 @@ public class NodeEditorCanvas extends View {
      */
     public float getOffsetY() {
         return offsetY;
+    }
+
+    /**
+     * Add a node to the canvas
+     */
+    public void addNode(Node node) {
+        nodes.add(node);
+        invalidate();
+    }
+
+    /**
+     * Remove a node from the canvas
+     */
+    public void removeNode(Node node) {
+        nodes.remove(node);
+        if (selectedNode == node) {
+            selectedNode = null;
+        }
+        invalidate();
+    }
+
+    /**
+     * Get node at position, or null
+     */
+    private Node getNodeAt(float x, float y) {
+        // Check in reverse order (top to bottom)
+        for (int i = nodes.size() - 1; i >= 0; i--) {
+            Node node = nodes.get(i);
+            if (node.contains(x, y)) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Select a node
+     */
+    private void selectNode(Node node) {
+        if (selectedNode != null) {
+            selectedNode.setSelected(false);
+        }
+        selectedNode = node;
+        if (selectedNode != null) {
+            selectedNode.setSelected(true);
+        }
+        invalidate();
+    }
+
+    /**
+     * Get all nodes
+     */
+    public List<Node> getNodes() {
+        return nodes;
+    }
+
+    /**
+     * Get selected node
+     */
+    public Node getSelectedNode() {
+        return selectedNode;
+    }
+
+    /**
+     * Clear all nodes
+     */
+    public void clearNodes() {
+        nodes.clear();
+        selectedNode = null;
+        invalidate();
     }
 }
