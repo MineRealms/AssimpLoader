@@ -468,9 +468,21 @@ public class PreviewFragment extends Fragment {
          * Optimized: Draw horizontal lines instead of individual pixels
          */
         private void drawPixelBuffer(Canvas canvas, int[] pixels, int viewWidth, int viewHeight) {
+            // Safety check
+            if (pixels == null || pixels.length == 0) {
+                return;
+            }
+
             // OffscreenRenderer is 256x256 (reduced from 512x512 for performance)
             int bufferWidth = 256;
             int bufferHeight = 256;
+
+            // Verify pixel buffer size
+            if (pixels.length < bufferWidth * bufferHeight) {
+                DebugManager.warn(DebugCategory.LOOKDEV, "[PreviewView] Pixel buffer too small: {} < {}",
+                    pixels.length, bufferWidth * bufferHeight);
+                return;
+            }
 
             // Calculate centered position with scaling
             float scale = Math.min((float) viewWidth / bufferWidth, (float) viewHeight / bufferHeight);
@@ -484,6 +496,11 @@ public class PreviewFragment extends Fragment {
 
             for (int y = 0; y < bufferHeight; y++) {
                 int rowStart = y * bufferWidth;
+
+                // Safety check for row
+                if (rowStart >= pixels.length) {
+                    break;
+                }
 
                 // Draw line segments with same color
                 int currentColor = pixels[rowStart];
