@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 $PROJECT_DIR = "H:\MinecraftMods\ImprovedMobs"
 $MOD_JAR = "assimploader-1.0.0-all.jar"
 $TARGET_DIR = "G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods"
-$TARGET_JAR = "integratedindustrialcraft.jar"
+$TARGET_JAR = "assimploader-1.0.0-all.jar"
 $GAME_LAUNCHER = Join-Path $PROJECT_DIR "testgame.ps1"
 
 Write-Host "=========================================" -ForegroundColor Cyan

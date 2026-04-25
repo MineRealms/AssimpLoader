@@ -374,14 +374,25 @@ public class OffscreenRenderer {
         float[] texCoords = mesh.getTexCoords();
         int[] indices = mesh.getIndices();
 
-        float[] diffuseColor = material != null ? material.getDiffuseColor() : new float[]{1.0f, 1.0f, 1.0f, 1.0f};
+        // Use PBRMaterial's baseColor if available (includes overrides), otherwise fallback to AssimpMaterial
+        Vector4f baseColor;
+        if (currentMaterial != null) {
+            baseColor = currentMaterial.getBaseColor();
+            DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Using PBRMaterial baseColor: ({}, {}, {}, {})",
+                baseColor.x, baseColor.y, baseColor.z, baseColor.w);
+        } else {
+            float[] diffuseColor = material != null ? material.getDiffuseColor() : new float[]{1.0f, 1.0f, 1.0f, 1.0f};
+            baseColor = new Vector4f(diffuseColor[0], diffuseColor[1], diffuseColor[2], diffuseColor[3]);
+            DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Using AssimpMaterial diffuseColor: ({}, {}, {}, {})",
+                baseColor.x, baseColor.y, baseColor.z, baseColor.w);
+        }
 
         Matrix4f pose = poseStack.last().pose();
         Matrix3f normal = poseStack.last().normal();
 
         Vector3f pos = new Vector3f();
         Vector3f norm = new Vector3f();
-        Vector4f color = new Vector4f(diffuseColor[0], diffuseColor[1], diffuseColor[2], diffuseColor[3]);
+        Vector4f color = new Vector4f(baseColor.x, baseColor.y, baseColor.z, baseColor.w);
 
         // Begin drawing
         bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);

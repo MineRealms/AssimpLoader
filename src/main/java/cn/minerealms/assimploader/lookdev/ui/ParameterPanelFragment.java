@@ -77,36 +77,39 @@ public class ParameterPanelFragment extends Fragment {
         DebugManager.info(DebugCategory.LOOKDEV, "=== ParameterPanelFragment.onCreateView START ===");
 
         try {
-            DebugManager.debug(DebugCategory.LOOKDEV, "Getting context...");
+            DebugManager.info(DebugCategory.LOOKDEV, "Getting context...");
             var context = requireContext();
-            DebugManager.debug(DebugCategory.LOOKDEV, "Context obtained");
+            DebugManager.info(DebugCategory.LOOKDEV, "Context obtained");
 
             // Initialize preset manager
-            DebugManager.debug(DebugCategory.LOOKDEV, "Initializing PresetManager...");
+            DebugManager.info(DebugCategory.LOOKDEV, "Initializing PresetManager...");
             presetManager = new PresetManager();
-            DebugManager.debug(DebugCategory.LOOKDEV, "PresetManager initialized");
+            DebugManager.info(DebugCategory.LOOKDEV, "PresetManager initialized");
 
             // Initialize comparison manager
-            DebugManager.debug(DebugCategory.LOOKDEV, "Initializing ComparisonManager...");
+            DebugManager.info(DebugCategory.LOOKDEV, "Initializing ComparisonManager...");
             comparisonManager = new ComparisonManager();
-            DebugManager.debug(DebugCategory.LOOKDEV, "ComparisonManager initialized");
+            DebugManager.info(DebugCategory.LOOKDEV, "ComparisonManager initialized");
 
             // Root scroll view
-            DebugManager.debug(DebugCategory.LOOKDEV, "Creating ScrollView...");
+            DebugManager.info(DebugCategory.LOOKDEV, "Creating ScrollView...");
             scrollView = new ScrollView(context);
+            scrollView.setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
             scrollView.setBackground(new ColorDrawable(0xFF2B2B2B));
-            DebugManager.debug(DebugCategory.LOOKDEV, "ScrollView created");
+            DebugManager.info(DebugCategory.LOOKDEV, "ScrollView created");
 
             // Content layout
-            DebugManager.debug(DebugCategory.LOOKDEV, "Creating content LinearLayout...");
+            DebugManager.info(DebugCategory.LOOKDEV, "Creating content LinearLayout...");
             contentLayout = new LinearLayout(context);
             contentLayout.setOrientation(LinearLayout.VERTICAL);
             contentLayout.setPadding(contentLayout.dp(8), contentLayout.dp(8),
                     contentLayout.dp(8), contentLayout.dp(8));
-            DebugManager.debug(DebugCategory.LOOKDEV, "Content layout created");
+            DebugManager.info(DebugCategory.LOOKDEV, "Content layout created");
 
             // Title
-            DebugManager.debug(DebugCategory.LOOKDEV, "Adding UI controls...");
+            DebugManager.info(DebugCategory.LOOKDEV, "Adding UI controls...");
             addSectionTitle("Material Parameters");
 
             // Channel toggles section
@@ -118,7 +121,7 @@ public class ParameterPanelFragment extends Fragment {
             emissiveToggle = addChannelToggle("Emissive");
             aoToggle = addChannelToggle("Ambient Occlusion");
             heightToggle = addChannelToggle("Height Map");
-            DebugManager.debug(DebugCategory.LOOKDEV, "Channel toggles added");
+            DebugManager.info(DebugCategory.LOOKDEV, "Channel toggles added");
 
             // Parameter sliders section
             addSectionTitle("Parameters");
@@ -126,7 +129,7 @@ public class ParameterPanelFragment extends Fragment {
             roughnessValue = getLastValueLabel();
             metallicSlider = addParameterSlider("Metallic", 0, 100);
             metallicValue = getLastValueLabel();
-            DebugManager.debug(DebugCategory.LOOKDEV, "Parameter sliders added");
+            DebugManager.info(DebugCategory.LOOKDEV, "Parameter sliders added");
 
             // Base color section
             addSectionTitle("Base Color");
@@ -138,7 +141,7 @@ public class ParameterPanelFragment extends Fragment {
             baseColorBValue = getLastValueLabel();
             baseColorA = addColorSlider("A", 0, 255);
             baseColorAValue = getLastValueLabel();
-            DebugManager.debug(DebugCategory.LOOKDEV, "Base color sliders added");
+            DebugManager.info(DebugCategory.LOOKDEV, "Base color sliders added");
 
             // Emissive color section
             addSectionTitle("Emissive Color");
@@ -148,19 +151,19 @@ public class ParameterPanelFragment extends Fragment {
             emissiveGValue = getLastValueLabel();
             emissiveB = addColorSlider("B", 0, 255);
             emissiveBValue = getLastValueLabel();
-            DebugManager.debug(DebugCategory.LOOKDEV, "Emissive color sliders added");
+            DebugManager.info(DebugCategory.LOOKDEV, "Emissive color sliders added");
 
             // Preset section
             addSpacer(16);
             addSectionTitle("Presets");
             addPresetControls();
-            DebugManager.debug(DebugCategory.LOOKDEV, "Preset controls added");
+            DebugManager.info(DebugCategory.LOOKDEV, "Preset controls added");
 
             // Comparison section
             addSpacer(16);
             addSectionTitle("Before/After Comparison");
             addComparisonControls();
-            DebugManager.debug(DebugCategory.LOOKDEV, "Comparison controls added");
+            DebugManager.info(DebugCategory.LOOKDEV, "Comparison controls added");
 
             // Reset button
             addSpacer(16);
@@ -172,9 +175,9 @@ public class ParameterPanelFragment extends Fragment {
                     ViewGroup.LayoutParams.WRAP_CONTENT);
             resetParams.setMargins(0, contentLayout.dp(8), 0, 0);
             contentLayout.addView(resetButton, resetParams);
-            DebugManager.debug(DebugCategory.LOOKDEV, "Reset button added");
+            DebugManager.info(DebugCategory.LOOKDEV, "Reset button added");
 
-            DebugManager.debug(DebugCategory.LOOKDEV, "Adding contentLayout to scrollView...");
+            DebugManager.info(DebugCategory.LOOKDEV, "Adding contentLayout to scrollView...");
             scrollView.addView(contentLayout);
             DebugManager.info(DebugCategory.LOOKDEV, "=== ParameterPanelFragment.onCreateView COMPLETE - returning scrollView ===");
             return scrollView;
@@ -187,16 +190,26 @@ public class ParameterPanelFragment extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable DataSet savedInstanceState) {
+        DebugManager.info(DebugCategory.LOOKDEV, "=== ParameterPanelFragment.onViewCreated START ===");
         super.onViewCreated(view, savedInstanceState);
+
+        DebugManager.info(DebugCategory.LOOKDEV, "Setting up listeners...");
         setupListeners();
+        DebugManager.info(DebugCategory.LOOKDEV, "Listeners setup complete");
 
         // Update UI if material was set before view creation
         if (overrideManager != null) {
+            DebugManager.info(DebugCategory.LOOKDEV, "Updating UI from material (overrideManager exists)");
             updateUIFromMaterial();
+        } else {
+            DebugManager.info(DebugCategory.LOOKDEV, "No overrideManager yet, skipping UI update");
         }
+
+        DebugManager.info(DebugCategory.LOOKDEV, "=== ParameterPanelFragment.onViewCreated COMPLETE ===");
     }
 
     private void setupListeners() {
+        DebugManager.info(DebugCategory.LOOKDEV, "setupListeners: Setting up channel toggle listeners...");
         // Channel toggle listeners
         baseColorToggle.setOnCheckedChangeListener((v, checked) -> {
             if (overrideManager != null) {
@@ -291,34 +304,47 @@ public class ParameterPanelFragment extends Fragment {
 
         // Base color sliders
         setupColorSlider(baseColorR, baseColorRValue, (value) -> {
+            DebugManager.info(DebugCategory.LOOKDEV, "Base Color R changed to: " + value);
             if (overrideManager != null) {
                 Vector4f color = overrideManager.getOriginalMaterial().getBaseColor();
                 overrideManager.setBaseColorOverride(value / 255f, color.y, color.z, color.w);
+                DebugManager.info(DebugCategory.LOOKDEV, "Base Color override set, notifying change...");
                 notifyMaterialChanged();
+            } else {
+                DebugManager.warn(DebugCategory.LOOKDEV, "overrideManager is null, cannot update Base Color R");
             }
         });
 
         setupColorSlider(baseColorG, baseColorGValue, (value) -> {
+            DebugManager.info(DebugCategory.LOOKDEV, "Base Color G changed to: " + value);
             if (overrideManager != null) {
                 Vector4f color = overrideManager.getOriginalMaterial().getBaseColor();
                 overrideManager.setBaseColorOverride(color.x, value / 255f, color.z, color.w);
                 notifyMaterialChanged();
+            } else {
+                DebugManager.warn(DebugCategory.LOOKDEV, "overrideManager is null, cannot update Base Color G");
             }
         });
 
         setupColorSlider(baseColorB, baseColorBValue, (value) -> {
+            DebugManager.info(DebugCategory.LOOKDEV, "Base Color B changed to: " + value);
             if (overrideManager != null) {
                 Vector4f color = overrideManager.getOriginalMaterial().getBaseColor();
                 overrideManager.setBaseColorOverride(color.x, color.y, value / 255f, color.w);
                 notifyMaterialChanged();
+            } else {
+                DebugManager.warn(DebugCategory.LOOKDEV, "overrideManager is null, cannot update Base Color B");
             }
         });
 
         setupColorSlider(baseColorA, baseColorAValue, (value) -> {
+            DebugManager.info(DebugCategory.LOOKDEV, "Base Color A changed to: " + value);
             if (overrideManager != null) {
                 Vector4f color = overrideManager.getOriginalMaterial().getBaseColor();
                 overrideManager.setBaseColorOverride(color.x, color.y, color.z, value / 255f);
                 notifyMaterialChanged();
+            } else {
+                DebugManager.warn(DebugCategory.LOOKDEV, "overrideManager is null, cannot update Base Color A");
             }
         });
 
@@ -346,23 +372,36 @@ public class ParameterPanelFragment extends Fragment {
                 notifyMaterialChanged();
             }
         });
+
+        DebugManager.info(DebugCategory.LOOKDEV, "setupListeners: All listeners setup complete");
     }
 
     private void setupColorSlider(SeekBar slider, TextView valueLabel, ColorSliderCallback callback) {
+        DebugManager.info(DebugCategory.LOOKDEV, "setupColorSlider called for slider: " + slider + ", valueLabel: " + valueLabel);
         slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                DebugManager.info(DebugCategory.LOOKDEV, "onProgressChanged: progress=" + progress + ", fromUser=" + fromUser);
                 if (fromUser) {
+                    DebugManager.info(DebugCategory.LOOKDEV, "Calling callback with value: " + progress);
                     callback.onValueChanged(progress);
                     valueLabel.setText(String.valueOf(progress));
+                } else {
+                    DebugManager.info(DebugCategory.LOOKDEV, "Ignoring programmatic change");
                 }
             }
 
             @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                DebugManager.info(DebugCategory.LOOKDEV, "onStartTrackingTouch called");
+            }
+
             @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                DebugManager.info(DebugCategory.LOOKDEV, "onStopTrackingTouch called");
+            }
         });
+        DebugManager.info(DebugCategory.LOOKDEV, "Listener set for slider");
     }
 
     @FunctionalInterface
@@ -592,10 +631,14 @@ public class ParameterPanelFragment extends Fragment {
      * Notify parent that material has changed
      */
     private void notifyMaterialChanged() {
+        DebugManager.info(DebugCategory.LOOKDEV, "notifyMaterialChanged called");
         // Notify parent LookDevScreen to refresh preview
         Fragment parent = getParentFragment();
         if (parent instanceof LookDevScreen) {
+            DebugManager.info(DebugCategory.LOOKDEV, "Notifying LookDevScreen.onMaterialParametersChanged()");
             ((LookDevScreen) parent).onMaterialParametersChanged();
+        } else {
+            DebugManager.warn(DebugCategory.LOOKDEV, "Parent is not LookDevScreen: " + (parent != null ? parent.getClass().getName() : "null"));
         }
     }
 

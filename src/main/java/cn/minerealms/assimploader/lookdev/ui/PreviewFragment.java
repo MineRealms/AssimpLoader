@@ -278,13 +278,19 @@ public class PreviewFragment extends Fragment {
      * Refresh the preview (called when material parameters change)
      */
     public void refresh() {
+        DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] refresh() called");
         try {
+            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Calling updateOffscreenRenderer()");
             updateOffscreenRenderer();
+            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Calling updateInfoText()");
             updateInfoText();
             if (previewView != null) {
+                DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Calling previewView.invalidate()");
                 previewView.invalidate();
+            } else {
+                DebugManager.warn(DebugCategory.LOOKDEV, "[PreviewFragment] previewView is null");
             }
-            DebugManager.debug(DebugCategory.LOOKDEV, "[PreviewFragment] Refreshed");
+            DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Refresh completed");
         } catch (Exception e) {
             DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] ERROR in refresh", e);
         }
