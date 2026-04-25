@@ -15,6 +15,7 @@ import icyllis.modernui.view.LayoutInflater;
 import icyllis.modernui.view.View;
 import icyllis.modernui.view.ViewGroup;
 import icyllis.modernui.widget.*;
+import net.minecraft.resources.ResourceLocation;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
@@ -46,6 +47,15 @@ public class ParameterPanelFragment extends Fragment {
     private SwitchButton emissiveToggle;
     private SwitchButton aoToggle;
     private SwitchButton heightToggle;
+
+    // Channel info labels (to show texture paths)
+    private TextView baseColorInfo;
+    private TextView normalInfo;
+    private TextView metallicInfo;
+    private TextView roughnessInfo;
+    private TextView emissiveInfo;
+    private TextView aoInfo;
+    private TextView heightInfo;
 
     // Parameter sliders
     private SeekBar roughnessSlider;
@@ -115,12 +125,19 @@ public class ParameterPanelFragment extends Fragment {
             // Channel toggles section
             addSectionTitle("Texture Channels");
             baseColorToggle = addChannelToggle("Base Color");
+            baseColorInfo = getLastInfoLabel();
             normalToggle = addChannelToggle("Normal Map");
+            normalInfo = getLastInfoLabel();
             metallicToggle = addChannelToggle("Metallic");
+            metallicInfo = getLastInfoLabel();
             roughnessToggle = addChannelToggle("Roughness");
+            roughnessInfo = getLastInfoLabel();
             emissiveToggle = addChannelToggle("Emissive");
+            emissiveInfo = getLastInfoLabel();
             aoToggle = addChannelToggle("Ambient Occlusion");
+            aoInfo = getLastInfoLabel();
             heightToggle = addChannelToggle("Height Map");
+            heightInfo = getLastInfoLabel();
             DebugManager.info(DebugCategory.LOOKDEV, "Channel toggles added");
 
             // Parameter sliders section
@@ -423,15 +440,19 @@ public class ParameterPanelFragment extends Fragment {
 
     private SwitchButton addChannelToggle(String label) {
         var layout = new LinearLayout(requireContext());
-        layout.setOrientation(LinearLayout.HORIZONTAL);
-        layout.setHorizontalGravity(Gravity.START);
+        layout.setOrientation(LinearLayout.VERTICAL);
+
+        // Top row: label + toggle
+        var topRow = new LinearLayout(requireContext());
+        topRow.setOrientation(LinearLayout.HORIZONTAL);
+        topRow.setHorizontalGravity(Gravity.START);
 
         var textView = new TextView(requireContext());
         textView.setText(label);
         textView.setTextSize(12);
         var textParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         textParams.gravity = Gravity.CENTER_VERTICAL;
-        layout.addView(textView, textParams);
+        topRow.addView(textView, textParams);
 
         var toggle = new SwitchButton(requireContext());
         toggle.setChecked(true);
@@ -439,7 +460,20 @@ public class ParameterPanelFragment extends Fragment {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         toggleParams.gravity = Gravity.CENTER_VERTICAL;
-        layout.addView(toggle, toggleParams);
+        topRow.addView(toggle, toggleParams);
+
+        layout.addView(topRow);
+
+        // Bottom row: texture info
+        var infoLabel = new TextView(requireContext());
+        infoLabel.setText("No texture");
+        infoLabel.setTextSize(10);
+        infoLabel.setTextColor(0xFF888888);
+        var infoParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        infoParams.setMargins(0, contentLayout.dp(2), 0, 0);
+        layout.addView(infoLabel, infoParams);
 
         var layoutParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -447,7 +481,14 @@ public class ParameterPanelFragment extends Fragment {
         layoutParams.setMargins(0, contentLayout.dp(2), 0, contentLayout.dp(2));
         contentLayout.addView(layout, layoutParams);
 
+        lastInfoLabel = infoLabel;
         return toggle;
+    }
+
+    private TextView lastInfoLabel;
+
+    private TextView getLastInfoLabel() {
+        return lastInfoLabel;
     }
 
     private TextView lastValueLabel;
@@ -581,6 +622,15 @@ public class ParameterPanelFragment extends Fragment {
         aoToggle.setChecked(true);
         heightToggle.setChecked(true);
 
+        // Update texture info labels
+        updateTextureInfo(baseColorInfo, material.getBaseColorTexture());
+        updateTextureInfo(normalInfo, material.getNormalTexture());
+        updateTextureInfo(metallicInfo, material.getMetallicRoughnessTexture());
+        updateTextureInfo(roughnessInfo, material.getMetallicRoughnessTexture());
+        updateTextureInfo(emissiveInfo, material.getEmissiveTexture());
+        updateTextureInfo(aoInfo, material.getAoTexture());
+        updateTextureInfo(heightInfo, material.getHeightTexture());
+
         // Update parameter sliders
         roughnessSlider.setProgress((int) (material.getRoughnessFactor() * 100));
         roughnessValue.setText(String.format("%.2f", material.getRoughnessFactor()));
@@ -607,6 +657,25 @@ public class ParameterPanelFragment extends Fragment {
         emissiveGValue.setText(String.valueOf((int) (emissive.y * 255)));
         emissiveB.setProgress((int) (emissive.z * 255));
         emissiveBValue.setText(String.valueOf((int) (emissive.z * 255)));
+    }
+
+    /**
+     * Update texture info label with texture path or "No texture"
+     */
+    private void updateTextureInfo(TextView infoLabel, @Nullable ResourceLocation texture) {
+        if (infoLabel == null) return;
+
+        if (texture != null) {
+            // Show shortened path (last part only)
+            String path = texture.toString();
+            String[] parts = path.split("/");
+            String shortPath = parts.length > 0 ? parts[parts.length - 1] : path;
+            infoLabel.setText(shortPath);
+            infoLabel.setTextColor(0xFFAAFFAA); // Green = texture exists
+        } else {
+            infoLabel.setText("No texture");
+            infoLabel.setTextColor(0xFF888888); // Gray = no texture
+        }
     }
 
     /**

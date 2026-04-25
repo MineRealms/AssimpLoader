@@ -376,16 +376,34 @@ public class OffscreenRenderer {
 
         // Use PBRMaterial's baseColor if available (includes overrides), otherwise fallback to AssimpMaterial
         Vector4f baseColor;
+        float roughness = 0.5f;
+        float metallic = 0.0f;
+        Vector3f emissive = new Vector3f(0.0f, 0.0f, 0.0f);
+
         if (currentMaterial != null) {
             baseColor = currentMaterial.getBaseColor();
-            DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Using PBRMaterial baseColor: ({}, {}, {}, {})",
-                baseColor.x, baseColor.y, baseColor.z, baseColor.w);
+            roughness = currentMaterial.getRoughnessFactor();
+            metallic = currentMaterial.getMetallicFactor();
+            emissive = currentMaterial.getEmissiveFactor();
+
+            DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Using PBRMaterial - baseColor: ({}, {}, {}, {}), roughness: {}, metallic: {}, emissive: ({}, {}, {})",
+                baseColor.x, baseColor.y, baseColor.z, baseColor.w, roughness, metallic, emissive.x, emissive.y, emissive.z);
         } else {
             float[] diffuseColor = material != null ? material.getDiffuseColor() : new float[]{1.0f, 1.0f, 1.0f, 1.0f};
             baseColor = new Vector4f(diffuseColor[0], diffuseColor[1], diffuseColor[2], diffuseColor[3]);
             DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Using AssimpMaterial diffuseColor: ({}, {}, {}, {})",
                 baseColor.x, baseColor.y, baseColor.z, baseColor.w);
         }
+
+        // Apply roughness and metallic as simple color modulation (simplified PBR approximation)
+        // Roughness: darker = smoother (more specular), brighter = rougher (more diffuse)
+        // Metallic: affects color tint (metals reflect base color, dielectrics are more neutral)
+        float roughnessFactor = 0.5f + (roughness * 0.5f); // Map 0-1 to 0.5-1.0 brightness
+        float metallicFactor = 1.0f - (metallic * 0.3f); // Metals slightly darker
+
+        baseColor.x = Math.min(1.0f, baseColor.x * roughnessFactor * metallicFactor + emissive.x);
+        baseColor.y = Math.min(1.0f, baseColor.y * roughnessFactor * metallicFactor + emissive.y);
+        baseColor.z = Math.min(1.0f, baseColor.z * roughnessFactor * metallicFactor + emissive.z);
 
         Matrix4f pose = poseStack.last().pose();
         Matrix3f normal = poseStack.last().normal();
