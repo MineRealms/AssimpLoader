@@ -197,7 +197,9 @@ public class PreviewFragment extends Fragment {
 
                             updateOffscreenRenderer();
                             updateInfoText();
-                            previewView.invalidate();
+                            if (previewView != null) {
+                                previewView.requestUpdate();
+                            }
                         }
                         return true;
 
@@ -285,8 +287,8 @@ public class PreviewFragment extends Fragment {
             DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Calling updateInfoText()");
             updateInfoText();
             if (previewView != null) {
-                DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Calling previewView.invalidate()");
-                previewView.invalidate();
+                DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Calling previewView.requestUpdate()");
+                previewView.requestUpdate();
             } else {
                 DebugManager.warn(DebugCategory.LOOKDEV, "[PreviewFragment] previewView is null");
             }
@@ -326,7 +328,7 @@ public class PreviewFragment extends Fragment {
                 updateOffscreenRenderer();
                 updateInfoText();
                 if (previewView != null) {
-                    previewView.invalidate();
+                    previewView.requestUpdate();
                 }
                 DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Camera reset");
             }
@@ -395,7 +397,7 @@ public class PreviewFragment extends Fragment {
         private Paint paint;
         private int[] cachedPixels = null;
         private long lastRenderTime = 0;
-        private static final long RENDER_INTERVAL = 100; // Render every 100ms (10 FPS) instead of 33ms (30 FPS)
+        private static final long RENDER_INTERVAL = 100; // Minimum 100ms between renders
 
         public PreviewView() {
             super(requireContext());
@@ -405,6 +407,34 @@ public class PreviewFragment extends Fragment {
 
         private long lastLogTime = 0;
         private static final long LOG_INTERVAL = 2000; // 每2秒打印一次日志
+
+        /**
+         * Request a new render and update the view
+         */
+        public void requestUpdate() {
+            long now = System.currentTimeMillis();
+
+            // Throttle render requests
+            if (now - lastRenderTime < RENDER_INTERVAL) {
+                return;
+            }
+
+            lastRenderTime = now;
+
+            // Request render on render thread
+            if (offscreenRenderer != null) {
+                offscreenRenderer.requestRender();
+
+                // Schedule pixel buffer read and view update
+                postDelayed(() -> {
+                    int[] pixels = offscreenRenderer.getPixelBuffer();
+                    if (pixels != null) {
+                        cachedPixels = pixels;
+                        invalidate(); // Trigger redraw with new pixels
+                    }
+                }, 50); // Wait 50ms for render to complete
+            }
+        }
 
         @Override
         protected void onDraw(@NonNull Canvas canvas) {
@@ -421,18 +451,7 @@ public class PreviewFragment extends Fragment {
                 if (offscreenRenderer != null && currentModel != null) {
                     long now = System.currentTimeMillis();
 
-                    // Only request new render if enough time has passed
-                    if (now - lastRenderTime > RENDER_INTERVAL) {
-                        offscreenRenderer.requestRender();
-                        lastRenderTime = now;
-
-                        // Try to get updated pixel buffer
-                        int[] pixels = offscreenRenderer.getPixelBuffer();
-                        if (pixels != null) {
-                            cachedPixels = pixels;
-                        }
-                    }
-
+                    // Only log periodically
                     if (now - lastLogTime > LOG_INTERVAL) {
                         if (cachedPixels != null) {
                             DebugManager.info(DebugCategory.LOOKDEV, "[PreviewView] Using cached pixels: {} pixels",
@@ -451,8 +470,7 @@ public class PreviewFragment extends Fragment {
                         canvas.drawRect(width / 2f - 50, height / 2f - 10, width / 2f + 50, height / 2f + 10, paint);
                     }
 
-                    // Request continuous updates at reduced rate (10 FPS)
-                    postInvalidateDelayed(RENDER_INTERVAL);
+                    // Don't request continuous updates - only invalidate when camera/material changes
                 } else {
                     // No model loaded - draw placeholder
                     paint.setColor(0xFF888888);
@@ -465,7 +483,7 @@ public class PreviewFragment extends Fragment {
 
         /**
          * Draw pixel buffer from FBO
-         * Optimized: Draw horizontal lines instead of individual pixels
+         * Optimized: Only update on changes, use simple point drawing
          */
         private void drawPixelBuffer(Canvas canvas, int[] pixels, int viewWidth, int viewHeight) {
             // Safety check
@@ -473,7 +491,7 @@ public class PreviewFragment extends Fragment {
                 return;
             }
 
-            // OffscreenRenderer is 256x256 (reduced from 512x512 for performance)
+            // OffscreenRenderer is 256x256
             int bufferWidth = 256;
             int bufferHeight = 256;
 
@@ -491,42 +509,29 @@ public class PreviewFragment extends Fragment {
             int offsetX = (viewWidth - drawWidth) / 2;
             int offsetY = (viewHeight - drawHeight) / 2;
 
-            // Draw with scaling (each pixel becomes scale x scale block)
+            // Simple point drawing - each source pixel maps to one or more screen pixels
             float pixelScale = scale;
+
+            // Set stroke width for scaled pixels
+            if (pixelScale > 1.0f) {
+                paint.setStrokeWidth(pixelScale);
+            }
 
             for (int y = 0; y < bufferHeight; y++) {
                 int rowStart = y * bufferWidth;
+                if (rowStart >= pixels.length) break;
 
-                // Safety check for row
-                if (rowStart >= pixels.length) {
-                    break;
-                }
-
-                // Draw line segments with same color
-                int currentColor = pixels[rowStart];
-                int segmentStart = 0;
-
-                for (int x = 0; x <= bufferWidth; x++) {
+                for (int x = 0; x < bufferWidth; x++) {
                     int pixelIndex = rowStart + x;
-                    int nextColor = (x < bufferWidth && pixelIndex < pixels.length) ? pixels[pixelIndex] : -1;
+                    if (pixelIndex >= pixels.length) break;
 
-                    // Color changed or end of line - draw accumulated segment
-                    if (nextColor != currentColor) {
-                        if (segmentStart < x) {
-                            paint.setColor(currentColor);
-                            float y0 = offsetY + y * pixelScale;
-                            float x0 = offsetX + segmentStart * pixelScale;
-                            float x1 = offsetX + x * pixelScale;
+                    int color = pixels[pixelIndex];
+                    paint.setColor(color);
 
-                            // Draw thick line if scaling up
-                            if (pixelScale > 1.5f) {
-                                paint.setStrokeWidth(pixelScale);
-                            }
-                            canvas.drawLine(x0, y0, x1, y0, paint);
-                        }
-                        currentColor = nextColor;
-                        segmentStart = x;
-                    }
+                    float px = offsetX + x * pixelScale;
+                    float py = offsetY + y * pixelScale;
+
+                    canvas.drawPoint(px, py, paint);
                 }
             }
 
