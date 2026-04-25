@@ -4,6 +4,7 @@ import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.camera.OrbitCamera;
 import cn.minerealms.assimploader.lookdev.comparison.ComparisonSnapshot;
+import cn.minerealms.assimploader.lookdev.material.MaterialOverrideManager;
 import cn.minerealms.assimploader.lookdev.render.OffscreenRenderer;
 import cn.minerealms.assimploader.material.PBRMaterial;
 import cn.minerealms.assimploader.model.AssimpScene;
@@ -39,6 +40,7 @@ public class PreviewFragment extends Fragment {
     // Current model and material
     private AssimpScene currentModel;
     private PBRMaterial currentMaterial;
+    private MaterialOverrideManager overrideManager;
 
     // Comparison mode
     private boolean comparisonMode = false;
@@ -243,6 +245,14 @@ public class PreviewFragment extends Fragment {
                 material != null ? material.getName() : "null");
 
             this.currentMaterial = material;
+
+            // Create override manager for this material
+            if (material != null) {
+                this.overrideManager = new MaterialOverrideManager(material);
+            } else {
+                this.overrideManager = null;
+            }
+
             updateOffscreenRenderer();
             updateInfoText();
         } catch (Exception e) {
@@ -294,6 +304,13 @@ public class PreviewFragment extends Fragment {
     }
 
     /**
+     * Get the material override manager for parameter adjustments
+     */
+    public MaterialOverrideManager getOverrideManager() {
+        return overrideManager;
+    }
+
+    /**
      * Reset camera to default position
      */
     public void resetCamera() {
@@ -316,7 +333,15 @@ public class PreviewFragment extends Fragment {
         if (offscreenRenderer == null) return;
 
         offscreenRenderer.setModel(currentModel);
-        offscreenRenderer.setMaterial(currentMaterial);
+
+        // Use effective material from override manager if available
+        PBRMaterial materialToRender = currentMaterial;
+        if (overrideManager != null) {
+            materialToRender = overrideManager.getEffectiveMaterial();
+            DebugManager.debug(DebugCategory.LOOKDEV, "[PreviewFragment] Using effective material from override manager");
+        }
+
+        offscreenRenderer.setMaterial(materialToRender);
         offscreenRenderer.setCamera(camera);
         offscreenRenderer.requestRender();
     }
