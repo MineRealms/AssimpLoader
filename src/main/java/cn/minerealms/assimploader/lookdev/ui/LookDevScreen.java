@@ -27,7 +27,7 @@ import java.util.List;
  *
  * Three-panel layout:
  * - Left: Model tree (20% width)
- * - Center: 3D preview (60% width)
+ * - Center: Tabbed view with Preview and Node Editor (60% width)
  * - Right: Parameters (20% width)
  *
  * Provides model and material management for child fragments.
@@ -36,7 +36,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
 
     // Child fragments
     private ModelTreeFragment modelTreeFragment;
-    private PreviewFragment previewFragment;
+    private TabbedCenterFragment tabbedCenterFragment;
     private ParameterPanelFragment parameterPanelFragment;
 
     // Current state
@@ -57,10 +57,10 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
 
             // Initialize child fragments
             modelTreeFragment = new ModelTreeFragment();
-            previewFragment = new PreviewFragment();
+            tabbedCenterFragment = new TabbedCenterFragment();
             parameterPanelFragment = new ParameterPanelFragment();
 
-            DebugManager.debug(DebugCategory.LOOKDEV, "Child fragments initialized: ModelTree, Preview, ParameterPanel");
+            DebugManager.debug(DebugCategory.LOOKDEV, "Child fragments initialized: ModelTree, TabbedCenter, ParameterPanel");
         } catch (Exception e) {
             DebugManager.error(DebugCategory.LOOKDEV, "Failed to create LookDevScreen", e);
             throw e;
@@ -96,8 +96,8 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             DebugManager.debug(DebugCategory.LOOKDEV, "Left container created with ID: " + leftContainer.getId());
             root.addView(leftContainer);
 
-            // Center panel: Preview (60% width)
-            DebugManager.debug(DebugCategory.LOOKDEV, "Creating center container for PreviewFragment...");
+            // Center panel: Tabbed view with Preview and Node Editor (60% width)
+            DebugManager.debug(DebugCategory.LOOKDEV, "Creating center container for TabbedCenterFragment...");
             icyllis.modernui.fragment.FragmentContainerView centerContainer =
                 new icyllis.modernui.fragment.FragmentContainerView(requireContext());
             LinearLayout.LayoutParams centerParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
@@ -146,7 +146,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             DebugManager.debug(DebugCategory.LOOKDEV, "Adding child fragments via FragmentManager...");
             getChildFragmentManager().beginTransaction()
                 .add(leftContainer.getId(), modelTreeFragment, "model_tree")
-                .add(centerContainer.getId(), previewFragment, "preview")
+                .add(centerContainer.getId(), tabbedCenterFragment, "tabbed_center")
                 .add(rightContainer.getId(), parameterPanelFragment, "parameters")
                 .commit();
             DebugManager.info(DebugCategory.LOOKDEV, "✓ Child fragments added successfully");
@@ -183,6 +183,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             switch (keyCode) {
                 case KeyEvent.KEY_R:
                     // Reset camera
+                    PreviewFragment previewFragment = getPreviewFragment();
                     if (previewFragment != null) {
                         previewFragment.resetCamera();
                     }
@@ -262,6 +263,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             extractMaterials(scene);
 
             // Update preview with model
+            PreviewFragment previewFragment = getPreviewFragment();
             if (previewFragment != null) {
                 previewFragment.setModel(currentModel);
             }
@@ -322,6 +324,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             extractMaterials(scene);
 
             // Update preview with new model
+            PreviewFragment previewFragment = getPreviewFragment();
             if (previewFragment != null) {
                 previewFragment.setModel(currentModel);
                 DebugManager.debug(DebugCategory.LOOKDEV, "Preview fragment updated with model");
@@ -493,6 +496,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             DebugManager.info(DebugCategory.LOOKDEV, "Material selected: {} (index: {})", material.getName(), selectedMaterialIndex);
 
             // Update preview with new material (this creates the override manager)
+            PreviewFragment previewFragment = getPreviewFragment();
             if (previewFragment != null) {
                 previewFragment.setMaterial(material);
                 DebugManager.debug(DebugCategory.LOOKDEV, "Preview fragment updated with material");
@@ -515,6 +519,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
     public void onMaterialParametersChanged() {
         DebugManager.info(DebugCategory.LOOKDEV, "LookDevScreen.onMaterialParametersChanged called");
         // Refresh preview to show updated material
+        PreviewFragment previewFragment = getPreviewFragment();
         if (previewFragment != null) {
             DebugManager.info(DebugCategory.LOOKDEV, "Calling previewFragment.refresh()");
             previewFragment.refresh();
@@ -536,6 +541,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             // TODO: Update preview to show split-screen comparison
             // Left side: snapshot state
             // Right side: current state
+            PreviewFragment previewFragment = getPreviewFragment();
             if (previewFragment != null) {
                 previewFragment.setComparisonMode(true, snapshot);
                 DebugManager.debug(DebugCategory.LOOKDEV, "Preview fragment set to comparison mode");
@@ -555,6 +561,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
 
             DebugManager.info(DebugCategory.LOOKDEV, "Exiting comparison mode");
 
+            PreviewFragment previewFragment = getPreviewFragment();
             if (previewFragment != null) {
                 previewFragment.setComparisonMode(false, null);
                 DebugManager.debug(DebugCategory.LOOKDEV, "Preview fragment exited comparison mode");
@@ -569,6 +576,16 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
      */
     public boolean isComparisonMode() {
         return comparisonMode;
+    }
+
+    /**
+     * Get the preview fragment from tabbed center
+     */
+    private PreviewFragment getPreviewFragment() {
+        if (tabbedCenterFragment != null) {
+            return tabbedCenterFragment.getPreviewFragment();
+        }
+        return null;
     }
 
     /**
@@ -590,6 +607,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             }
 
             // Update preview with new model
+            PreviewFragment previewFragment = getPreviewFragment();
             if (previewFragment != null) {
                 previewFragment.setModel(currentModel);
                 DebugManager.debug(DebugCategory.LOOKDEV, "Preview fragment updated with model");
