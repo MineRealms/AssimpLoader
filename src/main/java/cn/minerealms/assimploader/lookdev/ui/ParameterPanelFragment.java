@@ -1,11 +1,12 @@
 package cn.minerealms.assimploader.lookdev.ui;
 
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.comparison.ComparisonManager;
 import cn.minerealms.assimploader.lookdev.material.MaterialOverrideManager;
 import cn.minerealms.assimploader.lookdev.preset.MaterialPreset;
 import cn.minerealms.assimploader.lookdev.preset.PresetManager;
 import cn.minerealms.assimploader.material.PBRMaterial;
-import icyllis.modernui.R;
 import icyllis.modernui.fragment.Fragment;
 import icyllis.modernui.graphics.drawable.ColorDrawable;
 import icyllis.modernui.util.DataSet;
@@ -17,7 +18,7 @@ import icyllis.modernui.widget.*;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
-import javax.annotation.Nonnull;
+import icyllis.modernui.annotation.NonNull;
 import javax.annotation.Nullable;
 
 /**
@@ -70,96 +71,129 @@ public class ParameterPanelFragment extends Fragment {
 
     @Nullable
     @Override
-    public View onCreateView(@Nonnull LayoutInflater inflater,
+    public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable DataSet savedInstanceState) {
-        var context = requireContext();
+        DebugManager.info(DebugCategory.LOOKDEV, "=== ParameterPanelFragment.onCreateView START ===");
 
-        // Initialize preset manager
-        presetManager = new PresetManager();
+        try {
+            DebugManager.debug(DebugCategory.LOOKDEV, "Getting context...");
+            var context = requireContext();
+            DebugManager.debug(DebugCategory.LOOKDEV, "Context obtained");
 
-        // Initialize comparison manager
-        comparisonManager = new ComparisonManager();
+            // Initialize preset manager
+            DebugManager.debug(DebugCategory.LOOKDEV, "Initializing PresetManager...");
+            presetManager = new PresetManager();
+            DebugManager.debug(DebugCategory.LOOKDEV, "PresetManager initialized");
 
-        // Root scroll view
-        scrollView = new ScrollView(context);
-        scrollView.setBackground(new ColorDrawable(0xFF2B2B2B));
+            // Initialize comparison manager
+            DebugManager.debug(DebugCategory.LOOKDEV, "Initializing ComparisonManager...");
+            comparisonManager = new ComparisonManager();
+            DebugManager.debug(DebugCategory.LOOKDEV, "ComparisonManager initialized");
 
-        // Content layout
-        contentLayout = new LinearLayout(context);
-        contentLayout.setOrientation(LinearLayout.VERTICAL);
-        contentLayout.setPadding(contentLayout.dp(8), contentLayout.dp(8),
-                contentLayout.dp(8), contentLayout.dp(8));
+            // Root scroll view
+            DebugManager.debug(DebugCategory.LOOKDEV, "Creating ScrollView...");
+            scrollView = new ScrollView(context);
+            scrollView.setBackground(new ColorDrawable(0xFF2B2B2B));
+            DebugManager.debug(DebugCategory.LOOKDEV, "ScrollView created");
 
-        // Title
-        addSectionTitle("Material Parameters");
+            // Content layout
+            DebugManager.debug(DebugCategory.LOOKDEV, "Creating content LinearLayout...");
+            contentLayout = new LinearLayout(context);
+            contentLayout.setOrientation(LinearLayout.VERTICAL);
+            contentLayout.setPadding(contentLayout.dp(8), contentLayout.dp(8),
+                    contentLayout.dp(8), contentLayout.dp(8));
+            DebugManager.debug(DebugCategory.LOOKDEV, "Content layout created");
 
-        // Channel toggles section
-        addSectionTitle("Texture Channels");
-        baseColorToggle = addChannelToggle("Base Color");
-        normalToggle = addChannelToggle("Normal Map");
-        metallicToggle = addChannelToggle("Metallic");
-        roughnessToggle = addChannelToggle("Roughness");
-        emissiveToggle = addChannelToggle("Emissive");
-        aoToggle = addChannelToggle("Ambient Occlusion");
-        heightToggle = addChannelToggle("Height Map");
+            // Title
+            DebugManager.debug(DebugCategory.LOOKDEV, "Adding UI controls...");
+            addSectionTitle("Material Parameters");
 
-        // Parameter sliders section
-        addSectionTitle("Parameters");
-        roughnessSlider = addParameterSlider("Roughness", 0, 100);
-        roughnessValue = getLastValueLabel();
-        metallicSlider = addParameterSlider("Metallic", 0, 100);
-        metallicValue = getLastValueLabel();
+            // Channel toggles section
+            addSectionTitle("Texture Channels");
+            baseColorToggle = addChannelToggle("Base Color");
+            normalToggle = addChannelToggle("Normal Map");
+            metallicToggle = addChannelToggle("Metallic");
+            roughnessToggle = addChannelToggle("Roughness");
+            emissiveToggle = addChannelToggle("Emissive");
+            aoToggle = addChannelToggle("Ambient Occlusion");
+            heightToggle = addChannelToggle("Height Map");
+            DebugManager.debug(DebugCategory.LOOKDEV, "Channel toggles added");
 
-        // Base color section
-        addSectionTitle("Base Color");
-        baseColorR = addColorSlider("R", 0, 255);
-        baseColorRValue = getLastValueLabel();
-        baseColorG = addColorSlider("G", 0, 255);
-        baseColorGValue = getLastValueLabel();
-        baseColorB = addColorSlider("B", 0, 255);
-        baseColorBValue = getLastValueLabel();
-        baseColorA = addColorSlider("A", 0, 255);
-        baseColorAValue = getLastValueLabel();
+            // Parameter sliders section
+            addSectionTitle("Parameters");
+            roughnessSlider = addParameterSlider("Roughness", 0, 100);
+            roughnessValue = getLastValueLabel();
+            metallicSlider = addParameterSlider("Metallic", 0, 100);
+            metallicValue = getLastValueLabel();
+            DebugManager.debug(DebugCategory.LOOKDEV, "Parameter sliders added");
 
-        // Emissive color section
-        addSectionTitle("Emissive Color");
-        emissiveR = addColorSlider("R", 0, 255);
-        emissiveRValue = getLastValueLabel();
-        emissiveG = addColorSlider("G", 0, 255);
-        emissiveGValue = getLastValueLabel();
-        emissiveB = addColorSlider("B", 0, 255);
-        emissiveBValue = getLastValueLabel();
+            // Base color section
+            addSectionTitle("Base Color");
+            baseColorR = addColorSlider("R", 0, 255);
+            baseColorRValue = getLastValueLabel();
+            baseColorG = addColorSlider("G", 0, 255);
+            baseColorGValue = getLastValueLabel();
+            baseColorB = addColorSlider("B", 0, 255);
+            baseColorBValue = getLastValueLabel();
+            baseColorA = addColorSlider("A", 0, 255);
+            baseColorAValue = getLastValueLabel();
+            DebugManager.debug(DebugCategory.LOOKDEV, "Base color sliders added");
 
-        // Preset section
-        addSpacer(16);
-        addSectionTitle("Presets");
-        addPresetControls();
+            // Emissive color section
+            addSectionTitle("Emissive Color");
+            emissiveR = addColorSlider("R", 0, 255);
+            emissiveRValue = getLastValueLabel();
+            emissiveG = addColorSlider("G", 0, 255);
+            emissiveGValue = getLastValueLabel();
+            emissiveB = addColorSlider("B", 0, 255);
+            emissiveBValue = getLastValueLabel();
+            DebugManager.debug(DebugCategory.LOOKDEV, "Emissive color sliders added");
 
-        // Comparison section
-        addSpacer(16);
-        addSectionTitle("Before/After Comparison");
-        addComparisonControls();
+            // Preset section
+            addSpacer(16);
+            addSectionTitle("Presets");
+            addPresetControls();
+            DebugManager.debug(DebugCategory.LOOKDEV, "Preset controls added");
 
-        // Reset button
-        addSpacer(16);
-        resetButton = new Button(context);
-        resetButton.setText("Reset to Original");
-        resetButton.setOnClickListener(v -> resetParameters());
-        var resetParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        resetParams.setMargins(0, contentLayout.dp(8), 0, 0);
-        contentLayout.addView(resetButton, resetParams);
+            // Comparison section
+            addSpacer(16);
+            addSectionTitle("Before/After Comparison");
+            addComparisonControls();
+            DebugManager.debug(DebugCategory.LOOKDEV, "Comparison controls added");
 
-        scrollView.addView(contentLayout);
-        return scrollView;
+            // Reset button
+            addSpacer(16);
+            resetButton = new Button(context);
+            resetButton.setText("Reset to Original");
+            resetButton.setOnClickListener(v -> resetParameters());
+            var resetParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            resetParams.setMargins(0, contentLayout.dp(8), 0, 0);
+            contentLayout.addView(resetButton, resetParams);
+            DebugManager.debug(DebugCategory.LOOKDEV, "Reset button added");
+
+            DebugManager.debug(DebugCategory.LOOKDEV, "Adding contentLayout to scrollView...");
+            scrollView.addView(contentLayout);
+            DebugManager.info(DebugCategory.LOOKDEV, "=== ParameterPanelFragment.onCreateView COMPLETE - returning scrollView ===");
+            return scrollView;
+
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "FATAL ERROR in ParameterPanelFragment.onCreateView", e);
+            throw e;
+        }
     }
 
     @Override
-    public void onViewCreated(@Nonnull View view, @Nullable DataSet savedInstanceState) {
+    public void onViewCreated(@NonNull View view, @Nullable DataSet savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         setupListeners();
+
+        // Update UI if material was set before view creation
+        if (overrideManager != null) {
+            updateUIFromMaterial();
+        }
     }
 
     private void setupListeners() {
@@ -391,7 +425,7 @@ public class ParameterPanelFragment extends Fragment {
         textParams.gravity = Gravity.CENTER_VERTICAL;
         layout.addView(textView, textParams);
 
-        var slider = new SeekBar(requireContext(), null, null, R.style.Widget_Material3_SeekBar_Slider);
+        var slider = new SeekBar(requireContext());
         slider.setMax(max - min);
         slider.setProgress(0);
         var sliderParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
@@ -428,7 +462,7 @@ public class ParameterPanelFragment extends Fragment {
         textParams.gravity = Gravity.CENTER_VERTICAL;
         layout.addView(textView, textParams);
 
-        var slider = new SeekBar(requireContext(), null, null, R.style.Widget_Material3_SeekBar_Slider);
+        var slider = new SeekBar(requireContext());
         slider.setMax(max - min);
         slider.setProgress(0);
         var sliderParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
@@ -482,6 +516,12 @@ public class ParameterPanelFragment extends Fragment {
      */
     private void updateUIFromMaterial() {
         if (overrideManager == null) return;
+
+        // Check if view is created yet
+        if (baseColorToggle == null) {
+            // View not created yet, will be updated in onViewCreated
+            return;
+        }
 
         PBRMaterial material = overrideManager.getOriginalMaterial();
 

@@ -195,6 +195,19 @@ public class OrbitCamera {
     }
 
     /**
+     * Get projection matrix from width and height
+     *
+     * @param width Viewport width
+     * @param height Viewport height
+     * @param near Near clipping plane
+     * @param far Far clipping plane
+     */
+    public Matrix4f getProjectionMatrix(int width, int height, float near, float far) {
+        float aspect = (float) width / height;
+        return getProjectionMatrix(45.0f, aspect, near, far);
+    }
+
+    /**
      * Apply camera transform to PoseStack
      */
     public void applyToPoseStack(PoseStack poseStack, float fov, float aspect) {
