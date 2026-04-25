@@ -380,14 +380,62 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
                 String normalTex = assimpMat.getNormalTexture();
                 String specularTex = assimpMat.getSpecularTexture();
 
+                // Convert texture paths to ResourceLocations
                 if (diffuseTex != null) {
                     DebugManager.debug(DebugCategory.LOOKDEV, "Material {} has diffuse texture: {}", i, diffuseTex);
+
+                    // Check if it's an embedded texture (e.g., "*0", "*1")
+                    if (assimpMat.isEmbeddedTexture(diffuseTex)) {
+                        int texIndex = assimpMat.getEmbeddedTextureIndex(diffuseTex);
+                        if (texIndex >= 0) {
+                            // Create ResourceLocation for embedded texture
+                            net.minecraft.resources.ResourceLocation texLoc =
+                                new net.minecraft.resources.ResourceLocation("assimploader",
+                                    "lookdev/embedded_" + texIndex);
+                            pbrMat.setBaseColorTexture(texLoc);
+                            DebugManager.debug(DebugCategory.LOOKDEV, "Set base color texture: {}", texLoc);
+                        }
+                    } else {
+                        // External texture file - create ResourceLocation from path
+                        // Extract filename without extension
+                        String filename = diffuseTex.substring(diffuseTex.lastIndexOf('/') + 1);
+                        filename = filename.substring(diffuseTex.lastIndexOf('\\') + 1);
+                        net.minecraft.resources.ResourceLocation texLoc =
+                            new net.minecraft.resources.ResourceLocation("assimploader",
+                                "textures/" + filename);
+                        pbrMat.setBaseColorTexture(texLoc);
+                        DebugManager.debug(DebugCategory.LOOKDEV, "Set base color texture: {}", texLoc);
+                    }
                 }
+
                 if (normalTex != null) {
                     DebugManager.debug(DebugCategory.LOOKDEV, "Material {} has normal texture: {}", i, normalTex);
+
+                    if (assimpMat.isEmbeddedTexture(normalTex)) {
+                        int texIndex = assimpMat.getEmbeddedTextureIndex(normalTex);
+                        if (texIndex >= 0) {
+                            net.minecraft.resources.ResourceLocation texLoc =
+                                new net.minecraft.resources.ResourceLocation("assimploader",
+                                    "lookdev/embedded_" + texIndex);
+                            pbrMat.setNormalTexture(texLoc);
+                            DebugManager.debug(DebugCategory.LOOKDEV, "Set normal texture: {}", texLoc);
+                        }
+                    }
                 }
+
                 if (specularTex != null) {
                     DebugManager.debug(DebugCategory.LOOKDEV, "Material {} has specular texture: {}", i, specularTex);
+
+                    if (assimpMat.isEmbeddedTexture(specularTex)) {
+                        int texIndex = assimpMat.getEmbeddedTextureIndex(specularTex);
+                        if (texIndex >= 0) {
+                            net.minecraft.resources.ResourceLocation texLoc =
+                                new net.minecraft.resources.ResourceLocation("assimploader",
+                                    "lookdev/embedded_" + texIndex);
+                            pbrMat.setMetallicRoughnessTexture(texLoc);
+                            DebugManager.debug(DebugCategory.LOOKDEV, "Set metallic/roughness texture: {}", texLoc);
+                        }
+                    }
                 }
 
                 materials.add(pbrMat);

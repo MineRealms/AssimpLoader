@@ -194,9 +194,18 @@ public class OffscreenRenderer {
         GL11.glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 
-        // Enable depth testing
+        // Setup OpenGL state
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glDepthFunc(GL11.GL_LEQUAL);
+        GL11.glDepthMask(true);
+
+        // Disable blending to prevent color accumulation
+        GL11.glDisable(GL11.GL_BLEND);
+
+        // Enable backface culling
+        GL11.glEnable(GL11.GL_CULL_FACE);
+        GL11.glCullFace(GL11.GL_BACK);
+        GL11.glFrontFace(GL11.GL_CCW);
 
         // Render model if available
         if (currentModel != null && camera != null) {
@@ -288,9 +297,12 @@ public class OffscreenRenderer {
         // Set projection matrix via RenderSystem
         RenderSystem.setProjectionMatrix(projectionMatrix, com.mojang.blaze3d.vertex.VertexSorting.DISTANCE_TO_ORIGIN);
 
+        // Reset shader color to white (important: prevents color accumulation)
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+
         // Create PoseStack and apply view and model transforms
         PoseStack poseStack = new PoseStack();
-        poseStack.last().pose().mul(viewMatrix);
+        poseStack.last().pose().set(viewMatrix);  // Use set() instead of mul() to avoid accumulation
         poseStack.last().pose().mul(modelMatrix);
 
         // Setup shader
@@ -395,22 +407,14 @@ public class OffscreenRenderer {
                 baseColor.x, baseColor.y, baseColor.z, baseColor.w);
         }
 
-        // Apply roughness and metallic as simple color modulation (simplified PBR approximation)
-        // Roughness: darker = smoother (more specular), brighter = rougher (more diffuse)
-        // Metallic: affects color tint (metals reflect base color, dielectrics are more neutral)
-        float roughnessFactor = 0.5f + (roughness * 0.5f); // Map 0-1 to 0.5-1.0 brightness
-        float metallicFactor = 1.0f - (metallic * 0.3f); // Metals slightly darker
-
-        baseColor.x = Math.min(1.0f, baseColor.x * roughnessFactor * metallicFactor + emissive.x);
-        baseColor.y = Math.min(1.0f, baseColor.y * roughnessFactor * metallicFactor + emissive.y);
-        baseColor.z = Math.min(1.0f, baseColor.z * roughnessFactor * metallicFactor + emissive.z);
-
         Matrix4f pose = poseStack.last().pose();
-        Matrix3f normal = poseStack.last().normal();
+        Matrix3f normalMatrix = poseStack.last().normal();
 
-        Vector3f pos = new Vector3f();
-        Vector3f norm = new Vector3f();
-        Vector4f color = new Vector4f(baseColor.x, baseColor.y, baseColor.z, baseColor.w);
+        // Fixed light direction (from camera, slightly above)
+        Vector3f lightDir = new Vector3f(0.0f, 0.3f, 1.0f).normalize();
+
+        // Ambient light
+        float ambientStrength = 0.4f;
 
         // Begin drawing
         bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
@@ -434,16 +438,48 @@ public class OffscreenRenderer {
             Vector3f v1 = new Vector3f(vertices[vIdx1], vertices[vIdx1 + 1], vertices[vIdx1 + 2]);
             Vector3f v2 = new Vector3f(vertices[vIdx2], vertices[vIdx2 + 1], vertices[vIdx2 + 2]);
 
-            // Normals
+            // Normals (transform to world space)
             Vector3f n0, n1, n2;
             if (normals != null && vIdx0 + 2 < normals.length && vIdx1 + 2 < normals.length && vIdx2 + 2 < normals.length) {
                 n0 = new Vector3f(normals[vIdx0], normals[vIdx0 + 1], normals[vIdx0 + 2]);
                 n1 = new Vector3f(normals[vIdx1], normals[vIdx1 + 1], normals[vIdx1 + 2]);
                 n2 = new Vector3f(normals[vIdx2], normals[vIdx2 + 1], normals[vIdx2 + 2]);
+
+                // Transform normals to world space
+                normalMatrix.transform(n0);
+                normalMatrix.transform(n1);
+                normalMatrix.transform(n2);
+                n0.normalize();
+                n1.normalize();
+                n2.normalize();
             } else {
-                norm.set(0.0f, 1.0f, 0.0f);
-                n0 = n1 = n2 = norm;
+                n0 = n1 = n2 = new Vector3f(0.0f, 1.0f, 0.0f);
             }
+
+            // Calculate lighting for each vertex
+            float light0 = calculateLighting(n0, lightDir, ambientStrength, roughness);
+            float light1 = calculateLighting(n1, lightDir, ambientStrength, roughness);
+            float light2 = calculateLighting(n2, lightDir, ambientStrength, roughness);
+
+            // Apply lighting to base color
+            Vector4f color0 = new Vector4f(
+                Math.min(1.0f, baseColor.x * light0 + emissive.x),
+                Math.min(1.0f, baseColor.y * light0 + emissive.y),
+                Math.min(1.0f, baseColor.z * light0 + emissive.z),
+                baseColor.w
+            );
+            Vector4f color1 = new Vector4f(
+                Math.min(1.0f, baseColor.x * light1 + emissive.x),
+                Math.min(1.0f, baseColor.y * light1 + emissive.y),
+                Math.min(1.0f, baseColor.z * light1 + emissive.z),
+                baseColor.w
+            );
+            Vector4f color2 = new Vector4f(
+                Math.min(1.0f, baseColor.x * light2 + emissive.x),
+                Math.min(1.0f, baseColor.y * light2 + emissive.y),
+                Math.min(1.0f, baseColor.z * light2 + emissive.z),
+                baseColor.w
+            );
 
             // UV coordinates
             float u0 = texCoords != null && tIdx0 + 1 < texCoords.length ? texCoords[tIdx0] : 0.0f;
@@ -456,32 +492,52 @@ public class OffscreenRenderer {
             // Reverse winding order: v2, v1, v0, v0 (degenerate quad)
             bufferBuilder.vertex(pose, v2.x, v2.y, v2.z)
                 .uv(u2, vt2)
-                .color(color.x, color.y, color.z, color.w)
-                .normal(normal, n2.x, n2.y, n2.z)
+                .color(color2.x, color2.y, color2.z, color2.w)
+                .normal(normalMatrix, n2.x, n2.y, n2.z)
                 .endVertex();
 
             bufferBuilder.vertex(pose, v1.x, v1.y, v1.z)
                 .uv(u1, vt1)
-                .color(color.x, color.y, color.z, color.w)
-                .normal(normal, n1.x, n1.y, n1.z)
+                .color(color1.x, color1.y, color1.z, color1.w)
+                .normal(normalMatrix, n1.x, n1.y, n1.z)
                 .endVertex();
 
             bufferBuilder.vertex(pose, v0.x, v0.y, v0.z)
                 .uv(u0, vt0)
-                .color(color.x, color.y, color.z, color.w)
-                .normal(normal, n0.x, n0.y, n0.z)
+                .color(color0.x, color0.y, color0.z, color0.w)
+                .normal(normalMatrix, n0.x, n0.y, n0.z)
                 .endVertex();
 
             // Duplicate last vertex for degenerate quad
             bufferBuilder.vertex(pose, v0.x, v0.y, v0.z)
                 .uv(u0, vt0)
-                .color(color.x, color.y, color.z, color.w)
-                .normal(normal, n0.x, n0.y, n0.z)
+                .color(color0.x, color0.y, color0.z, color0.w)
+                .normal(normalMatrix, n0.x, n0.y, n0.z)
                 .endVertex();
         }
 
         // Draw
         BufferUploader.drawWithShader(bufferBuilder.end());
+    }
+
+    /**
+     * Calculate simple diffuse lighting with roughness
+     * @param normal Surface normal (normalized)
+     * @param lightDir Light direction (normalized)
+     * @param ambient Ambient light strength
+     * @param roughness Surface roughness (0=smooth, 1=rough)
+     * @return Light intensity [0, 1]
+     */
+    private float calculateLighting(Vector3f normal, Vector3f lightDir, float ambient, float roughness) {
+        // Lambertian diffuse
+        float diffuse = Math.max(0.0f, normal.dot(lightDir));
+
+        // Roughness affects how diffuse the surface is
+        // Smooth surfaces (low roughness) have sharper highlights
+        // Rough surfaces (high roughness) scatter light more evenly
+        float diffuseStrength = 0.6f + (roughness * 0.4f); // Map roughness to diffuse contribution
+
+        return ambient + (diffuse * diffuseStrength);
     }
 
     private void renderPlaceholder() {
