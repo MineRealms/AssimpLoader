@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.lookdev.nodeeditor;
 
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.*;
 import icyllis.modernui.annotation.NonNull;
 import icyllis.modernui.fragment.Fragment;
 import icyllis.modernui.graphics.drawable.ColorDrawable;
@@ -66,6 +67,9 @@ public class NodeEditorFragment extends Fragment {
         // Bottom status bar
         LinearLayout statusBar = createStatusBar(context);
         root.addView(statusBar);
+
+        // Create example nodes for testing
+        createExampleNodes();
 
         DebugManager.info(DebugCategory.LOOKDEV, "[NodeEditorFragment] onCreateView COMPLETE");
         return root;
@@ -157,6 +161,61 @@ public class NodeEditorFragment extends Fragment {
         if (statusText != null) {
             statusText.setText(status);
         }
+    }
+
+    /**
+     * Create example nodes for testing
+     */
+    private void createExampleNodes() {
+        if (canvas == null) return;
+
+        // Create a simple material graph:
+        // ColorInput -> OutputNode
+        // FloatInput (Metallic) -> OutputNode
+        // FloatInput (Roughness) -> OutputNode
+
+        // Color input node
+        ColorInputNode colorNode = new ColorInputNode();
+        colorNode.setPosition(100, 100);
+        colorNode.setColor(0.8f, 0.2f, 0.2f); // Red color
+        canvas.addNode(colorNode);
+
+        // Metallic input node
+        FloatInputNode metallicNode = new FloatInputNode();
+        metallicNode.setPosition(100, 250);
+        metallicNode.setValue(0.8f);
+        canvas.addNode(metallicNode);
+
+        // Roughness input node
+        FloatInputNode roughnessNode = new FloatInputNode();
+        roughnessNode.setPosition(100, 400);
+        roughnessNode.setValue(0.3f);
+        canvas.addNode(roughnessNode);
+
+        // Math node (for demonstration)
+        MathNode mathNode = new MathNode();
+        mathNode.setPosition(350, 300);
+        mathNode.setOperation(MathNode.Operation.MULTIPLY);
+        canvas.addNode(mathNode);
+
+        // Texture input node
+        TextureInputNode textureNode = new TextureInputNode();
+        textureNode.setPosition(100, 550);
+        canvas.addNode(textureNode);
+
+        // Output node
+        OutputNode outputNode = new OutputNode();
+        outputNode.setPosition(600, 250);
+        canvas.addNode(outputNode);
+
+        DebugManager.info(DebugCategory.LOOKDEV, "[NodeEditorFragment] Created example nodes");
+    }
+
+    /**
+     * Get the canvas
+     */
+    public NodeEditorCanvas getCanvas() {
+        return canvas;
     }
 
     @Override
