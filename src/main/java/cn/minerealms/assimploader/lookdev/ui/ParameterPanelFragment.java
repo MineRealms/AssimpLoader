@@ -512,6 +512,14 @@ public class ParameterPanelFragment extends Fragment {
     }
 
     /**
+     * Set the override manager (called by LookDevScreen to share the manager with PreviewFragment)
+     */
+    public void setOverrideManager(MaterialOverrideManager manager) {
+        this.overrideManager = manager;
+        updateUIFromMaterial();
+    }
+
+    /**
      * Update UI with current material parameters
      */
     private void updateUIFromMaterial() {
