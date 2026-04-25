@@ -465,9 +465,13 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
      * Called when material parameters change
      */
     public void onMaterialParametersChanged() {
+        DebugManager.info(DebugCategory.LOOKDEV, "LookDevScreen.onMaterialParametersChanged called");
         // Refresh preview to show updated material
         if (previewFragment != null) {
+            DebugManager.info(DebugCategory.LOOKDEV, "Calling previewFragment.refresh()");
             previewFragment.refresh();
+        } else {
+            DebugManager.warn(DebugCategory.LOOKDEV, "previewFragment is null, cannot refresh");
         }
     }
 
