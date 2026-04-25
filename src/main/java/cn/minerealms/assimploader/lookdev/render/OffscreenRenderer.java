@@ -53,7 +53,7 @@ public class OffscreenRenderer {
 
     // Pixel buffer for UI thread access
     private int[] pixelBuffer = null;
-    private boolean pixelBufferReady = false;
+    private volatile boolean pixelBufferReady = false;
 
     public OffscreenRenderer(int width, int height) {
         this.width = width;
@@ -224,7 +224,7 @@ public class OffscreenRenderer {
     /**
      * Read framebuffer pixels to CPU buffer for UI thread access
      */
-    private void readPixelsToBuffer() {
+    private synchronized void readPixelsToBuffer() {
         if (pixelBuffer == null || pixelBuffer.length != width * height) {
             pixelBuffer = new int[width * height];
             DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Allocated pixel buffer: {}x{}", width, height);
