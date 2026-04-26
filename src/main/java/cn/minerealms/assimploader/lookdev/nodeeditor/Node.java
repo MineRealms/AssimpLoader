@@ -286,4 +286,71 @@ public abstract class Node {
         int maxSockets = Math.max(inputs.size(), outputs.size());
         height = TITLE_BAR_HEIGHT + (maxSockets + 1) * SOCKET_SPACING;
     }
+
+    /**
+     * Evaluate this node and compute output values.
+     *
+     * This method is called during graph execution. Subclasses should:
+     * 1. Read input socket values (already computed by upstream nodes)
+     * 2. Perform their computation
+     * 3. Write results to output sockets
+     * 4. Cache results in the context
+     *
+     * @param context Evaluation context for caching and state tracking
+     */
+    public void evaluate(NodeEvaluationContext context) {
+        // Check if already evaluated (cached)
+        if (context.hasNodeResult(this)) {
+            return;
+        }
+
+        // Check for cycles
+        if (context.isEvaluating(this)) {
+            throw new RuntimeException("Cycle detected at node: " + title);
+        }
+
+        context.beginEvaluating(this);
+
+        try {
+            // Evaluate all upstream nodes first
+            for (NodeSocket input : inputs) {
+                if (input.isConnected()) {
+                    NodeSocket connectedSocket = input.getConnectedTo();
+                    if (connectedSocket != null && connectedSocket.getNode() != null) {
+                        connectedSocket.getNode().evaluate(context);
+
+                        // Propagate value from connected socket to this input
+                        Object value = context.getSocketValue(connectedSocket);
+                        if (value != null) {
+                            input.setValue(value);
+                            context.setSocketValue(input, value);
+                        }
+                    }
+                }
+            }
+
+            // Perform node-specific computation
+            computeOutputs(context);
+
+            // Mark as evaluated
+            context.setNodeResult(this, true);
+        } finally {
+            context.endEvaluating(this);
+        }
+    }
+
+    /**
+     * Compute output values based on input values.
+     * Override in subclasses to implement node-specific logic.
+     *
+     * Default implementation does nothing (for nodes with static values).
+     *
+     * @param context Evaluation context for caching
+     */
+    protected void computeOutputs(NodeEvaluationContext context) {
+        // Default: no computation needed
+        // Input nodes have static values
+        // Output nodes just collect inputs
+        // Override in nodes that perform computation (math, texture sampling, etc.)
+    }
 }
