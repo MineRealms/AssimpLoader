@@ -26,13 +26,13 @@ Photon 编辑器扩展 (Mixin)
 
 ## Phase 划分
 
-### Phase 1: 基础设施搭建 (1-2 天)
-- 创建 `compat.photon` 包结构
-- 配置条件 Mixin 加载
-- 添加 Photon 依赖
-- 验证编译通过
+### Phase 1: 基础设施搭建 (1-2 天) ✅ COMPLETED
+- ✅ 创建 `compat.photon` 包结构
+- ✅ 配置条件 Mixin 加载
+- ✅ 添加 Photon 依赖
+- ✅ 验证编译通过
 
-### Phase 2: Mesh 数据转换 (2-3 天)
+### Phase 2: Mesh 数据转换 (2-3 天) 🔄 NEXT
 - 实现 `AssimpToPhotonMeshConverter`
 - 单元测试：转换各种 FBX 模型
 - 验证数据正确性
@@ -56,18 +56,22 @@ Photon 编辑器扩展 (Mixin)
 - 导入流程实现
 - 测试：材质导入和预览
 
-### Phase 6: Emitter 数据提取 (3-4 天)
-- 实现 `FBXEmitterExtractor`
-- 场景图遍历
-- 发射器节点识别
-- 预设配置（Fire, Smoke, Magic, Spark）
-- 测试：提取发射器数据
+### Phase 6: Emitter 数据提取 (3-4 天) 📋 TODO (延后到 Phase 7)
+**状态**: 暂时跳过，优先完成 Mesh 和 Material 集成
+- TODO: 实现 `FBXEmitterExtractor`
+- TODO: 场景图遍历
+- TODO: 发射器节点识别
+- TODO: 预设配置（Fire, Smoke, Magic, Spark）
+- TODO: 测试：提取发射器数据
 
-### Phase 7: 完整工作流测试 (2-3 天)
-- 端到端测试
+**原因**: Emitter 功能是高级特性，Mesh 和 Material 是核心功能，优先级更高
+
+### Phase 7: 完整工作流测试和文档 (2-3 天)
+- 端到端测试（Mesh + Material）
 - 性能优化
 - 错误处理完善
 - 用户文档编写
+- **可选**: 如果时间允许，实现 Emitter 提取功能
 
 ---
 
