@@ -39,52 +39,77 @@ public class ShaderCodeGenerator {
      * Generate complete shader code (vertex + fragment)
      */
     public ShaderCode generate() {
-        if (!PhotonIntegration.hasShaderSupport()) {
-            DebugManager.warn(DebugCategory.LOOKDEV,
-                "[ShaderCodeGenerator] Shader generation not available in STANDALONE mode");
-            return null;
-        }
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[ShaderCodeGenerator] Starting shader generation");
 
-        // Check for cycles
-        if (executor.hasCycles()) {
-            DebugManager.error(DebugCategory.LOOKDEV,
-                "[ShaderCodeGenerator] Cannot generate shader: graph contains cycles");
-            return null;
-        }
+        return DebugManager.tryCatch("[ShaderCodeGenerator] generate", () -> {
+            if (!PhotonIntegration.hasShaderSupport()) {
+                DebugManager.warn(DebugCategory.LOOKDEV,
+                    "[ShaderCodeGenerator] Shader generation not available in STANDALONE mode");
+                return null;
+            }
 
-        // Get execution order
-        List<Node> executionOrder = executor.getExecutionOrder();
-        if (executionOrder.isEmpty()) {
-            DebugManager.warn(DebugCategory.LOOKDEV,
-                "[ShaderCodeGenerator] No nodes to generate shader from");
-            return null;
-        }
+            // Check for cycles
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[ShaderCodeGenerator] Checking for cycles in node graph");
+            if (executor.hasCycles()) {
+                DebugManager.error(DebugCategory.LOOKDEV,
+                    "[ShaderCodeGenerator] Cannot generate shader: graph contains cycles");
+                return null;
+            }
 
-        // Find output node
-        MaterialOutputNode outputNode = findOutputNode(executionOrder);
-        if (outputNode == null) {
-            DebugManager.error(DebugCategory.LOOKDEV,
-                "[ShaderCodeGenerator] No MaterialOutputNode found in graph");
-            return null;
-        }
+            // Get execution order
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[ShaderCodeGenerator] Computing execution order");
+            List<Node> executionOrder = executor.getExecutionOrder();
+            if (executionOrder.isEmpty()) {
+                DebugManager.warn(DebugCategory.LOOKDEV,
+                    "[ShaderCodeGenerator] No nodes to generate shader from");
+                return null;
+            }
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[ShaderCodeGenerator] Execution order: {} nodes", executionOrder.size());
 
-        // Reset state
-        emitter.reset();
-        nodeVariables.clear();
-        variableCounter = 0;
+            // Find output node
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[ShaderCodeGenerator] Finding MaterialOutputNode");
+            MaterialOutputNode outputNode = findOutputNode(executionOrder);
+            if (outputNode == null) {
+                DebugManager.error(DebugCategory.LOOKDEV,
+                    "[ShaderCodeGenerator] No MaterialOutputNode found in graph");
+                return null;
+            }
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[ShaderCodeGenerator] Found MaterialOutputNode");
 
-        // Generate vertex shader
-        String vertexShader = generateVertexShader();
+            // Reset state
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[ShaderCodeGenerator] Resetting generator state");
+            emitter.reset();
+            nodeVariables.clear();
+            variableCounter = 0;
 
-        // Generate fragment shader
-        String fragmentShader = generateFragmentShader(executionOrder, outputNode);
+            // Generate vertex shader
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[ShaderCodeGenerator] Generating vertex shader");
+            String vertexShader = generateVertexShader();
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[ShaderCodeGenerator] Vertex shader: {} lines", vertexShader.split("\n").length);
 
-        DebugManager.info(DebugCategory.LOOKDEV,
-            "[ShaderCodeGenerator] Generated shader code (" +
-            executionOrder.size() + " nodes, " +
-            fragmentShader.split("\n").length + " lines)");
+            // Generate fragment shader
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[ShaderCodeGenerator] Generating fragment shader");
+            String fragmentShader = generateFragmentShader(executionOrder, outputNode);
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[ShaderCodeGenerator] Fragment shader: {} lines", fragmentShader.split("\n").length);
 
-        return new ShaderCode(vertexShader, fragmentShader);
+            DebugManager.info(DebugCategory.LOOKDEV,
+                "[ShaderCodeGenerator] Shader generation complete: {} nodes, {} total lines",
+                executionOrder.size(),
+                vertexShader.split("\n").length + fragmentShader.split("\n").length);
+
+            return new ShaderCode(vertexShader, fragmentShader);
+        }, null);
     }
 
     /**

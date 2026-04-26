@@ -1,5 +1,7 @@
 package cn.minerealms.assimploader.lookdev.nodeeditor;
 
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.math.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.utility.*;
@@ -24,40 +26,70 @@ public class NodeFactory {
      * @return A new node instance, or null if type is not registered
      */
     public static Node createNode(NodeType type) {
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodeFactory] Creating node of type: {}", type);
+
         if (!NodeRegistry.isRegistered(type)) {
+            DebugManager.warn(DebugCategory.LOOKDEV,
+                "[NodeFactory] Cannot create unregistered node type: {}", type);
             return null;
         }
 
-        // Create concrete node instances based on type
-        switch (type) {
-            // Input nodes
-            case TEXTURE_SAMPLE:
-                return new TextureSampleNode();
-            case VALUE:
-                return new ValueNode();
-            case COLOR:
-                return new ColorNode();
-            case UV_COORDINATE:
-                return new UVCoordinateNode();
+        try {
+            Node node = null;
 
-            // Math nodes
-            case MULTIPLY:
-                return new MultiplyNode();
-            case ADD:
-                return new AddNode();
-            case LERP:
-                return new LerpNode();
+            // Create concrete node instances based on type
+            switch (type) {
+                // Input nodes
+                case TEXTURE_SAMPLE:
+                    node = new TextureSampleNode();
+                    break;
+                case VALUE:
+                    node = new ValueNode();
+                    break;
+                case COLOR:
+                    node = new ColorNode();
+                    break;
+                case UV_COORDINATE:
+                    node = new UVCoordinateNode();
+                    break;
 
-            // Utility nodes
-            case NORMAL_MAP:
-                return new NormalMapNode();
+                // Math nodes
+                case MULTIPLY:
+                    node = new MultiplyNode();
+                    break;
+                case ADD:
+                    node = new AddNode();
+                    break;
+                case LERP:
+                    node = new LerpNode();
+                    break;
 
-            // Output node
-            case MATERIAL_OUTPUT:
-                return new MaterialOutputNode();
+                // Utility nodes
+                case NORMAL_MAP:
+                    node = new NormalMapNode();
+                    break;
 
-            default:
-                return null;
+                // Output node
+                case MATERIAL_OUTPUT:
+                    node = new MaterialOutputNode();
+                    break;
+
+                default:
+                    DebugManager.warn(DebugCategory.LOOKDEV,
+                        "[NodeFactory] No implementation for node type: {}", type);
+                    return null;
+            }
+
+            if (node != null) {
+                DebugManager.debug(DebugCategory.LOOKDEV,
+                    "[NodeFactory] Successfully created node: {} (id: {})", type, node.getId());
+            }
+
+            return node;
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV,
+                "[NodeFactory] Failed to create node: " + type, e);
+            return null;
         }
     }
 }

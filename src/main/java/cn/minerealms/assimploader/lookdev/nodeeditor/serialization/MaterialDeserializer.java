@@ -44,6 +44,9 @@ public class MaterialDeserializer {
      * Deserialize node graph from JSON string
      */
     public static DeserializeResult deserialize(String json) {
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[MaterialDeserializer] Starting deserialization, JSON length: {}", json.length());
+
         DeserializeResult result = new DeserializeResult();
         result.nodes = new ArrayList<>();
         result.connections = new ArrayList<>();
@@ -56,12 +59,14 @@ public class MaterialDeserializer {
             if (!version.equals(CURRENT_VERSION)) {
                 result.error = "Unsupported version: " + version + " (expected " + CURRENT_VERSION + ")";
                 DebugManager.warn(DebugCategory.LOOKDEV,
-                    "[MaterialDeserializer] " + result.error);
+                    "[MaterialDeserializer] {}", result.error);
                 return result;
             }
 
             // Get material name
             result.materialName = root.get("name").getAsString();
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[MaterialDeserializer] Material name: {}", result.materialName);
 
             // Deserialize nodes
             Map<String, Node> nodeMap = deserializeNodes(root.getAsJsonArray("nodes"), result);
@@ -69,15 +74,14 @@ public class MaterialDeserializer {
             // Deserialize connections
             deserializeConnections(root.getAsJsonArray("connections"), nodeMap, result);
 
-            DebugManager.info(DebugCategory.LOOKDEV,
-                "[MaterialDeserializer] Deserialized material: " + result.materialName +
-                " (" + result.nodes.size() + " nodes, " + result.connections.size() + " connections)");
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[MaterialDeserializer] Successfully deserialized: {} ({} nodes, {} connections)",
+                result.materialName, result.nodes.size(), result.connections.size());
 
         } catch (Exception e) {
             result.error = "Deserialization error: " + e.getMessage();
             DebugManager.error(DebugCategory.LOOKDEV,
-                "[MaterialDeserializer] " + result.error);
-            e.printStackTrace();
+                "[MaterialDeserializer] {}", result.error, e);
         }
 
         return result;

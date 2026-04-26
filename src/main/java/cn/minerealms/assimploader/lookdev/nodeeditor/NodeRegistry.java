@@ -1,5 +1,8 @@
 package cn.minerealms.assimploader.lookdev.nodeeditor;
 
+import cn.minerealms.assimploader.debug.DebugManager;
+import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,10 +24,12 @@ public class NodeRegistry {
 
     static {
         // Register all node types with their metadata
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodeRegistry] Initializing node registry");
         registerInputNodes();
         registerMathNodes();
         registerUtilityNodes();
         registerOutputNode();
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodeRegistry] Registered {} node types", registry.size());
     }
 
     private static void registerInputNodes() {
@@ -103,14 +108,24 @@ public class NodeRegistry {
      * Get metadata for a node type
      */
     public static NodeMetadata getMetadata(NodeType type) {
-        return registry.get(type);
+        NodeMetadata metadata = registry.get(type);
+        if (metadata == null) {
+            DebugManager.warn(DebugCategory.LOOKDEV,
+                "[NodeRegistry] No metadata found for node type: {}", type);
+        }
+        return metadata;
     }
 
     /**
      * Check if a node type is registered
      */
     public static boolean isRegistered(NodeType type) {
-        return registry.containsKey(type);
+        boolean registered = registry.containsKey(type);
+        if (!registered) {
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeRegistry] Node type not registered: {}", type);
+        }
+        return registered;
     }
 
     /**
