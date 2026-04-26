@@ -40,14 +40,34 @@ public class MaterialPreviewRenderer {
     private long lastUpdateTime = 0;
     private static final long UPDATE_INTERVAL_MS = 16; // ~60 FPS
 
+    // Debug logging rate limiting (log every 5 seconds)
+    private long lastDebugLogTime = 0;
+    private static final long DEBUG_LOG_INTERVAL_MS = 5000;
+    private int renderCallsSinceLastLog = 0;
+
     public MaterialPreviewRenderer() {
         this.previewMesh = new PreviewMesh(PreviewMesh.MeshType.SPHERE);
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[MaterialPreviewRenderer] Initialized with SPHERE mesh");
     }
 
     /**
      * Render the material preview
      */
     public void render(PoseStack poseStack, int x, int y, int width, int height) {
+        renderCallsSinceLastLog++;
+
+        // Rate-limited debug logging (every 5 seconds)
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastDebugLogTime > DEBUG_LOG_INTERVAL_MS) {
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[MaterialPreviewRenderer] Render stats: {} calls in last {}ms, material ready: {}",
+                renderCallsSinceLastLog, DEBUG_LOG_INTERVAL_MS,
+                (currentMaterial != null && currentMaterial.isReady()));
+            lastDebugLogTime = currentTime;
+            renderCallsSinceLastLog = 0;
+        }
+
         if (!PhotonIntegration.hasRealtimePreview()) {
             renderUnavailableMessage(poseStack, x, y, width, height);
             return;
@@ -59,12 +79,11 @@ public class MaterialPreviewRenderer {
         }
 
         // Check if we need to update
-        long currentTime = System.currentTimeMillis();
         if (!needsUpdate && (currentTime - lastUpdateTime) < UPDATE_INTERVAL_MS) {
             return;
         }
 
-        try {
+        DebugManager.tryCatch("[MaterialPreviewRenderer] render", () -> {
             // Setup viewport
             setupViewport(x, y, width, height);
 
@@ -98,12 +117,7 @@ public class MaterialPreviewRenderer {
 
             needsUpdate = false;
             lastUpdateTime = currentTime;
-
-        } catch (Exception e) {
-            DebugManager.error(DebugCategory.LOOKDEV,
-                "[MaterialPreviewRenderer] Render error: " + e.getMessage());
-            e.printStackTrace();
-        }
+        });
     }
 
     /**
@@ -203,6 +217,9 @@ public class MaterialPreviewRenderer {
      * Set the material to preview
      */
     public void setMaterial(NodeBasedMaterial material) {
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[MaterialPreviewRenderer] Setting material: {}",
+            material != null ? "NodeBasedMaterial" : "null");
         this.currentMaterial = material;
         this.needsUpdate = true;
     }
@@ -211,6 +228,8 @@ public class MaterialPreviewRenderer {
      * Set preview mesh type
      */
     public void setMeshType(PreviewMesh.MeshType type) {
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[MaterialPreviewRenderer] Changing mesh type to: {}", type);
         this.previewMesh = new PreviewMesh(type);
         this.needsUpdate = true;
     }

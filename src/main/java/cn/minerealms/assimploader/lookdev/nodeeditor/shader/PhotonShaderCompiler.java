@@ -38,24 +38,34 @@ public class PhotonShaderCompiler {
      * Compile shader code into a usable shader instance
      */
     public static CompiledShader compile(String shaderName, ShaderCodeGenerator.ShaderCode shaderCode) {
-        if (!PhotonIntegration.hasShaderSupport()) {
-            DebugManager.warn(DebugCategory.LOOKDEV,
-                "[PhotonShaderCompiler] Shader compilation not available in STANDALONE mode");
-            return null;
-        }
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[PhotonShaderCompiler] Starting compilation for shader: {}", shaderName);
 
-        // Check cache first
-        if (shaderCache.containsKey(shaderName)) {
-            DebugManager.info(DebugCategory.LOOKDEV,
-                "[PhotonShaderCompiler] Using cached shader: " + shaderName);
-            return shaderCache.get(shaderName);
-        }
+        return DebugManager.tryCatch("[PhotonShaderCompiler] compile", () -> {
+            if (!PhotonIntegration.hasShaderSupport()) {
+                DebugManager.warn(DebugCategory.LOOKDEV,
+                    "[PhotonShaderCompiler] Shader compilation not available in STANDALONE mode");
+                return null;
+            }
 
-        try {
+            // Check cache first
+            if (shaderCache.containsKey(shaderName)) {
+                DebugManager.debug(DebugCategory.LOOKDEV,
+                    "[PhotonShaderCompiler] Using cached shader: {}", shaderName);
+                return shaderCache.get(shaderName);
+            }
+
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[PhotonShaderCompiler] Shader not in cache, compiling: {}", shaderName);
+
             // Write shader files to disk
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[PhotonShaderCompiler] Writing shader files to disk");
             writeShaderFiles(shaderName, shaderCode);
 
             // Compile shader
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[PhotonShaderCompiler] Creating shader instance");
             ResourceLocation shaderLocation = new ResourceLocation(SHADER_NAMESPACE, shaderName);
             ShaderInstance shaderInstance = compileShaderInstance(shaderLocation);
 
@@ -64,47 +74,54 @@ public class PhotonShaderCompiler {
                 shaderCache.put(shaderName, compiled);
 
                 DebugManager.info(DebugCategory.LOOKDEV,
-                    "[PhotonShaderCompiler] Successfully compiled shader: " + shaderName);
+                    "[PhotonShaderCompiler] Successfully compiled and cached shader: {}", shaderName);
 
                 return compiled;
             } else {
                 String error = "Failed to compile shader instance";
                 DebugManager.error(DebugCategory.LOOKDEV,
-                    "[PhotonShaderCompiler] " + error + ": " + shaderName);
+                    "[PhotonShaderCompiler] {}: {}", error, shaderName);
                 return new CompiledShader(shaderName, null, error);
             }
 
-        } catch (Exception e) {
-            String error = "Compilation error: " + e.getMessage();
-            DebugManager.error(DebugCategory.LOOKDEV,
-                "[PhotonShaderCompiler] " + error);
-            e.printStackTrace();
-            return new CompiledShader(shaderName, null, error);
-        }
+        }, null);
     }
 
     /**
      * Write shader files to disk (JSON config, vertex shader, fragment shader)
      */
     private static void writeShaderFiles(String shaderName, ShaderCodeGenerator.ShaderCode shaderCode) throws IOException {
-        // Create shader directory
-        Files.createDirectories(SHADER_BASE_PATH);
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[PhotonShaderCompiler] Writing shader files for: {}", shaderName);
 
-        // Write vertex shader
-        Path vshPath = SHADER_BASE_PATH.resolve(shaderName + ".vsh");
-        Files.writeString(vshPath, shaderCode.vertexShader);
+        DebugManager.tryCatch("[PhotonShaderCompiler] writeShaderFiles", () -> {
+            // Create shader directory
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[PhotonShaderCompiler] Creating shader directory: {}", SHADER_BASE_PATH);
+            Files.createDirectories(SHADER_BASE_PATH);
 
-        // Write fragment shader
-        Path fshPath = SHADER_BASE_PATH.resolve(shaderName + ".fsh");
-        Files.writeString(fshPath, shaderCode.fragmentShader);
+            // Write vertex shader
+            Path vshPath = SHADER_BASE_PATH.resolve(shaderName + ".vsh");
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[PhotonShaderCompiler] Writing vertex shader: {}", vshPath);
+            Files.writeString(vshPath, shaderCode.vertexShader);
 
-        // Write shader config JSON
-        String configJson = generateShaderConfig(shaderName);
-        Path jsonPath = SHADER_BASE_PATH.resolve(shaderName + ".json");
-        Files.writeString(jsonPath, configJson);
+            // Write fragment shader
+            Path fshPath = SHADER_BASE_PATH.resolve(shaderName + ".fsh");
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[PhotonShaderCompiler] Writing fragment shader: {}", fshPath);
+            Files.writeString(fshPath, shaderCode.fragmentShader);
 
-        DebugManager.info(DebugCategory.LOOKDEV,
-            "[PhotonShaderCompiler] Wrote shader files: " + shaderName);
+            // Write shader config JSON
+            String configJson = generateShaderConfig(shaderName);
+            Path jsonPath = SHADER_BASE_PATH.resolve(shaderName + ".json");
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[PhotonShaderCompiler] Writing shader config: {}", jsonPath);
+            Files.writeString(jsonPath, configJson);
+
+            DebugManager.info(DebugCategory.LOOKDEV,
+                "[PhotonShaderCompiler] Successfully wrote all shader files for: {}", shaderName);
+        });
     }
 
     /**
@@ -143,14 +160,18 @@ public class PhotonShaderCompiler {
      * Compile shader instance using Minecraft's shader system
      */
     private static ShaderInstance compileShaderInstance(ResourceLocation shaderLocation) {
-        try {
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[PhotonShaderCompiler] Compiling shader instance: {}", shaderLocation);
+
+        return DebugManager.tryCatch("[PhotonShaderCompiler] compileShaderInstance", () -> {
             ResourceManager resourceManager = Minecraft.getInstance().getResourceManager();
-            return new ShaderInstance(resourceManager, shaderLocation.toString(), DefaultVertexFormat.NEW_ENTITY);
-        } catch (IOException e) {
-            DebugManager.error(DebugCategory.LOOKDEV,
-                "[PhotonShaderCompiler] Failed to compile shader: " + e.getMessage());
-            return null;
-        }
+            ShaderInstance instance = new ShaderInstance(resourceManager, shaderLocation.toString(), DefaultVertexFormat.NEW_ENTITY);
+
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[PhotonShaderCompiler] Successfully created shader instance: {}", shaderLocation);
+
+            return instance;
+        }, null);
     }
 
     /**
@@ -171,29 +192,46 @@ public class PhotonShaderCompiler {
      * Clear shader cache
      */
     public static void clearCache() {
-        // Close all shader instances
-        for (CompiledShader shader : shaderCache.values()) {
-            if (shader.shaderInstance != null) {
-                shader.shaderInstance.close();
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[PhotonShaderCompiler] Clearing shader cache ({} shaders)", shaderCache.size());
+
+        DebugManager.tryCatch("[PhotonShaderCompiler] clearCache", () -> {
+            // Close all shader instances
+            for (CompiledShader shader : shaderCache.values()) {
+                if (shader.shaderInstance != null) {
+                    DebugManager.debug(DebugCategory.LOOKDEV,
+                        "[PhotonShaderCompiler] Closing shader instance: {}", shader.name);
+                    shader.shaderInstance.close();
+                }
             }
-        }
-        shaderCache.clear();
-        DebugManager.info(DebugCategory.LOOKDEV,
-            "[PhotonShaderCompiler] Cleared shader cache");
+            shaderCache.clear();
+
+            DebugManager.info(DebugCategory.LOOKDEV,
+                "[PhotonShaderCompiler] Shader cache cleared");
+        });
     }
 
     /**
      * Reload shader (recompile from source)
      */
     public static CompiledShader reload(String shaderName, ShaderCodeGenerator.ShaderCode shaderCode) {
-        // Remove from cache
-        CompiledShader old = shaderCache.remove(shaderName);
-        if (old != null && old.shaderInstance != null) {
-            old.shaderInstance.close();
-        }
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[PhotonShaderCompiler] Reloading shader: {}", shaderName);
 
-        // Recompile
-        return compile(shaderName, shaderCode);
+        return DebugManager.tryCatch("[PhotonShaderCompiler] reload", () -> {
+            // Remove from cache
+            CompiledShader old = shaderCache.remove(shaderName);
+            if (old != null && old.shaderInstance != null) {
+                DebugManager.debug(DebugCategory.LOOKDEV,
+                    "[PhotonShaderCompiler] Closing old shader instance: {}", shaderName);
+                old.shaderInstance.close();
+            }
+
+            // Recompile
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[PhotonShaderCompiler] Recompiling shader: {}", shaderName);
+            return compile(shaderName, shaderCode);
+        }, null);
     }
 
     /**

@@ -43,6 +43,10 @@ public class MaterialSerializer {
      * Serialize node graph to JSON string
      */
     public static String serialize(String materialName, List<Node> nodes, List<NodeConnection> connections) {
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[MaterialSerializer] Starting serialization: material='{}', nodes={}, connections={}",
+            materialName, nodes.size(), connections.size());
+
         try {
             JsonObject root = new JsonObject();
             root.addProperty("version", VERSION);
@@ -51,14 +55,13 @@ public class MaterialSerializer {
             root.add("connections", serializeConnections(connections));
 
             String json = gson.toJson(root);
-            DebugManager.info(DebugCategory.LOOKDEV,
-                "[MaterialSerializer] Serialized material: " + materialName + " (" + nodes.size() + " nodes)");
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[MaterialSerializer] Successfully serialized material: {} ({} nodes, {} connections)",
+                materialName, nodes.size(), connections.size());
             return json;
-
         } catch (Exception e) {
             DebugManager.error(DebugCategory.LOOKDEV,
-                "[MaterialSerializer] Failed to serialize: " + e.getMessage());
-            e.printStackTrace();
+                "[MaterialSerializer] Serialization failed", e);
             return null;
         }
     }
