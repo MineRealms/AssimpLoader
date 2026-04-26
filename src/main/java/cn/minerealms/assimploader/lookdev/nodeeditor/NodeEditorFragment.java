@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.lookdev.nodeeditor;
 
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
+import cn.minerealms.assimploader.material.PBRMaterial;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.*;
 import icyllis.modernui.annotation.NonNull;
 import icyllis.modernui.fragment.Fragment;
@@ -14,8 +15,10 @@ import icyllis.modernui.view.ViewGroup;
 import icyllis.modernui.widget.Button;
 import icyllis.modernui.widget.LinearLayout;
 import icyllis.modernui.widget.TextView;
+import net.minecraft.resources.ResourceLocation;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 /**
  * Node Editor Fragment - ComfyUI-style visual node editor.
@@ -30,6 +33,7 @@ public class NodeEditorFragment extends Fragment {
 
     private NodeEditorCanvas canvas;
     private Button resetViewButton;
+    private Button generateMaterialButton;
     private TextView statusText;
 
     @Nullable
@@ -102,6 +106,17 @@ public class NodeEditorFragment extends Fragment {
         titleParams.gravity = Gravity.CENTER_VERTICAL;
         toolbar.addView(title, titleParams);
 
+        // Generate Material button
+        generateMaterialButton = new Button(context);
+        generateMaterialButton.setText("Generate Material");
+        generateMaterialButton.setOnClickListener(v -> onGenerateMaterial());
+        LinearLayout.LayoutParams generateParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        generateParams.setMargins(toolbar.dp(4), 0, 0, 0);
+        toolbar.addView(generateMaterialButton, generateParams);
+
         // Reset View button
         resetViewButton = new Button(context);
         resetViewButton.setText("Reset View");
@@ -152,6 +167,35 @@ public class NodeEditorFragment extends Fragment {
             canvas.resetView();
             DebugManager.info(DebugCategory.LOOKDEV, "[NodeEditorFragment] View reset");
         }
+    }
+
+    /**
+     * Generate material from node graph (for testing)
+     */
+    private void onGenerateMaterial() {
+        PBRMaterial material = generateMaterial();
+
+        // For now, just log the generated material
+        DebugManager.info(DebugCategory.LOOKDEV,
+            "[NodeEditorFragment] Material generated: " + material.getName());
+
+        // Show material details in status
+        setStatus(String.format("Generated: %s (Metallic: %.2f, Roughness: %.2f)",
+            material.getName(),
+            material.getMetallicFactor(),
+            material.getRoughnessFactor()));
+
+        // TODO: BACKEND INTEGRATION (Phase 10)
+        // 1. Get parent LookDevScreen via getParentFragment().getParentFragment()
+        // 2. Call lookDevScreen.applyNodeGeneratedMaterial(material)
+        // 3. This will:
+        //    - Add material to materials list
+        //    - Select the material
+        //    - Update PreviewFragment with new material
+        //    - Update ParameterPanelFragment
+        //    - Trigger 3D preview refresh
+        // 4. Need to implement LookDevScreen.applyNodeGeneratedMaterial() method
+        // 5. Consider real-time updates when nodes change (not just on button click)
     }
 
     /**
@@ -216,6 +260,86 @@ public class NodeEditorFragment extends Fragment {
      */
     public NodeEditorCanvas getCanvas() {
         return canvas;
+    }
+
+    /**
+     * Execute node graph and generate PBR material
+     */
+    public PBRMaterial generateMaterial() {
+        if (canvas == null) {
+            return new PBRMaterial("Default");
+        }
+
+        // Create executor
+        NodeGraphExecutor executor = new NodeGraphExecutor(
+            canvas.getNodes(),
+            canvas.getConnections()
+        );
+
+        // Check for cycles
+        if (executor.hasCycles()) {
+            DebugManager.error(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Cannot generate material: graph has cycles");
+            setStatus("Error: Graph has cycles");
+            return new PBRMaterial("Default");
+        }
+
+        // Execute graph
+        List<OutputNode> outputNodes = executor.execute();
+
+        if (outputNodes.isEmpty()) {
+            DebugManager.warn(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] No output nodes found");
+            setStatus("Warning: No output nodes");
+            return new PBRMaterial("Default");
+        }
+
+        // Get first output node
+        OutputNode outputNode = outputNodes.get(0);
+        OutputNode.MaterialOutput output = outputNode.getMaterialOutput();
+
+        // Build PBR material
+        PBRMaterial material = new PBRMaterial("Node Generated");
+
+        // Base color
+        if (output.baseColor != null && output.baseColor instanceof Integer) {
+            int color = (Integer) output.baseColor;
+            float r = ((color >> 16) & 0xFF) / 255.0f;
+            float g = ((color >> 8) & 0xFF) / 255.0f;
+            float b = (color & 0xFF) / 255.0f;
+            float a = ((color >> 24) & 0xFF) / 255.0f;
+            material.setBaseColor(r, g, b, a);
+        }
+
+        // Metallic
+        if (output.metallic != null && output.metallic instanceof Float) {
+            material.setMetallicFactor((Float) output.metallic);
+        }
+
+        // Roughness
+        if (output.roughness != null && output.roughness instanceof Float) {
+            material.setRoughnessFactor((Float) output.roughness);
+        }
+
+        // Normal map
+        if (output.normal != null && output.normal instanceof ResourceLocation) {
+            material.setNormalTexture((ResourceLocation) output.normal);
+        }
+
+        // Emissive
+        if (output.emissive != null && output.emissive instanceof Integer) {
+            int color = (Integer) output.emissive;
+            float r = ((color >> 16) & 0xFF) / 255.0f;
+            float g = ((color >> 8) & 0xFF) / 255.0f;
+            float b = (color & 0xFF) / 255.0f;
+            material.setEmissiveFactor(r, g, b);
+        }
+
+        DebugManager.info(DebugCategory.LOOKDEV,
+            "[NodeEditorFragment] Generated material from node graph");
+        setStatus("Material generated successfully");
+
+        return material;
     }
 
     @Override

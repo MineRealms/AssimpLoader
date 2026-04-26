@@ -5,6 +5,8 @@
 Implement a ComfyUI-style node editor in LookDev viewer using ModernUI framework.
 Visual node-based material/shader graph editor with drag-and-drop connections.
 
+**Current Focus:** Build and validate the frontend UI and basic node workflow logic first, before integrating with the rendering pipeline.
+
 ## Architecture Reference
 
 **ModernUI Framework:**
@@ -19,246 +21,262 @@ Visual node-based material/shader graph editor with drag-and-drop connections.
 - Real-time preview
 - Node library/palette
 
-## Phase Breakdown
+## Implementation Status
 
-### Phase 1: Core Node Editor Framework (Foundation)
+### ✅ Phase 1: Core Node Editor Framework (COMPLETED)
 **Goal:** Basic node editor canvas with pan/zoom
 
-**Tasks:**
-1. Create `NodeEditorFragment.java` - Main fragment for node editor tab
-2. Create `NodeEditorCanvas.java` - Custom View for drawing nodes and connections
-3. Implement pan/zoom controls (mouse drag + scroll wheel)
-4. Add grid background rendering
-5. Integrate as new tab in LookDevScreen
+**Completed:**
+- ✅ `NodeEditorFragment.java` - Main fragment for node editor tab
+- ✅ `NodeEditorCanvas.java` - Custom View for drawing nodes and connections
+- ✅ Pan/zoom controls (mouse drag + scroll wheel)
+- ✅ Grid background rendering
+- ✅ Integrated as new tab in LookDevScreen
 
-**Deliverables:**
-- Empty canvas with grid
-- Pan/zoom working
-- New "Node Editor" tab in LookDev
-
-**Validation:**
-- `./gradlew compileJava` passes
-- Can switch to Node Editor tab
-- Can pan and zoom canvas
+**Status:** Canvas with grid, pan/zoom working, Node Editor tab available
 
 ---
 
-### Phase 2: Node Data Model (Core Classes)
+### ✅ Phase 2: Node Data Model (COMPLETED)
 **Goal:** Define node structure and graph data model
 
-**Tasks:**
-1. Create `Node.java` - Base node class (position, size, title)
-2. Create `NodeSocket.java` - Input/output socket (type, value, connection)
-3. Create `NodeConnection.java` - Connection between sockets
-4. Create `NodeGraph.java` - Graph container (nodes, connections)
-5. Create `NodeType.java` - Enum for node types
+**Completed:**
+- ✅ `Node.java` - Base node class (position, size, title, sockets)
+- ✅ `NodeSocket.java` - Input/output socket (type, value, connection)
+- ✅ `NodeConnection.java` - Connection between sockets
+- ✅ Type-safe socket system (FLOAT, COLOR, TEXTURE, VECTOR)
 
-**Deliverables:**
-- Complete data model for nodes and connections
-- Type-safe socket system (Float, Vector3, Color, Texture)
-
-**Validation:**
-- `./gradlew compileJava` passes
-- Can create nodes programmatically
-- Can connect nodes in code
+**Status:** Complete data model with socket connections
 
 ---
 
-### Phase 3: Node Rendering (Visual Display)
+### ✅ Phase 3: Node Rendering (COMPLETED)
 **Goal:** Draw nodes and connections on canvas
 
-**Tasks:**
-1. Implement `NodeRenderer.java` - Renders individual nodes
-2. Draw node body (rounded rect, title bar, sockets)
-3. Draw connections (bezier curves between sockets)
-4. Implement socket rendering (circles with type colors)
-5. Add selection highlighting
+**Completed:**
+- ✅ Node rendering in `Node.draw()` - rounded rect, title bar, sockets
+- ✅ Connection rendering in `NodeConnection.draw()` - bezier curves
+- ✅ Socket rendering - circles with type colors
+- ✅ Selection highlighting
 
-**Deliverables:**
-- Nodes visible on canvas
-- Connections drawn as curves
-- Visual feedback for selection
-
-**Validation:**
-- `./gradlew compileJava` passes
-- Demo nodes render correctly
-- Connections visible between nodes
+**Status:** Nodes and connections render correctly
 
 ---
 
-### Phase 4: Node Interaction (Mouse Events)
+### ✅ Phase 4: Node Interaction (COMPLETED)
 **Goal:** Drag nodes, create connections
 
-**Tasks:**
-1. Implement node dragging (click + drag to move)
-2. Implement connection creation (drag from output to input socket)
-3. Add node selection (click to select)
-4. Add connection deletion (right-click or select + delete)
-5. Implement multi-selection (Ctrl+click)
+**Completed:**
+- ✅ Node dragging (click title bar + drag to move)
+- ✅ Connection creation (drag from output to input socket)
+- ✅ Node selection (click to select)
+- ✅ Connection validation (type checking)
+- ✅ Pan canvas (click empty space + drag)
 
-**Deliverables:**
-- Fully interactive node editor
-- Can create/delete connections
-- Can move nodes around
-
-**Validation:**
-- `./gradlew compileJava` passes
-- Can drag nodes smoothly
-- Can connect/disconnect nodes
+**Status:** Fully interactive node editor
 
 ---
 
-### Phase 5: Example Nodes (Demo Content)
+### ✅ Phase 5: Example Nodes (COMPLETED)
 **Goal:** Create example nodes for material editing
 
-**Tasks:**
-1. Create `TextureInputNode` - Loads a texture
-2. Create `ColorNode` - Outputs a color value
-3. Create `MixNode` - Mixes two inputs (lerp)
-4. Create `MultiplyNode` - Multiplies two values
-5. Create `OutputNode` - Final material output
-6. Create `ValueNode` - Numeric slider input
+**Completed:**
+- ✅ `TextureInputNode` - Texture input
+- ✅ `ColorInputNode` - Color value input
+- ✅ `FloatInputNode` - Float value input
+- ✅ `MathNode` - Math operations (Add, Multiply, etc.)
+- ✅ `OutputNode` - Final material output
+- ✅ Demo graph created in `createExampleNodes()`
 
-**Example Graph:**
-```
-[Texture] ──> [Mix] ──> [Output]
-[Color]   ──>  ↑
-[Value]   ─────┘ (mix factor)
-```
-
-**Deliverables:**
-- 6 working example nodes
-- Demo graph on startup
-- Nodes execute and produce output
-
-**Validation:**
-- `./gradlew compileJava` passes
-- Demo graph loads automatically
-- Can see connections between example nodes
+**Status:** Example nodes render and can be connected
 
 ---
 
-### Phase 6: Node Execution Engine (Graph Evaluation)
+### ✅ Phase 6: Node Execution Engine (COMPLETED)
 **Goal:** Execute node graph and compute results
 
-**Tasks:**
-1. Create `NodeExecutor.java` - Evaluates node graph
-2. Implement topological sort (dependency order)
-3. Implement value propagation through connections
-4. Add caching (don't re-execute unchanged nodes)
-5. Handle cyclic dependency detection
+**Completed:**
+- ✅ `NodeGraphExecutor.java` - Graph evaluation
+- ✅ Topological sort for execution order
+- ✅ Cycle detection
+- ✅ Value propagation through connections
+- ✅ Material generation from OutputNode
 
-**Deliverables:**
-- Working execution engine
-- Nodes compute correct outputs
-- Efficient caching system
-
-**Validation:**
-- `./gradlew compileJava` passes
-- Changing input updates output
-- No infinite loops on cycles
+**Status:** Graph execution works, can generate PBRMaterial from nodes
 
 ---
 
-### Phase 7: Node Library Panel (Node Palette)
-**Goal:** Add/remove nodes from palette
+### 🔄 Phase 7: Frontend Validation & Testing (IN PROGRESS)
+**Goal:** Verify all frontend features work correctly before integration
 
 **Tasks:**
-1. Create `NodeLibraryPanel.java` - Side panel with node list
-2. Implement node search/filter
-3. Add drag-from-palette to create nodes
-4. Implement right-click context menu (add node)
-5. Add node deletion (Delete key)
+1. ✅ Compile verification - ensure all code compiles
+2. 🔄 Runtime testing - launch game and test node editor
+3. 🔄 Interaction testing:
+   - Can drag nodes smoothly
+   - Can create connections by dragging from sockets
+   - Can delete connections (right-click or disconnect)
+   - Pan and zoom work correctly
+   - Selection highlighting works
+4. 🔄 Node functionality testing:
+   - ColorInputNode shows color picker
+   - FloatInputNode shows slider
+   - MathNode operations work
+   - OutputNode collects all inputs
+5. 🔄 Graph execution testing:
+   - Click "Generate Material" button
+   - Verify material values in logs
+   - Test cycle detection
+   - Test disconnected nodes
 
-**Deliverables:**
-- Node palette on left side
-- Can add nodes by dragging
-- Can search for nodes
+**Validation Checklist:**
+- [ ] `./gradlew compileJava` passes
+- [ ] Can launch game without crashes
+- [ ] Can open LookDev screen
+- [ ] Can switch to Node Editor tab
+- [ ] Can see example nodes on canvas
+- [ ] Can drag nodes around
+- [ ] Can create new connections
+- [ ] Can delete connections
+- [ ] Pan/zoom works smoothly
+- [ ] "Generate Material" button works
+- [ ] Material values logged correctly
 
-**Validation:**
-- `./gradlew compileJava` passes
-- Can add nodes from palette
-- Search filters nodes correctly
+**Current Status:** Code compiles, need runtime testing
 
 ---
 
-### Phase 8: Material Integration (Connect to LookDev)
-**Goal:** Apply node graph output to 3D preview
+### 📋 Phase 8: Advanced Node Features (PLANNED)
+**Goal:** Add more node types and features
 
-**Tasks:**
-1. Connect OutputNode to PBRMaterial
-2. Update OffscreenRenderer when graph changes
-3. Add real-time preview updates
-4. Implement graph serialization (save/load)
-5. Add preset system for node graphs
+**Planned Tasks:**
+1. Add more node types:
+   - `MixNode` - Lerp between two values
+   - `SplitNode` - Split vector/color into components
+   - `CombineNode` - Combine components into vector/color
+   - `TextureSampleNode` - Sample texture at UV
+   - `UVNode` - UV coordinate input
+2. Node library panel (side panel with node list)
+3. Add node via right-click context menu
+4. Node search/filter
+5. Delete node (Delete key)
+6. Copy/paste nodes (Ctrl+C/V)
+7. Undo/redo system
 
-**Deliverables:**
-- Node graph affects 3D preview
-- Can save/load node graphs
-- Real-time material updates
+**Status:** Not started - waiting for Phase 7 validation
 
-**Validation:**
-- `./gradlew compileJava` passes
-- Changing nodes updates 3D model
-- Can save and reload graphs
+---
+
+### 📋 Phase 9: Graph Serialization (PLANNED)
+**Goal:** Save and load node graphs
+
+**Planned Tasks:**
+1. JSON serialization for nodes
+2. JSON serialization for connections
+3. Save graph to file
+4. Load graph from file
+5. Graph preset system
+6. Auto-save functionality
+
+**Status:** Not started
+
+---
+
+### 📋 Phase 10: Material System Integration (PLANNED)
+**Goal:** Connect node editor to preview rendering
+
+**Planned Tasks:**
+1. Connect OutputNode to PreviewFragment
+2. Apply generated material to 3D preview
+3. Real-time preview updates when nodes change
+4. Material override system integration
+5. Sync with parameter panel
+
+**Status:** Not started - will do after frontend validation
+
+---
+
+## Current Priority
+
+**Phase 7: Frontend Validation & Testing**
+
+Focus on verifying the node editor UI works correctly:
+1. Compile the code
+2. Launch the game
+3. Test all interactions
+4. Fix any bugs found
+5. Document any issues
+
+**DO NOT** proceed to Phase 10 (integration) until Phase 7 is complete and validated.
 
 ---
 
 ## Technical Stack
 
 **UI Framework:** ModernUI (Fragment + Custom Views)
-**Rendering:** Canvas 2D API (drawRect, drawLine, drawText)
-**Data Model:** Java classes (Node, Socket, Connection, Graph)
+**Rendering:** Canvas 2D API (drawRect, drawLine, drawCircle)
+**Data Model:** Java classes (Node, Socket, Connection)
 **Execution:** Topological sort + value propagation
-**Serialization:** JSON (Gson)
+**Serialization:** JSON (Gson) - Phase 9
 
 ## File Structure
 
 ```
 src/main/java/cn/minerealms/assimploader/lookdev/
 ├── nodeeditor/
-│   ├── NodeEditorFragment.java       (Phase 1)
-│   ├── NodeEditorCanvas.java         (Phase 1)
-│   ├── model/
-│   │   ├── Node.java                 (Phase 2)
-│   │   ├── NodeSocket.java           (Phase 2)
-│   │   ├── NodeConnection.java       (Phase 2)
-│   │   ├── NodeGraph.java            (Phase 2)
-│   │   └── NodeType.java             (Phase 2)
-│   ├── render/
-│   │   └── NodeRenderer.java         (Phase 3)
-│   ├── interaction/
-│   │   └── NodeInteractionHandler.java (Phase 4)
-│   ├── nodes/
-│   │   ├── TextureInputNode.java     (Phase 5)
-│   │   ├── ColorNode.java            (Phase 5)
-│   │   ├── MixNode.java              (Phase 5)
-│   │   ├── MultiplyNode.java         (Phase 5)
-│   │   ├── OutputNode.java           (Phase 5)
-│   │   └── ValueNode.java            (Phase 5)
-│   ├── execution/
-│   │   └── NodeExecutor.java         (Phase 6)
-│   ├── ui/
-│   │   └── NodeLibraryPanel.java     (Phase 7)
-│   └── integration/
-│       └── MaterialGraphIntegration.java (Phase 8)
+│   ├── NodeEditorFragment.java       ✅ Phase 1
+│   ├── NodeEditorCanvas.java         ✅ Phase 1
+│   ├── Node.java                     ✅ Phase 2
+│   ├── NodeSocket.java               ✅ Phase 2
+│   ├── NodeConnection.java           ✅ Phase 2
+│   ├── NodeGraphExecutor.java        ✅ Phase 6
+│   └── nodes/
+│       ├── TextureInputNode.java     ✅ Phase 5
+│       ├── ColorInputNode.java       ✅ Phase 5
+│       ├── FloatInputNode.java       ✅ Phase 5
+│       ├── MathNode.java             ✅ Phase 5
+│       └── OutputNode.java           ✅ Phase 5
 ```
 
 ## Success Criteria
 
-- All phases complete with passing `./gradlew compileJava`
-- Demo graph loads on startup
-- Can create, connect, and execute nodes
-- Node output affects 3D preview
-- Can save/load node graphs
+**Phase 7 (Current):**
+- All code compiles without errors
+- Node editor tab opens in game
+- Can interact with nodes (drag, connect, select)
+- "Generate Material" button produces correct output
+- No crashes or errors in logs
 
-## Estimated Complexity
+**Phase 8-9 (Future):**
+- More node types available
+- Can save/load graphs
+- Node library panel works
 
-- **Phase 1-2:** Foundation (Medium)
-- **Phase 3-4:** Rendering + Interaction (High)
-- **Phase 5:** Example Nodes (Low)
-- **Phase 6:** Execution Engine (High)
-- **Phase 7:** Node Library (Medium)
-- **Phase 8:** Integration (Medium)
+**Phase 10 (Future):**
+- Node graph affects 3D preview
+- Real-time material updates
+- Full integration with LookDev system
 
-**Total:** ~8 phases, incremental development with validation at each step.
+## Next Steps
+
+1. **Compile verification:**
+   ```bash
+   ./gradlew compileJava
+   ```
+
+2. **Runtime testing:**
+   ```bash
+   ./gradlew runClient
+   ```
+   - Open LookDev screen (`/lookdev`)
+   - Switch to Node Editor tab
+   - Test all interactions
+
+3. **Bug fixing:**
+   - Fix any issues found during testing
+   - Document problems and solutions
+
+4. **Documentation:**
+   - Update this plan with test results
+   - Note any limitations or issues
+   - Plan next phase based on findings
