@@ -11,6 +11,7 @@ import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NodePropertiesPanel;
 import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NotificationManager;
 import cn.minerealms.assimploader.lookdev.nodeeditor.ui.KeyboardShortcutManager;
 import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NodeSearchDialog;
+import cn.minerealms.assimploader.lookdev.nodeeditor.ui.ResizableDivider;
 import cn.minerealms.assimploader.lookdev.nodeeditor.undo.CommandHistory;
 import cn.minerealms.assimploader.lookdev.nodeeditor.undo.AddNodeCommand;
 import cn.minerealms.assimploader.lookdev.nodeeditor.undo.DeleteNodeCommand;
@@ -50,6 +51,7 @@ public class NodeEditorFragment extends Fragment {
     private NodeEditorCanvas canvas;
     private NodePalettePanel palettePanel;
     private NodePropertiesPanel propertiesPanel;
+    private ResizableDivider propertiesDivider;
     private NotificationManager notificationManager;
     private KeyboardShortcutManager shortcutManager;
     private NodeSearchDialog searchDialog;
@@ -138,6 +140,18 @@ public class NodeEditorFragment extends Fragment {
         canvas.setLayoutParams(canvasParams);
         mainContent.addView(canvas);
 
+        // Resizable divider before properties panel
+        propertiesDivider = new ResizableDivider(context);
+        LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        );
+        propertiesDivider.setLayoutParams(dividerParams);
+        propertiesDivider.setMinWidth(150);
+        propertiesDivider.setMaxWidth(500);
+        propertiesDivider.setCurrentWidth(250);
+        mainContent.addView(propertiesDivider);
+
         // Properties panel (right side)
         propertiesPanel = new NodePropertiesPanel(context);
         LinearLayout.LayoutParams propertiesParams = new LinearLayout.LayoutParams(
@@ -147,6 +161,16 @@ public class NodeEditorFragment extends Fragment {
         propertiesPanel.setLayoutParams(propertiesParams);
         propertiesPanel.setBackground(new ColorDrawable(0xFF1E1E1E));
         mainContent.addView(propertiesPanel);
+
+        // Set up divider resize listener
+        propertiesDivider.setOnResizeListener(newWidth -> {
+            LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) propertiesPanel.getLayoutParams();
+            params.width = propertiesPanel.dp(newWidth);
+            propertiesPanel.setLayoutParams(params);
+            propertiesPanel.requestLayout();
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Properties panel resized to: {}dp", newWidth);
+        });
 
         // Set up canvas selection listener to update properties panel
         canvas.setOnNodeSelectionListener(node -> {
