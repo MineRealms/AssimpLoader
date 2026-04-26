@@ -6,6 +6,9 @@ import cn.minerealms.assimploader.lookdev.nodeeditor.Node;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input.ColorNode;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input.ValueNode;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input.TextureSampleNode;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.math.MathFunctionNode;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.vector.VectorMathNode;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.texture.MappingNode;
 
 import icyllis.modernui.view.View;
 import icyllis.modernui.widget.*;
@@ -98,6 +101,12 @@ public class NodePropertiesPanel extends LinearLayout {
             addValueNodeProperties((ValueNode) node);
         } else if (node instanceof TextureSampleNode) {
             addTextureSampleNodeProperties((TextureSampleNode) node);
+        } else if (node instanceof MathFunctionNode) {
+            addMathFunctionNodeProperties((MathFunctionNode) node);
+        } else if (node instanceof VectorMathNode) {
+            addVectorMathNodeProperties((VectorMathNode) node);
+        } else if (node instanceof MappingNode) {
+            addMappingNodeProperties((MappingNode) node);
         } else {
             showNoEditableProperties();
         }
@@ -358,6 +367,66 @@ public class NodePropertiesPanel extends LinearLayout {
         LayoutParams buttonParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         buttonParams.setMargins(10, 0, 10, 10);
         propertiesContainer.addView(optionButton, buttonParams);
+    }
+
+    // ========== MathFunctionNode Properties ==========
+
+    private void addMathFunctionNodeProperties(MathFunctionNode node) {
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] Adding MathFunctionNode properties");
+
+        String[] functionNames = new String[MathFunctionNode.Function.values().length];
+        for (int i = 0; i < functionNames.length; i++) {
+            functionNames[i] = MathFunctionNode.Function.values()[i].getDisplayName();
+        }
+
+        addDropdown("Function",
+            functionNames,
+            node.getFunction().ordinal(),
+            index -> {
+                MathFunctionNode.Function function = MathFunctionNode.Function.values()[index];
+                node.setFunction(function);
+                DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] MathFunctionNode function updated: {}", function);
+            });
+    }
+
+    // ========== VectorMathNode Properties ==========
+
+    private void addVectorMathNodeProperties(VectorMathNode node) {
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] Adding VectorMathNode properties");
+
+        String[] operationNames = new String[VectorMathNode.Operation.values().length];
+        for (int i = 0; i < operationNames.length; i++) {
+            operationNames[i] = VectorMathNode.Operation.values()[i].getDisplayName();
+        }
+
+        addDropdown("Operation",
+            operationNames,
+            node.getOperation().ordinal(),
+            index -> {
+                VectorMathNode.Operation operation = VectorMathNode.Operation.values()[index];
+                node.setOperation(operation);
+                DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] VectorMathNode operation updated: {}", operation);
+            });
+    }
+
+    // ========== MappingNode Properties ==========
+
+    private void addMappingNodeProperties(MappingNode node) {
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] Adding MappingNode properties");
+
+        String[] typeNames = new String[MappingNode.MappingType.values().length];
+        for (int i = 0; i < typeNames.length; i++) {
+            typeNames[i] = MappingNode.MappingType.values()[i].getDisplayName();
+        }
+
+        addDropdown("Mapping Type",
+            typeNames,
+            node.getMappingType().ordinal(),
+            index -> {
+                MappingNode.MappingType type = MappingNode.MappingType.values()[index];
+                node.setMappingType(type);
+                DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] MappingNode type updated: {}", type);
+            });
     }
 
     // ========== Helper Methods ==========

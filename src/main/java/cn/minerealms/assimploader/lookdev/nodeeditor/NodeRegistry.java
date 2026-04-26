@@ -27,6 +27,8 @@ public class NodeRegistry {
         DebugManager.debug(DebugCategory.LOOKDEV, "[NodeRegistry] Initializing node registry");
         registerInputNodes();
         registerMathNodes();
+        registerVectorNodes();
+        registerTextureNodes();
         registerUtilityNodes();
         registerOutputNode();
         DebugManager.debug(DebugCategory.LOOKDEV, "[NodeRegistry] Registered {} node types", registry.size());
@@ -73,12 +75,85 @@ public class NodeRegistry {
                 .addOutput("Result", EnhancedSocketType.VEC3)
                 .build());
 
+        // Subtract Node
+        registry.put(NodeType.SUBTRACT, new NodeMetadata.Builder(NodeType.SUBTRACT)
+                .addInput("A", EnhancedSocketType.FLOAT)
+                .addInput("B", EnhancedSocketType.FLOAT)
+                .addOutput("Result", EnhancedSocketType.FLOAT)
+                .build());
+
+        // Divide Node
+        registry.put(NodeType.DIVIDE, new NodeMetadata.Builder(NodeType.DIVIDE)
+                .addInput("A", EnhancedSocketType.FLOAT)
+                .addInput("B", EnhancedSocketType.FLOAT)
+                .addOutput("Result", EnhancedSocketType.FLOAT)
+                .build());
+
         // Lerp Node
         registry.put(NodeType.LERP, new NodeMetadata.Builder(NodeType.LERP)
                 .addInput("A", EnhancedSocketType.VEC3)
                 .addInput("B", EnhancedSocketType.VEC3)
                 .addInput("T", EnhancedSocketType.FLOAT)
                 .addOutput("Result", EnhancedSocketType.VEC3)
+                .build());
+
+        // Clamp Node
+        registry.put(NodeType.CLAMP, new NodeMetadata.Builder(NodeType.CLAMP)
+                .addInput("Value", EnhancedSocketType.FLOAT)
+                .addInput("Min", EnhancedSocketType.FLOAT)
+                .addInput("Max", EnhancedSocketType.FLOAT)
+                .addOutput("Result", EnhancedSocketType.FLOAT)
+                .build());
+
+        // Math Function Node
+        registry.put(NodeType.MATH_FUNCTION, new NodeMetadata.Builder(NodeType.MATH_FUNCTION)
+                .addInput("Value", EnhancedSocketType.FLOAT)
+                .addInput("Exponent", EnhancedSocketType.FLOAT)
+                .addOutput("Result", EnhancedSocketType.FLOAT)
+                .build());
+    }
+
+    private static void registerVectorNodes() {
+        // Split Node
+        registry.put(NodeType.SPLIT, new NodeMetadata.Builder(NodeType.SPLIT)
+                .addInput("Vector", EnhancedSocketType.VEC3)
+                .addOutput("X", EnhancedSocketType.FLOAT)
+                .addOutput("Y", EnhancedSocketType.FLOAT)
+                .addOutput("Z", EnhancedSocketType.FLOAT)
+                .build());
+
+        // Combine Node
+        registry.put(NodeType.COMBINE, new NodeMetadata.Builder(NodeType.COMBINE)
+                .addInput("X", EnhancedSocketType.FLOAT)
+                .addInput("Y", EnhancedSocketType.FLOAT)
+                .addInput("Z", EnhancedSocketType.FLOAT)
+                .addOutput("Vector", EnhancedSocketType.VEC3)
+                .build());
+
+        // Vector Math Node
+        registry.put(NodeType.VECTOR_MATH, new NodeMetadata.Builder(NodeType.VECTOR_MATH)
+                .addInput("A", EnhancedSocketType.VEC3)
+                .addInput("B", EnhancedSocketType.VEC3)
+                .addOutput("Result", EnhancedSocketType.VEC3)
+                .build());
+    }
+
+    private static void registerTextureNodes() {
+        // Texture Coordinate Node
+        registry.put(NodeType.TEXTURE_COORDINATE, new NodeMetadata.Builder(NodeType.TEXTURE_COORDINATE)
+                .addInput("Offset", EnhancedSocketType.VEC3)
+                .addInput("Scale", EnhancedSocketType.VEC3)
+                .addInput("Rotation", EnhancedSocketType.FLOAT)
+                .addOutput("UV", EnhancedSocketType.VEC3)
+                .build());
+
+        // Mapping Node
+        registry.put(NodeType.MAPPING, new NodeMetadata.Builder(NodeType.MAPPING)
+                .addInput("Vector", EnhancedSocketType.VEC3)
+                .addInput("Location", EnhancedSocketType.VEC3)
+                .addInput("Rotation", EnhancedSocketType.VEC3)
+                .addInput("Scale", EnhancedSocketType.VEC3)
+                .addOutput("Vector", EnhancedSocketType.VEC3)
                 .build());
     }
 

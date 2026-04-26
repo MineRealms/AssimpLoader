@@ -19,7 +19,20 @@ public enum NodeType {
     // Math Nodes
     MULTIPLY("Multiply", NodeCategory.MATH),
     ADD("Add", NodeCategory.MATH),
+    SUBTRACT("Subtract", NodeCategory.MATH),
+    DIVIDE("Divide", NodeCategory.MATH),
     LERP("Lerp", NodeCategory.MATH),
+    CLAMP("Clamp", NodeCategory.MATH),
+    MATH_FUNCTION("Math Function", NodeCategory.MATH),
+
+    // Vector Nodes
+    SPLIT("Split", NodeCategory.VECTOR),
+    COMBINE("Combine", NodeCategory.VECTOR),
+    VECTOR_MATH("Vector Math", NodeCategory.VECTOR),
+
+    // Texture Nodes
+    TEXTURE_COORDINATE("Texture Coordinate", NodeCategory.TEXTURE),
+    MAPPING("Mapping", NodeCategory.TEXTURE),
 
     // Utility Nodes
     NORMAL_MAP("Normal Map", NodeCategory.UTILITY),
@@ -55,6 +68,8 @@ public enum NodeType {
     public enum NodeCategory {
         INPUT("Input"),
         MATH("Math"),
+        VECTOR("Vector"),
+        TEXTURE("Texture"),
         UTILITY("Utility"),
         OUTPUT("Output");
 

@@ -4,6 +4,8 @@ import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.math.*;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.vector.*;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.texture.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.utility.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.output.*;
 
@@ -60,8 +62,39 @@ public class NodeFactory {
                 case ADD:
                     node = new AddNode();
                     break;
+                case SUBTRACT:
+                    node = new SubtractNode();
+                    break;
+                case DIVIDE:
+                    node = new DivideNode();
+                    break;
                 case LERP:
                     node = new LerpNode();
+                    break;
+                case CLAMP:
+                    node = new ClampNode();
+                    break;
+                case MATH_FUNCTION:
+                    node = new MathFunctionNode();
+                    break;
+
+                // Vector nodes
+                case SPLIT:
+                    node = new SplitNode();
+                    break;
+                case COMBINE:
+                    node = new CombineNode();
+                    break;
+                case VECTOR_MATH:
+                    node = new VectorMathNode();
+                    break;
+
+                // Texture nodes
+                case TEXTURE_COORDINATE:
+                    node = new TextureCoordinateNode();
+                    break;
+                case MAPPING:
+                    node = new MappingNode();
                     break;
 
                 // Utility nodes
