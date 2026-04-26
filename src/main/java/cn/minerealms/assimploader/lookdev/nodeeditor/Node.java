@@ -353,4 +353,28 @@ public abstract class Node {
         // Output nodes just collect inputs
         // Override in nodes that perform computation (math, texture sampling, etc.)
     }
+
+    /**
+     * Get input socket by name
+     */
+    public NodeSocket getInputByName(String name) {
+        for (NodeSocket socket : inputs) {
+            if (socket.getName().equals(name)) {
+                return socket;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get output socket by name
+     */
+    public NodeSocket getOutputByName(String name) {
+        for (NodeSocket socket : outputs) {
+            if (socket.getName().equals(name)) {
+                return socket;
+            }
+        }
+        return null;
+    }
 }

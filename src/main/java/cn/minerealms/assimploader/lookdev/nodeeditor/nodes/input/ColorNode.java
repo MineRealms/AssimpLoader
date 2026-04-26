@@ -105,6 +105,20 @@ public class ColorNode extends Node {
         updateOutputs();
     }
 
+    /**
+     * Get color as RGB array
+     */
+    public float[] getColor() {
+        return new float[]{r, g, b};
+    }
+
+    /**
+     * Get color as RGBA array
+     */
+    public float[] getColorWithAlpha() {
+        return new float[]{r, g, b, a};
+    }
+
     private void updateOutputs() {
         if (outputs.size() >= 2) {
             outputs.get(0).setValue(new float[]{r, g, b, a});
