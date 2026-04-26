@@ -16,6 +16,8 @@ import java.util.*;
  * - Category filtering
  * - Keyboard navigation
  * - Quick creation with Enter
+ * - Recent nodes tracking
+ * - Tag-based search
  *
  * Activated by Tab key in node editor.
  */
@@ -25,6 +27,7 @@ public class NodeSearchDialog {
     private String searchQuery = "";
     private List<SearchResult> results = new ArrayList<>();
     private int selectedIndex = 0;
+    private NodeType.NodeCategory filterCategory = null;
 
     // Position
     private float x = 0;
@@ -34,6 +37,10 @@ public class NodeSearchDialog {
 
     // Callback
     private NodeSelectionCallback callback;
+
+    // Recent nodes (most recent first)
+    private final LinkedList<NodeType> recentNodes = new LinkedList<>();
+    private static final int MAX_RECENT_NODES = 5;
 
     public NodeSearchDialog() {
         updateResults();
@@ -49,6 +56,7 @@ public class NodeSearchDialog {
         this.visible = true;
         this.searchQuery = "";
         this.selectedIndex = 0;
+        this.filterCategory = null;
         updateResults();
     }
 
@@ -59,6 +67,7 @@ public class NodeSearchDialog {
         this.visible = false;
         this.searchQuery = "";
         this.selectedIndex = 0;
+        this.filterCategory = null;
     }
 
     /**
@@ -76,6 +85,7 @@ public class NodeSearchDialog {
                 if (!results.isEmpty() && selectedIndex >= 0 && selectedIndex < results.size()) {
                     SearchResult result = results.get(selectedIndex);
                     if (callback != null) {
+                        addToRecent(result.type);
                         callback.onNodeSelected(result.type);
                     }
                     hide();
@@ -95,6 +105,12 @@ public class NodeSearchDialog {
                     searchQuery = searchQuery.substring(0, searchQuery.length() - 1);
                     updateResults();
                 }
+                return true;
+
+            case KeyEvent.KEY_TAB:
+                // Cycle through category filters
+                cycleCategory();
+                updateResults();
                 return true;
 
             default:
@@ -119,6 +135,43 @@ public class NodeSearchDialog {
     }
 
     /**
+     * Cycle through category filters
+     */
+    private void cycleCategory() {
+        if (filterCategory == null) {
+            filterCategory = NodeType.NodeCategory.INPUT;
+        } else {
+            NodeType.NodeCategory[] categories = NodeType.NodeCategory.values();
+            int currentIndex = -1;
+            for (int i = 0; i < categories.length; i++) {
+                if (categories[i] == filterCategory) {
+                    currentIndex = i;
+                    break;
+                }
+            }
+            if (currentIndex >= 0 && currentIndex < categories.length - 1) {
+                filterCategory = categories[currentIndex + 1];
+            } else {
+                filterCategory = null; // Reset to no filter
+            }
+        }
+    }
+
+    /**
+     * Add node to recent list
+     */
+    private void addToRecent(NodeType type) {
+        // Remove if already exists
+        recentNodes.remove(type);
+        // Add to front
+        recentNodes.addFirst(type);
+        // Limit size
+        while (recentNodes.size() > MAX_RECENT_NODES) {
+            recentNodes.removeLast();
+        }
+    }
+
+    /**
      * Update search results based on query
      */
     private void updateResults() {
@@ -126,12 +179,29 @@ public class NodeSearchDialog {
 
         String query = searchQuery.toLowerCase();
 
+        // If query is empty, show recent nodes first
+        if (query.isEmpty() && filterCategory == null && !recentNodes.isEmpty()) {
+            for (NodeType type : recentNodes) {
+                results.add(new SearchResult(type, 1000)); // High score for recent
+            }
+        }
+
         for (NodeType type : NodeType.values()) {
+            // Skip if already in recent nodes section
+            if (query.isEmpty() && filterCategory == null && recentNodes.contains(type)) {
+                continue;
+            }
+
+            // Apply category filter
+            if (filterCategory != null && type.getCategory() != filterCategory) {
+                continue;
+            }
+
             String name = type.getDisplayName().toLowerCase();
             String category = type.getCategory().getDisplayName().toLowerCase();
 
             // Fuzzy match
-            if (query.isEmpty() || name.contains(query) || category.contains(query)) {
+            if (query.isEmpty() || fuzzyMatch(name, query) || name.contains(query) || category.contains(query)) {
                 int score = calculateScore(name, category, query);
                 results.add(new SearchResult(type, score));
             }
@@ -144,6 +214,26 @@ public class NodeSearchDialog {
         if (results.size() > 10) {
             results = results.subList(0, 10);
         }
+    }
+
+    /**
+     * Fuzzy match algorithm
+     * Returns true if all characters in query appear in name in order
+     */
+    private boolean fuzzyMatch(String name, String query) {
+        if (query.isEmpty()) return true;
+
+        int nameIndex = 0;
+        int queryIndex = 0;
+
+        while (nameIndex < name.length() && queryIndex < query.length()) {
+            if (name.charAt(nameIndex) == query.charAt(queryIndex)) {
+                queryIndex++;
+            }
+            nameIndex++;
+        }
+
+        return queryIndex == query.length();
     }
 
     /**
@@ -163,8 +253,14 @@ public class NodeSearchDialog {
         // Contains
         if (name.contains(query)) score += 25;
 
+        // Fuzzy match bonus
+        if (fuzzyMatch(name, query)) score += 15;
+
         // Category match
         if (category.contains(query)) score += 10;
+
+        // Shorter names get bonus (more specific)
+        score += Math.max(0, 20 - name.length());
 
         return score;
     }
@@ -191,6 +287,12 @@ public class NodeSearchDialog {
         paint.setColor(0xFF1A1A1A);
         paint.setStyle(Paint.FILL);
         canvas.drawRect(x + 10, searchBoxY, x + width - 10, searchBoxY + 30, paint);
+
+        // Draw category filter indicator
+        if (filterCategory != null) {
+            paint.setColor(getCategoryColor(filterCategory.getDisplayName()));
+            canvas.drawRect(x + 10, searchBoxY, x + 15, searchBoxY + 30, paint);
+        }
 
         // Draw search query text (placeholder - actual text rendering would go here)
         paint.setColor(0xFFCCCCCC);
@@ -220,6 +322,12 @@ public class NodeSearchDialog {
             paint.setColor(getCategoryColor(result.type.getCategory().getDisplayName()));
             canvas.drawRect(x + 15, resultY + 2, x + 20, resultY + resultHeight - 2, paint);
 
+            // Draw recent indicator (star)
+            if (recentNodes.contains(result.type)) {
+                paint.setColor(0xFFFFAA00);
+                canvas.drawCircle(x + width - 25, resultY + resultHeight / 2, 4, paint);
+            }
+
             // TODO: Draw node name and category text
 
             resultY += resultHeight;
@@ -228,7 +336,7 @@ public class NodeSearchDialog {
         // Draw hint text at bottom
         float hintY = y + height - 25;
         paint.setColor(0xFF666666);
-        // TODO: Draw "↑↓ Navigate | Enter Select | Esc Cancel"
+        // TODO: Draw "↑↓ Navigate | Tab Filter | Enter Select | Esc Cancel"
     }
 
     /**
@@ -238,6 +346,8 @@ public class NodeSearchDialog {
         return switch (category.toLowerCase()) {
             case "input" -> 0xFF00AA00;
             case "math" -> 0xFFAA0000;
+            case "vector" -> 0xFF0088FF;
+            case "texture" -> 0xFF00AA88;
             case "utility" -> 0xFF0000AA;
             case "output" -> 0xFFAA00AA;
             default -> 0xFF888888;
@@ -249,6 +359,13 @@ public class NodeSearchDialog {
      */
     public boolean isVisible() {
         return visible;
+    }
+
+    /**
+     * Get recent nodes list (for debugging/testing)
+     */
+    public List<NodeType> getRecentNodes() {
+        return new ArrayList<>(recentNodes);
     }
 
     /**
