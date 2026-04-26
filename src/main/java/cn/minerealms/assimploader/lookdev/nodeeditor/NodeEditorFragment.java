@@ -7,6 +7,7 @@ import cn.minerealms.assimploader.lookdev.PhotonIntegration;
 import cn.minerealms.assimploader.material.PBRMaterial;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NodePalettePanel;
+import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NodePropertiesPanel;
 import icyllis.modernui.annotation.NonNull;
 import icyllis.modernui.fragment.Fragment;
 import icyllis.modernui.graphics.drawable.ColorDrawable;
@@ -42,12 +43,15 @@ public class NodeEditorFragment extends Fragment {
 
     private NodeEditorCanvas canvas;
     private NodePalettePanel palettePanel;
+    private NodePropertiesPanel propertiesPanel;
     private Button resetViewButton;
     private Button generateMaterialButton;
     private Button togglePaletteButton;
+    private Button togglePropertiesButton;
     private TextView statusText;
     private FeatureTier featureTier;
     private boolean paletteVisible = true;
+    private boolean propertiesVisible = true;
 
     // State preservation
     private Map<String, Boolean> savedCategoryStates = null;
@@ -116,6 +120,24 @@ public class NodeEditorFragment extends Fragment {
         canvas.setLayoutParams(canvasParams);
         mainContent.addView(canvas);
 
+        // Properties panel (right side)
+        propertiesPanel = new NodePropertiesPanel(context);
+        LinearLayout.LayoutParams propertiesParams = new LinearLayout.LayoutParams(
+            propertiesPanel.dp(250),
+            ViewGroup.LayoutParams.MATCH_PARENT
+        );
+        propertiesPanel.setLayoutParams(propertiesParams);
+        propertiesPanel.setBackground(new ColorDrawable(0xFF1E1E1E));
+        mainContent.addView(propertiesPanel);
+
+        // Set up canvas selection listener to update properties panel
+        canvas.setOnNodeSelectionListener(node -> {
+            propertiesPanel.setSelectedNode(node);
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Node selection changed: {}",
+                node != null ? node.getTitle() : "none");
+        });
+
         // Bottom status bar
         LinearLayout statusBar = createStatusBar(context);
         root.addView(statusBar);
@@ -164,6 +186,17 @@ public class NodeEditorFragment extends Fragment {
         );
         toggleParams.setMargins(toolbar.dp(4), 0, 0, 0);
         toolbar.addView(togglePaletteButton, toggleParams);
+
+        // Toggle Properties button
+        togglePropertiesButton = new Button(context);
+        togglePropertiesButton.setText("Hide Properties");
+        togglePropertiesButton.setOnClickListener(v -> toggleProperties());
+        LinearLayout.LayoutParams togglePropsParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        togglePropsParams.setMargins(toolbar.dp(4), 0, 0, 0);
+        toolbar.addView(togglePropertiesButton, togglePropsParams);
 
         // Add Node button
         Button addNodeButton = new Button(context);
@@ -241,6 +274,19 @@ public class NodeEditorFragment extends Fragment {
             togglePaletteButton.setText(paletteVisible ? "Hide Palette" : "Show Palette");
             DebugManager.debug(DebugCategory.LOOKDEV,
                 "[NodeEditorFragment] Palette visibility: {}", paletteVisible);
+        }
+    }
+
+    /**
+     * Toggle properties panel visibility
+     */
+    private void toggleProperties() {
+        propertiesVisible = !propertiesVisible;
+        if (propertiesPanel != null) {
+            propertiesPanel.setVisibility(propertiesVisible ? View.VISIBLE : View.GONE);
+            togglePropertiesButton.setText(propertiesVisible ? "Hide Properties" : "Show Properties");
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Properties visibility: {}", propertiesVisible);
         }
     }
 
