@@ -117,6 +117,12 @@ repositories {
         url 'https://maven.izzel.io/releases/'
     }
 
+    // Photon and LDLib
+    maven {
+        name 'LowDragMC Maven'
+        url 'https://maven.lowdragmc.com/releases'
+    }
+
     mavenCentral()
 }
 
@@ -155,6 +161,10 @@ dependencies {
     library "icyllis.modernui:ModernUI-Core:${modernui_version}"
     // library "icyllis.modernui:ModernUI-Markdown:${modernui_version}"  // Not needed for LookDev viewer
     implementation fg.deobf("icyllis.modernui:ModernUI-Forge:1.20.1-${modernui_version}.+")
+
+    // Photon Integration (Optional - compileOnly for conditional loading)
+    compileOnly fg.deobf("com.lowdragmc.photon:photon-forge-1.20.1:${photon_version}")
+    compileOnly fg.deobf("com.lowdragmc.ldlib:ldlib-forge-1.20.1:${ldlib_version}")
 
     // Optional mods for testing
     runtimeOnly fg.deobf("mezz.jei:jei-1.20.1-forge:15.20.0.115")

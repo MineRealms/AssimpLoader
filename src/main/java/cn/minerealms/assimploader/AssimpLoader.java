@@ -1,5 +1,6 @@
 package cn.minerealms.assimploader;
 
+import cn.minerealms.assimploader.compat.photon.PhotonCompat;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.cache.ModelCacheManager;
 import cn.minerealms.assimploader.render.AssimpGeometryLoader;
@@ -106,6 +107,9 @@ public class AssimpLoader {
             MinecraftForge.EVENT_BUS.register(cn.minerealms.assimploader.debug.AutoTestManager.class);
             LOGGER.info("AutoTestManager registered (enabled: {})", cn.minerealms.assimploader.debug.AutoTestManager.AUTO_TEST_ENABLED);
         }
+
+        // Initialize Photon integration (conditional)
+        PhotonCompat.init();
 
         LOGGER.info("AssimpLoader mod instance created");
     }
