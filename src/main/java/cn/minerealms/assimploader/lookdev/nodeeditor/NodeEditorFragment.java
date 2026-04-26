@@ -11,6 +11,9 @@ import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NodePropertiesPanel;
 import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NotificationManager;
 import cn.minerealms.assimploader.lookdev.nodeeditor.ui.KeyboardShortcutManager;
 import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NodeSearchDialog;
+import cn.minerealms.assimploader.lookdev.nodeeditor.undo.CommandHistory;
+import cn.minerealms.assimploader.lookdev.nodeeditor.undo.AddNodeCommand;
+import cn.minerealms.assimploader.lookdev.nodeeditor.undo.DeleteNodeCommand;
 import icyllis.modernui.annotation.NonNull;
 import icyllis.modernui.fragment.Fragment;
 import icyllis.modernui.graphics.drawable.ColorDrawable;
@@ -50,6 +53,7 @@ public class NodeEditorFragment extends Fragment {
     private NotificationManager notificationManager;
     private KeyboardShortcutManager shortcutManager;
     private NodeSearchDialog searchDialog;
+    private CommandHistory commandHistory;
     private Button resetViewButton;
     private Button generateMaterialButton;
     private Button togglePaletteButton;
@@ -80,6 +84,7 @@ public class NodeEditorFragment extends Fragment {
         notificationManager = new NotificationManager();
         shortcutManager = new KeyboardShortcutManager();
         searchDialog = new NodeSearchDialog();
+        commandHistory = new CommandHistory();
 
         DebugManager.debug(DebugCategory.LOOKDEV, "[NodeEditorFragment] UI managers initialized");
 
@@ -350,7 +355,10 @@ public class NodeEditorFragment extends Fragment {
             Node node = NodeFactory.createNode(nodeType);
             if (node != null) {
                 node.setPosition(x, y);
-                canvas.addNode(node);
+
+                // Use command history for undo/redo support
+                commandHistory.execute(new AddNodeCommand(canvas, node));
+
                 setStatus("Added node: " + nodeType.name());
                 DebugManager.info(DebugCategory.LOOKDEV,
                     "[NodeEditorFragment] Added node: " + nodeType + " at (" + x + ", " + y + ")");
@@ -580,11 +588,21 @@ public class NodeEditorFragment extends Fragment {
                 return true;
 
             case UNDO:
-                notificationManager.info("Undo not yet implemented");
+                if (commandHistory.canUndo()) {
+                    commandHistory.undo();
+                    notificationManager.success("Undo: " + commandHistory.getUndoDescription());
+                } else {
+                    notificationManager.warning("Nothing to undo");
+                }
                 return true;
 
             case REDO:
-                notificationManager.info("Redo not yet implemented");
+                if (commandHistory.canRedo()) {
+                    commandHistory.redo();
+                    notificationManager.success("Redo: " + commandHistory.getRedoDescription());
+                } else {
+                    notificationManager.warning("Nothing to redo");
+                }
                 return true;
 
             case DELETE_SELECTED:
@@ -656,7 +674,9 @@ public class NodeEditorFragment extends Fragment {
         if (canvas != null) {
             Node selected = canvas.getSelectedNode();
             if (selected != null) {
-                canvas.removeNode(selected);
+                // Use command history for undo/redo support
+                commandHistory.execute(new DeleteNodeCommand(canvas, selected));
+
                 notificationManager.success("Node deleted");
                 DebugManager.debug(DebugCategory.LOOKDEV,
                     "[NodeEditorFragment] Deleted node: {}", selected.getTitle());
