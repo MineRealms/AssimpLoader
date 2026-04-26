@@ -37,7 +37,7 @@ public class PreviewFragment extends Fragment {
     private OrbitCamera camera;
     private OffscreenRenderer offscreenRenderer;
 
-    // Current model and material
+    // Current model and material (non-static to avoid cross-instance pollution)
     private AssimpScene currentModel;
     private PBRMaterial currentMaterial;
     private MaterialOverrideManager overrideManager;
@@ -169,6 +169,19 @@ public class PreviewFragment extends Fragment {
         DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] View destroyed, overlay renderer disabled");
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+        // Clear instance state to prevent cross-instance pollution
+        currentModel = null;
+        currentMaterial = null;
+        overrideManager = null;
+        camera = null;
+
+        DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Fragment destroyed, state cleared");
+    }
+
     private void setupMouseInput() {
         if (previewView == null) return;
 
@@ -246,12 +259,12 @@ public class PreviewFragment extends Fragment {
             DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] setMaterial: {}",
                 material != null ? material.getName() : "null");
 
-            this.currentMaterial = material;
-
-            // Create override manager for this material
+            // Deep copy material to avoid cross-instance pollution
             if (material != null) {
-                this.overrideManager = new MaterialOverrideManager(material);
+                this.currentMaterial = copyMaterial(material);
+                this.overrideManager = new MaterialOverrideManager(this.currentMaterial);
             } else {
+                this.currentMaterial = null;
                 this.overrideManager = null;
             }
 
@@ -260,6 +273,58 @@ public class PreviewFragment extends Fragment {
         } catch (Exception e) {
             DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] ERROR in setMaterial", e);
         }
+    }
+
+    /**
+     * Deep copy a PBRMaterial (since PBRMaterial doesn't have a copy() method)
+     */
+    private PBRMaterial copyMaterial(PBRMaterial source) {
+        PBRMaterial copy = new PBRMaterial(source.getName() + " (Copy)");
+
+        // Copy base color
+        copy.setBaseColor(
+            source.getBaseColor().x,
+            source.getBaseColor().y,
+            source.getBaseColor().z,
+            source.getBaseColor().w
+        );
+        copy.setBaseColorTexture(source.getBaseColorTexture());
+
+        // Copy metallic-roughness
+        copy.setMetallicFactor(source.getMetallicFactor());
+        copy.setRoughnessFactor(source.getRoughnessFactor());
+        copy.setMetallicRoughnessTexture(source.getMetallicRoughnessTexture());
+
+        // Copy normal
+        copy.setNormalTexture(source.getNormalTexture());
+        copy.setNormalScale(source.getNormalScale());
+
+        // Copy emissive
+        copy.setEmissiveFactor(
+            source.getEmissiveFactor().x,
+            source.getEmissiveFactor().y,
+            source.getEmissiveFactor().z
+        );
+        copy.setEmissiveTexture(source.getEmissiveTexture());
+
+        // Copy AO
+        copy.setAoFactor(source.getAoFactor());
+        copy.setAoTexture(source.getAoTexture());
+
+        // Copy height
+        copy.setHeightTexture(source.getHeightTexture());
+        copy.setHeightScale(source.getHeightScale());
+
+        // Copy alpha
+        copy.setAlphaMode(source.getAlphaMode());
+        copy.setAlphaCutoff(source.getAlphaCutoff());
+
+        // Copy other properties
+        copy.setDoubleSided(source.isDoubleSided());
+        copy.setSpecularColor(new Vector3f(source.getSpecularColor()));
+        copy.setShininess(source.getShininess());
+
+        return copy;
     }
 
     /**

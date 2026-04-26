@@ -98,7 +98,8 @@ public class PBRMaterial {
     }
 
     public void setBaseColor(Vector4f baseColor) {
-        this.baseColor = baseColor;
+        // Create a copy to avoid reference sharing
+        this.baseColor = new Vector4f(baseColor);
     }
 
     public void setBaseColor(float r, float g, float b, float a) {
@@ -161,7 +162,8 @@ public class PBRMaterial {
     }
 
     public void setEmissiveFactor(Vector3f emissiveFactor) {
-        this.emissiveFactor = emissiveFactor;
+        // Create a copy to avoid reference sharing
+        this.emissiveFactor = new Vector3f(emissiveFactor);
     }
 
     public void setEmissiveFactor(float r, float g, float b) {
@@ -240,7 +242,8 @@ public class PBRMaterial {
     }
 
     public void setSpecularColor(Vector3f specularColor) {
-        this.specularColor = specularColor;
+        // Create a copy to avoid reference sharing
+        this.specularColor = new Vector3f(specularColor);
     }
 
     public float getShininess() {

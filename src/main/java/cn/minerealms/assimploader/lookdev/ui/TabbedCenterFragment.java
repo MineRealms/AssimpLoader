@@ -139,10 +139,8 @@ public class TabbedCenterFragment extends Fragment {
      * Switch to specified tab
      */
     private void switchToTab(Tab tab) {
-        if (currentTab == tab) {
-            return;
-        }
-
+        // Always perform the switch, even if it's the same tab
+        // This ensures the fragment is added on first load
         currentTab = tab;
 
         // Update button states
@@ -155,6 +153,12 @@ public class TabbedCenterFragment extends Fragment {
         getChildFragmentManager().beginTransaction()
             .replace(contentContainer.getId(), targetFragment, tag)
             .commit();
+
+        // Notify parent LookDevScreen about tab switch
+        Fragment parent = getParentFragment();
+        if (parent instanceof LookDevScreen) {
+            ((LookDevScreen) parent).onTabSwitched(tab == Tab.NODE_EDITOR);
+        }
 
         DebugManager.info(DebugCategory.LOOKDEV, "[TabbedCenterFragment] Switched to tab: " + tab);
     }

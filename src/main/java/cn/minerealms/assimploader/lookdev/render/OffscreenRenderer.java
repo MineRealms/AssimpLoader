@@ -112,9 +112,30 @@ public class OffscreenRenderer {
     }
 
     public void setModel(AssimpScene model) {
+        // Clear texture cache when model changes to prevent texture pollution
+        if (this.currentModel != model) {
+            clearTextureCache();
+        }
+
         this.currentModel = model;
         this.needsRender = true;
         DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Model set, needs render");
+    }
+
+    /**
+     * Clear texture cache (called when model changes)
+     */
+    private void clearTextureCache() {
+        RenderSystem.recordRenderCall(() -> {
+            TextureManager textureManager = Minecraft.getInstance().getTextureManager();
+            for (Map<Integer, ResourceLocation> modelTextures : textureCache.values()) {
+                for (ResourceLocation texLoc : modelTextures.values()) {
+                    textureManager.release(texLoc);
+                }
+            }
+            textureCache.clear();
+            DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Texture cache cleared");
+        });
     }
 
     public void setMaterial(PBRMaterial material) {
@@ -324,12 +345,32 @@ public class OffscreenRenderer {
             if (mesh.getMaterialIndex() >= 0 && mesh.getMaterialIndex() < currentModel.getMaterials().size()) {
                 material = currentModel.getMaterials().get(mesh.getMaterialIndex());
 
-                // Get texture from cache
+                // Priority 1: Use embedded textures from cache
                 if (currentModel.hasEmbeddedTextures() && textureCache.containsKey(modelKey)) {
                     Map<Integer, ResourceLocation> modelTextures = textureCache.get(modelKey);
-                    if (!modelTextures.isEmpty()) {
-                        textureLocation = modelTextures.get(0); // Use first texture
+
+                    // Try to get texture by material index first
+                    if (modelTextures.containsKey(mesh.getMaterialIndex())) {
+                        textureLocation = modelTextures.get(mesh.getMaterialIndex());
+                        DebugManager.debug(DebugCategory.LOOKDEV, "[OffscreenRenderer] Using embedded texture for material {}", mesh.getMaterialIndex());
+                    } else if (!modelTextures.isEmpty()) {
+                        // Fallback to first texture
+                        textureLocation = modelTextures.values().iterator().next();
+                        DebugManager.debug(DebugCategory.LOOKDEV, "[OffscreenRenderer] Using first embedded texture as fallback");
                     }
+                }
+
+                // Priority 2: Use currentMaterial texture (from LookDev UI) if no embedded texture
+                if (textureLocation == null && currentMaterial != null && currentMaterial.getBaseColorTexture() != null) {
+                    textureLocation = currentMaterial.getBaseColorTexture();
+                    DebugManager.debug(DebugCategory.LOOKDEV, "[OffscreenRenderer] Using PBRMaterial texture: {}", textureLocation);
+                }
+
+                // Priority 3: Use material's diffuse texture path
+                if (textureLocation == null && material != null && material.getDiffuseTexture() != null) {
+                    // Try to use the material's texture path directly
+                    String texPath = material.getDiffuseTexture();
+                    DebugManager.debug(DebugCategory.LOOKDEV, "[OffscreenRenderer] Material has diffuse texture: {}", texPath);
                 }
             }
 
@@ -598,6 +639,17 @@ public class OffscreenRenderer {
                     GL30.glDeleteRenderbuffers(depthRenderbufferId);
                     depthRenderbufferId = -1;
                 }
+
+                // Clean up texture cache to prevent texture pollution
+                TextureManager textureManager = Minecraft.getInstance().getTextureManager();
+                for (Map<Integer, ResourceLocation> modelTextures : textureCache.values()) {
+                    for (ResourceLocation texLoc : modelTextures.values()) {
+                        textureManager.release(texLoc);
+                        DebugManager.debug(DebugCategory.LOOKDEV, "[OffscreenRenderer] Released texture: {}", texLoc);
+                    }
+                }
+                textureCache.clear();
+
                 DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Destroyed");
             } catch (Exception e) {
                 DebugManager.error(DebugCategory.LOOKDEV, "[OffscreenRenderer] Destroy failed", e);
