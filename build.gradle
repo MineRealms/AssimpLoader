@@ -117,10 +117,14 @@ repositories {
         url 'https://maven.izzel.io/releases/'
     }
 
-    // Photon and LDLib
+    // Photon and LDLib (from Photon's build.gradle)
     maven {
-        name 'LowDragMC Maven'
-        url 'https://maven.lowdragmc.com/releases'
+        name 'Latvian Maven'
+        url 'https://maven.latvian.dev/releases'
+    }
+    maven {
+        name 'JitPack'
+        url 'https://jitpack.io/'
     }
 
     mavenCentral()
