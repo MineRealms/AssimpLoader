@@ -12,7 +12,7 @@ package cn.minerealms.assimploader.lookdev.nodeeditor;
  *
  * Type compatibility and automatic conversions are handled by TypeConverter.
  */
-public enum SocketType {
+public enum EnhancedSocketType {
     FLOAT(0xFFFFAA00, "float", 1),      // Orange - single value
     VEC2(0xFF00AAFF, "vec2", 2),        // Cyan - 2D vector
     VEC3(0xFFFF00FF, "vec3", 3),        // Magenta - 3D vector (RGB)
@@ -23,7 +23,7 @@ public enum SocketType {
     private final String glslType;
     private final int componentCount;
 
-    SocketType(int color, String glslType, int componentCount) {
+    EnhancedSocketType(int color, String glslType, int componentCount) {
         this.color = color;
         this.glslType = glslType;
         this.componentCount = componentCount;
@@ -53,7 +53,7 @@ public enum SocketType {
     /**
      * Check if this type can be automatically converted to another type
      */
-    public boolean canConvertTo(SocketType target) {
+    public boolean canConvertTo(EnhancedSocketType target) {
         if (this == target) return true;
 
         // FLOAT can expand to VEC2, VEC3, VEC4 (broadcast)
@@ -77,7 +77,7 @@ public enum SocketType {
     /**
      * Check if two types are compatible for connection
      */
-    public boolean isCompatibleWith(SocketType other) {
+    public boolean isCompatibleWith(EnhancedSocketType other) {
         return this.canConvertTo(other) || other.canConvertTo(this);
     }
 }
