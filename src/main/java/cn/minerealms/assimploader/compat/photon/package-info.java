@@ -1,5 +1,3 @@
-package cn.minerealms.assimploader.compat.photon;
-
 /**
  * Photon 兼容层包
  *
@@ -25,5 +23,4 @@ package cn.minerealms.assimploader.compat.photon;
  * 5. 数据添加到 Photon 资源管理器
  * 6. 用户可以在粒子发射器中使用导入的资源
  */
-public class package-info {
-}
+package cn.minerealms.assimploader.compat.photon;

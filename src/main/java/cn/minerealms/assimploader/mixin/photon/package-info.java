@@ -1,5 +1,3 @@
-package cn.minerealms.assimploader.mixin.photon;
-
 /**
  * Photon Mixin 包
  *
@@ -12,5 +10,4 @@ package cn.minerealms.assimploader.mixin.photon;
  *
  * 注意：这些 Mixin 仅在 Photon 模组存在时加载（通过 PhotonCompat 条件加载）
  */
-public class package-info {
-}
+package cn.minerealms.assimploader.mixin.photon;

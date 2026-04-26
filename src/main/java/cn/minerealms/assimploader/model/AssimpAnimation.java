@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.model;
 
 import org.lwjgl.assimp.AIAnimation;
 
+
 /**
  * Wrapper for Assimp AIAnimation containing animation data.
  *
