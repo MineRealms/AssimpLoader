@@ -1,8 +1,8 @@
 # Photon Integration Project - Final Summary
 
 **项目**: AssimpLoader ↔ Photon 集成  
-**完成日期**: 2026-04-26  
-**状态**: ✅ 核心功能完成（Phase 1-5, 7）
+**完成日期**: 2026-04-27  
+**状态**: ✅ 核心功能完成（Phase 1-5, 7）+ Mixin 实现优化
 
 ---
 
@@ -11,6 +11,27 @@
 让 Photon 编辑器能够直接导入和使用 FBX 模型的 Mesh 和 Material 数据，打通 3D 建模工具 → Photon → Minecraft 的工作流。
 
 **目标达成**: ✅ 100% (核心功能)
+
+---
+
+## 最新更新 (2026-04-27)
+
+### Mixin 实现优化 ✅
+- ✅ 修复 `@Mixin` 注解：使用 `value` 替代 `targets`（针对 public 类）
+- ✅ 修复导入：使用正确的 `org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable`
+- ✅ 实现右键菜单集成：通过 `setOnMenu` 添加导入选项
+- ✅ 完整的文件选择对话框：支持 .fbx, .obj, .gltf, .glb
+- ✅ 资源刷新：导入后自动调用 `reBuild()` 更新 UI
+- ✅ 通知系统：成功/失败消息显示
+- ✅ 修复 `AssimpMaterial` API 调用：使用 `getAmbientColor()` 作为自发光近似
+- ✅ 修复 `AssimpModelLoader` 实例化：使用 `new AssimpModelLoader()` 而非静态方法
+- ✅ 编译验证：所有代码通过编译
+
+**关键改进**:
+1. **正确的 Mixin 目标**: `@Mixin(value = MeshesResource.class, remap = false)`
+2. **菜单包装模式**: 保留原有菜单项，添加新功能
+3. **完整的导入流程**: 文件选择 → 加载 → 转换 → 添加 → 刷新 → 通知
+4. **错误处理**: 每个步骤都有 try-catch 和日志记录
 
 ---
 
@@ -172,16 +193,14 @@ class EdgeKey {
 ## 测试状态
 
 ### 编译测试
-- ⚠️ **Full build**: 失败（依赖解析问题，非代码问题）
+- ✅ **Full build**: 通过（依赖问题已修复）
 - ✅ **Code syntax**: 通过（Java 17 兼容）
 - ✅ **Reflection logic**: 正确（基于 Photon API 文档）
 
 ### 功能测试
-- ⏳ **Runtime test**: 待测试（需要 Photon 模组环境）
+- 🎮 **Runtime test**: 准备进入游戏测试
 - ⏳ **Mesh import**: 待测试
 - ⏳ **Material import**: 待测试
-
-**注意**: 由于依赖解析问题，无法生成完整 JAR 进行运行时测试。代码逻辑正确，待网络/依赖问题解决后测试。
 
 ---
 
@@ -215,14 +234,28 @@ class EdgeKey {
 
 ---
 
-## 已知问题和限制
+## 构建配置（已修复）
 
-### 构建问题
-1. **Gradle 依赖解析失败**
-   - 原因: SSL 握手失败，Maven 仓库连接问题
-   - 影响: 无法生成完整 JAR
-   - 解决方案: 网络/代理配置，或等待仓库恢复
-   - **不影响代码正确性**
+### 依赖版本
+```gradle
+// 使用固定版本避免 ForgeGradle 动态版本解析问题
+implementation fg.deobf("icyllis.modernui:ModernUI-Forge:1.20.1-3.12.0.1")
+compileOnly fg.deobf("com.lowdragmc.photon:photon-forge-1.20.1:1.1.17")
+compileOnly fg.deobf("com.lowdragmc.ldlib:ldlib-forge-1.20.1:1.0.31")
+```
+
+### 已移除的依赖
+- ImprovedMobs（项目不需要）
+- TenshiLib（ImprovedMobs 的依赖）
+- JEI（可选测试依赖）
+
+### 构建问题修复
+1. **ModernUI 动态版本问题**
+   - 原因: `1.20.1-${modernui_version}.+` 导致 ForgeGradle StackOverflowError
+   - 解决: 使用固定版本 `1.20.1-3.12.0.1`
+   - 状态: ✅ 已修复
+
+## 已知限制
 
 ### 功能限制
 1. **PBR 特性丢失**
@@ -325,10 +358,11 @@ AssimpLoader ↔ Photon 集成项目成功完成了核心功能（Phase 1-5, 7�
 
 虽然 Phase 6（Emitter 提取）被延后，但现有功能已经足够实用。未来将根据用户反馈继续改进和扩展功能。
 
-**项目状态**: ✅ 可发布（待运行时测试）
+**项目状态**: ✅ 构建成功，准备游戏测试
 
 ---
 
 **项目完成日期**: 2026-04-26  
+**最后更新**: 2026-04-26（构建问题修复）  
 **版本**: 1.0.0  
 **作者**: Claude (Opus 4.6) + User
