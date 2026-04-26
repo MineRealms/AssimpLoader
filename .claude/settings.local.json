@@ -43,7 +43,9 @@
       "Bash(./gradlew tasks:*)",
       "Bash(unzip -l \"G:/MinecraftGames/CTNH-BaopuEdition/.minecraft/versions/Create New Horizon/mods/EnhancedVisuals_FORGE_v1.8.2_mc1.20.1.jar\")",
       "Bash(unzip:*)",
-      "Bash(javap -cp \"G:/MinecraftGames/CTNH-BaopuEdition/.minecraft/versions/Create New Horizon/mods/EnhancedVisuals_FORGE_v1.8.2_mc1.20.1.jar\" team.creative.enhancedvisuals.client.VisualManager)"
+      "Bash(javap -cp \"G:/MinecraftGames/CTNH-BaopuEdition/.minecraft/versions/Create New Horizon/mods/EnhancedVisuals_FORGE_v1.8.2_mc1.20.1.jar\" team.creative.enhancedvisuals.client.VisualManager)",
+      "Read(//c/Users/Administrator/Desktop/MinecraftDev/**)",
+      "Bash(powershell -ExecutionPolicy Bypass -File build-and-run.ps1)"
     ],
     "additionalDirectories": [
       "H:\\MinecraftMods\\Spore\\Spore_2.0_1.20.1",

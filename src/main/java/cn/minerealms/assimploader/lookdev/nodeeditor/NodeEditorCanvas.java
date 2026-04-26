@@ -78,7 +78,9 @@ public class NodeEditorCanvas extends View {
         int height = getHeight();
 
         // Clear background
-        canvas.drawColor(BACKGROUND_COLOR);
+        paint.setColor(BACKGROUND_COLOR);
+        paint.setStyle(Paint.FILL);
+        canvas.drawRect(0, 0, width, height, paint);
 
         // Save canvas state
         canvas.save();
@@ -90,12 +92,7 @@ public class NodeEditorCanvas extends View {
         // Draw grid
         drawGrid(canvas, width, height);
 
-        // Draw nodes
-        for (Node node : nodes) {
-            node.draw(canvas, paint);
-        }
-
-        // Draw connections
+        // Draw connections first (behind nodes)
         for (NodeConnection connection : connections) {
             connection.draw(canvas, paint, offsetX, offsetY, zoom);
         }
@@ -103,6 +100,11 @@ public class NodeEditorCanvas extends View {
         // Draw dragging connection (if any)
         if (isDraggingConnection && dragStartSocket != null) {
             drawDraggingConnection(canvas, paint);
+        }
+
+        // Draw nodes on top
+        for (Node node : nodes) {
+            node.draw(canvas, paint);
         }
 
         // Restore canvas state
@@ -537,6 +539,13 @@ public class NodeEditorCanvas extends View {
                 "[NodeEditorCanvas] Created connection: " +
                 outputSocket.getNode().getTitle() + " -> " +
                 inputSocket.getNode().getTitle());
+
+            // TODO: BACKEND INTEGRATION (Phase 10)
+            // When connection is created, trigger material update:
+            // 1. Execute node graph
+            // 2. Generate new material
+            // 3. Apply to preview (if auto-update enabled)
+            // 4. Consider debouncing to avoid too many updates
         } catch (Exception e) {
             DebugManager.error(DebugCategory.LOOKDEV,
                 "[NodeEditorCanvas] Failed to create connection: " + e.getMessage());

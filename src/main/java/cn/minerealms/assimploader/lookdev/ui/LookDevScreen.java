@@ -39,6 +39,9 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
     private TabbedCenterFragment tabbedCenterFragment;
     private ParameterPanelFragment parameterPanelFragment;
 
+    // UI containers
+    private ViewGroup rightContainer;
+
     // Current state
     private AssimpScene currentModel;
     private List<PBRMaterial> materials = new ArrayList<>();
@@ -109,8 +112,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
 
             // Right panel: Parameters (20% width)
             DebugManager.debug(DebugCategory.LOOKDEV, "Creating right container for ParameterPanelFragment...");
-            icyllis.modernui.fragment.FragmentContainerView rightContainer =
-                new icyllis.modernui.fragment.FragmentContainerView(requireContext());
+            rightContainer = new icyllis.modernui.fragment.FragmentContainerView(requireContext());
             LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
             rightParams.weight = 0.2f;
             rightContainer.setLayoutParams(rightParams);
@@ -586,6 +588,18 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             return tabbedCenterFragment.getPreviewFragment();
         }
         return null;
+    }
+
+    /**
+     * Called when tab is switched in TabbedCenterFragment
+     */
+    public void onTabSwitched(boolean isNodeEditor) {
+        if (rightContainer != null) {
+            // Hide parameter panel when in Node Editor mode
+            rightContainer.setVisibility(isNodeEditor ? View.GONE : View.VISIBLE);
+            DebugManager.info(DebugCategory.LOOKDEV,
+                "Parameter panel visibility: " + (isNodeEditor ? "HIDDEN" : "VISIBLE"));
+        }
     }
 
     /**
