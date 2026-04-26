@@ -57,6 +57,9 @@ public class NodeEditorCanvas extends View {
 
     private Paint paint;
 
+    // Node selection listener
+    private OnNodeSelectionListener nodeSelectionListener;
+
     public NodeEditorCanvas(icyllis.modernui.core.Context context) {
         super(context);
         init();
@@ -470,7 +473,28 @@ public class NodeEditorCanvas extends View {
         if (selectedNode != null) {
             selectedNode.setSelected(true);
         }
+
+        // Notify listener
+        if (nodeSelectionListener != null) {
+            nodeSelectionListener.onNodeSelected(selectedNode);
+        }
+
         invalidate();
+    }
+
+    /**
+     * Set node selection listener
+     */
+    public void setOnNodeSelectionListener(OnNodeSelectionListener listener) {
+        this.nodeSelectionListener = listener;
+    }
+
+    /**
+     * Node selection listener interface
+     */
+    @FunctionalInterface
+    public interface OnNodeSelectionListener {
+        void onNodeSelected(Node node);
     }
 
     /**
