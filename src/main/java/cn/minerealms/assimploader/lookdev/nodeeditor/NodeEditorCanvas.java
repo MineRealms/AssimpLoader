@@ -105,9 +105,21 @@ public class NodeEditorCanvas extends View {
             drawDraggingConnection(canvas, paint);
         }
 
-        // Draw nodes on top
+        // Draw nodes on top (with viewport culling)
+        int visibleNodes = 0;
+        int totalNodes = nodes.size();
         for (Node node : nodes) {
-            node.draw(canvas, paint);
+            if (isNodeVisible(node, width, height)) {
+                node.draw(canvas, paint);
+                visibleNodes++;
+            }
+        }
+
+        // Debug: Log culling stats occasionally
+        if (totalNodes > 0 && Math.random() < 0.01) { // 1% chance to log
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorCanvas] Viewport culling: {}/{} nodes visible",
+                visibleNodes, totalNodes);
         }
 
         // Restore canvas state
@@ -632,5 +644,34 @@ public class NodeEditorCanvas extends View {
         }
         connections.clear();
         invalidate();
+    }
+
+    /**
+     * Check if a node is visible in the current viewport
+     * Used for viewport culling optimization
+     */
+    private boolean isNodeVisible(Node node, int viewportWidth, int viewportHeight) {
+        // Get node bounds in world space
+        float nodeX = node.getX();
+        float nodeY = node.getY();
+        float nodeWidth = node.getWidth();
+        float nodeHeight = node.getHeight();
+
+        // Transform to screen space
+        float screenX = nodeX * zoom + offsetX;
+        float screenY = nodeY * zoom + offsetY;
+        float screenWidth = nodeWidth * zoom;
+        float screenHeight = nodeHeight * zoom;
+
+        // Add margin for partially visible nodes
+        float margin = 50;
+
+        // Check if node intersects viewport
+        boolean intersects = !(screenX + screenWidth < -margin ||
+                              screenX > viewportWidth + margin ||
+                              screenY + screenHeight < -margin ||
+                              screenY > viewportHeight + margin);
+
+        return intersects;
     }
 }
