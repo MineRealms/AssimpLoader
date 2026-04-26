@@ -84,8 +84,11 @@ public abstract class Node {
             paint
         );
 
-        // Draw title text (TODO: Add text rendering when available)
-        // For now, title is shown in status bar when selected
+        // Draw title text
+        paint.setColor(0xFFFFFFFF);
+        paint.setTextSize(12);
+        paint.setTextAlign(Paint.Align.CENTER);
+        canvas.drawText(title, x + width / 2, y + TITLE_BAR_HEIGHT - 8, paint)
 
         // Draw body content
         drawBody(canvas, paint);
@@ -108,6 +111,7 @@ public abstract class Node {
             NodeSocket socket = inputs.get(i);
             float socketY = y + TITLE_BAR_HEIGHT + (i + 1) * SOCKET_SPACING;
 
+            // Draw socket circle
             paint.setColor(socket.getColor());
             paint.setStyle(Paint.FILL);
             canvas.drawCircle(x, socketY, SOCKET_RADIUS, paint);
@@ -117,6 +121,13 @@ public abstract class Node {
             paint.setStyle(Paint.STROKE);
             paint.setStrokeWidth(1.5f);
             canvas.drawCircle(x, socketY, SOCKET_RADIUS, paint);
+
+            // Draw socket label (left-aligned, after socket)
+            paint.setStyle(Paint.FILL);
+            paint.setColor(0xFFCCCCCC);
+            paint.setTextSize(10);
+            paint.setTextAlign(Paint.Align.LEFT);
+            canvas.drawText(socket.getName(), x + SOCKET_RADIUS + 8, socketY + 4, paint);
         }
 
         // Draw output sockets (right side)
@@ -124,6 +135,7 @@ public abstract class Node {
             NodeSocket socket = outputs.get(i);
             float socketY = y + TITLE_BAR_HEIGHT + (i + 1) * SOCKET_SPACING;
 
+            // Draw socket circle
             paint.setColor(socket.getColor());
             paint.setStyle(Paint.FILL);
             canvas.drawCircle(x + width, socketY, SOCKET_RADIUS, paint);
@@ -133,6 +145,13 @@ public abstract class Node {
             paint.setStyle(Paint.STROKE);
             paint.setStrokeWidth(1.5f);
             canvas.drawCircle(x + width, socketY, SOCKET_RADIUS, paint);
+
+            // Draw socket label (right-aligned, before socket)
+            paint.setStyle(Paint.FILL);
+            paint.setColor(0xFFCCCCCC);
+            paint.setTextSize(10);
+            paint.setTextAlign(Paint.Align.RIGHT);
+            canvas.drawText(socket.getName(), x + width - SOCKET_RADIUS - 8, socketY + 4, paint);
         }
     }
 
