@@ -299,7 +299,7 @@ public class MaterialPreviewRenderer {
     }
 
     /**
-     * Get current preview mesh
+     * Get current preview mes
      */
     public PreviewMesh getPreviewMesh() {
         return previewMesh;

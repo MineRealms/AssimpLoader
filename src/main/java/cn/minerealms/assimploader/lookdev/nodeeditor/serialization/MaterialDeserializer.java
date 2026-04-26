@@ -5,6 +5,8 @@ import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.nodeeditor.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.math.*;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.vector.*;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.texture.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.output.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.utility.*;
 import com.google.gson.*;
@@ -131,15 +133,36 @@ public class MaterialDeserializer {
      */
     private static Node createNode(String type) {
         return switch (type) {
+            // Input nodes
             case "TEXTURE_SAMPLE" -> new TextureSampleNode();
             case "VALUE" -> new ValueNode();
             case "COLOR" -> new ColorNode();
             case "UV_COORDINATE" -> new UVCoordinateNode();
+
+            // Math nodes
             case "MULTIPLY" -> new MultiplyNode();
             case "ADD" -> new AddNode();
+            case "SUBTRACT" -> new SubtractNode();
+            case "DIVIDE" -> new DivideNode();
             case "LERP" -> new LerpNode();
+            case "CLAMP" -> new ClampNode();
+            case "MATH_FUNCTION" -> new MathFunctionNode();
+
+            // Vector nodes
+            case "SPLIT" -> new SplitNode();
+            case "COMBINE" -> new CombineNode();
+            case "VECTOR_MATH" -> new VectorMathNode();
+
+            // Texture nodes
+            case "TEXTURE_COORDINATE" -> new TextureCoordinateNode();
+            case "MAPPING" -> new MappingNode();
+
+            // Utility nodes
             case "NORMAL_MAP" -> new NormalMapNode();
+
+            // Output node
             case "MATERIAL_OUTPUT" -> new MaterialOutputNode();
+
             default -> null;
         };
     }
