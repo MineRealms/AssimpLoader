@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "assimploader.refmap.json",
   "client": [
+    "MeshesResourceMixin"
   ],
   "injectors": {
     "defaultRequire": 1
