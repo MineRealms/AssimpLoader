@@ -14,18 +14,16 @@ import icyllis.modernui.widget.LinearLayout;
 import icyllis.modernui.widget.ScrollView;
 import icyllis.modernui.widget.TextView;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Node Palette Panel - displays available node types organized by category.
  *
  * Features:
- * - Categorized node list (Input, Math, Utility, Output)
+ * - Categorized node list (Input, Math, Vector, Texture, Utility, Output)
  * - Click to add node to canvas
  * - Collapsible categories (with state preservation)
- * - Search/filter support (future)
+ * - Uses NodeType.getCategory() and getDisplayName() for organization
  */
 public class NodePalettePanel extends LinearLayout {
 
@@ -78,25 +76,32 @@ public class NodePalettePanel extends LinearLayout {
         // Get all registered node types
         List<NodeType> nodeTypes = NodeRegistry.getAllNodeTypes();
 
-        // Organize by category
-        Map<String, java.util.List<NodeType>> categorized = new HashMap<>();
-        categorized.put("Input", new java.util.ArrayList<>());
-        categorized.put("Math", new java.util.ArrayList<>());
-        categorized.put("Utility", new java.util.ArrayList<>());
-        categorized.put("Output", new java.util.ArrayList<>());
+        // Organize by category using NodeType.getCategory()
+        Map<NodeType.NodeCategory, List<NodeType>> categorized = new LinkedHashMap<>();
 
+        // Initialize all categories in order
+        for (NodeType.NodeCategory category : NodeType.NodeCategory.values()) {
+            categorized.put(category, new ArrayList<>());
+        }
+
+        // Categorize nodes
         for (NodeType type : nodeTypes) {
-            String category = getCategoryForNodeType(type);
+            NodeType.NodeCategory category = type.getCategory();
             categorized.get(category).add(type);
         }
 
         // Create category sections (all expanded by default)
-        for (Map.Entry<String, java.util.List<NodeType>> entry : categorized.entrySet()) {
+        for (Map.Entry<NodeType.NodeCategory, List<NodeType>> entry : categorized.entrySet()) {
             if (!entry.getValue().isEmpty()) {
-                categoryExpandedState.put(entry.getKey(), true);
-                createCategorySection(container, entry.getKey(), entry.getValue());
+                String categoryName = entry.getKey().getDisplayName();
+                categoryExpandedState.put(categoryName, true);
+                createCategorySection(container, categoryName, entry.getValue());
             }
         }
+
+        DebugManager.info(DebugCategory.LOOKDEV,
+            "[NodePalettePanel] Built {} categories with {} total nodes",
+            categorized.size(), nodeTypes.size());
     }
 
     private void createCategorySection(LinearLayout container, String categoryName, List<NodeType> nodes) {
@@ -148,14 +153,14 @@ public class NodePalettePanel extends LinearLayout {
         boolean newState = !currentState;
         categoryExpandedState.put(categoryName, newState);
 
-        // Update visibility
-        LinearLayout content = categoryContainers.get(categoryName);
-        if (content != null) {
-            content.setVisibility(newState ? View.VISIBLE : View.GONE);
+        // Update UI
+        LinearLayout container = categoryContainers.get(categoryName);
+        TextView header = categoryHeaders.get(categoryName);
+
+        if (container != null) {
+            container.setVisibility(newState ? View.VISIBLE : View.GONE);
         }
 
-        // Update header text
-        TextView header = categoryHeaders.get(categoryName);
         if (header != null) {
             updateCategoryHeaderText(header, categoryName, newState);
         }
@@ -164,9 +169,6 @@ public class NodePalettePanel extends LinearLayout {
             "[NodePalettePanel] Category '{}' {}", categoryName, newState ? "expanded" : "collapsed");
     }
 
-    /**
-     * Update category header text with expand/collapse indicator
-     */
     private void updateCategoryHeaderText(TextView header, String categoryName, boolean expanded) {
         String arrow = expanded ? "▼" : "▶";
         header.setText(arrow + " " + categoryName);
@@ -176,7 +178,7 @@ public class NodePalettePanel extends LinearLayout {
         Context context = getContext();
 
         Button nodeButton = new Button(context);
-        nodeButton.setText(getDisplayName(nodeType));
+        nodeButton.setText(nodeType.getDisplayName());  // Use NodeType.getDisplayName()
         nodeButton.setTextSize(11);
         nodeButton.setBackground(new ColorDrawable(0xFF3A3A3A));
         nodeButton.setTextColor(0xFFFFFFFF);
@@ -192,7 +194,7 @@ public class NodePalettePanel extends LinearLayout {
             if (listener != null) {
                 listener.onNodeSelected(nodeType);
                 DebugManager.debug(DebugCategory.LOOKDEV,
-                    "[NodePalettePanel] Node selected: {}", nodeType);
+                    "[NodePalettePanel] Node selected: {}", nodeType.getDisplayName());
             }
         });
 
@@ -221,42 +223,7 @@ public class NodePalettePanel extends LinearLayout {
         }
     }
 
-    private String getCategoryForNodeType(NodeType type) {
-        switch (type) {
-            case TEXTURE_SAMPLE:
-            case VALUE:
-            case COLOR:
-            case UV_COORDINATE:
-                return "Input";
-
-            case MULTIPLY:
-            case ADD:
-            case LERP:
-                return "Math";
-
-            case NORMAL_MAP:
-                return "Utility";
-
-            case MATERIAL_OUTPUT:
-                return "Output";
-
-            default:
-                return "Other";
-        }
-    }
-
-    private String getDisplayName(NodeType type) {
-        switch (type) {
-            case TEXTURE_SAMPLE: return "Texture Sample";
-            case VALUE: return "Value";
-            case COLOR: return "Color";
-            case UV_COORDINATE: return "UV Coordinate";
-            case MULTIPLY: return "Multiply";
-            case ADD: return "Add";
-            case LERP: return "Mix (Lerp)";
-            case NORMAL_MAP: return "Normal Map";
-            case MATERIAL_OUTPUT: return "Material Output";
-            default: return type.name();
-        }
+    private int dp(int dp) {
+        return (int) (dp * getContext().getResources().getDisplayMetrics().density);
     }
 }
