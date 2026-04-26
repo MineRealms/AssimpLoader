@@ -8,6 +8,9 @@ import cn.minerealms.assimploader.material.PBRMaterial;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NodePalettePanel;
 import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NodePropertiesPanel;
+import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NotificationManager;
+import cn.minerealms.assimploader.lookdev.nodeeditor.ui.KeyboardShortcutManager;
+import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NodeSearchDialog;
 import icyllis.modernui.annotation.NonNull;
 import icyllis.modernui.fragment.Fragment;
 import icyllis.modernui.graphics.drawable.ColorDrawable;
@@ -44,6 +47,9 @@ public class NodeEditorFragment extends Fragment {
     private NodeEditorCanvas canvas;
     private NodePalettePanel palettePanel;
     private NodePropertiesPanel propertiesPanel;
+    private NotificationManager notificationManager;
+    private KeyboardShortcutManager shortcutManager;
+    private NodeSearchDialog searchDialog;
     private Button resetViewButton;
     private Button generateMaterialButton;
     private Button togglePaletteButton;
@@ -69,6 +75,13 @@ public class NodeEditorFragment extends Fragment {
             "[NodeEditorFragment] Feature tier: " + featureTier.getDisplayName());
 
         var context = requireContext();
+
+        // Initialize UI managers
+        notificationManager = new NotificationManager();
+        shortcutManager = new KeyboardShortcutManager();
+        searchDialog = new NodeSearchDialog();
+
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodeEditorFragment] UI managers initialized");
 
         // Root layout
         LinearLayout root = new LinearLayout(context);
@@ -519,6 +532,138 @@ public class NodeEditorFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable DataSet savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         DebugManager.info(DebugCategory.LOOKDEV, "[NodeEditorFragment] onViewCreated");
+
+        // Set up keyboard event handling
+        view.setFocusable(true);
+        view.setFocusableInTouchMode(true);
+        view.requestFocus();
+    }
+
+    /**
+     * Handle keyboard shortcuts
+     */
+    public boolean handleKeyPress(int keyCode, int modifiers) {
+        // Let search dialog handle input first if visible
+        if (searchDialog != null && searchDialog.onKeyPressed(keyCode, 0, modifiers)) {
+            return true;
+        }
+
+        // Handle shortcuts
+        if (shortcutManager != null) {
+            var action = shortcutManager.handleKeyPress(keyCode, modifiers);
+            if (action != null) {
+                return handleShortcutAction(action);
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Execute shortcut action
+     */
+    private boolean handleShortcutAction(KeyboardShortcutManager.ShortcutAction action) {
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[NodeEditorFragment] Executing shortcut action: {}", action);
+
+        switch (action) {
+            case OPEN_NODE_SEARCH:
+                openNodeSearch();
+                return true;
+
+            case SAVE_MATERIAL:
+                saveMaterial();
+                return true;
+
+            case OPEN_MATERIAL:
+                openMaterial();
+                return true;
+
+            case UNDO:
+                notificationManager.info("Undo not yet implemented");
+                return true;
+
+            case REDO:
+                notificationManager.info("Redo not yet implemented");
+                return true;
+
+            case DELETE_SELECTED:
+                deleteSelectedNodes();
+                return true;
+
+            case DUPLICATE_SELECTED:
+                notificationManager.info("Duplicate not yet implemented");
+                return true;
+
+            case SELECT_ALL:
+                notificationManager.info("Select All not yet implemented");
+                return true;
+
+            case FRAME_SELECTED:
+                notificationManager.info("Frame Selected not yet implemented");
+                return true;
+
+            case RESET_VIEW:
+                resetView();
+                notificationManager.success("View reset");
+                return true;
+
+            case GENERATE_SHADER:
+                onGenerateMaterial();
+                notificationManager.success("Material generated");
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Open node search dialog
+     */
+    private void openNodeSearch() {
+        if (searchDialog != null && canvas != null) {
+            float centerX = canvas.getWidth() / 2.0f;
+            float centerY = canvas.getHeight() / 2.0f;
+            searchDialog.show(centerX, centerY, nodeType -> {
+                // Add node at center when selected from search
+                addNodeByType(nodeType, centerX, centerY);
+            });
+            DebugManager.debug(DebugCategory.LOOKDEV, "[NodeEditorFragment] Node search opened");
+        }
+    }
+
+    /**
+     * Save material (placeholder)
+     */
+    private void saveMaterial() {
+        notificationManager.info("Save material not yet implemented");
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodeEditorFragment] Save material requested");
+    }
+
+    /**
+     * Open material (placeholder)
+     */
+    private void openMaterial() {
+        notificationManager.info("Open material not yet implemented");
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodeEditorFragment] Open material requested");
+    }
+
+    /**
+     * Delete selected nodes
+     */
+    private void deleteSelectedNodes() {
+        if (canvas != null) {
+            Node selected = canvas.getSelectedNode();
+            if (selected != null) {
+                canvas.removeNode(selected);
+                notificationManager.success("Node deleted");
+                DebugManager.debug(DebugCategory.LOOKDEV,
+                    "[NodeEditorFragment] Deleted node: {}", selected.getTitle());
+            } else {
+                notificationManager.warning("No node selected");
+            }
+        }
     }
 
     @Override
