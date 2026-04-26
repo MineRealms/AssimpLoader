@@ -67,7 +67,7 @@ public class NodeEditorCanvas extends View {
         setFocusable(true);
         setFocusableInTouchMode(true);
 
-        DebugManager.info(DebugCategory.LOOKDEV, "[NodeEditorCanvas] Initialized");
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodeEditorCanvas] Initialized");
     }
 
     @Override
@@ -262,6 +262,9 @@ public class NodeEditorCanvas extends View {
                 // Check if clicking on a socket (for connection dragging)
                 NodeSocket clickedSocket = getSocketAt(canvasX, canvasY);
                 if (clickedSocket != null) {
+                    DebugManager.debug(DebugCategory.LOOKDEV,
+                        "[NodeEditorCanvas] Started dragging connection from socket: {}",
+                        clickedSocket.getName());
                     // Start dragging connection
                     isDraggingConnection = true;
                     dragStartSocket = clickedSocket;
@@ -273,6 +276,9 @@ public class NodeEditorCanvas extends View {
                 // Check if clicking on a node
                 Node clickedNode = getNodeAt(canvasX, canvasY);
                 if (clickedNode != null) {
+                    DebugManager.debug(DebugCategory.LOOKDEV,
+                        "[NodeEditorCanvas] Selected node at ({}, {})",
+                        clickedNode.getX(), clickedNode.getY());
                     // Select node
                     selectNode(clickedNode);
 
@@ -338,6 +344,9 @@ public class NodeEditorCanvas extends View {
                     // Try to complete connection
                     NodeSocket targetSocket = getSocketAt(canvasX, canvasY);
                     if (targetSocket != null && dragStartSocket != null) {
+                        DebugManager.debug(DebugCategory.LOOKDEV,
+                            "[NodeEditorCanvas] Attempting connection: {} -> {}",
+                            dragStartSocket.getName(), targetSocket.getName());
                         tryCreateConnection(dragStartSocket, targetSocket);
                     }
 
