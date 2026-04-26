@@ -114,9 +114,13 @@ Node Graph → NodeGraphExecutor (排序)
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+> **重要**：新增组件需与现有架构兼容，遵循 NODE_EDITOR_TECHNICAL_OVERVIEW.md 定义的设计模式
+
 ### 3.2 新增核心组件
 
 #### 3.2.1 GLSLFragmentGenerator
+
+> 设计说明：复用现有的 `NodeGraphExecutor` 拓扑排序能力，复用 `GLSLEmitter` 的节点转换逻辑，生成片段而非完整 Shader
 
 ```java
 package cn.minerealms.assimploader.lookdev.nodeeditor.shader;
@@ -439,24 +443,26 @@ public class OculusShaderInjector {
 
 ## 五、节点扩展
 
+> **注意**：添加新节点需遵循 NODE_EDITOR_TECHNICAL_OVERVIEW.md 第7节的扩展性设计流程
+
 ### 5.1 新增节点类型
 
-| 节点 | 描述 | GLSL 输出 |
-|-----|------|----------|
-| `NoiseNode` | 噪声生成器 | `noise(uv, type)` |
-| `GradientNode` | 渐变生成 | `gradient(pos, colors)` |
-| `TimeNode` | 时间输入 | `uTime` uniform |
-| `WorldPosNode` | 世界坐标 | `getWorldPosition()` |
-| `ViewDirNode` | 视线方向 | `viewDir` |
-| `LightDirNode` | 光照方向 | `lightDir` |
-| `FogNode` | 雾效计算 | `applyFog(color, depth)` |
-| `MathFuncNode` | 数学函数 | `sin/cos/pow/...` |
-| `SwizzleNode` | 向量分量提取 | `.x/.y/.z/.w` |
-| `CombineNode` | 向量合并 | `vec3(a,b,c)` |
-| `ShaderFunctionNode` | 自定义函数 | 用户定义的 GLSL 函数 |
-| `UniformNode` | 自定义 Uniform | `uniform xxx` |
+> 节点类型需与现有 `EnhancedSocketType` 兼容：FLOAT, VEC2, VEC3, VEC4, SAMPLER2D, INT
 
-### 5.2 NoiseNode 示例
+| 节点 | 描述 | GLSL 输出 | Socket 类型 |
+|-----|------|----------|-------------|
+| `NoiseNode` | 噪声生成器 | `noise(uv, type)` | FLOAT → FLOAT |
+| `GradientNode` | 渐变生成 | `gradient(pos, colors)` | FLOAT → VEC3 |
+| `TimeNode` | 时间输入 | `uTime` uniform | (无输入) → FLOAT |
+| `WorldPosNode` | 世界坐标 | `getWorldPosition()` | (无输入) → VEC3 |
+| `ViewDirNode` | 视线方向 | `viewDir` | (无输入) → VEC3 |
+| `LightDirNode` | 光照方向 | `lightDir` | (无输入) → VEC3 |
+| `FogNode` | 雾效计算 | `applyFog(color, depth)` | VEC3,FLOAT → VEC3 |
+| `MathFuncNode` | 数学函数 | `sin/cos/pow/...` | FLOAT → FLOAT |
+| `SwizzleNode` | 向量分量提取 | `.x/.y/.z/.w` | VEC3 → FLOAT |
+| `CombineNode` | 向量合并 | `vec3(a,b,c)` | FLOAT,FLOAT,FLOAT → VEC3 |
+
+### 5.2 NoiseNode 实现示例
 
 ```java
 package cn.minerealms.assimploader.lookdev.nodeeditor.nodes.noise;
@@ -470,14 +476,7 @@ import icyllis.modernui.graphics.Paint;
 
 /**
  * Noise Generation Node
- *
- * Inputs:
- * - UV (vec2): Texture coordinates
- * - Scale (float): Noise scale
- * - Octaves (int): Noise octaves for FBM
- *
- * Outputs:
- * - Value (float): Noise value 0-1
+ * 参考 NODE_EDITOR_TECHNICAL_OVERVIEW.md 第7.1 节扩展流程
  */
 public class NoiseNode extends Node {
 
@@ -495,6 +494,7 @@ public class NoiseNode extends Node {
     public NoiseNode() {
         super("Noise");
 
+        // 使用 EnhancedSocketType 定义的类型
         addInput(new EnhancedNodeSocket("UV", EnhancedSocketType.VEC2));
         addInput(new EnhancedNodeSocket("Scale", EnhancedSocketType.FLOAT));
         addInput(new EnhancedNodeSocket("Octaves", EnhancedSocketType.INT));
@@ -509,36 +509,16 @@ public class NoiseNode extends Node {
         // 绘制噪声类型指示器
     }
 
-    public NoiseType getNoiseType() {
-        return noiseType;
-    }
-
-    public void setNoiseType(NoiseType type) {
-        this.noiseType = type;
-    }
-
-    public float getScale() {
-        return scale;
-    }
-
-    public void setScale(float scale) {
-        this.scale = scale;
-    }
-
-    public int getOctaves() {
-        return octaves;
-    }
-
-    public void setOctaves(int octaves) {
-        this.octaves = octaves;
-    }
+    // ========== 序列化支持 (参考文档第7.1节) ==========
+    // 节点参数通过 @Persisted 注解自动序列化
 }
 ```
 
 ### 5.3 GLSLEmitter 扩展
 
 ```java
-// 在 GLSLEmitter 中添加新节点处理
+// 在 GLSLEmitter 中扩展，遵循现有设计模式
+// 参考 NODE_EDITOR_TECHNICAL_OVERVIEW.md 第7.1节步骤5
 
 @Override
 public String emitNode(Node node, ShaderCodeGenerator generator) {
@@ -596,7 +576,21 @@ private String emitFog(FogNode node, ShaderCodeGenerator generator) {
 }
 ```
 
+### 5.4 节点注册
+
+```java
+// 在 NodeRegistry 中注册 (参考文档第7.1节步骤2)
+public static void registerNodes() {
+    // 现有节点...
+    registerNode("NOISE", NoiseNode.class, "Noise", Category.UTILITY);
+    registerNode("TIME", TimeNode.class, "Time", Category.INPUT);
+    registerNode("WORLD_POS", WorldPosNode.class, "World Position", Category.INPUT);
+}
+```
+
 ---
+
+> **序列化兼容性**：新增的 GLSLFragment 片段需与现有 JSON 格式兼容（参考 NODE_EDITOR_TECHNICAL_OVERVIEW.md 第2.6节）
 
 ## 六、Photon 扩展
 
@@ -659,17 +653,23 @@ package cn.minerealms.assimploader.lookdev.nodeeditor.shader;
 
 /**
  * 双模式 Shader 管理器
+ * 参考 NODE_EDITOR_TECHNICAL_OVERVIEW.md 第5.1节 Photon 兼容性检测设计
  *
  * 根据运行时环境选择：
  * - Oculus 存在：使用注入模式
  * - Photon 存在：使用完整 Shader 模式
  * - 都存在：优先注入模式
+ *
+ * 兼容现有的 PhotonShaderCompiler 缓存机制
  */
 public class DualModeShaderManager {
 
     private static boolean oculusAvailable;
     private static boolean photonAvailable;
 
+    /**
+     * 初始化时检测运行时环境，与 MaterialPreviewRenderer 的检测逻辑保持一致
+     */
     public static void init() {
         oculusAvailable = checkOculus();
         photonAvailable = checkPhoton();
@@ -683,19 +683,30 @@ public class DualModeShaderManager {
         return photonAvailable;
     }
 
-    public static CompiledShader compile(NodeGraph graph, MaterialOutputConfig config) {
-        GLSLFragmentGenerator fragmentGen = new GLSLFragmentGenerator(
-            graph.getNodes(), graph.getConnections());
+    /**
+     * 编译 Shader，与现有 PhotonShaderCompiler 缓存机制集成
+     */
+    public static CompiledShader compile(List<Node> nodes, List<NodeConnection> connections, 
+                                         MaterialOutputConfig config) {
+        // 使用现有 NodeGraphExecutor 进行拓扑排序
+        NodeGraphExecutor executor = new NodeGraphExecutor(nodes, connections);
+        if (executor.hasCycles()) {
+            return null;
+        }
+
+        // 生成 GLSL 片段
+        GLSLFragmentGenerator fragmentGen = new GLSLFragmentGenerator(nodes, connections);
         GLSLFragment fragment = fragmentGen.generate(config, null);
 
         if (fragment == null) {
             return null;
         }
 
+        // 根据环境选择编译模式
         if (oculusAvailable) {
             return compileInjectMode(fragment);
         } else if (photonAvailable) {
-            return compileFullMode(fragment);
+            return compileFullMode(nodes, connections);
         }
 
         return null;
@@ -706,14 +717,23 @@ public class DualModeShaderManager {
         return null;
     }
 
-    private static CompiledShader compileFullMode(GLSLFragment fragment) {
-        // 使用 ShaderCodeGenerator + PhotonShaderCompiler
+    private static CompiledShader compileFullMode(List<Node> nodes, List<NodeConnection> connections) {
+        // 复用现有的 ShaderCodeGenerator + PhotonShaderCompiler 流程
+        // 参考 NODE_EDITOR_TECHNICAL_OVERVIEW.md 第2.4节
+        ShaderCodeGenerator fullGen = new ShaderCodeGenerator(nodes, connections);
+        ShaderCodeGenerator.ShaderCode shaderCode = fullGen.generate();
+
+        if (shaderCode == null) {
+            return null;
+        }
+
         String shaderName = "node_based_" + System.currentTimeMillis();
-        ShaderCodeGenerator fullGen = new ShaderCodeGenerator(null, null);
-        // 完整实现需要传入节点列表
-        return null;
+        return PhotonShaderCompiler.compile(shaderName, shaderCode);
     }
 
+    /**
+     * 检测 Oculus 是否加载，与 MaterialPreviewRenderer 的检测逻辑一致
+     */
     private static boolean checkOculus() {
         try {
             Class.forName("net.irisshaders.iris.Iris");
@@ -723,6 +743,9 @@ public class DualModeShaderManager {
         }
     }
 
+    /**
+     * 检测 Photon 是否加载，与 MaterialPreviewRenderer 的检测逻辑一致
+     */
     private static boolean checkPhoton() {
         try {
             Class.forName("com.lowdragmc.photon.Photon");
@@ -742,31 +765,38 @@ public class DualModeShaderManager {
 
 | 任务 | 文件 | 描述 |
 |-----|------|------|
-| 1.1 | build.gradle | 添加 glsl-transformer 依赖 |
+| 1.1 | build.gradle | 添加 glsl-transformer 依赖 (AGPLv3, 建议 compileOnly) |
 | 1.2 | GLSLFragment.java | 片段数据结构 |
-| 1.3 | GLSLFragmentGenerator.java | 片段生成器 |
-| 1.4 | GLSLFragmentEmitter.java | 片段发射器 |
-| 1.5 | ShaderTypeDef.java | GLSL 类型定义 |
+| 1.3 | GLSLFragmentGenerator.java | 片段生成器，复用 NodeGraphExecutor |
+| 1.4 | GLSLFragmentEmitter.java | 片段发射器，继承 GLSLEmitter |
+| 1.5 | ShaderTypeDef.java | GLSL 类型定义 (可复用现有 EnhancedSocketType) |
+
+> **依赖配置注意**：参考现有 Photon 依赖模式 (compileOnly)，glsl-transformer 为可选依赖
 
 ### Phase 2: glsl-transformer 集成
 
-| 任务 | 文件 | 描述 |
-|-----|------|------|
-| 2.1 | OculusShaderInjector.java | 注入器主类 |
-| 2.2 | InjectionConfig.java | 注入配置 |
-| 2.3 | ShaderTargetRegistry.java | 目标 Shader 注册 |
-| 2.4 | GlslTransformerMixin.java | Mixin 扩展点 |
+| 任务 | 文件 | 描述 | 参考 |
+|-----|------|------|------|
+| 2.1 | OculusShaderInjector.java | 注入器主类 | 参考 TransformPatcher.java (Oculus) |
+| 2.2 | InjectionConfig.java | 注入配置 | - |
+| 2.3 | ShaderTargetRegistry.java | 目标 Shader 注册 | - |
+| 2.4 | mixins.iris.json | Mixin 配置 | 参考现有的 mixins.photon_compat.json 模式 |
+
+> **Mixin 配置**：遵循现有命名规范 `mixins.<name>.json`，如 `mixins.iris_compat.json`
 
 ### Phase 3: 节点扩展
 
-| 任务 | 文件 | 描述 |
-|-----|------|------|
-| 3.1 | NoiseNode.java | 噪声节点 |
-| 3.2 | TimeNode.java | 时间节点 |
-| 3.3 | WorldPosNode.java | 世界坐标节点 |
-| 3.4 | ViewDirNode.java | 视线方向节点 |
-| 3.5 | FogNode.java | 雾效节点 |
-| 3.6 | MathFuncNode.java | 数学函数节点 |
+> 遵循 NODE_EDITOR_TECHNICAL_OVERVIEW.md 第7.1节扩展流程
+
+| 任务 | 文件 | 描述 | 参考文档 |
+|-----|------|------|---------|
+| 3.1 | NoiseNode.java | 噪声节点 | 第7.1节步骤2-6 |
+| 3.2 | TimeNode.java | 时间节点 | 第7.1节步骤2-6 |
+| 3.3 | WorldPosNode.java | 世界坐标节点 | 第7.1节步骤2-6 |
+| 3.4 | ViewDirNode.java | 视线方向节点 | 第7.1节步骤2-6 |
+| 3.5 | FogNode.java | 雾效节点 | 第7.1节步骤2-6 |
+| 3.6 | MathFuncNode.java | 数学函数节点 | 第7.1节步骤2-6 |
+| 3.7 | NodeRegistry | 更新节点注册 | NodeRegistry.java 现有模式 |
 
 ### Phase 4: Photon 扩展
 
@@ -788,12 +818,16 @@ public class DualModeShaderManager {
 
 ### Phase 6: 测试与优化
 
+> 使用现有的 DebugManager 和 DebugCategory.LOOKDEV 进行调试 (参考 NODE_EDITOR_TECHNICAL_OVERVIEW.md 第4节)
+
 | 任务 | 描述 |
 |-----|------|
 | 6.1 | 单元测试：GLSLFragmentGenerator |
 | 6.2 | 集成测试：注入到 Oculus |
-| 6.3 | 性能优化：缓存机制 |
+| 6.3 | 性能优化：缓存机制 (参考文档第8节 Shader 缓存设计) |
 | 6.4 | Bug 修复与边界情况 |
+
+> **调试日志**：新增代码使用 `DebugCategory.LOOKDEV` 进行日志输出，与现有节点编辑器保持一致
 
 ---
 
@@ -882,19 +916,25 @@ Refs: #lookdev-extension
 
 ### 10.1 主要参考
 
-1. **Oculus (Iris)**
+1. **NODE_EDITOR_TECHNICAL_OVERVIEW.md**
+   - 本文档为权威技术参考，定义了现有节点编辑器架构
+   - 扩展时必须遵循其设计模式
+
+2. **Oculus (Iris)**
    - `TransformPatcher.java` - Shader 转换核心
    - `VanillaTransformer.java` - 注入示例
    - 路径: `H:\MinecraftMods\Oculus\src\main\java\net\irisshaders\iris\pipeline\transform\`
 
-2. **glsl-transformer**
+3. **glsl-transformer**
    - `ASTTransformer.java` - 主转换器
    - `ASTInjectionPoint.java` - 注入点枚举
    - 路径: `H:\MinecraftMods\glsl-transformer\glsl-transformer\src\main\java\`
 
-3. **现有 ASSIMPLOADER**
+4. **现有 ASSIMPLOADER**
    - `ShaderCodeGenerator.java` - 现有生成器
    - `GLSLEmitter.java` - 现有发射器
+   - `NodeGraphExecutor.java` - 图执行器
+   - `PhotonShaderCompiler.java` - Photon 编译
 
 ### 10.2 关键方法对应
 

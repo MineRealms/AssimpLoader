@@ -6,6 +6,7 @@ import cn.minerealms.assimploader.lookdev.FeatureTier;
 import cn.minerealms.assimploader.lookdev.PhotonIntegration;
 import cn.minerealms.assimploader.material.PBRMaterial;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.*;
+import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NodePalettePanel;
 import icyllis.modernui.annotation.NonNull;
 import icyllis.modernui.fragment.Fragment;
 import icyllis.modernui.graphics.drawable.ColorDrawable;
@@ -20,7 +21,9 @@ import icyllis.modernui.widget.TextView;
 import net.minecraft.resources.ResourceLocation;
 
 import javax.annotation.Nullable;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Node Editor Fragment - ComfyUI-style visual node editor.
@@ -38,10 +41,16 @@ import java.util.List;
 public class NodeEditorFragment extends Fragment {
 
     private NodeEditorCanvas canvas;
+    private NodePalettePanel palettePanel;
     private Button resetViewButton;
     private Button generateMaterialButton;
+    private Button togglePaletteButton;
     private TextView statusText;
     private FeatureTier featureTier;
+    private boolean paletteVisible = true;
+
+    // State preservation
+    private Map<String, Boolean> savedCategoryStates = null;
 
     @Nullable
     @Override
@@ -70,22 +79,49 @@ public class NodeEditorFragment extends Fragment {
         LinearLayout toolbar = createToolbar(context);
         root.addView(toolbar);
 
-        // Canvas (main area)
-        canvas = new NodeEditorCanvas(context);
-        LinearLayout.LayoutParams canvasParams = new LinearLayout.LayoutParams(
+        // Main content area (horizontal: palette + canvas)
+        LinearLayout mainContent = new LinearLayout(context);
+        mainContent.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams mainParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             0
         );
+        mainParams.weight = 1.0f;
+        mainContent.setLayoutParams(mainParams);
+        root.addView(mainContent);
+
+        // Node palette panel (left side)
+        palettePanel = new NodePalettePanel(context, this::onNodeTypeSelected);
+        LinearLayout.LayoutParams paletteParams = new LinearLayout.LayoutParams(
+            palettePanel.dp(200),
+            ViewGroup.LayoutParams.MATCH_PARENT
+        );
+        palettePanel.setLayoutParams(paletteParams);
+        mainContent.addView(palettePanel);
+
+        // Restore saved category states if available
+        if (savedCategoryStates != null) {
+            palettePanel.restoreCategoryStates(savedCategoryStates);
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Restored category states");
+        }
+
+        // Canvas (main area)
+        canvas = new NodeEditorCanvas(context);
+        LinearLayout.LayoutParams canvasParams = new LinearLayout.LayoutParams(
+            0,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        );
         canvasParams.weight = 1.0f;
         canvas.setLayoutParams(canvasParams);
-        root.addView(canvas);
+        mainContent.addView(canvas);
 
         // Bottom status bar
         LinearLayout statusBar = createStatusBar(context);
         root.addView(statusBar);
 
-        // Create example nodes for testing
-        createExampleNodes();
+        // Start with empty canvas - user can add nodes via toolbar
+        DebugManager.info(DebugCategory.LOOKDEV, "[NodeEditorFragment] Canvas initialized (empty)");
 
         DebugManager.info(DebugCategory.LOOKDEV, "[NodeEditorFragment] onCreateView COMPLETE");
         return root;
@@ -117,6 +153,28 @@ public class NodeEditorFragment extends Fragment {
         titleParams.weight = 1.0f;
         titleParams.gravity = Gravity.CENTER_VERTICAL;
         toolbar.addView(title, titleParams);
+
+        // Toggle Palette button
+        togglePaletteButton = new Button(context);
+        togglePaletteButton.setText("Hide Palette");
+        togglePaletteButton.setOnClickListener(v -> togglePalette());
+        LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        toggleParams.setMargins(toolbar.dp(4), 0, 0, 0);
+        toolbar.addView(togglePaletteButton, toggleParams);
+
+        // Add Node button
+        Button addNodeButton = new Button(context);
+        addNodeButton.setText("Add Node");
+        addNodeButton.setOnClickListener(v -> showAddNodeMenu());
+        LinearLayout.LayoutParams addNodeParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        addNodeParams.setMargins(toolbar.dp(4), 0, 0, 0);
+        toolbar.addView(addNodeButton, addNodeParams);
 
         // Generate Material button
         generateMaterialButton = new Button(context);
@@ -171,6 +229,99 @@ public class NodeEditorFragment extends Fragment {
         statusBar.addView(statusText, textParams);
 
         return statusBar;
+    }
+
+    /**
+     * Toggle palette panel visibility
+     */
+    private void togglePalette() {
+        paletteVisible = !paletteVisible;
+        if (palettePanel != null) {
+            palettePanel.setVisibility(paletteVisible ? View.VISIBLE : View.GONE);
+            togglePaletteButton.setText(paletteVisible ? "Hide Palette" : "Show Palette");
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Palette visibility: {}", paletteVisible);
+        }
+    }
+
+    /**
+     * Called when user selects a node type from the palette
+     */
+    private void onNodeTypeSelected(NodeType nodeType) {
+        // Add node at center of viewport
+        float centerX = 400;
+        float centerY = 300;
+
+        // TODO: Get actual viewport center from canvas
+        addNodeByType(nodeType, centerX, centerY);
+    }
+
+    /**
+     * Show menu to add nodes
+     */
+    private void showAddNodeMenu() {
+        DebugManager.info(DebugCategory.LOOKDEV, "[NodeEditorFragment] Opening Add Node menu");
+
+        // Get all registered node types from NodeRegistry
+        List<NodeType> nodeTypes = NodeRegistry.getAllNodeTypes();
+
+        if (nodeTypes.isEmpty()) {
+            setStatus("No node types registered!");
+            DebugManager.warn(DebugCategory.LOOKDEV, "[NodeEditorFragment] NodeRegistry is empty!");
+            return;
+        }
+
+        // Show palette if hidden
+        if (!paletteVisible) {
+            togglePalette();
+        }
+
+        setStatus("Select a node from the palette on the left");
+        DebugManager.info(DebugCategory.LOOKDEV,
+            "[NodeEditorFragment] Available node types: " + nodeTypes.size());
+    }
+
+    /**
+     * Add a node of the specified type at the given position
+     */
+    public void addNodeByType(NodeType nodeType, float x, float y) {
+        if (canvas == null) return;
+
+        try {
+            Node node = NodeFactory.createNode(nodeType);
+            if (node != null) {
+                node.setPosition(x, y);
+                canvas.addNode(node);
+                setStatus("Added node: " + nodeType.name());
+                DebugManager.info(DebugCategory.LOOKDEV,
+                    "[NodeEditorFragment] Added node: " + nodeType + " at (" + x + ", " + y + ")");
+            } else {
+                setStatus("Failed to create node: " + nodeType);
+                DebugManager.warn(DebugCategory.LOOKDEV,
+                    "[NodeEditorFragment] NodeFactory returned null for type: " + nodeType);
+            }
+        } catch (Exception e) {
+            setStatus("Error creating node: " + e.getMessage());
+            DebugManager.error(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Error creating node: " + nodeType, e);
+        }
+    }
+
+    /**
+     * Add a node of the specified type at the given position (legacy string-based)
+     */
+    public void addNode(String nodeType, float x, float y) {
+        if (canvas == null) return;
+
+        try {
+            // Convert string to NodeType enum if needed
+            NodeType type = NodeType.valueOf(nodeType);
+            addNodeByType(type, x, y);
+        } catch (IllegalArgumentException e) {
+            setStatus("Unknown node type: " + nodeType);
+            DebugManager.warn(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Unknown node type: " + nodeType);
+        }
     }
 
     /**
@@ -229,54 +380,6 @@ public class NodeEditorFragment extends Fragment {
         if (statusText != null) {
             statusText.setText(status);
         }
-    }
-
-    /**
-     * Create example nodes for testing
-     */
-    private void createExampleNodes() {
-        if (canvas == null) return;
-
-        // Create a simple material graph:
-        // ColorInput -> OutputNode
-        // FloatInput (Metallic) -> OutputNode
-        // FloatInput (Roughness) -> OutputNode
-
-        // Color input node
-        ColorInputNode colorNode = new ColorInputNode();
-        colorNode.setPosition(100, 100);
-        colorNode.setColor(0.8f, 0.2f, 0.2f); // Red color
-        canvas.addNode(colorNode);
-
-        // Metallic input node
-        FloatInputNode metallicNode = new FloatInputNode();
-        metallicNode.setPosition(100, 250);
-        metallicNode.setValue(0.8f);
-        canvas.addNode(metallicNode);
-
-        // Roughness input node
-        FloatInputNode roughnessNode = new FloatInputNode();
-        roughnessNode.setPosition(100, 400);
-        roughnessNode.setValue(0.3f);
-        canvas.addNode(roughnessNode);
-
-        // Math node (for demonstration)
-        MathNode mathNode = new MathNode();
-        mathNode.setPosition(350, 300);
-        mathNode.setOperation(MathNode.Operation.MULTIPLY);
-        canvas.addNode(mathNode);
-
-        // Texture input node
-        TextureInputNode textureNode = new TextureInputNode();
-        textureNode.setPosition(100, 550);
-        canvas.addNode(textureNode);
-
-        // Output node
-        OutputNode outputNode = new OutputNode();
-        outputNode.setPosition(600, 250);
-        canvas.addNode(outputNode);
-
-        DebugManager.info(DebugCategory.LOOKDEV, "[NodeEditorFragment] Created example nodes");
     }
 
     /**
@@ -374,6 +477,13 @@ public class NodeEditorFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
+        // Save palette state before destroying view
+        if (palettePanel != null) {
+            savedCategoryStates = palettePanel.getCategoryStates();
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Saved category states: {}", savedCategoryStates.size());
+        }
+
         super.onDestroyView();
         DebugManager.info(DebugCategory.LOOKDEV, "[NodeEditorFragment] onDestroyView");
     }
