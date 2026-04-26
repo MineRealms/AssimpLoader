@@ -2,6 +2,8 @@ package cn.minerealms.assimploader.lookdev.nodeeditor;
 
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
+import cn.minerealms.assimploader.lookdev.FeatureTier;
+import cn.minerealms.assimploader.lookdev.PhotonIntegration;
 import cn.minerealms.assimploader.material.PBRMaterial;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.*;
 import icyllis.modernui.annotation.NonNull;
@@ -27,7 +29,11 @@ import java.util.List;
  * - Visual node graph editor
  * - Drag-and-drop connections
  * - Material/shader graph editing
- * - Real-time preview integration
+ * - Real-time preview integration (when Photon is available)
+ *
+ * Supports two feature tiers:
+ * - STANDALONE: Basic node editor without shader integration
+ * - FULL_INTEGRATION: Complete system with Photon shader support
  */
 public class NodeEditorFragment extends Fragment {
 
@@ -35,6 +41,7 @@ public class NodeEditorFragment extends Fragment {
     private Button resetViewButton;
     private Button generateMaterialButton;
     private TextView statusText;
+    private FeatureTier featureTier;
 
     @Nullable
     @Override
@@ -42,6 +49,11 @@ public class NodeEditorFragment extends Fragment {
                              @Nullable ViewGroup container,
                              @Nullable DataSet savedInstanceState) {
         DebugManager.info(DebugCategory.LOOKDEV, "[NodeEditorFragment] onCreateView START");
+
+        // Detect feature tier
+        featureTier = PhotonIntegration.getFeatureTier();
+        DebugManager.info(DebugCategory.LOOKDEV,
+            "[NodeEditorFragment] Feature tier: " + featureTier.getDisplayName());
 
         var context = requireContext();
 
@@ -147,7 +159,9 @@ public class NodeEditorFragment extends Fragment {
 
         // Status text
         statusText = new TextView(context);
-        statusText.setText("Ready - Pan: Click+Drag | Zoom: Mouse Wheel");
+        String initialStatus = "Ready - Pan: Click+Drag | Zoom: Mouse Wheel | " +
+                               PhotonIntegration.getStatusMessage();
+        statusText.setText(initialStatus);
         statusText.setTextSize(11);
         statusText.setTextColor(0xFFAAAAAA);
         LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
@@ -180,10 +194,19 @@ public class NodeEditorFragment extends Fragment {
             "[NodeEditorFragment] Material generated: " + material.getName());
 
         // Show material details in status
-        setStatus(String.format("Generated: %s (Metallic: %.2f, Roughness: %.2f)",
+        String statusMsg = String.format("Generated: %s (Metallic: %.2f, Roughness: %.2f)",
             material.getName(),
             material.getMetallicFactor(),
-            material.getRoughnessFactor()));
+            material.getRoughnessFactor());
+
+        // Add feature tier info
+        if (featureTier == FeatureTier.STANDALONE) {
+            statusMsg += " [Standalone mode - shader generation not available]";
+        } else {
+            statusMsg += " [Full integration - shader generation available]";
+        }
+
+        setStatus(statusMsg);
 
         // TODO: BACKEND INTEGRATION (Phase 10)
         // 1. Get parent LookDevScreen via getParentFragment().getParentFragment()
@@ -196,6 +219,7 @@ public class NodeEditorFragment extends Fragment {
         //    - Trigger 3D preview refresh
         // 4. Need to implement LookDevScreen.applyNodeGeneratedMaterial() method
         // 5. Consider real-time updates when nodes change (not just on button click)
+        // 6. In FULL_INTEGRATION mode: also generate and compile shader code
     }
 
     /**
