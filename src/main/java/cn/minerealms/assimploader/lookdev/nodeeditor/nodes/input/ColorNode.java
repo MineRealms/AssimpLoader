@@ -1,8 +1,9 @@
 package cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input;
 
 import cn.minerealms.assimploader.lookdev.nodeeditor.Node;
-import cn.minerealms.assimploader.lookdev.nodeeditor.NodeSocket;
-import cn.minerealms.assimploader.lookdev.nodeeditor.SocketType;
+import cn.minerealms.assimploader.lookdev.nodeeditor.EnhancedNodeSocket;
+import cn.minerealms.assimploader.lookdev.nodeeditor.EnhancedSocketType;
+
 import icyllis.modernui.graphics.Canvas;
 import icyllis.modernui.graphics.Paint;
 
@@ -34,8 +35,8 @@ public class ColorNode extends Node {
         super("Color");
 
         // Add output sockets
-        addOutput(createSocket("Color", SocketType.VEC4, new float[]{r, g, b, a}));
-        addOutput(createSocket("RGB", SocketType.VEC3, new float[]{r, g, b}));
+        addOutput(new EnhancedNodeSocket("Color", EnhancedSocketType.VEC4, new float[]{r, g, b, a}));
+        addOutput(new EnhancedNodeSocket("RGB", EnhancedSocketType.VEC3, new float[]{r, g, b}));
 
         this.width = 150.0f;
     }
@@ -59,9 +60,6 @@ public class ColorNode extends Node {
         canvas.drawRect(colorBoxX, bodyY, colorBoxX + colorBoxSize, bodyY + colorBoxSize, paint);
     }
 
-    private NodeSocket createSocket(String name, SocketType type, Object defaultValue) {
-        return new EnhancedSocket(name, type, defaultValue);
-    }
 
     public float getR() {
         return r;
@@ -114,26 +112,4 @@ public class ColorNode extends Node {
         }
     }
 
-    private static class EnhancedSocket extends NodeSocket {
-        private final cn.minerealms.assimploader.lookdev.nodeeditor.SocketType enhancedType;
-
-        public EnhancedSocket(String name, cn.minerealms.assimploader.lookdev.nodeeditor.SocketType type, Object defaultValue) {
-            super(name, mapToLegacyType(type), defaultValue);
-            this.enhancedType = type;
-        }
-
-        @Override
-        public int getColor() {
-            return enhancedType.getColor();
-        }
-
-        private static NodeSocket.SocketType mapToLegacyType(cn.minerealms.assimploader.lookdev.nodeeditor.SocketType type) {
-            if (type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.FLOAT) return NodeSocket.SocketType.FLOAT;
-            if (type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.VEC2) return NodeSocket.SocketType.VECTOR;
-            if (type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.VEC3 ||
-                type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.VEC4) return NodeSocket.SocketType.COLOR;
-            if (type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.SAMPLER2D) return NodeSocket.SocketType.TEXTURE;
-            return NodeSocket.SocketType.ANY;
-        }
-    }
 }

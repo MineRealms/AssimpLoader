@@ -1,8 +1,9 @@
 package cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input;
 
 import cn.minerealms.assimploader.lookdev.nodeeditor.Node;
-import cn.minerealms.assimploader.lookdev.nodeeditor.NodeSocket;
-import cn.minerealms.assimploader.lookdev.nodeeditor.SocketType;
+import cn.minerealms.assimploader.lookdev.nodeeditor.EnhancedNodeSocket;
+import cn.minerealms.assimploader.lookdev.nodeeditor.EnhancedSocketType;
+
 import icyllis.modernui.graphics.Canvas;
 import icyllis.modernui.graphics.Paint;
 
@@ -34,7 +35,7 @@ public class UVCoordinateNode extends Node {
         super("UV Coordinate");
 
         // Add output socket
-        addOutput(createSocket("UV", SocketType.VEC2, new float[]{0.0f, 0.0f}));
+        addOutput(new EnhancedNodeSocket("UV", EnhancedSocketType.VEC2, new float[]{0.0f, 0.0f}));
 
         this.width = 160.0f;
     }
@@ -77,9 +78,6 @@ public class UVCoordinateNode extends Node {
         canvas.drawRect(gridX, gridY, gridX + gridSize, gridY + gridSize, paint);
     }
 
-    private NodeSocket createSocket(String name, SocketType type, Object defaultValue) {
-        return new EnhancedSocket(name, type, defaultValue);
-    }
 
     public float getTilingU() {
         return tilingU;
@@ -113,26 +111,4 @@ public class UVCoordinateNode extends Node {
         this.offsetV = offsetV;
     }
 
-    private static class EnhancedSocket extends NodeSocket {
-        private final cn.minerealms.assimploader.lookdev.nodeeditor.SocketType enhancedType;
-
-        public EnhancedSocket(String name, cn.minerealms.assimploader.lookdev.nodeeditor.SocketType type, Object defaultValue) {
-            super(name, mapToLegacyType(type), defaultValue);
-            this.enhancedType = type;
-        }
-
-        @Override
-        public int getColor() {
-            return enhancedType.getColor();
-        }
-
-        private static NodeSocket.SocketType mapToLegacyType(cn.minerealms.assimploader.lookdev.nodeeditor.SocketType type) {
-            if (type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.FLOAT) return NodeSocket.SocketType.FLOAT;
-            if (type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.VEC2) return NodeSocket.SocketType.VECTOR;
-            if (type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.VEC3 ||
-                type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.VEC4) return NodeSocket.SocketType.COLOR;
-            if (type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.SAMPLER2D) return NodeSocket.SocketType.TEXTURE;
-            return NodeSocket.SocketType.ANY;
-        }
-    }
 }

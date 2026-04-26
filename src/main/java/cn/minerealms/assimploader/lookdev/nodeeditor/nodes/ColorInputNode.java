@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.lookdev.nodeeditor.nodes;
 
 import cn.minerealms.assimploader.lookdev.nodeeditor.Node;
 import cn.minerealms.assimploader.lookdev.nodeeditor.NodeSocket;
+import cn.minerealms.assimploader.lookdev.nodeeditor.EnhancedSocketType;
 import icyllis.modernui.graphics.Canvas;
 import icyllis.modernui.graphics.Paint;
 
