@@ -2,7 +2,6 @@ package cn.minerealms.assimploader.lookdev.nodeeditor;
 
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
-import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.MathNode;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.OutputNode;
 
 import java.util.*;
@@ -14,22 +13,27 @@ import java.util.*;
  * - Topological sorting for correct execution order
  * - Cycle detection
  * - Lazy evaluation (only compute what's needed)
- * - Caching of computed values
+ * - Caching of computed values via NodeEvaluationContext
  */
 public class NodeGraphExecutor {
 
     private List<Node> nodes;
     private List<NodeConnection> connections;
+    private NodeEvaluationContext context;
 
     public NodeGraphExecutor(List<Node> nodes, List<NodeConnection> connections) {
         this.nodes = new ArrayList<>(nodes);
         this.connections = new ArrayList<>(connections);
+        this.context = new NodeEvaluationContext();
     }
 
     /**
      * Execute the node graph and return all output nodes
      */
     public List<OutputNode> execute() {
+        // Clear previous evaluation state
+        context.clear();
+
         List<OutputNode> outputNodes = new ArrayList<>();
 
         // Find all output nodes
@@ -45,13 +49,25 @@ public class NodeGraphExecutor {
             return outputNodes;
         }
 
+        // Check for cycles before execution
+        if (hasCycles()) {
+            DebugManager.error(DebugCategory.LOOKDEV,
+                "[NodeGraphExecutor] Graph contains cycles, cannot execute");
+            return outputNodes;
+        }
+
         // Execute graph for each output node
         for (OutputNode outputNode : outputNodes) {
             try {
-                executeFromNode(outputNode);
+                outputNode.evaluate(context);
+                DebugManager.info(DebugCategory.LOOKDEV,
+                    "[NodeGraphExecutor] Executed graph, cached " +
+                    context.getCachedNodeCount() + " nodes, " +
+                    context.getCachedSocketCount() + " socket values");
             } catch (Exception e) {
                 DebugManager.error(DebugCategory.LOOKDEV,
                     "[NodeGraphExecutor] Failed to execute graph: " + e.getMessage());
+                e.printStackTrace();
             }
         }
 
@@ -59,49 +75,10 @@ public class NodeGraphExecutor {
     }
 
     /**
-     * Execute graph starting from a specific node (recursive)
+     * Get the evaluation context (for inspecting cached values)
      */
-    private void executeFromNode(Node node) {
-        if (node == null) return;
-
-        // Get all input sockets
-        List<NodeSocket> inputs = node.getInputs();
-
-        // Execute all upstream nodes first
-        for (NodeSocket inputSocket : inputs) {
-            if (inputSocket.isConnected()) {
-                NodeSocket connectedSocket = inputSocket.getConnectedTo();
-                if (connectedSocket != null) {
-                    Node upstreamNode = connectedSocket.getNode();
-                    if (upstreamNode != null) {
-                        // Recursively execute upstream node
-                        executeFromNode(upstreamNode);
-                    }
-                }
-            }
-        }
-
-        // Execute this node
-        executeNode(node);
-    }
-
-    /**
-     * Execute a single node
-     */
-    private void executeNode(Node node) {
-        if (node instanceof MathNode) {
-            ((MathNode) node).execute();
-        }
-        // Other node types compute their values on-demand via getValue()
-        // or have static values set by the user
-
-        // TODO: BACKEND INTEGRATION (Phase 10)
-        // Add execution logic for more node types:
-        // - TextureInputNode: Load texture from ResourceLocation
-        // - MixNode: Lerp between two inputs
-        // - TextureSampleNode: Sample texture at UV coordinates
-        // - Custom shader nodes: Execute GLSL/shader code
-        // Consider caching computed values to avoid re-execution
+    public NodeEvaluationContext getContext() {
+        return context;
     }
 
     /**
