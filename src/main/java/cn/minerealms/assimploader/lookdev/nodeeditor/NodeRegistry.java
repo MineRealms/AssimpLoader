@@ -129,6 +129,24 @@ public class NodeRegistry {
     }
 
     /**
+     * Get all registered node types
+     */
+    public static java.util.List<NodeType> getAllNodeTypes() {
+        return new java.util.ArrayList<>(registry.keySet());
+    }
+
+    /**
+     * Get all registered node types as strings
+     */
+    public static java.util.List<String> getAllNodeTypeNames() {
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (NodeType type : registry.keySet()) {
+            names.add(type.name());
+        }
+        return names;
+    }
+
+    /**
      * Metadata for a node type
      */
     public static class NodeMetadata {
