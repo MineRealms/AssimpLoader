@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.compat.photon;
 
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.model.AssimpScene;
+import com.lowdragmc.photon.client.gameobject.emitter.data.shape.MeshData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,17 +36,22 @@ public class MeshConverterTest {
         try {
             // 加载测试 FBX 文件（假设存在）
             Path testFile = Paths.get("test_models/cube.fbx");
-            AssimpScene scene = AssimpModelLoader.loadModel(testFile);
+            AssimpModelLoader loader = new AssimpModelLoader();
+            AssimpScene scene = loader.loadModel(testFile);
 
             // 转换所有 Mesh
-            Map<String, Object> meshes = AssimpToPhotonMeshConverter.convertScene(scene);
+            Map<String, MeshData> meshes = AssimpToPhotonMeshConverter.convertAllMeshes(scene);
 
             LOGGER.info("Conversion successful: {} meshes", meshes.size());
 
             // 验证数据
-            for (Map.Entry<String, Object> entry : meshes.entrySet()) {
-                LOGGER.info("Mesh: {}", entry.getKey());
-                // TODO: 验证顶点数、三角形数、边数
+            for (Map.Entry<String, MeshData> entry : meshes.entrySet()) {
+                MeshData meshData = entry.getValue();
+                LOGGER.info("Mesh: {} - {} vertices, {} triangles, {} edges",
+                        entry.getKey(),
+                        meshData.vertices.size(),
+                        meshData.triangles.size(),
+                        meshData.edges.size());
             }
 
             // 清理
@@ -72,13 +78,14 @@ public class MeshConverterTest {
         try {
             // 加载复杂模型
             Path testFile = Paths.get("test_models/complex.fbx");
-            AssimpScene scene = AssimpModelLoader.loadModel(testFile);
+            AssimpModelLoader loader = new AssimpModelLoader();
+            AssimpScene scene = loader.loadModel(testFile);
 
             LOGGER.info("Scene loaded: {} meshes", scene.getMeshes().size());
 
             // 转换
             long startTime = System.currentTimeMillis();
-            Map<String, Object> meshes = AssimpToPhotonMeshConverter.convertScene(scene);
+            Map<String, MeshData> meshes = AssimpToPhotonMeshConverter.convertAllMeshes(scene);
             long duration = System.currentTimeMillis() - startTime;
 
             LOGGER.info("Conversion completed in {} ms", duration);

@@ -12,6 +12,7 @@ buildscript {
 }
 
 apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'org.spongepowered.mixin'
 
 version = mod_version
 group = maven_group
@@ -157,21 +158,15 @@ dependencies {
     implementation "org.lwjgl:lwjgl-assimp:3.3.1:natives-linux"
     implementation "org.lwjgl:lwjgl-assimp:3.3.1:natives-macos"
 
-    // ImprovedMobs - Required dependency
-    implementation fg.deobf("io.github.flemmli97:improvedmobs:${improvedmobs_version}-forge")
-    implementation fg.deobf("io.github.flemmli97:tenshilib:${tenshilib_version}-forge")
+    // ImprovedMobs - Required dependency (temporarily disabled due to network issues)
+    // implementation fg.deobf("io.github.flemmli97:improvedmobs:${improvedmobs_version}-forge")
+    // implementation fg.deobf("io.github.flemmli97:tenshilib:${tenshilib_version}-forge")
 
-    // ModernUI-MC
-    library "icyllis.modernui:ModernUI-Core:${modernui_version}"
-    // library "icyllis.modernui:ModernUI-Markdown:${modernui_version}"  // Not needed for LookDev viewer
-    implementation fg.deobf("icyllis.modernui:ModernUI-Forge:1.20.1-${modernui_version}.+")
+    // ModernUI-MC (from local files)
+    implementation fg.deobf(fileTree(dir: 'mods_dev', include: '*.jar'))
 
     // Photon Integration (Optional - compileOnly for conditional loading)
-    compileOnly fg.deobf("com.lowdragmc.photon:photon-forge-1.20.1:${photon_version}")
-    compileOnly fg.deobf("com.lowdragmc.ldlib:ldlib-forge-1.20.1:${ldlib_version}")
-
-    // Optional mods for testing
-    runtimeOnly fg.deobf("mezz.jei:jei-1.20.1-forge:15.20.0.115")
+    compileOnly fg.deobf(fileTree(dir: 'mods_dev', include: '*.jar'))
 }
 
 jar {
@@ -219,6 +214,26 @@ tasks.named('jarJar').configure {
                 exclude 'META-INF/**'  // Exclude META-INF to avoid duplicates
             }
         }
+    }
+}
+
+mixin {
+    add sourceSets.main, "assimploader.refmap.json"
+    config "mixins.photon_compat.json"
+}
+
+jar {
+    manifest {
+        attributes([
+                "Specification-Title"     : "assimploader",
+                "Specification-Vendor"    : "MineRealms Team",
+                "Specification-Version"   : "1",
+                "Implementation-Title"    : project.name,
+                "Implementation-Version"  : project.jar.archiveVersion,
+                "Implementation-Vendor"   : "MineRealms Team",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                "MixinConfigs"            : "mixins.photon_compat.json"
+        ])
     }
 }
 
