@@ -51,17 +51,36 @@ public class NodeSocket {
 
     /**
      * Check if this socket can connect to another
+     *
+     * Enhanced version that supports type conversion via TypeConverter
      */
     public boolean canConnectTo(NodeSocket other) {
         if (other == null) return false;
         if (this.isOutput == other.isOutput) return false; // Must be input-output pair
         if (this.node == other.node) return false; // Cannot connect to same node
 
-        // Type compatibility
+        // Try to get enhanced socket types for better type checking
+        EnhancedSocketType thisEnhancedType = getEnhancedSocketType();
+        EnhancedSocketType otherEnhancedType = other.getEnhancedSocketType();
+
+        // If both have enhanced types, use enhanced type checking
+        if (thisEnhancedType != null && otherEnhancedType != null) {
+            return thisEnhancedType.isCompatibleWith(otherEnhancedType);
+        }
+
+        // Fallback to legacy type compatibility
         if (this.type == SocketType.ANY || other.type == SocketType.ANY) {
             return true;
         }
         return this.type == other.type;
+    }
+
+    /**
+     * Get enhanced socket type if this socket supports it
+     * Override in subclasses that use the new EnhancedSocketType enum
+     */
+    protected EnhancedSocketType getEnhancedSocketType() {
+        return null; // Default: no enhanced type
     }
 
     /**

@@ -1,8 +1,9 @@
 package cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input;
 
 import cn.minerealms.assimploader.lookdev.nodeeditor.Node;
-import cn.minerealms.assimploader.lookdev.nodeeditor.NodeSocket;
-import cn.minerealms.assimploader.lookdev.nodeeditor.SocketType;
+import cn.minerealms.assimploader.lookdev.nodeeditor.EnhancedNodeSocket;
+import cn.minerealms.assimploader.lookdev.nodeeditor.EnhancedSocketType;
+
 import icyllis.modernui.graphics.Canvas;
 import icyllis.modernui.graphics.Paint;
 
@@ -34,12 +35,12 @@ public class TextureSampleNode extends Node {
         super("Texture Sample");
 
         // Add input socket
-        addInput(createSocket("UV", SocketType.VEC2));
+        addInput(new EnhancedNodeSocket("UV", EnhancedSocketType.VEC2));
 
         // Add output sockets
-        addOutput(createSocket("Color", SocketType.VEC4));
-        addOutput(createSocket("RGB", SocketType.VEC3));
-        addOutput(createSocket("Alpha", SocketType.FLOAT));
+        addOutput(new EnhancedNodeSocket("Color", EnhancedSocketType.VEC4));
+        addOutput(new EnhancedNodeSocket("RGB", EnhancedSocketType.VEC3));
+        addOutput(new EnhancedNodeSocket("Alpha", EnhancedSocketType.FLOAT));
 
         this.width = 180.0f;
     }
@@ -64,13 +65,6 @@ public class TextureSampleNode extends Node {
             paint.setColor(0xFF00FF00);
             canvas.drawRect(bodyX + 15, bodyY + 15, bodyX + bodyWidth - 15, bodyY + 45, paint);
         }
-    }
-
-    /**
-     * Create a socket with enhanced type
-     */
-    private NodeSocket createSocket(String name, SocketType type) {
-        return new EnhancedSocket(name, type);
     }
 
     public String getTexturePath() {
@@ -105,31 +99,5 @@ public class TextureSampleNode extends Node {
     public enum WrapMode {
         REPEAT,
         CLAMP
-    }
-
-    /**
-     * Enhanced socket with new type system
-     */
-    private static class EnhancedSocket extends NodeSocket {
-        private final cn.minerealms.assimploader.lookdev.nodeeditor.SocketType enhancedType;
-
-        public EnhancedSocket(String name, cn.minerealms.assimploader.lookdev.nodeeditor.SocketType type) {
-            super(name, mapToLegacyType(type));
-            this.enhancedType = type;
-        }
-
-        @Override
-        public int getColor() {
-            return enhancedType.getColor();
-        }
-
-        private static NodeSocket.SocketType mapToLegacyType(cn.minerealms.assimploader.lookdev.nodeeditor.SocketType type) {
-            if (type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.FLOAT) return NodeSocket.SocketType.FLOAT;
-            if (type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.VEC2) return NodeSocket.SocketType.VECTOR;
-            if (type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.VEC3 ||
-                type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.VEC4) return NodeSocket.SocketType.COLOR;
-            if (type == cn.minerealms.assimploader.lookdev.nodeeditor.SocketType.SAMPLER2D) return NodeSocket.SocketType.TEXTURE;
-            return NodeSocket.SocketType.ANY;
-        }
     }
 }

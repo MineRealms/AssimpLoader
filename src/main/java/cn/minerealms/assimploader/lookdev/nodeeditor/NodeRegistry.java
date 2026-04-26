@@ -30,72 +30,72 @@ public class NodeRegistry {
     private static void registerInputNodes() {
         // Texture Sample Node
         registry.put(NodeType.TEXTURE_SAMPLE, new NodeMetadata.Builder(NodeType.TEXTURE_SAMPLE)
-                .addInput("UV", SocketType.VEC2)
-                .addOutput("Color", SocketType.VEC4)
-                .addOutput("RGB", SocketType.VEC3)
-                .addOutput("Alpha", SocketType.FLOAT)
+                .addInput("UV", EnhancedSocketType.VEC2)
+                .addOutput("Color", EnhancedSocketType.VEC4)
+                .addOutput("RGB", EnhancedSocketType.VEC3)
+                .addOutput("Alpha", EnhancedSocketType.FLOAT)
                 .build());
 
         // Value Node
         registry.put(NodeType.VALUE, new NodeMetadata.Builder(NodeType.VALUE)
-                .addOutput("Value", SocketType.FLOAT)
+                .addOutput("Value", EnhancedSocketType.FLOAT)
                 .build());
 
         // Color Node
         registry.put(NodeType.COLOR, new NodeMetadata.Builder(NodeType.COLOR)
-                .addOutput("Color", SocketType.VEC4)
-                .addOutput("RGB", SocketType.VEC3)
+                .addOutput("Color", EnhancedSocketType.VEC4)
+                .addOutput("RGB", EnhancedSocketType.VEC3)
                 .build());
 
         // UV Coordinate Node
         registry.put(NodeType.UV_COORDINATE, new NodeMetadata.Builder(NodeType.UV_COORDINATE)
-                .addOutput("UV", SocketType.VEC2)
+                .addOutput("UV", EnhancedSocketType.VEC2)
                 .build());
     }
 
     private static void registerMathNodes() {
         // Multiply Node
         registry.put(NodeType.MULTIPLY, new NodeMetadata.Builder(NodeType.MULTIPLY)
-                .addInput("A", SocketType.VEC3)
-                .addInput("B", SocketType.VEC3)
-                .addOutput("Result", SocketType.VEC3)
+                .addInput("A", EnhancedSocketType.VEC3)
+                .addInput("B", EnhancedSocketType.VEC3)
+                .addOutput("Result", EnhancedSocketType.VEC3)
                 .build());
 
         // Add Node
         registry.put(NodeType.ADD, new NodeMetadata.Builder(NodeType.ADD)
-                .addInput("A", SocketType.VEC3)
-                .addInput("B", SocketType.VEC3)
-                .addOutput("Result", SocketType.VEC3)
+                .addInput("A", EnhancedSocketType.VEC3)
+                .addInput("B", EnhancedSocketType.VEC3)
+                .addOutput("Result", EnhancedSocketType.VEC3)
                 .build());
 
         // Lerp Node
         registry.put(NodeType.LERP, new NodeMetadata.Builder(NodeType.LERP)
-                .addInput("A", SocketType.VEC3)
-                .addInput("B", SocketType.VEC3)
-                .addInput("T", SocketType.FLOAT)
-                .addOutput("Result", SocketType.VEC3)
+                .addInput("A", EnhancedSocketType.VEC3)
+                .addInput("B", EnhancedSocketType.VEC3)
+                .addInput("T", EnhancedSocketType.FLOAT)
+                .addOutput("Result", EnhancedSocketType.VEC3)
                 .build());
     }
 
     private static void registerUtilityNodes() {
         // Normal Map Node
         registry.put(NodeType.NORMAL_MAP, new NodeMetadata.Builder(NodeType.NORMAL_MAP)
-                .addInput("Normal Map", SocketType.SAMPLER2D)
-                .addInput("UV", SocketType.VEC2)
-                .addInput("Strength", SocketType.FLOAT)
-                .addOutput("Normal", SocketType.VEC3)
+                .addInput("Normal Map", EnhancedSocketType.SAMPLER2D)
+                .addInput("UV", EnhancedSocketType.VEC2)
+                .addInput("Strength", EnhancedSocketType.FLOAT)
+                .addOutput("Normal", EnhancedSocketType.VEC3)
                 .build());
     }
 
     private static void registerOutputNode() {
         // Material Output Node
         registry.put(NodeType.MATERIAL_OUTPUT, new NodeMetadata.Builder(NodeType.MATERIAL_OUTPUT)
-                .addInput("Base Color", SocketType.VEC3)
-                .addInput("Metallic", SocketType.FLOAT)
-                .addInput("Roughness", SocketType.FLOAT)
-                .addInput("Normal", SocketType.VEC3)
-                .addInput("Emissive", SocketType.VEC3)
-                .addInput("Alpha", SocketType.FLOAT)
+                .addInput("Base Color", EnhancedSocketType.VEC3)
+                .addInput("Metallic", EnhancedSocketType.FLOAT)
+                .addInput("Roughness", EnhancedSocketType.FLOAT)
+                .addInput("Normal", EnhancedSocketType.VEC3)
+                .addInput("Emissive", EnhancedSocketType.VEC3)
+                .addInput("Alpha", EnhancedSocketType.FLOAT)
                 .build());
     }
 
@@ -151,12 +151,12 @@ public class NodeRegistry {
                 this.type = type;
             }
 
-            public Builder addInput(String name, SocketType socketType) {
+            public Builder addInput(String name, EnhancedSocketType socketType) {
                 inputs.add(new SocketDefinition(name, socketType));
                 return this;
             }
 
-            public Builder addOutput(String name, SocketType socketType) {
+            public Builder addOutput(String name, EnhancedSocketType socketType) {
                 outputs.add(new SocketDefinition(name, socketType));
                 return this;
             }
@@ -176,9 +176,9 @@ public class NodeRegistry {
      */
     public static class SocketDefinition {
         private final String name;
-        private final SocketType type;
+        private final EnhancedSocketType type;
 
-        public SocketDefinition(String name, SocketType type) {
+        public SocketDefinition(String name, EnhancedSocketType type) {
             this.name = name;
             this.type = type;
         }
@@ -187,7 +187,7 @@ public class NodeRegistry {
             return name;
         }
 
-        public SocketType getType() {
+        public EnhancedSocketType getType() {
             return type;
         }
     }
