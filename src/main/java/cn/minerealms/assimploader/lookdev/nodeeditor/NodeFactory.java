@@ -102,6 +102,23 @@ public class NodeFactory {
                     node = new NormalMapNode();
                     break;
 
+                // Shader nodes
+                case TIME:
+                    node = new TimeNode();
+                    break;
+                case NOISE:
+                    node = new NoiseNode();
+                    break;
+                case WORLD_POS:
+                    node = new WorldPosNode();
+                    break;
+                case VIEW_DIR:
+                    node = new ViewDirNode();
+                    break;
+                case LIGHT_DIR:
+                    node = new LightDirNode();
+                    break;
+
                 // Output node
                 case MATERIAL_OUTPUT:
                     node = new OutputNode();

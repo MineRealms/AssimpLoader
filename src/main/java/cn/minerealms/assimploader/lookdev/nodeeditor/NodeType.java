@@ -37,6 +37,13 @@ public enum NodeType {
     // Utility Nodes
     NORMAL_MAP("Normal Map", NodeCategory.UTILITY),
 
+    // Shader Nodes (for Iris/Oculus integration)
+    TIME("Time", NodeCategory.SHADER),
+    NOISE("Noise", NodeCategory.SHADER),
+    WORLD_POS("World Position", NodeCategory.SHADER),
+    VIEW_DIR("View Direction", NodeCategory.SHADER),
+    LIGHT_DIR("Light Direction", NodeCategory.SHADER),
+
     // Output Node
     MATERIAL_OUTPUT("Material Output", NodeCategory.OUTPUT);
 
@@ -70,6 +77,7 @@ public enum NodeType {
         MATH("Math"),
         VECTOR("Vector"),
         TEXTURE("Texture"),
+        SHADER("Shader"),
         UTILITY("Utility"),
         OUTPUT("Output");
 
