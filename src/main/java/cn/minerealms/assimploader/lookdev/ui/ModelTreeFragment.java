@@ -314,13 +314,20 @@ public class ModelTreeFragment extends Fragment {
         propsView.setTextColor(0xFF888888);
         layout.addView(propsView);
 
-        // Click listener
+        // Click listener - switch to Node Editor and load material
         layout.setClickable(true);
         layout.setFocusable(true);
         layout.setOnClickListener(v -> {
             if (materialProvider != null) {
+                DebugManager.info(DebugCategory.LOOKDEV,
+                    "User clicked material: {} (index: {})", material.getName(), index);
+
+                // Select the material
                 materialProvider.selectMaterial(index);
                 updateModel(); // Refresh to show selection
+
+                // Switch to Node Editor tab and load material
+                switchToNodeEditorWithMaterial(material);
             }
         });
 
@@ -329,6 +336,55 @@ public class ModelTreeFragment extends Fragment {
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         params.setMargins(0, contentLayout.dp(2), 0, contentLayout.dp(2));
         contentLayout.addView(layout, params);
+    }
+
+    /**
+     * Switch to Node Editor tab and load the specified material
+     */
+    private void switchToNodeEditorWithMaterial(PBRMaterial material) {
+        try {
+            // Get parent LookDevScreen
+            Fragment parent = getParentFragment();
+            if (!(parent instanceof LookDevScreen)) {
+                DebugManager.warn(DebugCategory.LOOKDEV,
+                    "Cannot switch to Node Editor: parent is not LookDevScreen");
+                return;
+            }
+
+            LookDevScreen lookDevScreen = (LookDevScreen) parent;
+
+            // Get TabbedCenterFragment from LookDevScreen
+            Fragment tabbedFragment = lookDevScreen.getChildFragmentManager()
+                .findFragmentByTag("tabbed_center");
+
+            if (!(tabbedFragment instanceof TabbedCenterFragment)) {
+                DebugManager.warn(DebugCategory.LOOKDEV,
+                    "Cannot switch to Node Editor: TabbedCenterFragment not found");
+                return;
+            }
+
+            TabbedCenterFragment tabbedCenter = (TabbedCenterFragment) tabbedFragment;
+
+            // Switch to Node Editor tab
+            tabbedCenter.switchToNodeEditor();
+
+            // Get NodeEditorFragment and load material
+            cn.minerealms.assimploader.lookdev.nodeeditor.NodeEditorFragment nodeEditor =
+                tabbedCenter.getNodeEditorFragment();
+
+            if (nodeEditor != null) {
+                nodeEditor.setMaterial(material);
+                DebugManager.info(DebugCategory.LOOKDEV,
+                    "Switched to Node Editor and loaded material: {}", material.getName());
+            } else {
+                DebugManager.warn(DebugCategory.LOOKDEV,
+                    "Cannot load material: NodeEditorFragment not found");
+            }
+
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV,
+                "Failed to switch to Node Editor with material", e);
+        }
     }
 
     private void addSpacer(int dp) {
