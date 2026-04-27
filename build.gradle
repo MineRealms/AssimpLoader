@@ -167,6 +167,12 @@ dependencies {
 
     // Photon Integration (Optional - compileOnly for conditional loading)
     compileOnly fg.deobf(fileTree(dir: 'mods_dev', include: '*.jar'))
+
+    // glsl-transformer (AGPLv3 许可证) - Optional for Iris/Oculus shader injection
+    compileOnly 'io.github.douira:glsl-transformer:2.0.0-pre13'
+
+    // ANTLR4 运行时 (required by glsl-transformer)
+    compileOnly 'org.antlr:antlr4-runtime:4.13.1'
 }
 
 jar {
@@ -220,6 +226,7 @@ tasks.named('jarJar').configure {
 mixin {
     add sourceSets.main, "assimploader.refmap.json"
     config "mixins.photon_compat.json"
+    config "mixins.iris_compat.json"
 }
 
 jar {
@@ -232,7 +239,7 @@ jar {
                 "Implementation-Version"  : project.jar.archiveVersion,
                 "Implementation-Vendor"   : "MineRealms Team",
                 "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                "MixinConfigs"            : "mixins.photon_compat.json"
+                "MixinConfigs"            : "mixins.photon_compat.json,mixins.iris_compat.json"
         ])
     }
 }

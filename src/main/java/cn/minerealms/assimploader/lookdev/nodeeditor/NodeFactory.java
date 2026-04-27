@@ -7,7 +7,7 @@ import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.math.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.vector.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.texture.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.utility.*;
-import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.output.*;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.*;
 
 /**
  * Factory for creating node instances.
@@ -104,7 +104,7 @@ public class NodeFactory {
 
                 // Output node
                 case MATERIAL_OUTPUT:
-                    node = new MaterialOutputNode();
+                    node = new OutputNode();
                     break;
 
                 default:

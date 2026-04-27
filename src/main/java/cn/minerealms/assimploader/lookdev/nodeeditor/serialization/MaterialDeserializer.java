@@ -7,7 +7,7 @@ import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.math.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.vector.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.texture.*;
-import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.output.*;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.utility.*;
 import com.google.gson.*;
 
@@ -161,7 +161,7 @@ public class MaterialDeserializer {
             case "NORMAL_MAP" -> new NormalMapNode();
 
             // Output node
-            case "MATERIAL_OUTPUT" -> new MaterialOutputNode();
+            case "MATERIAL_OUTPUT" -> new OutputNode();
 
             default -> null;
         };
@@ -200,10 +200,13 @@ public class MaterialDeserializer {
                 );
             }
 
-        } else if (node instanceof MaterialOutputNode) {
-            MaterialOutputNode n = (MaterialOutputNode) node;
-            if (params.has("blendMode")) {
-                n.setBlendMode(MaterialOutputNode.BlendMode.valueOf(params.get("blendMode").getAsString()));
+        } else if (node instanceof OutputNode) {
+            OutputNode n = (OutputNode) node;
+            if (params.has("outputType")) {
+                n.setOutputType(OutputNode.OutputType.valueOf(params.get("outputType").getAsString()));
+            } else if (params.has("blendMode")) {
+                // Legacy compatibility
+                n.setOutputType(OutputNode.OutputType.valueOf(params.get("blendMode").getAsString()));
             }
         }
     }

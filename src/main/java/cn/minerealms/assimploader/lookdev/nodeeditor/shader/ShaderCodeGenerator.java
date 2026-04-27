@@ -4,7 +4,7 @@ import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.PhotonIntegration;
 import cn.minerealms.assimploader.lookdev.nodeeditor.*;
-import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.output.MaterialOutputNode;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.OutputNode;
 
 import java.util.*;
 
@@ -73,14 +73,14 @@ public class ShaderCodeGenerator {
             // Find output node
             DebugManager.debug(DebugCategory.LOOKDEV,
                 "[ShaderCodeGenerator] Finding MaterialOutputNode");
-            MaterialOutputNode outputNode = findOutputNode(executionOrder);
+            OutputNode outputNode = findOutputNode(executionOrder);
             if (outputNode == null) {
                 DebugManager.error(DebugCategory.LOOKDEV,
-                    "[ShaderCodeGenerator] No MaterialOutputNode found in graph");
+                    "[ShaderCodeGenerator] No OutputNode found in graph");
                 return null;
             }
             DebugManager.debug(DebugCategory.LOOKDEV,
-                "[ShaderCodeGenerator] Found MaterialOutputNode");
+                "[ShaderCodeGenerator] Found OutputNode");
 
             // Reset state
             DebugManager.debug(DebugCategory.LOOKDEV,
@@ -132,7 +132,7 @@ public class ShaderCodeGenerator {
     /**
      * Generate fragment shader from node graph
      */
-    private String generateFragmentShader(List<Node> executionOrder, MaterialOutputNode outputNode) {
+    private String generateFragmentShader(List<Node> executionOrder, OutputNode outputNode) {
         StringBuilder sb = new StringBuilder();
 
         // Header
@@ -178,7 +178,7 @@ public class ShaderCodeGenerator {
     /**
      * Generate final material output code
      */
-    private String generateMaterialOutput(MaterialOutputNode outputNode) {
+    private String generateMaterialOutput(OutputNode outputNode) {
         StringBuilder sb = new StringBuilder();
 
         // Get input socket values
@@ -243,12 +243,12 @@ public class ShaderCodeGenerator {
     }
 
     /**
-     * Find the MaterialOutputNode in the graph
+     * Find the OutputNode in the graph
      */
-    private MaterialOutputNode findOutputNode(List<Node> nodes) {
+    private OutputNode findOutputNode(List<Node> nodes) {
         for (Node node : nodes) {
-            if (node instanceof MaterialOutputNode) {
-                return (MaterialOutputNode) node;
+            if (node instanceof OutputNode) {
+                return (OutputNode) node;
             }
         }
         return null;
