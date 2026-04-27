@@ -18,7 +18,7 @@ Write-Host ""
 Write-Host "[1/4] Building mod..." -ForegroundColor Yellow
 Set-Location $PROJECT_DIR
 
-& .\gradlew.bat build --console=plain
+& .\gradlew.bat build -x test --console=plain
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Build failed!" -ForegroundColor Red

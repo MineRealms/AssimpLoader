@@ -10,7 +10,7 @@ layout(location = 4) in vec4 a_BoneWeights;
 // Uniforms
 uniform mat4 u_ModelViewProjection;
 uniform mat4 u_ModelView;
-uniform mat4 u_BoneMatrices[256];
+uniform mat4 u_BoneMatrices[64];  // Reduced from 256 to 64 for compatibility
 
 // Outputs
 out vec3 v_Position;
@@ -18,12 +18,21 @@ out vec3 v_Normal;
 out vec2 v_TexCoord;
 
 void main() {
-    // Calculate skinned transformation matrix
-    mat4 boneTransform =
-        u_BoneMatrices[a_BoneIndices.x] * a_BoneWeights.x +
-        u_BoneMatrices[a_BoneIndices.y] * a_BoneWeights.y +
-        u_BoneMatrices[a_BoneIndices.z] * a_BoneWeights.z +
-        u_BoneMatrices[a_BoneIndices.w] * a_BoneWeights.w;
+    // Calculate skinned transformation matrix with bounds checking
+    mat4 boneTransform = mat4(1.0);
+
+    if (a_BoneIndices.x >= 0 && a_BoneIndices.x < 64) {
+        boneTransform = u_BoneMatrices[a_BoneIndices.x] * a_BoneWeights.x;
+    }
+    if (a_BoneIndices.y >= 0 && a_BoneIndices.y < 64) {
+        boneTransform += u_BoneMatrices[a_BoneIndices.y] * a_BoneWeights.y;
+    }
+    if (a_BoneIndices.z >= 0 && a_BoneIndices.z < 64) {
+        boneTransform += u_BoneMatrices[a_BoneIndices.z] * a_BoneWeights.z;
+    }
+    if (a_BoneIndices.w >= 0 && a_BoneIndices.w < 64) {
+        boneTransform += u_BoneMatrices[a_BoneIndices.w] * a_BoneWeights.w;
+    }
 
     // Apply bone transformation to position and normal
     vec4 skinnedPosition = boneTransform * vec4(a_Position, 1.0);

@@ -49,6 +49,14 @@ public class MinecraftMeshConverter {
             return quads;
         }
 
+        // Log if mesh has bones (should not use BakedQuad for skinned meshes)
+        if (mesh.hasBones()) {
+            DebugManager.warn(DebugCategory.RENDER,
+                "Converting skinned mesh '{}' to BakedQuads - this will NOT apply bone transforms! " +
+                "Use SkinnedMeshRenderer instead for proper animation.",
+                mesh.getName());
+        }
+
         // Calculate bounding box to detect if model needs scaling
         float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, minZ = Float.MAX_VALUE;
         float maxX = Float.MIN_VALUE, maxY = Float.MIN_VALUE, maxZ = Float.MIN_VALUE;
@@ -66,8 +74,8 @@ public class MinecraftMeshConverter {
         float sizeY = maxY - minY;
         float sizeZ = maxZ - minZ;
 
-        DebugManager.info(DebugCategory.RENDER, "Mesh bounding box: ({}, {}, {}) to ({}, {}, {}), size: ({}, {}, {})",
-            minX, minY, minZ, maxX, maxY, maxZ, sizeX, sizeY, sizeZ);
+        DebugManager.info(DebugCategory.RENDER, "Mesh '{}' bounding box: ({}, {}, {}) to ({}, {}, {}), size: ({}, {}, {})",
+            mesh.getName(), minX, minY, minZ, maxX, maxY, maxZ, sizeX, sizeY, sizeZ);
 
         // Get material color (PhongE diffuse color)
         Vector4f materialColor = new Vector4f(1, 1, 1, 1);

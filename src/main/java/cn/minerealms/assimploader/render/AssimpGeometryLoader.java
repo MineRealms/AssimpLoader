@@ -41,7 +41,8 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
     @Override
     public AssimpGeometry read(JsonObject jsonObject, JsonDeserializationContext context) {
         String modelPath = jsonObject.get("model").getAsString();
-        return new AssimpGeometry(modelPath);
+        String mode = jsonObject.has("mode") ? jsonObject.get("mode").getAsString() : "static";
+        return new AssimpGeometry(modelPath, mode);
     }
 
     /**
@@ -50,10 +51,22 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
     public static class AssimpGeometry implements IUnbakedGeometry<AssimpGeometry> {
 
         private final String modelPath;
+        private final String mode;
         private AssimpScene cachedScene;
 
-        public AssimpGeometry(String modelPath) {
+        public AssimpGeometry(String modelPath, String mode) {
             this.modelPath = modelPath;
+            this.mode = mode;
+        }
+
+        /**
+         * Get the ModelImportMode based on the mode string
+         */
+        private cn.minerealms.assimploader.core.ModelImportMode getImportMode() {
+            if ("dynamic".equalsIgnoreCase(mode)) {
+                return cn.minerealms.assimploader.core.ModelImportMode.DYNAMIC;
+            }
+            return cn.minerealms.assimploader.core.ModelImportMode.STATIC;
         }
 
         @Override
@@ -86,14 +99,15 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
             java.nio.file.Path externalPath = java.nio.file.Paths.get(externalModelsPath);
 
             if (java.nio.file.Files.exists(externalPath)) {
-                DebugManager.info(DebugCategory.RENDER, "Loading model from external models directory: {}", externalModelsPath);
+                DebugManager.info(DebugCategory.RENDER, "Loading model from external models directory: {} with mode: {}", externalModelsPath, mode);
                 try {
-                    AssimpScene scene = AssimpModelLoader.loadModelStatic(externalModelsPath);
+                    AssimpModelLoader loader = new AssimpModelLoader();
+                    AssimpScene scene = loader.loadModel(externalPath, getImportMode());
                     if (scene != null) {
                         cachedScene = scene;
                         AssimpModelLoader.updateModelCache(modelName, scene);
                         AssimpModelLoader.updateModelCache(simpleModelName, scene); // Also cache with simple name
-                        DebugManager.info(DebugCategory.RENDER, "Successfully loaded external model: {} (also as: {})", modelName, simpleModelName);
+                        DebugManager.info(DebugCategory.RENDER, "Successfully loaded external model: {} (also as: {}) in {} mode", modelName, simpleModelName, mode);
                     }
                 } catch (Exception e) {
                     DebugManager.error(DebugCategory.RENDER, "Failed to load external model from {}: {}", externalModelsPath, e.getMessage());
@@ -105,7 +119,7 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
                 try {
                     AssimpModelLoader loader = AssimpLoader.getInstance().getModelLoader();
                     if (loader != null) {
-                        DebugManager.info(DebugCategory.RENDER, "Loading model from resource pack: {}", resourceLoc);
+                        DebugManager.info(DebugCategory.RENDER, "Loading model from resource pack: {} with mode: {}", resourceLoc, mode);
 
                         var resourceManager = net.minecraft.client.Minecraft.getInstance().getResourceManager();
                         var resource = resourceManager.getResource(resourceLoc);
@@ -115,12 +129,12 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
                                 byte[] modelData = inputStream.readAllBytes();
                                 String fileName = resourceLoc.getPath();
 
-                                cachedScene = loader.loadModelFromMemory(fileName, modelData);
+                                cachedScene = loader.loadModelFromMemory(fileName, modelData, getImportMode());
 
                                 if (cachedScene != null) {
                                     AssimpModelLoader.updateModelCache(modelName, cachedScene);
                                     AssimpModelLoader.updateModelCache(simpleModelName, cachedScene); // Also cache with simple name
-                                    DebugManager.info(DebugCategory.RENDER, "Successfully loaded resource pack model: {} (also as: {})", modelName, simpleModelName);
+                                    DebugManager.info(DebugCategory.RENDER, "Successfully loaded resource pack model: {} (also as: {}) in {} mode", modelName, simpleModelName, mode);
                                 }
                             }
                         } else {

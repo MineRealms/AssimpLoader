@@ -1,3 +1,4 @@
 {
-  "block.assimploader.cnc_machine": "CNC 机床（FBX 测试）"
+  "block.assimploader.cnc_machine": "CNC 机床（FBX 测试）",
+  "block.assimploader.circle": "圆环（带动画）"
 }

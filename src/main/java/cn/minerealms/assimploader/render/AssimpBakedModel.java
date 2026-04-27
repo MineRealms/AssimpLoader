@@ -55,12 +55,24 @@ public class AssimpBakedModel implements BakedModel {
         this.embeddedTextureCache = new HashMap<>();
         boolean transparent = false;
 
+        // Log import mode
+        DebugManager.info(DebugCategory.RENDER, "Building BakedModel for '{}': mode={}, {} meshes, {} materials",
+                modelLocation, scene.getImportMode(), scene.getMeshes().size(), scene.getMaterials().size());
+
         // Load embedded textures first
         if (scene.hasEmbeddedTextures()) {
             loadEmbeddedTextures();
         }
 
-        // Convert all meshes to quads
+        // DYNAMIC mode models still need BakedQuads for item rendering
+        // BlockEntityRenderer will handle world rendering with animation
+        if (scene.getImportMode() == cn.minerealms.assimploader.core.ModelImportMode.DYNAMIC) {
+            DebugManager.info(DebugCategory.RENDER,
+                "Building BakedQuads for DYNAMIC mode model '{}' - will be used for item rendering only",
+                modelLocation);
+        }
+
+        // Convert all meshes to quads (STATIC mode only)
         DebugManager.info(DebugCategory.RENDER, "Building BakedModel: {} meshes, {} materials",
                 scene.getMeshes().size(), scene.getMaterials().size());
 
