@@ -44,6 +44,8 @@ public class TestModelBlock extends BaseEntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return null; // No ticking needed
+        // Only tick on client side for animation updates
+        return level.isClientSide ? createTickerHelper(type, ExampleRegistry.TEST_MODEL_BLOCK_ENTITY.get(),
+                (lvl, pos, st, blockEntity) -> blockEntity.tick()) : null;
     }
 }

@@ -144,6 +144,17 @@ public class BoneHierarchyBuilder {
     }
 
     /**
+     * Update a specific bone's local transform
+     * Used by animation system to apply animated transforms
+     */
+    public void updateBoneTransform(String boneName, Matrix4f localTransform) {
+        Bone bone = boneMap.get(boneName);
+        if (bone != null) {
+            bone.setLocalTransform(localTransform);
+        }
+    }
+
+    /**
      * Update all bone transformations
      * Call this after setting animation transforms
      */
