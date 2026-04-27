@@ -51,6 +51,16 @@ public class ExampleRegistry {
         )
     );
 
+    // Circle block with animated FBX model (using BlockEntityRenderer)
+    public static final RegistryObject<Block> CIRCLE = BLOCKS.register("circle",
+        () -> new CircleBlock(BlockBehaviour.Properties.of()
+            .mapColor(MapColor.METAL)
+            .strength(3.0F, 6.0F)
+            .sound(SoundType.METAL)
+            .requiresCorrectToolForDrops()
+        )
+    );
+
     // Block entity
     public static final RegistryObject<BlockEntityType<TestModelBlockEntity>> TEST_MODEL_BLOCK_ENTITY =
         BLOCK_ENTITIES.register("test_model_block_entity",
@@ -63,6 +73,12 @@ public class ExampleRegistry {
             () -> BlockEntityType.Builder.of(CCBBlockEntity::new, CCB.get()).build(null)
         );
 
+    // Circle block entity
+    public static final RegistryObject<BlockEntityType<CircleBlockEntity>> CIRCLE_BLOCK_ENTITY =
+        BLOCK_ENTITIES.register("circle_block_entity",
+            () -> BlockEntityType.Builder.of(CircleBlockEntity::new, CIRCLE.get()).build(null)
+        );
+
     // Block item
     public static final RegistryObject<Item> CNC_MACHINE_ITEM = ITEMS.register("cnc_machine",
         () -> new AssimpBlockItem(CNC_MACHINE.get(), new Item.Properties())
@@ -71,6 +87,11 @@ public class ExampleRegistry {
     // CCB block item
     public static final RegistryObject<Item> CCB_ITEM = ITEMS.register("ccb",
         () -> new AssimpBlockItem(CCB.get(), new Item.Properties())
+    );
+
+    // Circle block item
+    public static final RegistryObject<Item> CIRCLE_ITEM = ITEMS.register("circle",
+        () -> new AssimpBlockItem(CIRCLE.get(), new Item.Properties())
     );
 
     public static void register(IEventBus modEventBus) {
@@ -87,6 +108,7 @@ public class ExampleRegistry {
         if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
             event.accept(CNC_MACHINE_ITEM);
             event.accept(CCB_ITEM);
+            event.accept(CIRCLE_ITEM);
         }
     }
 }

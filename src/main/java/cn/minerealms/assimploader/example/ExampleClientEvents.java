@@ -30,7 +30,11 @@ public class ExampleClientEvents {
             ExampleRegistry.CCB_BLOCK_ENTITY.get(),
             CCBBlockEntityRenderer::new
         );
-        DebugManager.info(DebugCategory.CORE, "Registered TestModelBlockEntityRenderer and CCBBlockEntityRenderer");
+        event.registerBlockEntityRenderer(
+            ExampleRegistry.CIRCLE_BLOCK_ENTITY.get(),
+            CircleBlockEntityRenderer::new
+        );
+        DebugManager.info(DebugCategory.CORE, "Registered block entity renderers: TestModel, CCB, Circle");
     }
 
     public static BlockEntityWithoutLevelRenderer getItemRenderer() {
