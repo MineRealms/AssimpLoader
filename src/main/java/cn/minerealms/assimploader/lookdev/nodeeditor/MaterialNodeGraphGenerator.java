@@ -75,6 +75,13 @@ public class MaterialNodeGraphGenerator {
             );
             nodes.add(colorNode);
 
+            DebugManager.info(DebugCategory.LOOKDEV,
+                "[MaterialNodeGraphGenerator] Created ColorNode with baseColor: ({}, {}, {}, {})",
+                material.getBaseColor().x,
+                material.getBaseColor().y,
+                material.getBaseColor().z,
+                material.getBaseColor().w);
+
             connections.add(new NodeConnection(
                 colorNode.getOutputByName("Color"),
                 outputNode.getInputByName("Base Color")

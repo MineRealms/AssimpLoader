@@ -94,4 +94,54 @@ public class Bone {
     public Bone getParent() {
         return parent;
     }
+
+    /**
+     * Get world position of this bone.
+     * Extracts translation from global transform.
+     */
+    public Vector3f getWorldPosition() {
+        Vector3f position = new Vector3f();
+        globalTransform.getTranslation(position);
+        return position;
+    }
+
+    /**
+     * Get world rotation of this bone.
+     * Extracts rotation from global transform.
+     */
+    public Quaternionf getWorldRotation() {
+        Quaternionf rotation = new Quaternionf();
+        globalTransform.getNormalizedRotation(rotation);
+        return rotation;
+    }
+
+    /**
+     * Get local rotation (extracted from local transform matrix).
+     */
+    public Quaternionf getLocalRotation() {
+        Quaternionf rotation = new Quaternionf();
+        localTransform.getNormalizedRotation(rotation);
+        return rotation;
+    }
+
+    /**
+     * Set local transform from position, rotation, and scale.
+     * Utility method for IK solvers.
+     */
+    public void setLocalTransform(Vector3f position, Quaternionf rotation, Vector3f scale) {
+        localTransform.identity();
+        localTransform.translationRotateScale(position, rotation, scale);
+    }
+
+    /**
+     * Set only the rotation component of local transform.
+     * Preserves position and scale. Utility method for IK solvers.
+     */
+    public void setLocalRotation(Quaternionf rotation) {
+        Vector3f position = new Vector3f();
+        Vector3f scale = new Vector3f();
+        localTransform.getTranslation(position);
+        localTransform.getScale(scale);
+        setLocalTransform(position, rotation, scale);
+    }
 }

@@ -326,8 +326,14 @@ public class ModelTreeFragment extends Fragment {
                 materialProvider.selectMaterial(index);
                 updateModel(); // Refresh to show selection
 
-                // Switch to Node Editor tab and load material
-                switchToNodeEditorWithMaterial(material);
+                // Notify LookDevScreen to handle material selection
+                Fragment parent = getParentFragment();
+                if (parent instanceof LookDevScreen) {
+                    ((LookDevScreen) parent).onMaterialSelected(material);
+                }
+
+                // Switch to Node Editor tab
+                switchToNodeEditorTab();
             }
         });
 
@@ -339,9 +345,9 @@ public class ModelTreeFragment extends Fragment {
     }
 
     /**
-     * Switch to Node Editor tab and load the specified material
+     * Switch to Node Editor tab
      */
-    private void switchToNodeEditorWithMaterial(PBRMaterial material) {
+    private void switchToNodeEditorTab() {
         try {
             // Get parent LookDevScreen
             Fragment parent = getParentFragment();
@@ -368,23 +374,21 @@ public class ModelTreeFragment extends Fragment {
             // Switch to Node Editor tab
             tabbedCenter.switchToNodeEditor();
 
-            // Get NodeEditorFragment and load material
-            cn.minerealms.assimploader.lookdev.nodeeditor.NodeEditorFragment nodeEditor =
-                tabbedCenter.getNodeEditorFragment();
-
-            if (nodeEditor != null) {
-                nodeEditor.setMaterial(material);
-                DebugManager.info(DebugCategory.LOOKDEV,
-                    "Switched to Node Editor and loaded material: {}", material.getName());
-            } else {
-                DebugManager.warn(DebugCategory.LOOKDEV,
-                    "Cannot load material: NodeEditorFragment not found");
-            }
+            DebugManager.info(DebugCategory.LOOKDEV, "Switched to Node Editor tab");
 
         } catch (Exception e) {
             DebugManager.error(DebugCategory.LOOKDEV,
-                "Failed to switch to Node Editor with material", e);
+                "Failed to switch to Node Editor", e);
         }
+    }
+
+    /**
+     * Switch to Node Editor tab and load the specified material
+     * @deprecated Use switchToNodeEditorTab() and LookDevScreen.onMaterialSelected() instead
+     */
+    @Deprecated
+    private void switchToNodeEditorWithMaterial(PBRMaterial material) {
+        switchToNodeEditorTab();
     }
 
     private void addSpacer(int dp) {

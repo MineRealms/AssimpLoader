@@ -1,6 +1,9 @@
 package cn.minerealms.assimploader.animation;
 
+import cn.minerealms.assimploader.animation.ik.IKManager;
+import cn.minerealms.assimploader.animation.ik.Skeleton;
 import cn.minerealms.assimploader.model.AssimpAnimation;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -16,6 +19,7 @@ import java.util.Map;
  * - Bone transformation interpolation
  * - Multiple animation blending
  * - Loop and one-shot modes
+ * - IK integration (Phase 3)
  *
  * Phase 4 implementation - Skeletal animation system
  */
@@ -28,6 +32,10 @@ public class AnimationPlayer {
     private boolean playing = false;
     private boolean looping = true;
     private float speed = 1.0f;
+
+    // IK integration (Phase 3)
+    private Skeleton skeleton;
+    private IKManager ikManager;
 
     public AnimationPlayer(AssimpAnimation animation) {
         this.animation = animation;
@@ -56,8 +64,18 @@ public class AnimationPlayer {
             }
         }
 
-        // Update bone transforms based on current time
+        // 1. Update keyframe transforms
         updateBoneTransforms();
+
+        // 2. Apply IK (Phase 3 integration)
+        if (ikManager != null && ikManager.isEnabled()) {
+            ikManager.updateAll();
+        }
+
+        // 3. Update skeleton transforms (if skeleton is set)
+        if (skeleton != null) {
+            skeleton.updateTransforms();
+        }
     }
 
     /**
@@ -277,6 +295,60 @@ public class AnimationPlayer {
     public Vector3f getBoneScale(String boneName) {
         BoneTransform transform = boneTransforms.get(boneName);
         return transform != null ? new Vector3f(transform.scale) : null;
+    }
+
+    // ========== IK Integration (Phase 3) ==========
+
+    /**
+     * Initialize IK system with a root bone.
+     * Creates a Skeleton and IKManager for this animation player.
+     *
+     * @param rootBone Root bone of the skeleton hierarchy
+     */
+    public void initializeIK(Bone rootBone) {
+        this.skeleton = new Skeleton(rootBone);
+        this.ikManager = new IKManager(skeleton);
+    }
+
+    /**
+     * Get the IK manager (null if IK not initialized)
+     */
+    @Nullable
+    public IKManager getIKManager() {
+        return ikManager;
+    }
+
+    /**
+     * Get the skeleton (null if IK not initialized)
+     */
+    @Nullable
+    public Skeleton getSkeleton() {
+        return skeleton;
+    }
+
+    /**
+     * Enable IK solving
+     */
+    public void enableIK() {
+        if (ikManager != null) {
+            ikManager.setEnabled(true);
+        }
+    }
+
+    /**
+     * Disable IK solving
+     */
+    public void disableIK() {
+        if (ikManager != null) {
+            ikManager.setEnabled(false);
+        }
+    }
+
+    /**
+     * Check if IK is enabled
+     */
+    public boolean isIKEnabled() {
+        return ikManager != null && ikManager.isEnabled();
     }
 
     /**

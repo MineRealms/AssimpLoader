@@ -38,12 +38,12 @@ public class OutputNode extends Node {
     public OutputNode() {
         super("Output");
 
-        // Add input sockets for PBR material
-        addInput(new NodeSocket("Base Color", NodeSocket.SocketType.COLOR));
-        addInput(new NodeSocket("Metallic", NodeSocket.SocketType.FLOAT));
-        addInput(new NodeSocket("Roughness", NodeSocket.SocketType.FLOAT));
-        addInput(new NodeSocket("Normal", NodeSocket.SocketType.TEXTURE));
-        addInput(new NodeSocket("Emissive", NodeSocket.SocketType.COLOR));
+        // Add input sockets for PBR material with default values
+        addInput(new NodeSocket("Base Color", NodeSocket.SocketType.COLOR, 0xFFFFFFFF)); // White
+        addInput(new NodeSocket("Metallic", NodeSocket.SocketType.FLOAT, 0.0f));
+        addInput(new NodeSocket("Roughness", NodeSocket.SocketType.FLOAT, 0.5f));
+        addInput(new NodeSocket("Normal", NodeSocket.SocketType.TEXTURE, null));
+        addInput(new NodeSocket("Emissive", NodeSocket.SocketType.COLOR, 0xFF000000)); // Black
 
         this.width = 180.0f;
         this.titleBarColor = 0xFF2A4A2A; // Green tint for output

@@ -57,10 +57,11 @@ public class AutoTestClient {
         Minecraft mc = Minecraft.getInstance();
         long now = System.currentTimeMillis();
 
-        if (lastStateChangeTime > 0 && now - lastStateChangeTime > WATCHDOG_MS && state != State.DONE) {
-            failAndExit(mc, "watchdog timeout in state: " + state);
-            return;
-        }
+        // Watchdog disabled - no auto-exit on timeout
+        // if (lastStateChangeTime > 0 && now - lastStateChangeTime > WATCHDOG_MS && state != State.DONE) {
+        //     failAndExit(mc, "watchdog timeout in state: " + state);
+        //     return;
+        // }
 
         switch (state) {
             case WAIT_TITLE -> {

@@ -60,6 +60,9 @@ public class NodeEditorCanvas extends View {
     // Node selection listener
     private OnNodeSelectionListener nodeSelectionListener;
 
+    // Graph change listener
+    private OnGraphChangeListener graphChangeListener;
+
     public NodeEditorCanvas(icyllis.modernui.core.Context context) {
         super(context);
         init();
@@ -510,10 +513,18 @@ public class NodeEditorCanvas extends View {
     }
 
     /**
-     * Get all nodes
+     * Listener for graph change events (connections added/removed)
      */
-    public List<Node> getNodes() {
-        return nodes;
+    @FunctionalInterface
+    public interface OnGraphChangeListener {
+        void onGraphChanged();
+    }
+
+    /**
+     * Set graph change listener
+     */
+    public void setOnGraphChangeListener(OnGraphChangeListener listener) {
+        this.graphChangeListener = listener;
     }
 
     /**
@@ -531,6 +542,53 @@ public class NodeEditorCanvas extends View {
         selectedNode = null;
         connections.clear();
         invalidate();
+    }
+
+    /**
+     * Clear canvas (remove all nodes and connections)
+     */
+    public void clear() {
+        nodes.clear();
+        connections.clear();
+        selectedNode = null;
+        invalidate();
+
+        DebugManager.debug(DebugCategory.LOOKDEV,
+            "[NodeEditorCanvas] Canvas cleared");
+    }
+
+    /**
+     * Load node graph
+     *
+     * @param nodes Nodes list
+     * @param connections Connections list
+     */
+    public void loadNodeGraph(List<Node> nodes, List<NodeConnection> connections) {
+        this.nodes.clear();
+        this.connections.clear();
+
+        // Deep copy nodes
+        for (Node node : nodes) {
+            this.nodes.add(node);
+        }
+
+        // Deep copy connections
+        for (NodeConnection connection : connections) {
+            this.connections.add(connection);
+        }
+
+        invalidate();
+
+        DebugManager.info(DebugCategory.LOOKDEV,
+            "[NodeEditorCanvas] Loaded node graph: {} nodes, {} connections",
+            nodes.size(), connections.size());
+    }
+
+    /**
+     * Get all nodes (return copy)
+     */
+    public List<Node> getNodes() {
+        return new ArrayList<>(nodes);
     }
 
     /**
@@ -617,6 +675,11 @@ public class NodeEditorCanvas extends View {
     public void addConnection(NodeConnection connection) {
         connections.add(connection);
         invalidate();
+
+        // Notify graph change listener
+        if (graphChangeListener != null) {
+            graphChangeListener.onGraphChanged();
+        }
     }
 
     /**
@@ -626,13 +689,18 @@ public class NodeEditorCanvas extends View {
         connections.remove(connection);
         connection.disconnect();
         invalidate();
+
+        // Notify graph change listener
+        if (graphChangeListener != null) {
+            graphChangeListener.onGraphChanged();
+        }
     }
 
     /**
      * Get all connections
      */
     public List<NodeConnection> getConnections() {
-        return connections;
+        return new ArrayList<>(connections);
     }
 
     /**

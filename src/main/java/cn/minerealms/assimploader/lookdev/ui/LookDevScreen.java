@@ -3,6 +3,7 @@ package cn.minerealms.assimploader.lookdev.ui;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.comparison.ComparisonSnapshot;
+import cn.minerealms.assimploader.lookdev.nodeeditor.NodeEditorFragment;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.lookdev.IModelProvider;
 import cn.minerealms.assimploader.lookdev.IMaterialProvider;
@@ -516,6 +517,53 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
     }
 
     /**
+     * Called when user selects a material in Model Tree
+     * Entry point for material-node graph binding
+     *
+     * @param material Selected material
+     */
+    public void onMaterialSelected(PBRMaterial material) {
+        if (material == null) {
+            DebugManager.warn(DebugCategory.LOOKDEV,
+                "[LookDevScreen] onMaterialSelected called with null material");
+            return;
+        }
+
+        DebugManager.info(DebugCategory.LOOKDEV,
+            "[LookDevScreen] Material selected: {}", material.getName());
+
+        // Update current material index
+        selectedMaterialIndex = materials.indexOf(material);
+
+        // Notify Node Editor to load material's node graph
+        NodeEditorFragment nodeEditor = getNodeEditorFragment();
+        if (nodeEditor != null) {
+            nodeEditor.loadMaterial(material);
+        }
+
+        // Update parameter panel
+        if (parameterPanelFragment != null) {
+            parameterPanelFragment.setMaterial(material);
+        }
+
+        // Update preview
+        PreviewFragment preview = getPreviewFragment();
+        if (preview != null) {
+            preview.setMaterial(material);
+        }
+    }
+
+    /**
+     * Get NodeEditorFragment instance
+     */
+    private NodeEditorFragment getNodeEditorFragment() {
+        if (tabbedCenterFragment != null) {
+            return tabbedCenterFragment.getNodeEditorFragment();
+        }
+        return null;
+    }
+
+    /**
      * Called when material parameters change
      */
     public void onMaterialParametersChanged() {
@@ -527,6 +575,45 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             previewFragment.refresh();
         } else {
             DebugManager.warn(DebugCategory.LOOKDEV, "previewFragment is null, cannot refresh");
+        }
+    }
+
+    /**
+     * Apply a node-generated material to the preview
+     * Called by NodeEditorFragment when "Generate Material" is clicked
+     */
+    public void applyNodeGeneratedMaterial(PBRMaterial material) {
+        try {
+            DebugManager.info(DebugCategory.LOOKDEV, "Applying node-generated material: {}", material.getName());
+
+            // Add to materials list (replace if already exists)
+            boolean found = false;
+            for (int i = 0; i < materials.size(); i++) {
+                if (materials.get(i).getName().equals(material.getName())) {
+                    materials.set(i, material);
+                    found = true;
+                    selectedMaterialIndex = i;
+                    break;
+                }
+            }
+
+            if (!found) {
+                materials.add(material);
+                selectedMaterialIndex = materials.size() - 1;
+            }
+
+            // Update preview and parameters
+            onMaterialSelected();
+
+            // Switch to preview tab to show the result
+            if (tabbedCenterFragment != null) {
+                tabbedCenterFragment.showPreview();
+                DebugManager.info(DebugCategory.LOOKDEV, "Switched to preview tab to show material");
+            }
+
+            DebugManager.info(DebugCategory.LOOKDEV, "Node-generated material applied successfully");
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV, "Failed to apply node-generated material", e);
         }
     }
 
