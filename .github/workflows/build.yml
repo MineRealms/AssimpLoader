@@ -1,10 +1,10 @@
-name: Build Forge Mod
+name: Build Minecraft Mod
 
 on:
   push:
-    branches: [ feature/spore-integration, main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ feature/spore-integration, main ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -22,25 +22,18 @@ jobs:
         distribution: 'temurin'
         cache: 'gradle'
 
-    - name: Validate Gradle Wrapper
-      uses: gradle/wrapper-validation-action@v2
-
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
-
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
     - name: Build with Gradle
-      run: ./gradlew build --no-daemon --stacktrace
+      run: ./gradlew build
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: improved-mobs-build
+        name: assimploader-build
         path: build/libs/*.jar
         if-no-files-found: error
-        retention-days: 30
 
     - name: Upload build reports on failure
       if: failure()
@@ -48,4 +41,3 @@ jobs:
       with:
         name: build-reports
         path: build/reports/
-        retention-days: 7
