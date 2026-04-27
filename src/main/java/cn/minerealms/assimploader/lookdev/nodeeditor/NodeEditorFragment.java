@@ -65,6 +65,9 @@ public class NodeEditorFragment extends Fragment {
     private boolean paletteVisible = true;
     private boolean propertiesVisible = true;
 
+    // Current material being edited
+    private PBRMaterial currentMaterial = null;
+
     // State preservation
     private Map<String, Boolean> savedCategoryStates = null;
 
@@ -708,6 +711,63 @@ public class NodeEditorFragment extends Fragment {
                 notificationManager.warning("No node selected");
             }
         }
+    }
+
+    /**
+     * Load a material into the node editor.
+     * Generates a default node graph if the material doesn't have one.
+     *
+     * @param material The PBR material to edit
+     */
+    public void setMaterial(PBRMaterial material) {
+        if (material == null) {
+            DebugManager.warn(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Cannot set null material");
+            return;
+        }
+
+        this.currentMaterial = material;
+        DebugManager.info(DebugCategory.LOOKDEV,
+            "[NodeEditorFragment] Loading material: {}", material.getName());
+
+        // Clear current canvas
+        if (canvas != null) {
+            canvas.clearNodes();
+            canvas.clearConnections();
+        }
+
+        // Generate default node graph from material
+        MaterialNodeGraphGenerator.NodeGraphData graphData =
+            MaterialNodeGraphGenerator.generateFromMaterial(material);
+
+        // Add nodes to canvas
+        for (Node node : graphData.nodes) {
+            if (canvas != null) {
+                canvas.addNode(node);
+            }
+        }
+
+        // Add connections to canvas
+        for (NodeConnection connection : graphData.connections) {
+            if (canvas != null) {
+                canvas.addConnection(connection);
+            }
+        }
+
+        // Update status
+        setStatus("Loaded material: " + material.getName() +
+            " (" + graphData.nodes.size() + " nodes)");
+
+        DebugManager.info(DebugCategory.LOOKDEV,
+            "[NodeEditorFragment] Material loaded with {} nodes and {} connections",
+            graphData.nodes.size(), graphData.connections.size());
+    }
+
+    /**
+     * Get the currently loaded material
+     */
+    public PBRMaterial getCurrentMaterial() {
+        return currentMaterial;
     }
 
     @Override

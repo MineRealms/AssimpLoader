@@ -88,23 +88,23 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
             ));
             DebugManager.debug(DebugCategory.LOOKDEV, "Root layout created successfully");
 
-            // Left panel: Model tree (20% width)
+            // Left panel: Model tree (15% width)
             DebugManager.debug(DebugCategory.LOOKDEV, "Creating left container for ModelTreeFragment...");
             icyllis.modernui.fragment.FragmentContainerView leftContainer =
                 new icyllis.modernui.fragment.FragmentContainerView(requireContext());
             LinearLayout.LayoutParams leftParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
-            leftParams.weight = 0.2f;
+            leftParams.weight = 0.15f;
             leftContainer.setLayoutParams(leftParams);
             leftContainer.setId(View.generateViewId());
             DebugManager.debug(DebugCategory.LOOKDEV, "Left container created with ID: " + leftContainer.getId());
             root.addView(leftContainer);
 
-            // Center panel: Tabbed view with Preview and Node Editor (60% width)
+            // Center panel: Tabbed view with Preview and Node Editor (65% width)
             DebugManager.debug(DebugCategory.LOOKDEV, "Creating center container for TabbedCenterFragment...");
             icyllis.modernui.fragment.FragmentContainerView centerContainer =
                 new icyllis.modernui.fragment.FragmentContainerView(requireContext());
             LinearLayout.LayoutParams centerParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT);
-            centerParams.weight = 0.6f;
+            centerParams.weight = 0.65f;
             centerContainer.setLayoutParams(centerParams);
             centerContainer.setId(View.generateViewId());
             DebugManager.debug(DebugCategory.LOOKDEV, "Center container created with ID: " + centerContainer.getId());
