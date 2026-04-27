@@ -5,7 +5,7 @@ import cn.minerealms.assimploader.lookdev.nodeeditor.NodeSocket;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.math.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.utility.*;
-import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.OutputNode;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.*;
 
 import java.util.*;
 
@@ -55,6 +55,16 @@ public class GLSLEmitter {
             return emitLerp((LerpNode) node, generator);
         } else if (node instanceof NormalMapNode) {
             return emitNormalMap((NormalMapNode) node, generator);
+        } else if (node instanceof TimeNode) {
+            return emitTime((TimeNode) node, generator);
+        } else if (node instanceof NoiseNode) {
+            return emitNoise((NoiseNode) node, generator);
+        } else if (node instanceof WorldPosNode) {
+            return emitWorldPos((WorldPosNode) node, generator);
+        } else if (node instanceof ViewDirNode) {
+            return emitViewDir((ViewDirNode) node, generator);
+        } else if (node instanceof LightDirNode) {
+            return emitLightDir((LightDirNode) node, generator);
         } else if (node instanceof OutputNode) {
             // Output node is handled separately
             return "";
@@ -180,6 +190,126 @@ public class GLSLEmitter {
     }
 
     /**
+     * Emit time node
+     */
+    private String emitTime(TimeNode node, ShaderCodeGenerator generator) {
+        StringBuilder sb = new StringBuilder();
+
+        String timeVar = generator.getNodeVariable(node, "Time");
+        String sinTimeVar = generator.getNodeVariable(node, "Sin Time");
+        String cosTimeVar = generator.getNodeVariable(node, "Cos Time");
+
+        // Declare uniform if not already declared
+        if (!declaredUniforms.contains("uTime")) {
+            declaredUniforms.add("uTime");
+        }
+
+        sb.append("// Time Node\n");
+        sb.append("float ").append(timeVar).append(" = uTime;\n");
+        sb.append("float ").append(sinTimeVar).append(" = sin(uTime);\n");
+        sb.append("float ").append(cosTimeVar).append(" = cos(uTime);\n");
+
+        return sb.toString();
+    }
+
+    /**
+     * Emit noise node
+     */
+    private String emitNoise(NoiseNode node, ShaderCodeGenerator generator) {
+        StringBuilder sb = new StringBuilder();
+
+        String posVar = getInputVariable(node, "Position", generator, "vec3(vTexCoord, 0.0)");
+        String scaleVar = getInputVariable(node, "Scale", generator, "1.0");
+        String valueVar = generator.getNodeVariable(node, "Value");
+        String colorVar = generator.getNodeVariable(node, "Color");
+
+        sb.append("// Noise Node (").append(node.getNoiseType().getDisplayName()).append(")\n");
+
+        // Generate noise function call based on type
+        String noiseFunc = switch (node.getNoiseType()) {
+            case PERLIN -> "perlinNoise";
+            case SIMPLEX -> "simplexNoise";
+            case WORLEY -> "worleyNoise";
+        };
+
+        sb.append("float ").append(valueVar).append(" = ").append(noiseFunc)
+          .append("(").append(posVar).append(" * ").append(scaleVar).append(");\n");
+        sb.append("vec3 ").append(colorVar).append(" = vec3(").append(valueVar).append(");\n");
+
+        return sb.toString();
+    }
+
+    /**
+     * Emit world position node
+     */
+    private String emitWorldPos(WorldPosNode node, ShaderCodeGenerator generator) {
+        StringBuilder sb = new StringBuilder();
+
+        String posVar = generator.getNodeVariable(node, "Position");
+        String xVar = generator.getNodeVariable(node, "X");
+        String yVar = generator.getNodeVariable(node, "Y");
+        String zVar = generator.getNodeVariable(node, "Z");
+
+        // Declare uniform if not already declared
+        if (!declaredUniforms.contains("uWorldPos")) {
+            declaredUniforms.add("uWorldPos");
+        }
+
+        sb.append("// World Position Node\n");
+        sb.append("vec3 ").append(posVar).append(" = vWorldPos;\n");
+        sb.append("float ").append(xVar).append(" = vWorldPos.x;\n");
+        sb.append("float ").append(yVar).append(" = vWorldPos.y;\n");
+        sb.append("float ").append(zVar).append(" = vWorldPos.z;\n");
+
+        return sb.toString();
+    }
+
+    /**
+     * Emit view direction node
+     */
+    private String emitViewDir(ViewDirNode node, ShaderCodeGenerator generator) {
+        StringBuilder sb = new StringBuilder();
+
+        String dirVar = generator.getNodeVariable(node, "Direction");
+        String xVar = generator.getNodeVariable(node, "X");
+        String yVar = generator.getNodeVariable(node, "Y");
+        String zVar = generator.getNodeVariable(node, "Z");
+
+        sb.append("// View Direction Node\n");
+        sb.append("vec3 ").append(dirVar).append(" = normalize(vViewDir);\n");
+        sb.append("float ").append(xVar).append(" = ").append(dirVar).append(".x;\n");
+        sb.append("float ").append(yVar).append(" = ").append(dirVar).append(".y;\n");
+        sb.append("float ").append(zVar).append(" = ").append(dirVar).append(".z;\n");
+
+        return sb.toString();
+    }
+
+    /**
+     * Emit light direction node
+     */
+    private String emitLightDir(LightDirNode node, ShaderCodeGenerator generator) {
+        StringBuilder sb = new StringBuilder();
+
+        String dirVar = generator.getNodeVariable(node, "Direction");
+        String xVar = generator.getNodeVariable(node, "X");
+        String yVar = generator.getNodeVariable(node, "Y");
+        String zVar = generator.getNodeVariable(node, "Z");
+
+        // Declare uniform if not already declared
+        if (!declaredUniforms.contains("uLightDir")) {
+            declaredUniforms.add("uLightDir");
+        }
+
+        sb.append("// Light Direction Node\n");
+        sb.append("vec3 ").append(dirVar).append(" = normalize(uLightDir);\n");
+        sb.append("float ").append(xVar).append(" = ").append(dirVar).append(".x;\n");
+        sb.append("float ").append(yVar).append(" = ").append(dirVar).append(".y;\n");
+        sb.append("float ").append(zVar).append(" = ").append(dirVar).append(".z;\n");
+
+        return sb.toString();
+    }
+
+    /**
      * Get input variable name or default value
      */
     private String getInputVariable(Node node, String inputName, ShaderCodeGenerator generator, String defaultValue) {
@@ -256,6 +386,17 @@ public class GLSLEmitter {
         sb.append("uniform mat4 uModelMatrix;\n");
         sb.append("uniform mat4 uViewMatrix;\n");
         sb.append("uniform mat4 uProjectionMatrix;\n");
+
+        // Shader-specific uniforms
+        if (declaredUniforms.contains("uTime")) {
+            sb.append("uniform float uTime;\n");
+        }
+        if (declaredUniforms.contains("uWorldPos")) {
+            sb.append("uniform vec3 uWorldPos;\n");
+        }
+        if (declaredUniforms.contains("uLightDir")) {
+            sb.append("uniform vec3 uLightDir;\n");
+        }
         sb.append("\n");
 
         // Texture uniforms

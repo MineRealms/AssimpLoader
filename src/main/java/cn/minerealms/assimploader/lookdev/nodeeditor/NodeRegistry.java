@@ -29,6 +29,7 @@ public class NodeRegistry {
         registerMathNodes();
         registerVectorNodes();
         registerTextureNodes();
+        registerShaderNodes();
         registerUtilityNodes();
         registerOutputNode();
         DebugManager.debug(DebugCategory.LOOKDEV, "[NodeRegistry] Registered {} node types", registry.size());
@@ -154,6 +155,47 @@ public class NodeRegistry {
                 .addInput("Rotation", EnhancedSocketType.VEC3)
                 .addInput("Scale", EnhancedSocketType.VEC3)
                 .addOutput("Vector", EnhancedSocketType.VEC3)
+                .build());
+    }
+
+    private static void registerShaderNodes() {
+        // Time Node
+        registry.put(NodeType.TIME, new NodeMetadata.Builder(NodeType.TIME)
+                .addOutput("Time", EnhancedSocketType.FLOAT)
+                .addOutput("Sin Time", EnhancedSocketType.FLOAT)
+                .addOutput("Cos Time", EnhancedSocketType.FLOAT)
+                .build());
+
+        // Noise Node
+        registry.put(NodeType.NOISE, new NodeMetadata.Builder(NodeType.NOISE)
+                .addInput("Position", EnhancedSocketType.VEC3)
+                .addInput("Scale", EnhancedSocketType.FLOAT)
+                .addOutput("Value", EnhancedSocketType.FLOAT)
+                .addOutput("Color", EnhancedSocketType.VEC3)
+                .build());
+
+        // World Position Node
+        registry.put(NodeType.WORLD_POS, new NodeMetadata.Builder(NodeType.WORLD_POS)
+                .addOutput("Position", EnhancedSocketType.VEC3)
+                .addOutput("X", EnhancedSocketType.FLOAT)
+                .addOutput("Y", EnhancedSocketType.FLOAT)
+                .addOutput("Z", EnhancedSocketType.FLOAT)
+                .build());
+
+        // View Direction Node
+        registry.put(NodeType.VIEW_DIR, new NodeMetadata.Builder(NodeType.VIEW_DIR)
+                .addOutput("Direction", EnhancedSocketType.VEC3)
+                .addOutput("X", EnhancedSocketType.FLOAT)
+                .addOutput("Y", EnhancedSocketType.FLOAT)
+                .addOutput("Z", EnhancedSocketType.FLOAT)
+                .build());
+
+        // Light Direction Node
+        registry.put(NodeType.LIGHT_DIR, new NodeMetadata.Builder(NodeType.LIGHT_DIR)
+                .addOutput("Direction", EnhancedSocketType.VEC3)
+                .addOutput("X", EnhancedSocketType.FLOAT)
+                .addOutput("Y", EnhancedSocketType.FLOAT)
+                .addOutput("Z", EnhancedSocketType.FLOAT)
                 .build());
     }
 
