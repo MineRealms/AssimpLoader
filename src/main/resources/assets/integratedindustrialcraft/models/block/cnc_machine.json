@@ -1,9 +1,0 @@
-{
-  "loader": "assimploader:assimp",
-  "model": "integratedindustrialcraft:models/block/cnc.fbx",
-  "transform": {
-    "scale": [3.0, 3.0, 3.0],
-    "translation": [0.0, 0.0, 0.0],
-    "rotation": [0.0, 0.0, 0.0]
-  }
-}

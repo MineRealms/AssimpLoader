@@ -1,6 +1,0 @@
-{
-  "parent": "integratedindustrialcraft:block/gecko_block",
-  "textures": {
-    "particle": "integratedindustrialcraft:block/elite_laser_turret"
-  }
-}

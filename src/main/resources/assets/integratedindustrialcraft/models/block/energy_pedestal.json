@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:block/cube_all",
-  "textures": {
-    "all": "integratedindustrialcraft:block/energy_pedestal",
-    "particle": "integratedindustrialcraft:block/energy_pedestal"
-  }
-}
