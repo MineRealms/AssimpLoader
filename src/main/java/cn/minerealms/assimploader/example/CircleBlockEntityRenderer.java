@@ -5,6 +5,7 @@ import cn.minerealms.assimploader.animation.BoneHierarchyBuilder;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.rendering.SkinnedMeshRenderer;
+import cn.minerealms.assimploader.rendering.SimpleMeshRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -32,22 +33,19 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
 
         AnimationState animationState = blockEntity.getAnimationState();
         if (animationState == null || !animationState.isInitialized()) {
+            cn.minerealms.assimploader.debug.DebugManager.warn(
+                cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
+                "CircleBlockEntityRenderer: AnimationState is null or not initialized"
+            );
             return;
-        }
-
-        // Initialize skinned renderer if needed
-        if (!skinnedRendererInitialized) {
-            skinnedRenderer = new SkinnedMeshRenderer();
-            try {
-                skinnedRenderer.initialize();
-                skinnedRendererInitialized = true;
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to initialize skinned mesh renderer", e);
-            }
         }
 
         AssimpScene scene = animationState.getScene();
         if (scene == null) {
+            cn.minerealms.assimploader.debug.DebugManager.warn(
+                cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
+                "CircleBlockEntityRenderer: Scene is null"
+            );
             return;
         }
 
@@ -56,15 +54,34 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
         // Center the model in the block
         poseStack.translate(0.5, 0.0, 0.5);
 
-        // Scale if needed (adjust based on your model size)
-        // poseStack.scale(0.5f, 0.5f, 0.5f);
-
         // Calculate light level (0.0 - 1.0)
         float lightLevel = (packedLight & 0xFFFF) / 240.0f;
 
-        // Render each skinned mesh
+        int renderedMeshes = 0;
+        int skinnedMeshes = 0;
+        int bakedMeshes = 0;
+
+        // Render each mesh
         for (AssimpMesh mesh : scene.getMeshes()) {
             if (mesh.hasBones()) {
+                // Skeletal animation path
+                skinnedMeshes++;
+
+                // Initialize skinned renderer if needed
+                if (!skinnedRendererInitialized) {
+                    skinnedRenderer = new SkinnedMeshRenderer();
+                    try {
+                        skinnedRenderer.initialize();
+                        skinnedRendererInitialized = true;
+                        cn.minerealms.assimploader.debug.DebugManager.info(
+                            cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
+                            "CircleBlockEntityRenderer: SkinnedMeshRenderer initialized"
+                        );
+                    } catch (IOException e) {
+                        throw new RuntimeException("Failed to initialize skinned mesh renderer", e);
+                    }
+                }
+
                 BoneHierarchyBuilder boneHierarchy = animationState.getBoneHierarchy(mesh);
                 if (boneHierarchy != null) {
                     // Get matrices
@@ -80,8 +97,61 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
                     // Render skinned mesh
                     skinnedRenderer.render(mesh, boneHierarchy, mvp, mv, texture,
                             Minecraft.getInstance().getTextureManager(), lightLevel);
+                    renderedMeshes++;
+                } else {
+                    cn.minerealms.assimploader.debug.DebugManager.warn(
+                        cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
+                        "CircleBlockEntityRenderer: BoneHierarchy is null for mesh"
+                    );
                 }
+            } else {
+                // Baked/vertex animation path - render using Minecraft's buffer system
+                bakedMeshes++;
+
+                // Get texture (use embedded texture if available, or default white)
+                ResourceLocation texture = new ResourceLocation("minecraft", "textures/block/white_concrete.png");
+                if (scene.hasEmbeddedTextures()) {
+                    texture = new ResourceLocation("assimploader", "embedded/circle_0");
+                    cn.minerealms.assimploader.debug.DebugManager.info(
+                        cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
+                        "CircleBlockEntityRenderer: Using embedded texture: {}", texture
+                    );
+                } else {
+                    cn.minerealms.assimploader.debug.DebugManager.info(
+                        cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
+                        "CircleBlockEntityRenderer: No embedded texture, using default: {}", texture
+                    );
+                }
+
+                // Get node transforms from animation player (for node animations)
+                java.util.Map<String, org.joml.Matrix4f> nodeTransforms = null;
+                if (animationState.getCurrentAnimation() != null) {
+                    nodeTransforms = animationState.getCurrentAnimation().getBoneTransforms();
+                    cn.minerealms.assimploader.debug.DebugManager.info(
+                        cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
+                        "CircleBlockEntityRenderer: Got {} node transforms from animation",
+                        nodeTransforms.size()
+                    );
+                }
+
+                // Render using SimpleMeshRenderer with scene and node transforms
+                SimpleMeshRenderer.render(mesh, poseStack, bufferSource, texture, packedLight, packedOverlay, scene, nodeTransforms);
+                renderedMeshes++;
+
+                cn.minerealms.assimploader.debug.DebugManager.debug(
+                    cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
+                    "CircleBlockEntityRenderer: Rendered baked animation mesh '{}'",
+                    mesh.getName()
+                );
             }
+        }
+
+        if (renderedMeshes == 0) {
+            cn.minerealms.assimploader.debug.DebugManager.warn(
+                cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
+                "CircleBlockEntityRenderer: No meshes rendered (total: {}, skinned: {}, baked: {})",
+                scene.getMeshes().size(), skinnedMeshes, bakedMeshes
+            );
         }
 
         poseStack.popPose();

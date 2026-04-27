@@ -71,7 +71,10 @@ public class SkinnedMeshRenderer {
         }
 
         // Get or create VBO
-        SkinnedMeshVBO vbo = vboCache.computeIfAbsent(mesh, this::createVBO);
+        SkinnedMeshVBO vbo = vboCache.computeIfAbsent(mesh, m -> {
+            DebugManager.info(DebugCategory.RENDER, "Creating VBO for mesh: {}", m.getName());
+            return createVBO(m);
+        });
 
         // Bind shader
         shader.bind();
@@ -82,6 +85,9 @@ public class SkinnedMeshRenderer {
 
         // Set bone matrices
         float[] boneMatrices = boneHierarchy.getFinalTransformsFlat();
+        int boneCount = boneMatrices.length / 16;
+        DebugManager.info(DebugCategory.RENDER, "Rendering skinned mesh '{}' with {} bones",
+            mesh.getName(), boneCount);
         shader.setBoneMatrices(boneMatrices);
 
         // Bind texture

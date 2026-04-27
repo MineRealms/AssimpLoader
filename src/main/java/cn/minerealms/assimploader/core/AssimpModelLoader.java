@@ -240,7 +240,11 @@ public class AssimpModelLoader {
      * @return AssimpScene containing all model data
      */
     public AssimpScene loadModelFromMemory(String resourcePath, byte[] data) {
-        DebugManager.info(DebugCategory.CORE, "Loading model from memory: {}, size: {} bytes", resourcePath, data.length);
+        return loadModelFromMemory(resourcePath, data, ModelImportMode.STATIC);
+    }
+
+    public AssimpScene loadModelFromMemory(String resourcePath, byte[] data, ModelImportMode mode) {
+        DebugManager.info(DebugCategory.CORE, "Loading model from memory: {}, size: {} bytes, mode: {}", resourcePath, data.length, mode);
 
         // Validate input
         if (data == null || data.length == 0) {
@@ -257,6 +261,9 @@ public class AssimpModelLoader {
             return null;
         }
 
+        // Select flags based on mode
+        int flags = mode == ModelImportMode.STATIC ? STATIC_MODE_FLAGS : DYNAMIC_MODE_FLAGS;
+
         AIScene aiScene = null;
         try {
             // Test if Assimp is available before attempting import
@@ -272,7 +279,7 @@ public class AssimpModelLoader {
             }
 
             DebugManager.info(DebugCategory.CORE, "Calling aiImportFileFromMemory with flags: {} (0x{}) for extension: {}",
-                    DEFAULT_FLAGS, Integer.toHexString(DEFAULT_FLAGS), extension);
+                    flags, Integer.toHexString(flags), extension);
 
             // IMPORTANT: Use direct ByteBuffer for native code
             // Wrapped arrays may cause issues with JNI
@@ -282,12 +289,12 @@ public class AssimpModelLoader {
             DebugManager.info(DebugCategory.CORE, "Direct ByteBuffer created: capacity={}, position={}, limit={}, isDirect={}",
                     buffer.capacity(), buffer.position(), buffer.limit(), buffer.isDirect());
 
-            // Try to import with reduced flags first (safer)
-            aiScene = aiImportFileFromMemory(buffer, DEFAULT_FLAGS, extension);
+            // Try to import with selected flags
+            aiScene = aiImportFileFromMemory(buffer, flags, extension);
 
             if (aiScene == null) {
                 String error = aiGetErrorString();
-                DebugManager.error(DebugCategory.CORE, "Assimp import failed with reduced flags: {}", error);
+                DebugManager.error(DebugCategory.CORE, "Assimp import failed with {} mode flags: {}", mode, error);
                 DebugManager.info(DebugCategory.CORE, "Trying with minimal flags (triangulate only)...");
 
                 // Try with absolute minimal flags
@@ -322,11 +329,6 @@ public class AssimpModelLoader {
         String fileExtension = getFileExtension(resourcePath);
         CoordinateSystemConverter.CoordinateSystem sourceSystem =
                 CoordinateSystemConverter.detectCoordinateSystem(fileExtension);
-
-        // Infer mode from flags used
-        ModelImportMode mode = (DEFAULT_FLAGS & aiProcess_PreTransformVertices) != 0
-            ? ModelImportMode.STATIC
-            : ModelImportMode.DYNAMIC;
 
         return new AssimpScene(aiScene, null, sourceSystem, mode);
     }
@@ -400,9 +402,15 @@ public class AssimpModelLoader {
      * @param scene Loaded scene
      */
     public static void updateModelCache(String modelName, AssimpScene scene) {
+        // Include mode in cache key to prevent STATIC/DYNAMIC conflicts
+        String cacheKey = modelName + ":" + scene.getImportMode().name();
+        modelCache.put(cacheKey, scene);
+
+        // Also cache with simple name for backward compatibility (will be overwritten if mode differs)
         modelCache.put(modelName, scene);
-        DebugManager.info(DebugCategory.CORE, "Updated model cache: {}, scene object: {}, has textures: {}, texture count: {}",
-            modelName, System.identityHashCode(scene), scene.hasEmbeddedTextures(), scene.getTextureCount());
+
+        DebugManager.info(DebugCategory.CORE, "Updated model cache: {} (key: {}), mode: {}, scene object: {}, has textures: {}, texture count: {}",
+            modelName, cacheKey, scene.getImportMode(), System.identityHashCode(scene), scene.hasEmbeddedTextures(), scene.getTextureCount());
     }
 
     /**
@@ -417,8 +425,41 @@ public class AssimpModelLoader {
             return hotReloadScene;
         }
 
-        // PRIORITY 2: Check resource pack cache
+        // PRIORITY 2: Check resource pack cache (try simple name first for backward compatibility)
         return modelCache.get(modelName);
+    }
+
+    /**
+     * Get cached model with specific mode
+     * @param modelName Model name (without extension)
+     * @param mode Import mode (STATIC or DYNAMIC)
+     * @return Cached scene or null
+     */
+    public static AssimpScene getCachedModel(String modelName, ModelImportMode mode) {
+        // PRIORITY 1: Check hot-reload cache (external models)
+        AssimpScene hotReloadScene = cn.minerealms.assimploader.hotreload.ModelHotReloadManager.getModel(modelName);
+        if (hotReloadScene != null && hotReloadScene.getImportMode() == mode) {
+            return hotReloadScene;
+        }
+
+        // PRIORITY 2: Check resource pack cache with mode-specific key
+        String cacheKey = modelName + ":" + mode.name();
+        AssimpScene scene = modelCache.get(cacheKey);
+
+        if (scene != null) {
+            DebugManager.info(DebugCategory.CORE, "Cache hit for {} with mode {}", modelName, mode);
+            return scene;
+        }
+
+        // PRIORITY 3: Try simple name (backward compatibility)
+        scene = modelCache.get(modelName);
+        if (scene != null && scene.getImportMode() == mode) {
+            DebugManager.info(DebugCategory.CORE, "Cache hit for {} (simple key) with mode {}", modelName, mode);
+            return scene;
+        }
+
+        DebugManager.info(DebugCategory.CORE, "Cache miss for {} with mode {}", modelName, mode);
+        return null;
     }
 
     /**

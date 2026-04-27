@@ -31,6 +31,7 @@ public class AssimpScene {
     private final AssimpNode rootNode;
     private final CoordinateSystemConverter.CoordinateSystem sourceCoordinateSystem;
     private final ModelImportMode importMode;
+    private final java.util.Map<Integer, String> meshIndexToNodeName;
 
     private boolean released = false;
 
@@ -92,6 +93,13 @@ public class AssimpScene {
         // Parse scene graph
         AINode aiRootNode = aiScene.mRootNode();
         this.rootNode = aiRootNode != null ? new AssimpNode(aiRootNode) : null;
+
+        // Build mesh index to node name mapping
+        this.meshIndexToNodeName = new java.util.HashMap<>();
+        if (this.rootNode != null) {
+            buildMeshToNodeMapping(this.rootNode);
+            DebugManager.debug(DebugCategory.CORE, "Built mesh-to-node mapping: {}", meshIndexToNodeName);
+        }
 
         DebugManager.debug(DebugCategory.CORE, "AssimpScene created: {} meshes, {} materials, {} animations, {} textures, coordinate system: {}",
                 meshes.size(), materials.size(), animations.size(), textures.size(), coordinateSystem);
@@ -196,6 +204,32 @@ public class AssimpScene {
             }
         }
         return null;
+    }
+
+    /**
+     * Build mapping from mesh index to node name by traversing scene graph.
+     */
+    private void buildMeshToNodeMapping(AssimpNode node) {
+        // Register all meshes in this node
+        for (int meshIndex : node.getMeshIndices()) {
+            meshIndexToNodeName.put(meshIndex, node.getName());
+        }
+
+        // Recursively process children
+        for (AssimpNode child : node.getChildren()) {
+            buildMeshToNodeMapping(child);
+        }
+    }
+
+    /**
+     * Get the node name that contains the given mesh.
+     *
+     * @param mesh The mesh to find the node for
+     * @return The node name, or null if not found
+     */
+    @Nullable
+    public String getNodeNameForMesh(AssimpMesh mesh) {
+        return meshIndexToNodeName.get(mesh.getIndex());
     }
 
     /**

@@ -1,0 +1,5 @@
+{
+  "loader": "assimploader:assimp",
+  "model": "assimploader:models/block/circle.fbx",
+  "mode": "dynamic"
+}

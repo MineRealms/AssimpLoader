@@ -33,12 +33,16 @@ public class AnimationState {
 
     public AnimationState(String modelName) {
         this.modelName = modelName;
-        this.scene = AssimpModelLoader.getCachedModel(modelName);
+        // IMPORTANT: Always use DYNAMIC mode for animation - STATIC mode removes bones!
+        this.scene = AssimpModelLoader.getCachedModel(modelName, cn.minerealms.assimploader.core.ModelImportMode.DYNAMIC);
         this.animationPlayers = new HashMap<>();
         this.boneHierarchies = new HashMap<>();
 
         if (scene == null) {
-            DebugManager.error(DebugCategory.ANIMATION, "Failed to create AnimationState: model {} not found", modelName);
+            DebugManager.error(DebugCategory.ANIMATION, "Failed to create AnimationState: model {} not found in DYNAMIC mode", modelName);
+        } else {
+            DebugManager.info(DebugCategory.ANIMATION, "AnimationState created for model '{}': mode={}, meshes={}, animations={}",
+                modelName, scene.getImportMode(), scene.getMeshes().size(), scene.getAnimations().size());
         }
     }
 
@@ -70,8 +74,14 @@ public class AnimationState {
             player.setLooping(true);
             animationPlayers.put(animation.getName(), player);
 
-            DebugManager.debug(DebugCategory.ANIMATION, "Created animation player: {} (duration: {}s)",
-                    animation.getName(), animation.getDuration());
+            // Debug: Check animation channel types
+            var aiAnim = animation.getNativeAnimation();
+            int numChannels = aiAnim.mChannels() != null ? aiAnim.mChannels().limit() : 0;
+            int numMeshChannels = aiAnim.mMeshChannels() != null ? aiAnim.mMeshChannels().limit() : 0;
+            int numMorphMeshChannels = aiAnim.mMorphMeshChannels() != null ? aiAnim.mMorphMeshChannels().limit() : 0;
+
+            DebugManager.info(DebugCategory.ANIMATION, "Animation '{}': duration={}s, channels={}, meshChannels={}, morphChannels={}",
+                    animation.getName(), animation.getDuration(), numChannels, numMeshChannels, numMorphMeshChannels);
         }
 
         // Set default animation if available
@@ -97,6 +107,15 @@ public class AnimationState {
         // Update current animation
         currentAnimation.update(deltaTime);
 
+        // Log animation time occasionally (every 60 frames = ~3 seconds at 20 TPS)
+        if (updateCounter++ % 60 == 0) {
+            DebugManager.info(DebugCategory.ANIMATION,
+                "AnimationState update: animation='{}', time={}s, meshes with bones={}",
+                currentAnimation.getAnimation().getName(),
+                currentAnimation.getCurrentTime(),
+                boneHierarchies.size());
+        }
+
         // Update bone hierarchies with new transforms
         for (Map.Entry<AssimpMesh, BoneHierarchyBuilder> entry : boneHierarchies.entrySet()) {
             BoneHierarchyBuilder boneHierarchy = entry.getValue();
@@ -111,6 +130,8 @@ public class AnimationState {
             boneHierarchy.updateTransforms();
         }
     }
+
+    private int updateCounter = 0;
 
     /**
      * Play a specific animation by name
