@@ -9,7 +9,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-@Mod.EventBusSubscriber(modid = "integratedindustrialcraft", value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = "assimploader", value = Dist.CLIENT)
 public class AutoTestClient {
 
     private enum State {
