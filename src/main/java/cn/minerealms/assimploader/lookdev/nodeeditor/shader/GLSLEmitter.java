@@ -55,6 +55,8 @@ public class GLSLEmitter {
             return emitLerp((LerpNode) node, generator);
         } else if (node instanceof NormalMapNode) {
             return emitNormalMap((NormalMapNode) node, generator);
+        } else if (node instanceof MathFunctionNode) {
+            return emitMathFunction((MathFunctionNode) node, generator);
         } else if (node instanceof TimeNode) {
             return emitTime((TimeNode) node, generator);
         } else if (node instanceof NoiseNode) {
@@ -425,6 +427,151 @@ public class GLSLEmitter {
             } else {
                 sb.append("\n");
             }
+        }
+
+        return sb.toString();
+    }
+
+    /**
+     * Emit math function node
+     */
+    private String emitMathFunction(MathFunctionNode node, ShaderCodeGenerator generator) {
+        StringBuilder sb = new StringBuilder();
+        String resultVar = generator.getNodeVariable(node);
+        MathFunctionNode.Function function = node.getFunction();
+
+        sb.append("// Math Function: ").append(function.getDisplayName()).append("\n");
+
+        switch (function) {
+            // Trigonometric
+            case SIN:
+                String sinInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = sin(").append(sinInput).append(");\n");
+                break;
+
+            case COS:
+                String cosInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = cos(").append(cosInput).append(");\n");
+                break;
+
+            case TAN:
+                String tanInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = tan(").append(tanInput).append(");\n");
+                break;
+
+            case ASIN:
+                String asinInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = asin(").append(asinInput).append(");\n");
+                break;
+
+            case ACOS:
+                String acosInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = acos(").append(acosInput).append(");\n");
+                break;
+
+            case ATAN:
+                String atanInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = atan(").append(atanInput).append(");\n");
+                break;
+
+            // Exponential & Logarithmic
+            case SQRT:
+                String sqrtInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = sqrt(").append(sqrtInput).append(");\n");
+                break;
+
+            case EXP:
+                String expInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = exp(").append(expInput).append(");\n");
+                break;
+
+            case LOG:
+                String logInput = getInputVariable(node, "Value", generator, "1.0");
+                sb.append("float ").append(resultVar).append(" = log(").append(logInput).append(");\n");
+                break;
+
+            case POW:
+                String powA = getInputVariable(node, "Value", generator, "1.0");
+                String powB = getInputVariable(node, "B", generator, "1.0");
+                sb.append("float ").append(resultVar).append(" = pow(").append(powA).append(", ").append(powB).append(");\n");
+                break;
+
+            // Rounding
+            case ABS:
+                String absInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = abs(").append(absInput).append(");\n");
+                break;
+
+            case SIGN:
+                String signInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = sign(").append(signInput).append(");\n");
+                break;
+
+            case FLOOR:
+                String floorInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = floor(").append(floorInput).append(");\n");
+                break;
+
+            case CEIL:
+                String ceilInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = ceil(").append(ceilInput).append(");\n");
+                break;
+
+            case ROUND:
+                String roundInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = round(").append(roundInput).append(");\n");
+                break;
+
+            case FRACT:
+                String fractInput = getInputVariable(node, "Value", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = fract(").append(fractInput).append(");\n");
+                break;
+
+            // Comparison
+            case MIN:
+                String minA = getInputVariable(node, "Value", generator, "0.0");
+                String minB = getInputVariable(node, "B", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = min(").append(minA).append(", ").append(minB).append(");\n");
+                break;
+
+            case MAX:
+                String maxA = getInputVariable(node, "Value", generator, "0.0");
+                String maxB = getInputVariable(node, "B", generator, "0.0");
+                sb.append("float ").append(resultVar).append(" = max(").append(maxA).append(", ").append(maxB).append(");\n");
+                break;
+
+            case CLAMP:
+                String clampValue = getInputVariable(node, "Value", generator, "0.0");
+                String clampMin = getInputVariable(node, "Min", generator, "0.0");
+                String clampMax = getInputVariable(node, "Max", generator, "1.0");
+                sb.append("float ").append(resultVar).append(" = clamp(").append(clampValue).append(", ").append(clampMin).append(", ").append(clampMax).append(");\n");
+                break;
+
+            // Interpolation
+            case LERP:
+                String lerpA = getInputVariable(node, "Value", generator, "0.0");
+                String lerpB = getInputVariable(node, "B", generator, "1.0");
+                String lerpT = getInputVariable(node, "Max", generator, "0.5");
+                sb.append("float ").append(resultVar).append(" = mix(").append(lerpA).append(", ").append(lerpB).append(", ").append(lerpT).append(");\n");
+                break;
+
+            case SMOOTHSTEP:
+                String smoothEdge0 = getInputVariable(node, "Min", generator, "0.0");
+                String smoothEdge1 = getInputVariable(node, "Max", generator, "1.0");
+                String smoothX = getInputVariable(node, "Value", generator, "0.5");
+                sb.append("float ").append(resultVar).append(" = smoothstep(").append(smoothEdge0).append(", ").append(smoothEdge1).append(", ").append(smoothX).append(");\n");
+                break;
+
+            // Modulo
+            case MOD:
+                String modA = getInputVariable(node, "Value", generator, "1.0");
+                String modB = getInputVariable(node, "B", generator, "1.0");
+                sb.append("float ").append(resultVar).append(" = mod(").append(modA).append(", ").append(modB).append(");\n");
+                break;
+
+            default:
+                sb.append("float ").append(resultVar).append(" = 0.0; // Unsupported function: ").append(function).append("\n");
+                break;
         }
 
         return sb.toString();

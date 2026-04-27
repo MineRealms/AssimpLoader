@@ -30,17 +30,39 @@ import icyllis.modernui.graphics.Paint;
 public class MathFunctionNode extends Node {
 
     public enum Function {
+        // Trigonometric
         SIN("Sin"),
         COS("Cos"),
         TAN("Tan"),
+        ASIN("Asin"),
+        ACOS("Acos"),
+        ATAN("Atan"),
+
+        // Exponential & Logarithmic
         SQRT("Sqrt"),
+        EXP("Exp"),
+        LOG("Log"),
+        POW("Pow"),
+
+        // Rounding
         ABS("Abs"),
+        SIGN("Sign"),
         FLOOR("Floor"),
         CEIL("Ceil"),
         ROUND("Round"),
-        EXP("Exp"),
-        LOG("Log"),
-        POW("Pow");
+        FRACT("Fract"),
+
+        // Comparison
+        MIN("Min"),
+        MAX("Max"),
+        CLAMP("Clamp"),
+
+        // Interpolation
+        LERP("Lerp"),
+        SMOOTHSTEP("Smoothstep"),
+
+        // Modulo
+        MOD("Mod");
 
         private final String displayName;
 
@@ -59,7 +81,9 @@ public class MathFunctionNode extends Node {
         super("Math Function");
 
         addInput(new EnhancedNodeSocket("Value", EnhancedSocketType.FLOAT, 0.0f));
-        addInput(new EnhancedNodeSocket("Exponent", EnhancedSocketType.FLOAT, 2.0f)); // For POW
+        addInput(new EnhancedNodeSocket("B", EnhancedSocketType.FLOAT, 2.0f)); // For POW, MIN, MAX, MOD
+        addInput(new EnhancedNodeSocket("Min", EnhancedSocketType.FLOAT, 0.0f)); // For CLAMP, SMOOTHSTEP (Edge0)
+        addInput(new EnhancedNodeSocket("Max", EnhancedSocketType.FLOAT, 1.0f)); // For CLAMP, SMOOTHSTEP (Edge1), LERP (T)
         addOutput(new EnhancedNodeSocket("Result", EnhancedSocketType.FLOAT));
 
         this.width = 160.0f;
@@ -93,10 +117,13 @@ public class MathFunctionNode extends Node {
     @Override
     protected void computeOutputs(NodeEvaluationContext context) {
         float value = ((Number) inputs.get(0).getValue()).floatValue();
-        float exponent = ((Number) inputs.get(1).getValue()).floatValue();
+        float b = ((Number) inputs.get(1).getValue()).floatValue();
+        float min = ((Number) inputs.get(2).getValue()).floatValue();
+        float max = ((Number) inputs.get(3).getValue()).floatValue();
         float result;
 
         switch (function) {
+            // Trigonometric
             case SIN:
                 result = (float) Math.sin(value);
                 break;
@@ -106,11 +133,36 @@ public class MathFunctionNode extends Node {
             case TAN:
                 result = (float) Math.tan(value);
                 break;
+            case ASIN:
+                result = (float) Math.asin(Math.max(-1, Math.min(1, value)));
+                break;
+            case ACOS:
+                result = (float) Math.acos(Math.max(-1, Math.min(1, value)));
+                break;
+            case ATAN:
+                result = (float) Math.atan(value);
+                break;
+
+            // Exponential & Logarithmic
             case SQRT:
                 result = (float) Math.sqrt(Math.max(0, value));
                 break;
+            case EXP:
+                result = (float) Math.exp(value);
+                break;
+            case LOG:
+                result = value > 0 ? (float) Math.log(value) : 0.0f;
+                break;
+            case POW:
+                result = (float) Math.pow(value, b);
+                break;
+
+            // Rounding
             case ABS:
                 result = Math.abs(value);
+                break;
+            case SIGN:
+                result = Math.signum(value);
                 break;
             case FLOOR:
                 result = (float) Math.floor(value);
@@ -121,15 +173,39 @@ public class MathFunctionNode extends Node {
             case ROUND:
                 result = Math.round(value);
                 break;
-            case EXP:
-                result = (float) Math.exp(value);
+            case FRACT:
+                result = value - (float) Math.floor(value);
                 break;
-            case LOG:
-                result = value > 0 ? (float) Math.log(value) : 0.0f;
+
+            // Comparison
+            case MIN:
+                result = Math.min(value, b);
                 break;
-            case POW:
-                result = (float) Math.pow(value, exponent);
+            case MAX:
+                result = Math.max(value, b);
                 break;
+            case CLAMP:
+                result = Math.max(min, Math.min(max, value));
+                break;
+
+            // Interpolation
+            case LERP:
+                // LERP(A, B, T) = A + (B - A) * T
+                // value = A, b = B, max = T
+                result = value + (b - value) * max;
+                break;
+            case SMOOTHSTEP:
+                // SMOOTHSTEP(Edge0, Edge1, X) - Hermite interpolation
+                // min = Edge0, max = Edge1, value = X
+                float t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+                result = t * t * (3 - 2 * t);
+                break;
+
+            // Modulo
+            case MOD:
+                result = value % b;
+                break;
+
             default:
                 result = value;
         }
