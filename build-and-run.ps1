@@ -3,7 +3,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$PROJECT_DIR = "H:\MinecraftMods\ImprovedMobs"
+$PROJECT_DIR = "H:\MinecraftMods\AssimpLoader"
 $MOD_JAR = "assimploader-1.0.0-all.jar"
 $TARGET_DIR = "G:\MinecraftGames\CTNH-BaopuEdition\.minecraft\versions\Create New Horizon\mods"
 $TARGET_JAR = "assimploader-1.0.0-all.jar"
