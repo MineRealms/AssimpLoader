@@ -32,6 +32,7 @@ public class NodePropertiesPanel extends LinearLayout {
     private Node selectedNode;
     private TextView titleLabel;
     private LinearLayout propertiesContainer;
+    private NodePreviewPanel previewPanel;
 
     public NodePropertiesPanel(Context context) {
         super(context);
@@ -43,6 +44,12 @@ public class NodePropertiesPanel extends LinearLayout {
     }
 
     private void initializeUI() {
+        // Preview panel at top
+        previewPanel = new NodePreviewPanel(getContext());
+        LayoutParams previewParams = new LayoutParams(LayoutParams.MATCH_PARENT, dp(200));
+        previewParams.setMargins(0, 0, 0, 10);
+        addView(previewPanel, previewParams);
+
         // Title section
         titleLabel = new TextView(getContext());
         titleLabel.setText("Properties");
@@ -82,6 +89,9 @@ public class NodePropertiesPanel extends LinearLayout {
 
         selectedNode = node;
         clearProperties();
+
+        // Update preview panel
+        previewPanel.setPreviewNode(node);
 
         if (node == null) {
             showNoSelection();
