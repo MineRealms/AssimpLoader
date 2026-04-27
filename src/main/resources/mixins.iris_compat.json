@@ -1,0 +1,12 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "cn.minerealms.assimploader.mixin.iris",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "assimploader.refmap.json",
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

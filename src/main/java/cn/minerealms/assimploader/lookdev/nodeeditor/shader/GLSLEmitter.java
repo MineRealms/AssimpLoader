@@ -5,7 +5,7 @@ import cn.minerealms.assimploader.lookdev.nodeeditor.NodeSocket;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.math.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.utility.*;
-import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.output.*;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.OutputNode;
 
 import java.util.*;
 
@@ -55,7 +55,7 @@ public class GLSLEmitter {
             return emitLerp((LerpNode) node, generator);
         } else if (node instanceof NormalMapNode) {
             return emitNormalMap((NormalMapNode) node, generator);
-        } else if (node instanceof MaterialOutputNode) {
+        } else if (node instanceof OutputNode) {
             // Output node is handled separately
             return "";
         }

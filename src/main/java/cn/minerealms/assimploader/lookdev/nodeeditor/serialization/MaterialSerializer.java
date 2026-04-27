@@ -5,7 +5,7 @@ import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.nodeeditor.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.math.*;
-import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.output.*;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.utility.*;
 import com.google.gson.*;
 
@@ -118,9 +118,9 @@ public class MaterialSerializer {
             params.addProperty("b", n.getB());
             params.addProperty("a", n.getA());
 
-        } else if (node instanceof MaterialOutputNode) {
-            MaterialOutputNode n = (MaterialOutputNode) node;
-            params.addProperty("blendMode", n.getBlendMode().name());
+        } else if (node instanceof OutputNode) {
+            OutputNode n = (OutputNode) node;
+            params.addProperty("outputType", n.getOutputType().name());
         }
 
         // Other node types have no parameters
@@ -167,7 +167,7 @@ public class MaterialSerializer {
         if (node instanceof AddNode) return "ADD";
         if (node instanceof LerpNode) return "LERP";
         if (node instanceof NormalMapNode) return "NORMAL_MAP";
-        if (node instanceof MaterialOutputNode) return "MATERIAL_OUTPUT";
+        if (node instanceof OutputNode) return "MATERIAL_OUTPUT";
         return "UNKNOWN";
     }
 
