@@ -5,7 +5,8 @@
 **系统状态**: 🎉 **生产就绪 (Production Ready)**  
 **编译状态**: ✅ BUILD SUCCESSFUL  
 **功能完整性**: ✅ 100% 核心功能完成  
-**文档状态**: ✅ 完整文档已生成
+**文档状态**: ✅ 完整文档已生成  
+**最新更新**: ✅ NodePreviewPanel 已集成到属性面板 (2026-04-27)
 
 ---
 
@@ -43,13 +44,14 @@
 
 ### UI 组件 ✅
 - ✅ NodePalettePanel - 可折叠的节点选择面板
-- ✅ NodePropertiesPanel - 属性编辑面板（颜色、数值、纹理）
+- ✅ NodePropertiesPanel - 属性编辑面板（颜色、数值、纹理）+ 实时预览
+- ✅ NodePreviewPanel - 实时节点输出预览（颜色、向量、数值、纹理）
 - ✅ NodeSearchDialog - 模糊搜索 + 最近使用节点
 - ✅ NodeContextMenu - 节点右键菜单
 - ✅ CanvasContextMenu - 画布右键菜单
 - ✅ NotificationManager - 通知系统
 - ✅ KeyboardShortcutManager - 快捷键管理
-- ✅ NodePreviewPanel - 实时预览面板
+- ✅ ResizableDivider - 可拖动的面板分隔条
 
 ### 撤销/重做系统 ✅
 - ✅ Command 接口
