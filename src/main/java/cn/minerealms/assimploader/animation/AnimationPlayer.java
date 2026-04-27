@@ -297,6 +297,25 @@ public class AnimationPlayer {
         return transform != null ? new Vector3f(transform.scale) : null;
     }
 
+    /**
+     * Get all bone transforms as matrices
+     * Used by AnimationState to update BoneHierarchyBuilder
+     */
+    public Map<String, Matrix4f> getBoneTransforms() {
+        Map<String, Matrix4f> transforms = new HashMap<>();
+        for (Map.Entry<String, BoneTransform> entry : boneTransforms.entrySet()) {
+            transforms.put(entry.getKey(), entry.getValue().toMatrix());
+        }
+        return transforms;
+    }
+
+    /**
+     * Get the animation
+     */
+    public AssimpAnimation getAnimation() {
+        return animation;
+    }
+
     // ========== IK Integration (Phase 3) ==========
 
     /**

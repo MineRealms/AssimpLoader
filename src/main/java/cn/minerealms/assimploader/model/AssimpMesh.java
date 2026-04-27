@@ -1,4 +1,5 @@
 package cn.minerealms.assimploader.model;
+import cn.minerealms.assimploader.animation.SkinnedMeshProcessor;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 
@@ -9,6 +10,7 @@ import org.lwjgl.assimp.AIMesh;
 import org.lwjgl.assimp.AIVector3D;
 
 import java.nio.IntBuffer;
+import java.util.Map;
 
 /**
  * Wrapper for Assimp AIMesh containing vertex data.
@@ -37,6 +39,7 @@ public class AssimpMesh {
     private float[] tangents;
     private float[] bitangents;
     private int[] indices;
+    private SkinnedMeshProcessor.SkinnedMeshData skinnedData;
 
     public AssimpMesh(AIMesh aiMesh, int index, CoordinateSystemConverter.CoordinateSystem coordinateSystem) {
         this.aiMesh = aiMesh;
@@ -277,6 +280,21 @@ public class AssimpMesh {
 
     public boolean hasBones() {
         return aiMesh.mNumBones() > 0;
+    }
+
+    /**
+     * Get skinned mesh data (bone indices and weights).
+     * Cached after first extraction.
+     *
+     * @param boneNameToIndexMap Mapping from bone name to bone index in the skeleton
+     * @return SkinnedMeshData containing bone indices and weights, or null if no bones
+     */
+    public SkinnedMeshProcessor.SkinnedMeshData getSkinnedData(Map<String, Integer> boneNameToIndexMap) {
+        if (skinnedData == null && hasBones()) {
+            DebugManager.info(DebugCategory.ANIMATION, "Extracting skinned data for mesh: {}", name);
+            skinnedData = SkinnedMeshProcessor.extractBoneWeights(aiMesh, boneNameToIndexMap);
+        }
+        return skinnedData;
     }
 
     public AIMesh getNativeMesh() {
