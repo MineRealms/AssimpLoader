@@ -4,8 +4,11 @@ import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.FeatureTier;
 import cn.minerealms.assimploader.lookdev.PhotonIntegration;
+import cn.minerealms.assimploader.lookdev.ui.LookDevScreen;
+import cn.minerealms.assimploader.lookdev.ui.TabbedCenterFragment;
 import cn.minerealms.assimploader.material.PBRMaterial;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.*;
+import cn.minerealms.assimploader.lookdev.nodeeditor.serialization.MaterialFileManager;
 import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NodePalettePanel;
 import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NodePropertiesPanel;
 import cn.minerealms.assimploader.lookdev.nodeeditor.ui.NotificationManager;
@@ -65,7 +68,8 @@ public class NodeEditorFragment extends Fragment {
     private boolean paletteVisible = true;
     private boolean propertiesVisible = true;
 
-    // Current material being edited
+    // Material-node graph binding
+    private MaterialNodeGraphManager nodeGraphManager;
     private PBRMaterial currentMaterial = null;
 
     // State preservation
@@ -85,13 +89,17 @@ public class NodeEditorFragment extends Fragment {
 
         var context = requireContext();
 
-        // Initialize UI managers
+        // Initialize managers
         notificationManager = new NotificationManager();
         shortcutManager = new KeyboardShortcutManager();
         searchDialog = new NodeSearchDialog();
         commandHistory = new CommandHistory();
+        nodeGraphManager = new MaterialNodeGraphManager();
 
-        DebugManager.debug(DebugCategory.LOOKDEV, "[NodeEditorFragment] UI managers initialized");
+        // Initialize MaterialFileManager
+        MaterialFileManager.initialize();
+
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodeEditorFragment] Managers initialized");
 
         // Root layout
         LinearLayout root = new LinearLayout(context);
@@ -181,6 +189,13 @@ public class NodeEditorFragment extends Fragment {
             DebugManager.debug(DebugCategory.LOOKDEV,
                 "[NodeEditorFragment] Node selection changed: {}",
                 node != null ? node.getTitle() : "none");
+        });
+
+        // Set up graph change listener for auto-preview
+        canvas.setOnGraphChangeListener(() -> {
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Graph changed, updating preview");
+            updateMaterialPreview();
         });
 
         // Bottom status bar
@@ -434,9 +449,15 @@ public class NodeEditorFragment extends Fragment {
     private void onGenerateMaterial() {
         PBRMaterial material = generateMaterial();
 
-        // For now, just log the generated material
+        // Log the generated material
         DebugManager.info(DebugCategory.LOOKDEV,
             "[NodeEditorFragment] Material generated: " + material.getName());
+
+        // Update material preview with generated material
+        if (propertiesPanel != null) {
+            propertiesPanel.updateMaterialPreview(material.getName());
+            propertiesPanel.updateMaterialPreviewWithMaterial(material);
+        }
 
         // Show material details in status
         String statusMsg = String.format("Generated: %s (Metallic: %.2f, Roughness: %.2f)",
@@ -453,18 +474,38 @@ public class NodeEditorFragment extends Fragment {
 
         setStatus(statusMsg);
 
-        // TODO: BACKEND INTEGRATION (Phase 10)
-        // 1. Get parent LookDevScreen via getParentFragment().getParentFragment()
-        // 2. Call lookDevScreen.applyNodeGeneratedMaterial(material)
-        // 3. This will:
-        //    - Add material to materials list
-        //    - Select the material
-        //    - Update PreviewFragment with new material
-        //    - Update ParameterPanelFragment
-        //    - Trigger 3D preview refresh
-        // 4. Need to implement LookDevScreen.applyNodeGeneratedMaterial() method
-        // 5. Consider real-time updates when nodes change (not just on button click)
-        // 6. In FULL_INTEGRATION mode: also generate and compile shader code
+        // Update material preview
+        if (propertiesPanel != null) {
+            propertiesPanel.updateMaterialPreview(material.getName());
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Material preview updated after generation");
+        }
+
+        // Apply material to preview
+        try {
+            // Navigate up: NodeEditorFragment -> TabbedCenterFragment -> LookDevScreen
+            Fragment parent = getParentFragment();
+            if (parent != null) {
+                Fragment grandParent = parent.getParentFragment();
+                if (grandParent instanceof LookDevScreen) {
+                    LookDevScreen lookDevScreen = (LookDevScreen) grandParent;
+                    lookDevScreen.applyNodeGeneratedMaterial(material);
+                    DebugManager.info(DebugCategory.LOOKDEV,
+                        "[NodeEditorFragment] Material applied to preview successfully");
+                } else {
+                    DebugManager.warn(DebugCategory.LOOKDEV,
+                        "[NodeEditorFragment] Could not find LookDevScreen parent");
+                }
+            } else {
+                DebugManager.warn(DebugCategory.LOOKDEV,
+                    "[NodeEditorFragment] No parent fragment found");
+            }
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Failed to apply material", e);
+        }
+
+        // TODO: In FULL_INTEGRATION mode, also generate and compile shader code
     }
 
     /**
@@ -473,6 +514,29 @@ public class NodeEditorFragment extends Fragment {
     public void setStatus(String status) {
         if (statusText != null) {
             statusText.setText(status);
+        }
+    }
+
+    /**
+     * Update material preview with current node graph
+     */
+    private void updateMaterialPreview() {
+        if (propertiesPanel == null || canvas == null) {
+            return;
+        }
+
+        try {
+            // Generate material from current node graph
+            PBRMaterial material = generateMaterial();
+
+            // Update preview
+            propertiesPanel.updateMaterialPreviewWithMaterial(material);
+
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Material preview updated automatically");
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Failed to update material preview: " + e.getMessage());
         }
     }
 
@@ -679,11 +743,26 @@ public class NodeEditorFragment extends Fragment {
     }
 
     /**
-     * Save material (placeholder)
+     * Save material (Ctrl+S)
      */
     private void saveMaterial() {
-        notificationManager.info("Save material not yet implemented");
-        DebugManager.debug(DebugCategory.LOOKDEV, "[NodeEditorFragment] Save material requested");
+        if (currentMaterial == null) {
+            notificationManager.warning("No material loaded");
+            DebugManager.warn(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Cannot save: no material loaded");
+            return;
+        }
+
+        DebugManager.info(DebugCategory.LOOKDEV,
+            "[NodeEditorFragment] Saving material: {}", currentMaterial.getName());
+
+        boolean success = nodeGraphManager.saveCurrentToFile(canvas);
+
+        if (success) {
+            notificationManager.success("Saved: " + currentMaterial.getName());
+        } else {
+            notificationManager.error("Failed to save: " + currentMaterial.getName());
+        }
     }
 
     /**
@@ -715,52 +794,69 @@ public class NodeEditorFragment extends Fragment {
 
     /**
      * Load a material into the node editor.
-     * Generates a default node graph if the material doesn't have one.
+     * Called from LookDevScreen when user selects a material.
      *
      * @param material The PBR material to edit
      */
-    public void setMaterial(PBRMaterial material) {
+    public void loadMaterial(PBRMaterial material) {
         if (material == null) {
             DebugManager.warn(DebugCategory.LOOKDEV,
-                "[NodeEditorFragment] Cannot set null material");
+                "[NodeEditorFragment] Cannot load null material");
+            notificationManager.warning("No material selected");
             return;
         }
 
-        this.currentMaterial = material;
         DebugManager.info(DebugCategory.LOOKDEV,
             "[NodeEditorFragment] Loading material: {}", material.getName());
 
-        // Clear current canvas
-        if (canvas != null) {
-            canvas.clearNodes();
-            canvas.clearConnections();
-        }
+        currentMaterial = material;
 
-        // Generate default node graph from material
-        MaterialNodeGraphGenerator.NodeGraphData graphData =
-            MaterialNodeGraphGenerator.generateFromMaterial(material);
+        boolean success = nodeGraphManager.switchToMaterial(material, canvas);
 
-        // Add nodes to canvas
-        for (Node node : graphData.nodes) {
+        if (success) {
+            notificationManager.success("Loaded: " + material.getName());
+            updateTitle();
+
+            // Update material preview with both name and material data
+            if (propertiesPanel != null) {
+                propertiesPanel.updateMaterialPreview(material.getName());
+                propertiesPanel.updateMaterialPreviewWithMaterial(material);
+            }
+
+            // Refresh canvas
             if (canvas != null) {
-                canvas.addNode(node);
+                canvas.invalidate();
+            }
+        } else {
+            notificationManager.error("Failed to load: " + material.getName());
+        }
+    }
+
+    /**
+     * Update title to show current material name
+     */
+    private void updateTitle() {
+        if (statusText != null) {
+            if (currentMaterial != null) {
+                statusText.setText("Editing: " + currentMaterial.getName() + " | " +
+                    "Pan: Click+Drag | Zoom: Mouse Wheel");
+            } else {
+                statusText.setText("Ready - Pan: Click+Drag | Zoom: Mouse Wheel | " +
+                    PhotonIntegration.getStatusMessage());
             }
         }
+    }
 
-        // Add connections to canvas
-        for (NodeConnection connection : graphData.connections) {
-            if (canvas != null) {
-                canvas.addConnection(connection);
-            }
-        }
-
-        // Update status
-        setStatus("Loaded material: " + material.getName() +
-            " (" + graphData.nodes.size() + " nodes)");
-
-        DebugManager.info(DebugCategory.LOOKDEV,
-            "[NodeEditorFragment] Material loaded with {} nodes and {} connections",
-            graphData.nodes.size(), graphData.connections.size());
+    /**
+     * Load a material into the node editor.
+     * Generates a default node graph if the material doesn't have one.
+     *
+     * @param material The PBR material to edit
+     * @deprecated Use loadMaterial() instead
+     */
+    @Deprecated
+    public void setMaterial(PBRMaterial material) {
+        loadMaterial(material);
     }
 
     /**
@@ -781,5 +877,17 @@ public class NodeEditorFragment extends Fragment {
 
         super.onDestroyView();
         DebugManager.info(DebugCategory.LOOKDEV, "[NodeEditorFragment] onDestroyView");
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+
+        // Auto-save current material on pause
+        if (currentMaterial != null && canvas != null) {
+            nodeGraphManager.saveCurrentToFile(canvas);
+            DebugManager.info(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Auto-saved on pause: {}", currentMaterial.getName());
+        }
     }
 }

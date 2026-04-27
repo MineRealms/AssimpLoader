@@ -9,6 +9,7 @@ import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input.TextureSampleNo
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.math.MathFunctionNode;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.vector.VectorMathNode;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.texture.MappingNode;
+import cn.minerealms.assimploader.lookdev.nodeeditor.MaterialPreviewView;
 
 import icyllis.modernui.view.View;
 import icyllis.modernui.widget.*;
@@ -32,23 +33,36 @@ public class NodePropertiesPanel extends LinearLayout {
     private Node selectedNode;
     private TextView titleLabel;
     private LinearLayout propertiesContainer;
+    private MaterialPreviewView materialPreviewView;
     private NodePreviewPanel previewPanel;
 
     public NodePropertiesPanel(Context context) {
         super(context);
         setOrientation(VERTICAL);
 
-        DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] Initializing properties panel");
+        DebugManager.info(DebugCategory.LOOKDEV, "[NodePropertiesPanel] Initializing properties panel");
 
         initializeUI();
     }
 
     private void initializeUI() {
+        DebugManager.info(DebugCategory.LOOKDEV, "[NodePropertiesPanel] Starting UI initialization");
+
+        // Material preview at top
+        materialPreviewView = new MaterialPreviewView(getContext());
+        LayoutParams materialPreviewParams = new LayoutParams(LayoutParams.MATCH_PARENT, dp(200));
+        materialPreviewParams.setMargins(0, 0, 0, 10);
+        addView(materialPreviewView, materialPreviewParams);
+
+        DebugManager.info(DebugCategory.LOOKDEV, "[NodePropertiesPanel] MaterialPreviewView added with height={}dp", 200);
+
         // Preview panel at top
         previewPanel = new NodePreviewPanel(getContext());
         LayoutParams previewParams = new LayoutParams(LayoutParams.MATCH_PARENT, dp(200));
         previewParams.setMargins(0, 0, 0, 10);
         addView(previewPanel, previewParams);
+
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] NodePreviewPanel added with height={}dp", 200);
 
         // Title section
         titleLabel = new TextView(getContext());
@@ -74,6 +88,8 @@ public class NodePropertiesPanel extends LinearLayout {
 
         LayoutParams scrollParams = new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1.0f);
         addView(scrollView, scrollParams);
+
+        DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] UI initialization complete");
 
         // Initial state: no node selected
         showNoSelection();
@@ -119,6 +135,28 @@ public class NodePropertiesPanel extends LinearLayout {
             addMappingNodeProperties((MappingNode) node);
         } else {
             showNoEditableProperties();
+        }
+    }
+
+    /**
+     * Update material preview with current node graph state
+     */
+    public void updateMaterialPreview(String materialName) {
+        if (materialPreviewView != null) {
+            materialPreviewView.setMaterialName(materialName);
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodePropertiesPanel] Material preview updated: {}", materialName);
+        }
+    }
+
+    /**
+     * Update material preview with actual material data for rendering
+     */
+    public void updateMaterialPreviewWithMaterial(cn.minerealms.assimploader.material.PBRMaterial material) {
+        if (materialPreviewView != null) {
+            materialPreviewView.setMaterial(material);
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodePropertiesPanel] Material preview updated with material data: {}", material.getName());
         }
     }
 

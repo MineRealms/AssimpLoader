@@ -197,6 +197,20 @@ public class TabbedCenterFragment extends Fragment {
     }
 
     /**
+     * Switch to preview tab (public method for external access)
+     */
+    public void showPreview() {
+        switchToTab(Tab.PREVIEW);
+    }
+
+    /**
+     * Switch to node editor tab (public method for external access)
+     */
+    public void showNodeEditor() {
+        switchToTab(Tab.NODE_EDITOR);
+    }
+
+    /**
      * Switch to the Node Editor tab (public method for external access)
      */
     public void switchToNodeEditor() {
