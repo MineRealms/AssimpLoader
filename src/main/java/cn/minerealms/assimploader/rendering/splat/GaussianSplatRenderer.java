@@ -93,7 +93,23 @@ public class GaussianSplatRenderer {
             cn.minerealms.assimploader.debug.PerformanceProfiler.start("splat_render");
         }
 
-        // Get or create VBO
+        // Apply LOD filtering
+        if (DebugManager.isProfilingEnabled()) {
+            cn.minerealms.assimploader.debug.PerformanceProfiler.start("splat_lod");
+        }
+        GaussianSplatData lodData = GaussianSplatLOD.applyLOD(data, cameraPos);
+        if (DebugManager.isProfilingEnabled()) {
+            cn.minerealms.assimploader.debug.PerformanceProfiler.end("splat_lod");
+        }
+
+        if (lodData.getSplatCount() == 0) {
+            if (DebugManager.isProfilingEnabled()) {
+                cn.minerealms.assimploader.debug.PerformanceProfiler.end("splat_render");
+            }
+            return; // All splats culled
+        }
+
+        // Get or create VBO (use original data as key for caching)
         GaussianSplatVBO vbo = vboCache.computeIfAbsent(data, d -> {
             DebugManager.info(DebugCategory.RENDER, "Creating VBO for splat data: {} splats", d.getSplatCount());
             return createVBO(d);
@@ -103,7 +119,7 @@ public class GaussianSplatRenderer {
         if (DebugManager.isProfilingEnabled()) {
             cn.minerealms.assimploader.debug.PerformanceProfiler.start("splat_sort");
         }
-        sorter.sort(data.getSplats(), viewMatrix);
+        sorter.sort(lodData.getSplats(), viewMatrix);
         if (DebugManager.isProfilingEnabled()) {
             cn.minerealms.assimploader.debug.PerformanceProfiler.end("splat_sort");
         }
