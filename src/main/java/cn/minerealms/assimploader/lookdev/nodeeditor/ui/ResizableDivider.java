@@ -104,6 +104,8 @@ public class ResizableDivider extends View {
                 isHovered = true;
                 invalidate();
                 // TODO: Change cursor to resize cursor when ModernUI supports it
+                // ModernUI does not currently expose setPointerIcon() or PointerIcon API
+                // Once available, use: setPointerIcon(PointerIcon.getSystemIcon(context, PointerIcon.TYPE_HORIZONTAL_DOUBLE_ARROW))
                 return true;
 
             case MotionEvent.ACTION_HOVER_EXIT:

@@ -189,8 +189,52 @@ public class PreviewMesh {
             );
         }
 
-        // Top and bottom caps (simplified)
-        // TODO: Add proper caps with center vertex
+        // Top and bottom caps with center vertex
+        // Bottom cap (y = -height/2, normal pointing down)
+        Vertex bottomCenter = new Vertex(0, -height / 2, 0, 0, -1, 0, 0.5f, 0.5f);
+        for (int i = 0; i < sectors; i++) {
+            float theta0 = 2.0f * (float) Math.PI * i / sectors;
+            float theta1 = 2.0f * (float) Math.PI * (i + 1) / sectors;
+
+            float x0 = radius * (float) Math.cos(theta0);
+            float z0 = radius * (float) Math.sin(theta0);
+            float x1 = radius * (float) Math.cos(theta1);
+            float z1 = radius * (float) Math.sin(theta1);
+
+            // UV coordinates for radial pattern
+            float u0 = 0.5f + 0.5f * (float) Math.cos(theta0);
+            float v0 = 0.5f + 0.5f * (float) Math.sin(theta0);
+            float u1 = 0.5f + 0.5f * (float) Math.cos(theta1);
+            float v1 = 0.5f + 0.5f * (float) Math.sin(theta1);
+
+            // Bottom cap triangle (clockwise from bottom)
+            addVertex(builder, bottomCenter, modelMatrix);
+            addVertex(builder, new Vertex(x1, -height / 2, z1, 0, -1, 0, u1, v1), modelMatrix);
+            addVertex(builder, new Vertex(x0, -height / 2, z0, 0, -1, 0, u0, v0), modelMatrix);
+        }
+
+        // Top cap (y = height/2, normal pointing up)
+        Vertex topCenter = new Vertex(0, height / 2, 0, 0, 1, 0, 0.5f, 0.5f);
+        for (int i = 0; i < sectors; i++) {
+            float theta0 = 2.0f * (float) Math.PI * i / sectors;
+            float theta1 = 2.0f * (float) Math.PI * (i + 1) / sectors;
+
+            float x0 = radius * (float) Math.cos(theta0);
+            float z0 = radius * (float) Math.sin(theta0);
+            float x1 = radius * (float) Math.cos(theta1);
+            float z1 = radius * (float) Math.sin(theta1);
+
+            // UV coordinates for radial pattern
+            float u0 = 0.5f + 0.5f * (float) Math.cos(theta0);
+            float v0 = 0.5f + 0.5f * (float) Math.sin(theta0);
+            float u1 = 0.5f + 0.5f * (float) Math.cos(theta1);
+            float v1 = 0.5f + 0.5f * (float) Math.sin(theta1);
+
+            // Top cap triangle (counter-clockwise from top)
+            addVertex(builder, topCenter, modelMatrix);
+            addVertex(builder, new Vertex(x0, height / 2, z0, 0, 1, 0, u0, v0), modelMatrix);
+            addVertex(builder, new Vertex(x1, height / 2, z1, 0, 1, 0, u1, v1), modelMatrix);
+        }
     }
 
     /**

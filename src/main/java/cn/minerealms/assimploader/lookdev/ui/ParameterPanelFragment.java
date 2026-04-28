@@ -771,7 +771,9 @@ public class ParameterPanelFragment extends Fragment {
     private void compareWithSnapshot() {
         var snapshot = comparisonManager.getLatestSnapshot();
         if (snapshot == null) {
-            // TODO: Show "No snapshots" message
+            // Show "No snapshots" message
+            DebugManager.info(DebugCategory.LOOKDEV, "No snapshots available for comparison");
+            // TODO: Show UI toast/notification when ModernUI supports it
             return;
         }
 
@@ -846,7 +848,11 @@ public class ParameterPanelFragment extends Fragment {
 
         var preset = new MaterialPreset(presetName, overrideManager.getCurrentOverride());
         if (presetManager.savePreset(preset)) {
-            // TODO: Show success message
+            // Show success message
+            DebugManager.info(DebugCategory.LOOKDEV, "Preset '{}' saved successfully", presetName);
+            // TODO: Show UI toast/notification when ModernUI supports it
+        } else {
+            DebugManager.warn(DebugCategory.LOOKDEV, "Failed to save preset '{}'", presetName);
         }
     }
 
@@ -864,7 +870,11 @@ public class ParameterPanelFragment extends Fragment {
             overrideManager.setCurrentOverride(preset.getOverride());
             updateUIFromMaterial();
             notifyMaterialChanged();
-            // TODO: Show success message
+            // Show success message
+            DebugManager.info(DebugCategory.LOOKDEV, "Preset '{}' loaded successfully", presetName);
+            // TODO: Show UI toast/notification when ModernUI supports it
+        } else {
+            DebugManager.warn(DebugCategory.LOOKDEV, "Failed to load preset '{}'", presetName);
         }
     }
 

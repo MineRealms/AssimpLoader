@@ -51,6 +51,11 @@ public class PreviewFragment extends Fragment {
     private float lastMouseY;
     private boolean isDragging;
 
+    // Auto-rotation state
+    private boolean autoRotationEnabled = false;
+    private float autoRotationSpeed = 20.0f; // degrees per second
+    private long lastUpdateTime = 0;
+
     // Render mode
     public enum RenderMode {
         ITEM_RENDERER("Item Renderer"),
@@ -400,6 +405,76 @@ public class PreviewFragment extends Fragment {
         } catch (Exception e) {
             DebugManager.error(DebugCategory.LOOKDEV, "[PreviewFragment] ERROR in resetCamera", e);
         }
+    }
+
+    /**
+     * Toggle auto-rotation on/off
+     */
+    public void toggleAutoRotation() {
+        autoRotationEnabled = !autoRotationEnabled;
+        if (autoRotationEnabled) {
+            lastUpdateTime = System.currentTimeMillis();
+            startAutoRotation();
+        }
+        DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Auto-rotation {}",
+            autoRotationEnabled ? "enabled" : "disabled");
+    }
+
+    /**
+     * Set auto-rotation enabled state
+     */
+    public void setAutoRotationEnabled(boolean enabled) {
+        autoRotationEnabled = enabled;
+        if (enabled) {
+            lastUpdateTime = System.currentTimeMillis();
+            startAutoRotation();
+        }
+        DebugManager.info(DebugCategory.LOOKDEV, "[PreviewFragment] Auto-rotation set to {}", enabled);
+    }
+
+    /**
+     * Check if auto-rotation is enabled
+     */
+    public boolean isAutoRotationEnabled() {
+        return autoRotationEnabled;
+    }
+
+    /**
+     * Set auto-rotation speed (degrees per second)
+     */
+    public void setAutoRotationSpeed(float speed) {
+        this.autoRotationSpeed = speed;
+    }
+
+    /**
+     * Start auto-rotation update loop
+     */
+    private void startAutoRotation() {
+        if (!autoRotationEnabled || previewView == null) {
+            return;
+        }
+
+        // Schedule next update
+        previewView.postDelayed(() -> {
+            if (autoRotationEnabled && camera != null) {
+                long currentTime = System.currentTimeMillis();
+                float deltaTime = (currentTime - lastUpdateTime) / 1000.0f; // Convert to seconds
+                lastUpdateTime = currentTime;
+
+                // Rotate camera
+                float deltaAzimuth = autoRotationSpeed * deltaTime;
+                camera.orbit(deltaAzimuth, 0);
+
+                // Update renderer
+                updateOffscreenRenderer();
+                if (previewView != null) {
+                    previewView.requestUpdate();
+                }
+
+                // Continue rotation
+                startAutoRotation();
+            }
+        }, 16); // ~60 FPS
     }
 
     private void updateOffscreenRenderer() {

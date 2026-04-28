@@ -183,10 +183,11 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
                 return false;
             }
 
+            PreviewFragment previewFragment;
             switch (keyCode) {
                 case KeyEvent.KEY_R:
                     // Reset camera
-                    PreviewFragment previewFragment = getPreviewFragment();
+                    previewFragment = getPreviewFragment();
                     if (previewFragment != null) {
                         previewFragment.resetCamera();
                     }
@@ -201,7 +202,11 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
                     return false;
 
                 case KeyEvent.KEY_SPACE:
-                    // TODO: Pause/resume rotation
+                    // Pause/resume rotation
+                    previewFragment = getPreviewFragment();
+                    if (previewFragment != null) {
+                        previewFragment.toggleAutoRotation();
+                    }
                     return true;
 
                 case KeyEvent.KEY_1:
