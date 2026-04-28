@@ -5,6 +5,8 @@ import cn.minerealms.assimploader.animation.SkinnedMeshProcessor;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.model.AssimpMesh;
+import cn.minerealms.assimploader.render.BoneMatrixTBO;
+import cn.minerealms.assimploader.render.GLCapabilityDetector;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.ResourceLocation;
@@ -24,11 +26,14 @@ public class SkinnedMeshRenderer {
 
     private final SkinnedMeshShader shader;
     private final Map<AssimpMesh, SkinnedMeshVBO> vboCache;
+    private final BoneMatrixTBO boneMatrixTBO;
     private boolean initialized = false;
+    private boolean useTBO = false;
 
     public SkinnedMeshRenderer() {
         this.shader = new SkinnedMeshShader();
         this.vboCache = new HashMap<>();
+        this.boneMatrixTBO = new BoneMatrixTBO();
     }
 
     /**
@@ -40,6 +45,15 @@ public class SkinnedMeshRenderer {
         }
 
         shader.compile();
+
+        // Check if TBO is supported
+        useTBO = GLCapabilityDetector.isTBOSupported();
+        if (useTBO) {
+            DebugManager.info(DebugCategory.RENDER, "SkinnedMeshRenderer: TBO support enabled (up to 16384 bones)");
+        } else {
+            DebugManager.info(DebugCategory.RENDER, "SkinnedMeshRenderer: Using uniform arrays (max 64 bones)");
+        }
+
         initialized = true;
 
         DebugManager.info(DebugCategory.RENDER, "SkinnedMeshRenderer initialized");
@@ -84,11 +98,25 @@ public class SkinnedMeshRenderer {
         shader.setModelView(modelView);
 
         // Set bone matrices
-        float[] boneMatrices = boneHierarchy.getFinalTransformsFlat();
-        int boneCount = boneMatrices.length / 16;
-        DebugManager.info(DebugCategory.RENDER, "Rendering skinned mesh '{}' with {} bones",
-            mesh.getName(), boneCount);
-        shader.setBoneMatrices(boneMatrices);
+        if (useTBO) {
+            // Use TBO for efficient bone matrix upload
+            Matrix4f[] boneMatrices = boneHierarchy.getFinalTransforms();
+            boneMatrixTBO.upload(boneMatrices);
+            boneMatrixTBO.bind(1); // Bind to texture unit 1
+            shader.setUseTBO(true);
+            DebugManager.debug(DebugCategory.RENDER, "Uploaded {} bone matrices via TBO", boneMatrices.length);
+        } else {
+            // Fallback to uniform arrays (max 64 bones)
+            float[] boneMatrices = boneHierarchy.getFinalTransformsFlat();
+            int boneCount = Math.min(boneMatrices.length / 16, 64);
+            shader.setBoneMatrices(boneMatrices);
+            shader.setUseTBO(false);
+            DebugManager.debug(DebugCategory.RENDER, "Uploaded {} bone matrices via uniforms", boneCount);
+        }
+
+        int boneCount = boneHierarchy.getBoneCount();
+        DebugManager.info(DebugCategory.RENDER, "Rendering skinned mesh '{}' with {} bones (TBO: {})",
+            mesh.getName(), boneCount, useTBO);
 
         // Bind texture
         RenderSystem.setShaderTexture(0, texture);
@@ -160,6 +188,7 @@ public class SkinnedMeshRenderer {
     public void cleanup() {
         clearCache();
         shader.delete();
+        boneMatrixTBO.cleanup();
         initialized = false;
         DebugManager.info(DebugCategory.RENDER, "SkinnedMeshRenderer cleaned up");
     }

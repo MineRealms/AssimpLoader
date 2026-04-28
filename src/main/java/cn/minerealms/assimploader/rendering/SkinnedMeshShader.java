@@ -34,6 +34,8 @@ public class SkinnedMeshShader {
     private int u_ModelViewProjection;
     private int u_ModelView;
     private int u_BoneMatrices;
+    private int u_BoneMatricesTBO;
+    private int u_UseTBO;
     private int u_Texture;
     private int u_LightDirection;
     private int u_LightColor;
@@ -53,9 +55,18 @@ public class SkinnedMeshShader {
             return;
         }
 
-        // Load shader sources
-        String vertexSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh.vert"));
-        String fragmentSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh.frag"));
+        // Load shader sources (try TBO version first, fallback to standard)
+        String vertexSource;
+        String fragmentSource;
+
+        try {
+            vertexSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh_tbo.vert"));
+            fragmentSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh_tbo.frag"));
+        } catch (IOException e) {
+            // Fallback to standard shaders
+            vertexSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh.vert"));
+            fragmentSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh.frag"));
+        }
 
         // Compile shaders
         vertexShaderId = compileShader(GL20.GL_VERTEX_SHADER, vertexSource);
@@ -77,6 +88,8 @@ public class SkinnedMeshShader {
         u_ModelViewProjection = GL20.glGetUniformLocation(programId, "u_ModelViewProjection");
         u_ModelView = GL20.glGetUniformLocation(programId, "u_ModelView");
         u_BoneMatrices = GL20.glGetUniformLocation(programId, "u_BoneMatrices");
+        u_BoneMatricesTBO = GL20.glGetUniformLocation(programId, "u_BoneMatricesTBO");
+        u_UseTBO = GL20.glGetUniformLocation(programId, "u_UseTBO");
         u_Texture = GL20.glGetUniformLocation(programId, "u_Texture");
         u_LightDirection = GL20.glGetUniformLocation(programId, "u_LightDirection");
         u_LightColor = GL20.glGetUniformLocation(programId, "u_LightColor");
@@ -122,15 +135,36 @@ public class SkinnedMeshShader {
     }
 
     /**
-     * Set bone matrices array
+     * Set bone matrices array (uniform fallback)
      *
      * @param matrices Flat array of bone matrices [bone0_m00, bone0_m01, ..., bone1_m00, ...]
      */
     public void setBoneMatrices(float[] matrices) {
-        if (matrices.length > 256 * 16) {
-            throw new IllegalArgumentException("Too many bone matrices (max 256)");
+        int maxBones = 64; // Reduced for compatibility
+        int boneCount = Math.min(matrices.length / 16, maxBones);
+        if (boneCount > 0) {
+            float[] truncated = new float[boneCount * 16];
+            System.arraycopy(matrices, 0, truncated, 0, truncated.length);
+            GL20.glUniformMatrix4fv(u_BoneMatrices, false, truncated);
         }
-        GL20.glUniformMatrix4fv(u_BoneMatrices, false, matrices);
+    }
+
+    /**
+     * Set whether to use TBO for bone matrices
+     */
+    public void setUseTBO(boolean useTBO) {
+        if (u_UseTBO >= 0) {
+            GL20.glUniform1i(u_UseTBO, useTBO ? 1 : 0);
+        }
+    }
+
+    /**
+     * Set TBO texture unit for bone matrices
+     */
+    public void setBoneMatricesTBO(int textureUnit) {
+        if (u_BoneMatricesTBO >= 0) {
+            GL20.glUniform1i(u_BoneMatricesTBO, textureUnit);
+        }
     }
 
     /**
