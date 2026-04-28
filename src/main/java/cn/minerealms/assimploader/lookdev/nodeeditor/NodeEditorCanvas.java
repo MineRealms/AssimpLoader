@@ -697,6 +697,11 @@ public class NodeEditorCanvas extends View {
         connections.add(connection);
         invalidate();
 
+        // Trigger material update
+        if (materialUpdateListener != null) {
+            materialUpdateListener.onGraphChanged();
+        }
+
         // Notify graph change listener
         if (graphChangeListener != null) {
             graphChangeListener.onGraphChanged();
@@ -710,6 +715,11 @@ public class NodeEditorCanvas extends View {
         connections.remove(connection);
         connection.disconnect();
         invalidate();
+
+        // Trigger material update
+        if (materialUpdateListener != null) {
+            materialUpdateListener.onGraphChanged();
+        }
 
         // Notify graph change listener
         if (graphChangeListener != null) {

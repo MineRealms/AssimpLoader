@@ -35,6 +35,7 @@ public class NodePropertiesPanel extends LinearLayout {
     private LinearLayout propertiesContainer;
     private MaterialPreviewView materialPreviewView;
     private NodePreviewPanel previewPanel;
+    private OnPropertyChangeListener propertyChangeListener;
 
     public NodePropertiesPanel(Context context) {
         super(context);
@@ -201,21 +202,25 @@ public class NodePropertiesPanel extends LinearLayout {
 
         addColorSlider("Red", node.getR(), value -> {
             node.setR(value);
+            notifyPropertyChanged();
             DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] ColorNode R updated: {}", value);
         });
 
         addColorSlider("Green", node.getG(), value -> {
             node.setG(value);
+            notifyPropertyChanged();
             DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] ColorNode G updated: {}", value);
         });
 
         addColorSlider("Blue", node.getB(), value -> {
             node.setB(value);
+            notifyPropertyChanged();
             DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] ColorNode B updated: {}", value);
         });
 
         addColorSlider("Alpha", node.getA(), value -> {
             node.setA(value);
+            notifyPropertyChanged();
             DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] ColorNode A updated: {}", value);
         });
     }
@@ -320,6 +325,7 @@ public class NodePropertiesPanel extends LinearLayout {
                 valueView.setText(String.format("%.2f", value));
                 if (fromUser) {
                     node.setValue(value);
+                    notifyPropertyChanged();
                     DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] ValueNode updated: {}", value);
                 }
             }
@@ -340,6 +346,7 @@ public class NodePropertiesPanel extends LinearLayout {
         // Texture path input
         addTextInput("Texture Path", node.getTexturePath(), text -> {
             node.setTexturePath(text);
+            notifyPropertyChanged();
             DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] TextureSampleNode path updated: {}", text);
         });
 
@@ -350,6 +357,7 @@ public class NodePropertiesPanel extends LinearLayout {
             index -> {
                 TextureSampleNode.FilterMode mode = TextureSampleNode.FilterMode.values()[index];
                 node.setFilterMode(mode);
+                notifyPropertyChanged();
                 DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] TextureSampleNode filter mode updated: {}", mode);
             });
 
@@ -360,6 +368,7 @@ public class NodePropertiesPanel extends LinearLayout {
             index -> {
                 TextureSampleNode.WrapMode mode = TextureSampleNode.WrapMode.values()[index];
                 node.setWrapMode(mode);
+                notifyPropertyChanged();
                 DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] TextureSampleNode wrap mode updated: {}", mode);
             });
     }
@@ -433,6 +442,7 @@ public class NodePropertiesPanel extends LinearLayout {
             index -> {
                 MathFunctionNode.Function function = MathFunctionNode.Function.values()[index];
                 node.setFunction(function);
+                notifyPropertyChanged();
                 DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] MathFunctionNode function updated: {}", function);
             });
     }
@@ -453,6 +463,7 @@ public class NodePropertiesPanel extends LinearLayout {
             index -> {
                 VectorMathNode.Operation operation = VectorMathNode.Operation.values()[index];
                 node.setOperation(operation);
+                notifyPropertyChanged();
                 DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] VectorMathNode operation updated: {}", operation);
             });
     }
@@ -473,6 +484,7 @@ public class NodePropertiesPanel extends LinearLayout {
             index -> {
                 MappingNode.MappingType type = MappingNode.MappingType.values()[index];
                 node.setMappingType(type);
+                notifyPropertyChanged();
                 DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] MappingNode type updated: {}", type);
             });
     }
@@ -500,6 +512,30 @@ public class NodePropertiesPanel extends LinearLayout {
     @FunctionalInterface
     private interface IndexChangeListener {
         void onIndexChanged(int index);
+    }
+
+    /**
+     * Property change listener for backend integration
+     */
+    @FunctionalInterface
+    public interface OnPropertyChangeListener {
+        void onPropertyChanged();
+    }
+
+    /**
+     * Set property change listener
+     */
+    public void setOnPropertyChangeListener(OnPropertyChangeListener listener) {
+        this.propertyChangeListener = listener;
+    }
+
+    /**
+     * Notify property change
+     */
+    private void notifyPropertyChanged() {
+        if (propertyChangeListener != null) {
+            propertyChangeListener.onPropertyChanged();
+        }
     }
 
 }

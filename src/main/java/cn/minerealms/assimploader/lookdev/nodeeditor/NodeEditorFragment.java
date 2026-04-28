@@ -181,6 +181,14 @@ public class NodeEditorFragment extends Fragment {
         );
         propertiesPanel.setLayoutParams(propertiesParams);
         propertiesPanel.setBackground(new ColorDrawable(0xFF1E1E1E));
+
+        // Set up property change listener
+        propertiesPanel.setOnPropertyChangeListener(() -> {
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Property change triggered");
+            scheduleGraphUpdate();
+        });
+
         mainContent.addView(propertiesPanel);
 
         // Set up divider resize listener
