@@ -101,17 +101,176 @@ public class MathFunctionNode extends Node {
     protected void drawBody(Canvas canvas, Paint paint) {
         float bodyY = y + TITLE_BAR_HEIGHT + 20;
         float centerX = x + width / 2;
+        float graphWidth = 60;
+        float graphHeight = 30;
+        float graphLeft = centerX - graphWidth / 2;
+        float graphTop = bodyY - graphHeight / 2;
 
-        paint.setColor(0xFF666666);
+        // Draw graph background
+        paint.setColor(0xFF1A1A1A);
+        paint.setStyle(Paint.FILL);
+        canvas.drawRect(graphLeft, graphTop, graphLeft + graphWidth, graphTop + graphHeight, paint);
+
+        // Draw function curve
+        paint.setColor(0xFF00AAFF);
         paint.setStyle(Paint.STROKE);
         paint.setStrokeWidth(1.5f);
 
-        // Draw function symbol (f(x))
-        float symbolSize = 15;
-        // Draw a simple wave to represent function
-        canvas.drawLine(centerX - symbolSize, bodyY - 5, centerX - symbolSize / 2, bodyY + 5, paint);
-        canvas.drawLine(centerX - symbolSize / 2, bodyY + 5, centerX, bodyY - 5, paint);
-        canvas.drawLine(centerX, bodyY - 5, centerX + symbolSize / 2, bodyY + 5, paint);
+        int samples = 40;
+        float prevX = graphLeft;
+        float prevY = evaluateFunctionForPreview(0.0f, graphTop, graphHeight);
+
+        for (int i = 1; i <= samples; i++) {
+            float t = i / (float) samples;
+            float x = graphLeft + t * graphWidth;
+            float y = evaluateFunctionForPreview(t, graphTop, graphHeight);
+
+            canvas.drawLine(prevX, prevY, x, y, paint);
+            prevX = x;
+            prevY = y;
+        }
+
+        // Draw border
+        paint.setColor(0xFF666666);
+        paint.setStrokeWidth(1.0f);
+        canvas.drawRect(graphLeft, graphTop, graphLeft + graphWidth, graphTop + graphHeight, paint);
+    }
+
+    /**
+     * Evaluate function for preview visualization
+     * @param t Input value normalized to [0, 1]
+     * @param graphTop Top of graph area
+     * @param graphHeight Height of graph area
+     * @return Y coordinate for drawing
+     */
+    private float evaluateFunctionForPreview(float t, float graphTop, float graphHeight) {
+        // Map t from [0,1] to appropriate input range for the function
+        float input;
+        float output;
+
+        switch (function) {
+            // Trigonometric - use [0, 2π] range
+            case SIN:
+            case COS:
+            case TAN:
+                input = t * (float) (Math.PI * 2);
+                break;
+            // Inverse trig - use [-1, 1] range
+            case ASIN:
+            case ACOS:
+                input = t * 2 - 1;
+                break;
+            case ATAN:
+                input = t * 4 - 2; // [-2, 2]
+                break;
+            // Exponential - use [0, 2] range
+            case SQRT:
+            case EXP:
+            case LOG:
+                input = t * 2;
+                break;
+            // Others - use [-1, 1] or [0, 1] range
+            default:
+                input = t * 2 - 1;
+                break;
+        }
+
+        // Evaluate function
+        switch (function) {
+            case SIN:
+                output = (float) Math.sin(input);
+                break;
+            case COS:
+                output = (float) Math.cos(input);
+                break;
+            case TAN:
+                output = (float) Math.tan(input);
+                output = Math.max(-2, Math.min(2, output)); // Clamp for display
+                break;
+            case ASIN:
+                output = (float) Math.asin(Math.max(-1, Math.min(1, input)));
+                break;
+            case ACOS:
+                output = (float) Math.acos(Math.max(-1, Math.min(1, input)));
+                break;
+            case ATAN:
+                output = (float) Math.atan(input);
+                break;
+            case SQRT:
+                output = (float) Math.sqrt(Math.max(0, input));
+                break;
+            case EXP:
+                output = (float) Math.exp(input);
+                output = Math.min(4, output); // Clamp for display
+                break;
+            case LOG:
+                output = input > 0 ? (float) Math.log(input) : -2;
+                break;
+            case POW:
+                output = (float) Math.pow(Math.abs(input), 2);
+                break;
+            case ABS:
+                output = Math.abs(input);
+                break;
+            case SIGN:
+                output = Math.signum(input);
+                break;
+            case FLOOR:
+                output = (float) Math.floor(input);
+                break;
+            case CEIL:
+                output = (float) Math.ceil(input);
+                break;
+            case ROUND:
+                output = Math.round(input);
+                break;
+            case FRACT:
+                output = input - (float) Math.floor(input);
+                break;
+            case MIN:
+            case MAX:
+            case CLAMP:
+            case LERP:
+            case SMOOTHSTEP:
+            case MOD:
+                // These need multiple inputs, show a simple line
+                output = input;
+                break;
+            default:
+                output = input;
+        }
+
+        // Normalize output to graph space
+        // Map output range to [0, 1] for display
+        float normalizedOutput;
+        switch (function) {
+            case SIN:
+            case COS:
+            case SIGN:
+                normalizedOutput = (output + 1) / 2; // [-1, 1] -> [0, 1]
+                break;
+            case TAN:
+                normalizedOutput = (output + 2) / 4; // [-2, 2] -> [0, 1]
+                break;
+            case ASIN:
+            case ACOS:
+            case ATAN:
+                normalizedOutput = (output + (float) Math.PI / 2) / (float) Math.PI; // [-π/2, π/2] -> [0, 1]
+                break;
+            case EXP:
+                normalizedOutput = output / 4; // [0, 4] -> [0, 1]
+                break;
+            case LOG:
+                normalizedOutput = (output + 2) / 4; // [-2, 2] -> [0, 1]
+                break;
+            default:
+                normalizedOutput = (output + 1) / 2; // Default: [-1, 1] -> [0, 1]
+                break;
+        }
+
+        // Clamp and invert Y (canvas Y increases downward)
+        normalizedOutput = Math.max(0, Math.min(1, normalizedOutput));
+        return graphTop + graphHeight * (1 - normalizedOutput);
     }
 
     @Override
