@@ -77,6 +77,7 @@ public class NodeEditorFragment extends Fragment {
     // Material-node graph binding
     private MaterialNodeGraphManager nodeGraphManager;
     private PBRMaterial currentMaterial = null;
+    private NodeBasedMaterial nodeBasedMaterial = null;
 
     // Debouncing for auto-update
     private ScheduledExecutorService debounceExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -634,12 +635,11 @@ public class NodeEditorFragment extends Fragment {
                     "[NodeEditorFragment] Shader compiled successfully in {} mode",
                     compiled.getMode());
 
-                // Create NodeBasedMaterial if in full shader mode
+                // Apply compiled shader to rendering
                 if (compiled.isFullShaderMode()) {
-                    // TODO: Apply compiled shader to rendering
-                    setStatus("Shader compiled (Full mode)");
+                    applyFullShaderMode(compiled);
                 } else if (compiled.isInjectionMode()) {
-                    setStatus("Shader injected (Iris/Oculus mode)");
+                    applyInjectionMode(compiled);
                 }
             } else {
                 DebugManager.warn(DebugCategory.LOOKDEV,
@@ -649,6 +649,73 @@ public class NodeEditorFragment extends Fragment {
         } catch (Exception e) {
             DebugManager.error(DebugCategory.LOOKDEV,
                 "[NodeEditorFragment] Shader compilation failed", e);
+        }
+    }
+
+    /**
+     * Apply shader in full shader mode (Photon)
+     */
+    private void applyFullShaderMode(DualModeShaderManager.CompiledShader compiled) {
+        try {
+            // Create material name from current material or use default
+            String materialName = currentMaterial != null ?
+                currentMaterial.getName() : "node_editor_material";
+
+            // Create or reuse NodeBasedMaterial
+            if (nodeBasedMaterial == null) {
+                nodeBasedMaterial = new NodeBasedMaterial(materialName);
+                DebugManager.info(DebugCategory.LOOKDEV,
+                    "[NodeEditorFragment] Created new NodeBasedMaterial: {}", materialName);
+            }
+
+            // Create ShaderCode from compiled shader
+            cn.minerealms.assimploader.lookdev.nodeeditor.shader.ShaderCodeGenerator.ShaderCode shaderCode =
+                new cn.minerealms.assimploader.lookdev.nodeeditor.shader.ShaderCodeGenerator.ShaderCode(
+                    compiled.getVertexCode(),
+                    compiled.getFragmentCode()
+                );
+
+            // Compile shader
+            boolean success = nodeBasedMaterial.compile(shaderCode);
+
+            if (success) {
+                // Apply material to rendering
+                nodeBasedMaterial.begin();
+
+                setStatus("Shader compiled and applied (Full mode)");
+                DebugManager.info(DebugCategory.LOOKDEV,
+                    "[NodeEditorFragment] Successfully applied full shader mode");
+            } else {
+                setStatus("Shader compilation failed");
+                DebugManager.error(DebugCategory.LOOKDEV,
+                    "[NodeEditorFragment] Failed to compile shader in full mode");
+            }
+
+        } catch (Exception e) {
+            setStatus("Error: " + e.getMessage());
+            DebugManager.error(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Exception in applyFullShaderMode", e);
+        }
+    }
+
+    /**
+     * Apply shader in injection mode (Iris/Oculus)
+     */
+    private void applyInjectionMode(DualModeShaderManager.CompiledShader compiled) {
+        try {
+            // In injection mode, the shader is already injected into Iris/Oculus pipeline
+            // We just need to update the status
+            setStatus("Shader injected (Iris/Oculus mode)");
+
+            DebugManager.info(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Shader injected into Iris/Oculus pipeline");
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Injected fragment code:\n{}", compiled.getFragmentCode());
+
+        } catch (Exception e) {
+            setStatus("Injection error: " + e.getMessage());
+            DebugManager.error(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Exception in applyInjectionMode", e);
         }
     }
 
