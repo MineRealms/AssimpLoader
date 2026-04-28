@@ -148,9 +148,10 @@ public class MaterialPreviewView extends LinearLayout {
             int width = getWidth();
             int height = getHeight();
 
-            DebugManager.info(DebugCategory.LOOKDEV,
-                "[MaterialPreviewView.PreviewRenderView] onDraw called - width: {}, height: {}, hasMaterial: {}",
-                width, height, material != null);
+            // Disabled to reduce log spam
+            // DebugManager.info(DebugCategory.LOOKDEV,
+            //     "[MaterialPreviewView.PreviewRenderView] onDraw called - width: {}, height: {}, hasMaterial: {}",
+            //     width, height, material != null);
 
             // Draw background
             paint.setColor(0xFF2A2A2A);
@@ -167,9 +168,10 @@ public class MaterialPreviewView extends LinearLayout {
                 float radius = Math.min(width, height) / 3f;
                 canvas.drawCircle(centerX, centerY, radius, paint);
 
-                DebugManager.info(DebugCategory.LOOKDEV,
-                    "[MaterialPreviewView.PreviewRenderView] Drew placeholder circle at ({}, {}) with radius {}",
-                    centerX, centerY, radius);
+                // Disabled to reduce log spam
+                // DebugManager.info(DebugCategory.LOOKDEV,
+                //     "[MaterialPreviewView.PreviewRenderView] Drew placeholder circle at ({}, {}) with radius {}",
+                //     centerX, centerY, radius);
             }
         }
 
@@ -211,9 +213,10 @@ public class MaterialPreviewView extends LinearLayout {
             canvas.drawCircle(centerX, centerY, radius, paint);
             paint.setStyle(Paint.FILL);
 
-            DebugManager.info(DebugCategory.LOOKDEV,
-                "[MaterialPreviewView.PreviewRenderView] Rendered material sphere - color: #{}, metallic: {}, roughness: {}",
-                Integer.toHexString(color), metallic, roughness);
+            // Disabled to reduce log spam
+            // DebugManager.info(DebugCategory.LOOKDEV,
+            //     "[MaterialPreviewView.PreviewRenderView] Rendered material sphere - color: #{}, metallic: {}, roughness: {}",
+            //     Integer.toHexString(color), metallic, roughness);
         }
     }
 }
