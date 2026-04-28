@@ -6,6 +6,11 @@ import cn.minerealms.assimploader.lookdev.nodeeditor.EnhancedSocketType;
 
 import icyllis.modernui.graphics.Canvas;
 import icyllis.modernui.graphics.Paint;
+import icyllis.modernui.graphics.Image;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.AbstractTexture;
+import net.minecraft.client.renderer.texture.TextureManager;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * Texture Sample Node
@@ -30,6 +35,8 @@ public class TextureSampleNode extends Node {
     private String texturePath = "";
     private FilterMode filterMode = FilterMode.LINEAR;
     private WrapMode wrapMode = WrapMode.REPEAT;
+    private Image cachedTextureImage = null;
+    private String cachedTexturePath = null;
 
     public TextureSampleNode() {
         super("Texture Sample");
@@ -50,21 +57,78 @@ public class TextureSampleNode extends Node {
         float bodyY = y + TITLE_BAR_HEIGHT + BORDER_WIDTH;
         float bodyX = x + BORDER_WIDTH;
         float bodyWidth = width - BORDER_WIDTH * 2;
+        float previewHeight = 50;
 
-        // Draw texture preview area (placeholder)
+        // Draw texture preview area background
         paint.setColor(0xFF1A1A1A);
         paint.setStyle(Paint.FILL);
-        canvas.drawRect(bodyX + 10, bodyY + 10, bodyX + bodyWidth - 10, bodyY + 50, paint);
+        canvas.drawRect(bodyX + 10, bodyY + 10, bodyX + bodyWidth - 10, bodyY + 10 + previewHeight, paint);
 
-        // Draw texture indicator
         if (texturePath.isEmpty()) {
+            // No texture - draw placeholder
             paint.setColor(0xFF666666);
-            canvas.drawRect(bodyX + 15, bodyY + 15, bodyX + bodyWidth - 15, bodyY + 45, paint);
+            canvas.drawRect(bodyX + 15, bodyY + 15, bodyX + bodyWidth - 15, bodyY + 15 + previewHeight - 10, paint);
         } else {
-            // TODO: Draw actual texture preview (Phase 10)
-            paint.setColor(0xFF00FF00);
-            canvas.drawRect(bodyX + 15, bodyY + 15, bodyX + bodyWidth - 15, bodyY + 45, paint);
+            // Try to load and draw texture
+            Image textureImage = getOrLoadTextureImage();
+            if (textureImage != null) {
+                // Draw the texture preview
+                canvas.save();
+                canvas.drawImage(textureImage, null,
+                    bodyX + 15, bodyY + 15,
+                    bodyX + bodyWidth - 15, bodyY + 15 + previewHeight - 10,
+                    paint);
+                canvas.restore();
+            } else {
+                // Failed to load - draw error indicator
+                paint.setColor(0xFFFF0000);
+                canvas.drawRect(bodyX + 15, bodyY + 15, bodyX + bodyWidth - 15, bodyY + 15 + previewHeight - 10, paint);
+            }
         }
+
+        // Draw border
+        paint.setColor(0xFF666666);
+        paint.setStyle(Paint.STROKE);
+        paint.setStrokeWidth(1.0f);
+        canvas.drawRect(bodyX + 10, bodyY + 10, bodyX + bodyWidth - 10, bodyY + 10 + previewHeight, paint);
+    }
+
+    /**
+     * Get or load the texture image for preview
+     */
+    private Image getOrLoadTextureImage() {
+        // Check cache
+        if (cachedTextureImage != null && texturePath.equals(cachedTexturePath)) {
+            return cachedTextureImage;
+        }
+
+        // Clear old cache
+        if (cachedTextureImage != null) {
+            cachedTextureImage = null;
+        }
+
+        // Try to load new texture
+        if (!texturePath.isEmpty()) {
+            try {
+                ResourceLocation resourceLocation = new ResourceLocation(texturePath);
+                TextureManager textureManager = Minecraft.getInstance().getTextureManager();
+                AbstractTexture texture = textureManager.getTexture(resourceLocation);
+
+                if (texture != null) {
+                    // TODO: Convert OpenGL texture to ModernUI Image
+                    // This requires reading back the texture data from GPU
+                    // For now, we'll keep the placeholder
+                    cachedTexturePath = texturePath;
+                    // cachedTextureImage = convertToImage(texture);
+                }
+            } catch (Exception e) {
+                // Failed to load texture
+                cachedTextureImage = null;
+                cachedTexturePath = null;
+            }
+        }
+
+        return cachedTextureImage;
     }
 
     public String getTexturePath() {
@@ -73,6 +137,9 @@ public class TextureSampleNode extends Node {
 
     public void setTexturePath(String texturePath) {
         this.texturePath = texturePath;
+        // Invalidate cache when path changes
+        cachedTextureImage = null;
+        cachedTexturePath = null;
     }
 
     public FilterMode getFilterMode() {
