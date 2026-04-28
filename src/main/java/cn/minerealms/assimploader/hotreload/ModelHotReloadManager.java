@@ -1,10 +1,11 @@
 package cn.minerealms.assimploader.hotreload;
 
 import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.animation.ClientAnimationManager;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
+import cn.minerealms.assimploader.example.CircleBlockEntity;
 import cn.minerealms.assimploader.model.AssimpScene;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.model.ModelManager;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -56,15 +57,29 @@ public class ModelHotReloadManager {
 
                     AssimpLoader.LOGGER.info("Hot-reloading model: {} from {}", modelName, file);
 
-                    // Load the model using AssimpModelLoader
-                    AssimpScene scene = AssimpModelLoader.loadModelStatic(file.toString());
+                    // Get simple model name for cache lookup
+                    String simpleModelName = fileName.substring(0, fileName.lastIndexOf('.'));
+
+                    // Check if this model exists in resource pack cache to get its original mode
+                    AssimpScene existingScene = AssimpModelLoader.getCachedModel(simpleModelName);
+                    cn.minerealms.assimploader.core.ModelImportMode mode = cn.minerealms.assimploader.core.ModelImportMode.STATIC;
+
+                    if (existingScene != null) {
+                        mode = existingScene.getImportMode();
+                        AssimpLoader.LOGGER.info("Using existing mode {} for model {}", mode, simpleModelName);
+                    } else {
+                        AssimpLoader.LOGGER.warn("Model {} not found in cache, defaulting to STATIC mode", simpleModelName);
+                    }
+
+                    // Load the model with the correct mode
+                    AssimpModelLoader loader = new AssimpModelLoader();
+                    AssimpScene scene = loader.loadModel(file, mode);
 
                     if (scene != null) {
                         // Store with full path as key (e.g., "models/block/cnc")
                         loadedModels.put(modelName, scene);
 
                         // Also store with just filename for backward compatibility (e.g., "cnc")
-                        String simpleModelName = fileName.substring(0, fileName.lastIndexOf('.'));
                         loadedModels.put(simpleModelName, scene);
 
                         // CRITICAL: Update global cache so all systems use the new model
@@ -73,7 +88,8 @@ public class ModelHotReloadManager {
                         AssimpModelLoader.updateModelCache(modelName, scene); // Also update full path key
 
                         reloadedCount++;
-                        AssimpLoader.LOGGER.info("Successfully reloaded model: {} (also as: {})", modelName, simpleModelName);
+                        AssimpLoader.LOGGER.info("Successfully reloaded model: {} (also as: {}) with mode {}",
+                            modelName, simpleModelName, mode);
                     } else {
                         AssimpLoader.LOGGER.error("Failed to load model: {}", file);
                     }
@@ -113,9 +129,14 @@ public class ModelHotReloadManager {
      * Hot-reload only updates external model cache, does NOT trigger resource pack reload
      */
     private static void refreshModelManager() {
-        // Hot-reload models are stored in loadedModels cache
-        // BlockEntityRenderer will automatically use them on next render
-        // No need to trigger resource pack reload
-        AssimpLoader.LOGGER.info("Hot-reload cache updated. BlockEntityRenderer will use new models on next render.");
+        // Clear ClientAnimationManager cache so items get new AnimationState
+        ClientAnimationManager.clearCache();
+        AssimpLoader.LOGGER.info("Cleared ClientAnimationManager cache for hot-reload");
+
+        // Notify all CircleBlockEntity instances to reload their animations
+        int notifiedCount = CircleBlockEntity.notifyAllReload();
+        AssimpLoader.LOGGER.info("Notified {} CircleBlockEntity instances to reload", notifiedCount);
+
+        AssimpLoader.LOGGER.info("Hot-reload complete. All renderers will use new models.");
     }
 }

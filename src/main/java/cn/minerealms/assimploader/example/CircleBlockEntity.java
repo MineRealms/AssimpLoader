@@ -1,12 +1,18 @@
 package cn.minerealms.assimploader.example;
 
 import cn.minerealms.assimploader.animation.AnimationState;
+import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
+import cn.minerealms.assimploader.model.AssimpScene;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+
+import java.util.Collections;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * BlockEntity for CircleBlock with automatic animation playback.
@@ -18,11 +24,16 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class CircleBlockEntity extends BlockEntity {
 
+    // Static registry to track all instances for hot-reload
+    private static final Set<CircleBlockEntity> ALL_INSTANCES = Collections.newSetFromMap(new WeakHashMap<>());
+
     private AnimationState animationState;
     private boolean initialized = false;
+    private AssimpScene lastScene = null; // Track scene reference for hot-reload detection
 
     public CircleBlockEntity(BlockPos pos, BlockState state) {
         super(ExampleRegistry.CIRCLE_BLOCK_ENTITY.get(), pos, state);
+        ALL_INSTANCES.add(this);
     }
 
     /**
@@ -37,6 +48,9 @@ public class CircleBlockEntity extends BlockEntity {
 
             animationState = new AnimationState(modelName);
             animationState.initialize();
+
+            // Save scene reference for hot-reload detection
+            lastScene = animationState.getScene();
 
             if (animationState.isInitialized()) {
                 // Get available animations
@@ -91,6 +105,37 @@ public class CircleBlockEntity extends BlockEntity {
             initializeAnimation();
         }
         return animationState;
+    }
+
+    /**
+     * Called by hot-reload system to reinitialize animation with new model
+     */
+    public void onModelReloaded() {
+        DebugManager.info(DebugCategory.ANIMATION,
+            "CircleBlockEntity at {}: Model reloaded, reinitializing animation", worldPosition);
+        markForReinitialization();
+        initializeAnimation();
+    }
+
+    /**
+     * Notify all CircleBlockEntity instances to reload (called by hot-reload system)
+     */
+    public static int notifyAllReload() {
+        int count = 0;
+        for (CircleBlockEntity entity : ALL_INSTANCES) {
+            entity.onModelReloaded();
+            count++;
+        }
+        return count;
+    }
+
+    /**
+     * Mark for reinitialization (called on hot-reload)
+     */
+    public void markForReinitialization() {
+        DebugManager.info(DebugCategory.ANIMATION, "CircleBlockEntity at {} marked for reinitialization", worldPosition);
+        initialized = false;
+        animationState = null;
     }
 
     @Override
