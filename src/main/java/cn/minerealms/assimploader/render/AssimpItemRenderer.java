@@ -14,6 +14,7 @@ import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.model.AssimpTexture;
 import cn.minerealms.assimploader.rendering.SimpleMeshRenderer;
 import cn.minerealms.assimploader.rendering.SkinnedMeshRenderer;
+import cn.minerealms.assimploader.util.ObjectPool;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.platform.NativeImage;
@@ -385,81 +386,106 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
         Matrix4f pose = poseStack.last().pose();
         Matrix3f normal = poseStack.last().normal();
 
-        Vector3f pos = new Vector3f();
-        Vector3f norm = new Vector3f();
-        Vector4f color = new Vector4f(diffuseColor[0], diffuseColor[1], diffuseColor[2], diffuseColor[3]);
+        Vector3f norm = ObjectPool.acquireVector3f();
+        Vector4f color = ObjectPool.acquireVector4f();
 
-        // Render triangles with reversed winding order for Minecraft
-        for (int i = 0; i < indices.length; i += 3) {
-            int idx0 = indices[i];
-            int idx1 = indices[i + 1];
-            int idx2 = indices[i + 2];
+        try {
+            norm.set(0.0f, 1.0f, 0.0f);
+            color.set(diffuseColor[0], diffuseColor[1], diffuseColor[2], diffuseColor[3]);
 
-            int vIdx0 = idx0 * 3;
-            int vIdx1 = idx1 * 3;
-            int vIdx2 = idx2 * 3;
+            // Render triangles with reversed winding order for Minecraft
+            for (int i = 0; i < indices.length; i += 3) {
+                int idx0 = indices[i];
+                int idx1 = indices[i + 1];
+                int idx2 = indices[i + 2];
 
-            int tIdx0 = idx0 * 2;
-            int tIdx1 = idx1 * 2;
-            int tIdx2 = idx2 * 2;
+                int vIdx0 = idx0 * 3;
+                int vIdx1 = idx1 * 3;
+                int vIdx2 = idx2 * 3;
 
-            // Vertices
-            Vector3f v0 = new Vector3f(vertices[vIdx0], vertices[vIdx0 + 1], vertices[vIdx0 + 2]);
-            Vector3f v1 = new Vector3f(vertices[vIdx1], vertices[vIdx1 + 1], vertices[vIdx1 + 2]);
-            Vector3f v2 = new Vector3f(vertices[vIdx2], vertices[vIdx2 + 1], vertices[vIdx2 + 2]);
+                int tIdx0 = idx0 * 2;
+                int tIdx1 = idx1 * 2;
+                int tIdx2 = idx2 * 2;
 
-            // Normals
-            Vector3f n0, n1, n2;
-            if (normals != null && vIdx0 + 2 < normals.length && vIdx1 + 2 < normals.length && vIdx2 + 2 < normals.length) {
-                n0 = new Vector3f(normals[vIdx0], normals[vIdx0 + 1], normals[vIdx0 + 2]);
-                n1 = new Vector3f(normals[vIdx1], normals[vIdx1 + 1], normals[vIdx1 + 2]);
-                n2 = new Vector3f(normals[vIdx2], normals[vIdx2 + 1], normals[vIdx2 + 2]);
-            } else {
-                norm.set(0.0f, 1.0f, 0.0f);
-                n0 = n1 = n2 = norm;
+                // Use object pool for vertices
+                Vector3f v0 = ObjectPool.acquireVector3f();
+                Vector3f v1 = ObjectPool.acquireVector3f();
+                Vector3f v2 = ObjectPool.acquireVector3f();
+                Vector3f n0 = ObjectPool.acquireVector3f();
+                Vector3f n1 = ObjectPool.acquireVector3f();
+                Vector3f n2 = ObjectPool.acquireVector3f();
+
+                try {
+                    // Vertices
+                    v0.set(vertices[vIdx0], vertices[vIdx0 + 1], vertices[vIdx0 + 2]);
+                    v1.set(vertices[vIdx1], vertices[vIdx1 + 1], vertices[vIdx1 + 2]);
+                    v2.set(vertices[vIdx2], vertices[vIdx2 + 1], vertices[vIdx2 + 2]);
+
+                    // Normals
+                    if (normals != null && vIdx0 + 2 < normals.length && vIdx1 + 2 < normals.length && vIdx2 + 2 < normals.length) {
+                        n0.set(normals[vIdx0], normals[vIdx0 + 1], normals[vIdx0 + 2]);
+                        n1.set(normals[vIdx1], normals[vIdx1 + 1], normals[vIdx1 + 2]);
+                        n2.set(normals[vIdx2], normals[vIdx2 + 1], normals[vIdx2 + 2]);
+                    } else {
+                        n0.set(norm);
+                        n1.set(norm);
+                        n2.set(norm);
+                    }
+
+                    // UV coordinates
+                    float u0 = texCoords != null && tIdx0 + 1 < texCoords.length ? texCoords[tIdx0] : 0.0f;
+                    float vt0 = texCoords != null && tIdx0 + 1 < texCoords.length ? texCoords[tIdx0 + 1] : 0.0f;
+                    float u1 = texCoords != null && tIdx1 + 1 < texCoords.length ? texCoords[tIdx1] : 0.0f;
+                    float vt1 = texCoords != null && tIdx1 + 1 < texCoords.length ? texCoords[tIdx1 + 1] : 0.0f;
+                    float u2 = texCoords != null && tIdx2 + 1 < texCoords.length ? texCoords[tIdx2] : 0.0f;
+                    float vt2 = texCoords != null && tIdx2 + 1 < texCoords.length ? texCoords[tIdx2 + 1] : 0.0f;
+
+                    // Reverse winding order for Minecraft: v2, v1, v0, v0 (degenerate quad)
+                    consumer.vertex(pose, v2.x, v2.y, v2.z)
+                        .color(color.x, color.y, color.z, color.w)
+                        .uv(u2, vt2)
+                        .overlayCoords(packedOverlay)
+                        .uv2(packedLight)
+                        .normal(normal, n2.x, n2.y, n2.z)
+                        .endVertex();
+
+                    consumer.vertex(pose, v1.x, v1.y, v1.z)
+                        .color(color.x, color.y, color.z, color.w)
+                        .uv(u1, vt1)
+                        .overlayCoords(packedOverlay)
+                        .uv2(packedLight)
+                        .normal(normal, n1.x, n1.y, n1.z)
+                        .endVertex();
+
+                    consumer.vertex(pose, v0.x, v0.y, v0.z)
+                        .color(color.x, color.y, color.z, color.w)
+                        .uv(u0, vt0)
+                        .overlayCoords(packedOverlay)
+                        .uv2(packedLight)
+                        .normal(normal, n0.x, n0.y, n0.z)
+                        .endVertex();
+
+                    // Duplicate last vertex for degenerate quad
+                    consumer.vertex(pose, v0.x, v0.y, v0.z)
+                        .color(color.x, color.y, color.z, color.w)
+                        .uv(u0, vt0)
+                        .overlayCoords(packedOverlay)
+                        .uv2(packedLight)
+                        .normal(normal, n0.x, n0.y, n0.z)
+                        .endVertex();
+                } finally {
+                    // Release vectors back to pool
+                    ObjectPool.releaseVector3f(v0);
+                    ObjectPool.releaseVector3f(v1);
+                    ObjectPool.releaseVector3f(v2);
+                    ObjectPool.releaseVector3f(n0);
+                    ObjectPool.releaseVector3f(n1);
+                    ObjectPool.releaseVector3f(n2);
+                }
             }
-
-            // UV coordinates
-            float u0 = texCoords != null && tIdx0 + 1 < texCoords.length ? texCoords[tIdx0] : 0.0f;
-            float vt0 = texCoords != null && tIdx0 + 1 < texCoords.length ? texCoords[tIdx0 + 1] : 0.0f;
-            float u1 = texCoords != null && tIdx1 + 1 < texCoords.length ? texCoords[tIdx1] : 0.0f;
-            float vt1 = texCoords != null && tIdx1 + 1 < texCoords.length ? texCoords[tIdx1 + 1] : 0.0f;
-            float u2 = texCoords != null && tIdx2 + 1 < texCoords.length ? texCoords[tIdx2] : 0.0f;
-            float vt2 = texCoords != null && tIdx2 + 1 < texCoords.length ? texCoords[tIdx2 + 1] : 0.0f;
-
-            // Reverse winding order for Minecraft: v2, v1, v0, v0 (degenerate quad)
-            consumer.vertex(pose, v2.x, v2.y, v2.z)
-                .color(color.x, color.y, color.z, color.w)
-                .uv(u2, vt2)
-                .overlayCoords(packedOverlay)
-                .uv2(packedLight)
-                .normal(normal, n2.x, n2.y, n2.z)
-                .endVertex();
-
-            consumer.vertex(pose, v1.x, v1.y, v1.z)
-                .color(color.x, color.y, color.z, color.w)
-                .uv(u1, vt1)
-                .overlayCoords(packedOverlay)
-                .uv2(packedLight)
-                .normal(normal, n1.x, n1.y, n1.z)
-                .endVertex();
-
-            consumer.vertex(pose, v0.x, v0.y, v0.z)
-                .color(color.x, color.y, color.z, color.w)
-                .uv(u0, vt0)
-                .overlayCoords(packedOverlay)
-                .uv2(packedLight)
-                .normal(normal, n0.x, n0.y, n0.z)
-                .endVertex();
-
-            // Duplicate last vertex for degenerate quad
-            consumer.vertex(pose, v0.x, v0.y, v0.z)
-                .color(color.x, color.y, color.z, color.w)
-                .uv(u0, vt0)
-                .overlayCoords(packedOverlay)
-                .uv2(packedLight)
-                .normal(normal, n0.x, n0.y, n0.z)
-                .endVertex();
+        } finally {
+            ObjectPool.releaseVector3f(norm);
+            ObjectPool.releaseVector4f(color);
         }
     }
 
