@@ -31,6 +31,10 @@ public class AnimationState {
     private AnimationPlayer currentAnimation;
     private boolean initialized = false;
 
+    // Dirty flag system for caching
+    private boolean transformsDirty = true;
+    private final Map<AssimpMesh, org.joml.Matrix4f[]> cachedBoneTransforms = new HashMap<>();
+
     public AnimationState(String modelName) {
         this.modelName = modelName;
         // IMPORTANT: Always use DYNAMIC mode for animation - STATIC mode removes bones!
@@ -107,6 +111,9 @@ public class AnimationState {
         // Update current animation
         currentAnimation.update(deltaTime);
 
+        // Mark transforms as dirty - need recalculation
+        transformsDirty = true;
+
         // Log animation time occasionally (every 60 frames = ~3 seconds at 20 TPS)
         if (updateCounter++ % 60 == 0) {
             DebugManager.info(DebugCategory.ANIMATION,
@@ -162,6 +169,28 @@ public class AnimationState {
      */
     public BoneHierarchyBuilder getBoneHierarchy(AssimpMesh mesh) {
         return boneHierarchies.get(mesh);
+    }
+
+    /**
+     * Get cached bone transforms for a mesh (with dirty flag optimization)
+     */
+    public org.joml.Matrix4f[] getCachedBoneTransforms(AssimpMesh mesh) {
+        if (transformsDirty) {
+            // Recalculate all bone transforms
+            for (Map.Entry<AssimpMesh, BoneHierarchyBuilder> entry : boneHierarchies.entrySet()) {
+                BoneHierarchyBuilder hierarchy = entry.getValue();
+                cachedBoneTransforms.put(entry.getKey(), hierarchy.getFinalTransforms());
+            }
+            transformsDirty = false;
+        }
+        return cachedBoneTransforms.get(mesh);
+    }
+
+    /**
+     * Invalidate transform cache (call on hot-reload or animation change)
+     */
+    public void invalidateCache() {
+        transformsDirty = true;
     }
 
     /**
