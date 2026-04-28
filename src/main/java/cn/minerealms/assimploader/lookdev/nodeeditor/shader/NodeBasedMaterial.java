@@ -2,9 +2,11 @@ package cn.minerealms.assimploader.lookdev.nodeeditor.shader;
 
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
+import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.input.TextureSampleNode;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.resources.ResourceLocation;
+import org.lwjgl.opengl.GL11;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +29,8 @@ public class NodeBasedMaterial {
     // Uniform data
     private final Map<String, Object> uniforms = new HashMap<>();
     private final Map<Integer, ResourceLocation> textures = new HashMap<>();
+    private final Map<Integer, TextureSampleNode.FilterMode> textureFilterModes = new HashMap<>();
+    private final Map<Integer, TextureSampleNode.WrapMode> textureWrapModes = new HashMap<>();
 
     // State
     private boolean needsRecompile = false;
@@ -113,14 +117,25 @@ public class NodeBasedMaterial {
                 .getTextureManager()
                 .bindForSetup(texture);
 
+            // Apply texture filtering mode
+            TextureSampleNode.FilterMode filterMode = textureFilterModes.getOrDefault(textureUnit, TextureSampleNode.FilterMode.LINEAR);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, filterMode.toGLConstant());
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER,
+                filterMode == TextureSampleNode.FilterMode.NEAREST ? GL11.GL_NEAREST : GL11.GL_LINEAR);
+
+            // Apply texture wrap mode
+            TextureSampleNode.WrapMode wrapMode = textureWrapModes.getOrDefault(textureUnit, TextureSampleNode.WrapMode.REPEAT);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, wrapMode.toGLConstant());
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, wrapMode.toGLConstant());
+
             // Set shader sampler uniform
             if (compiledShader.shaderInstance != null) {
                 try {
                     String samplerName = "u_Texture" + textureUnit;
                     compiledShader.shaderInstance.setSampler(samplerName, textureUnit);
                     DebugManager.debug(DebugCategory.LOOKDEV,
-                        "[NodeBasedMaterial] Bound texture {} to unit {} ({})",
-                        texture, textureUnit, samplerName);
+                        "[NodeBasedMaterial] Bound texture {} to unit {} ({}) - Filter: {}, Wrap: {}",
+                        texture, textureUnit, samplerName, filterMode, wrapMode);
                 } catch (Exception e) {
                     DebugManager.warn(DebugCategory.LOOKDEV,
                         "[NodeBasedMaterial] Failed to set sampler for texture unit {}: {}",
@@ -216,11 +231,38 @@ public class NodeBasedMaterial {
     }
 
     /**
+     * Set a texture with filtering and wrap modes
+     */
+    public void setTexture(int unit, ResourceLocation texture,
+                          TextureSampleNode.FilterMode filterMode,
+                          TextureSampleNode.WrapMode wrapMode) {
+        textures.put(unit, texture);
+        textureFilterModes.put(unit, filterMode);
+        textureWrapModes.put(unit, wrapMode);
+    }
+
+    /**
+     * Set texture filtering mode for a specific texture unit
+     */
+    public void setTextureFilterMode(int unit, TextureSampleNode.FilterMode filterMode) {
+        textureFilterModes.put(unit, filterMode);
+    }
+
+    /**
+     * Set texture wrap mode for a specific texture unit
+     */
+    public void setTextureWrapMode(int unit, TextureSampleNode.WrapMode wrapMode) {
+        textureWrapModes.put(unit, wrapMode);
+    }
+
+    /**
      * Clear all uniforms
      */
     public void clearUniforms() {
         uniforms.clear();
         textures.clear();
+        textureFilterModes.clear();
+        textureWrapModes.clear();
     }
 
     /**
