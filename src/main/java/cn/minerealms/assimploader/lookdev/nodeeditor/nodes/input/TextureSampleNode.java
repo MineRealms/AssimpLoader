@@ -92,12 +92,52 @@ public class TextureSampleNode extends Node {
     }
 
     public enum FilterMode {
-        NEAREST,
-        LINEAR
+        NEAREST("Nearest"),
+        LINEAR("Linear"),
+        MIPMAP("Mipmap");
+
+        private final String displayName;
+
+        FilterMode(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public int toGLConstant() {
+            switch (this) {
+                case NEAREST: return 9728; // GL_NEAREST
+                case LINEAR: return 9729; // GL_LINEAR
+                case MIPMAP: return 9987; // GL_LINEAR_MIPMAP_LINEAR
+                default: return 9729;
+            }
+        }
     }
 
     public enum WrapMode {
-        REPEAT,
-        CLAMP
+        REPEAT("Repeat"),
+        CLAMP("Clamp"),
+        MIRROR("Mirror");
+
+        private final String displayName;
+
+        WrapMode(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public int toGLConstant() {
+            switch (this) {
+                case REPEAT: return 10497; // GL_REPEAT
+                case CLAMP: return 33071; // GL_CLAMP_TO_EDGE
+                case MIRROR: return 33648; // GL_MIRRORED_REPEAT
+                default: return 10497;
+            }
+        }
     }
 }
