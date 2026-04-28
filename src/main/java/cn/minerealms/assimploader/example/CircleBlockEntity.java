@@ -4,11 +4,14 @@ import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
+import cn.minerealms.assimploader.lod.LODManager;
 import cn.minerealms.assimploader.model.AssimpScene;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Collections;
 import java.util.Set;
@@ -30,6 +33,7 @@ public class CircleBlockEntity extends BlockEntity {
     private AnimationState animationState;
     private boolean initialized = false;
     private AssimpScene lastScene = null; // Track scene reference for hot-reload detection
+    private int tickCounter = 0; // For LOD-based animation update frequency
 
     public CircleBlockEntity(BlockPos pos, BlockState state) {
         super(ExampleRegistry.CIRCLE_BLOCK_ENTITY.get(), pos, state);
@@ -84,7 +88,7 @@ public class CircleBlockEntity extends BlockEntity {
     }
 
     /**
-     * Tick method - update animation every tick
+     * Tick method - update animation every tick (with LOD-based frequency)
      */
     public void tick() {
         if (!initialized) {
@@ -92,8 +96,30 @@ public class CircleBlockEntity extends BlockEntity {
         }
 
         if (animationState != null && animationState.isInitialized()) {
-            // Update animation (1 tick = 0.05 seconds at 20 TPS)
-            animationState.update(0.05f);
+            // LOD: Calculate distance and determine update frequency
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
+                Vec3 entityPos = new Vec3(
+                    worldPosition.getX() + 0.5,
+                    worldPosition.getY() + 0.5,
+                    worldPosition.getZ() + 0.5
+                );
+                LODManager.LODLevel lodLevel = LODManager.getLODLevel(cameraPos, entityPos);
+                int updateFrequency = lodLevel.getAnimationUpdateFrequency();
+
+                // Update animation only at the appropriate frequency
+                tickCounter++;
+                if (tickCounter >= updateFrequency) {
+                    // Update animation (1 tick = 0.05 seconds at 20 TPS)
+                    // Multiply deltaTime by tickCounter to maintain correct animation speed
+                    animationState.update(0.05f * tickCounter);
+                    tickCounter = 0;
+                }
+            } else {
+                // Fallback: update every tick if no player
+                animationState.update(0.05f);
+            }
         }
     }
 
