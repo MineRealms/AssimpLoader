@@ -29,7 +29,9 @@ public class GaussianSplatBlock extends BaseEntityBlock {
 
     @Override
     public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.ENTITYBLOCK_ANIMATED;
+        // Use MODEL for fallback rendering when no splat data available
+        // ENTITYBLOCK_ANIMATED for custom rendering when splat data exists
+        return RenderShape.MODEL;
     }
 
     @Nullable
