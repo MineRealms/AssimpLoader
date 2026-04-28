@@ -455,27 +455,32 @@ PerformanceProfiler.end("splat_render");
 3. ✅ Create `SplatResourceManager.java`
 4. ✅ Test: Load .ply file and render
 
-### Sprint 5: Node Editor (6-8 hours)
-1. ✅ Create `GaussianSplatNode.java`
-2. ✅ Create `SplatColorNode.java`
-3. ✅ Create `SplatOpacityNode.java`
-4. ✅ Integrate with node graph executor
-5. ✅ Test: Modify splat colors via node graph
+### Sprint 5: Oculus Compatibility (8-10 hours)
+1. ✅ Implement TBO fallback for SSBO
+2. ✅ Create `GaussianSplatOculusInjector` for shader injection
+3. ✅ Integrate with `OculusShaderInjector` framework
+4. ✅ Generate vertex/fragment shader code for gbuffers
+5. ⬜ Test: Render splats with Oculus installed
+6. ⬜ TODO: Handle shader pack conflicts
 
-### Sprint 6: Oculus Compatibility (8-10 hours)
-1. ⬜ Extend `OculusShaderInjector` for splat injection
-2. ⬜ Implement TBO fallback for SSBO
-3. ⬜ Extend `DualModeShaderManager` for splat compilation
-4. ⬜ Test: Render splats with Oculus installed
-5. ⬜ TODO: Handle shader pack conflicts
+### Sprint 6: Performance (4-6 hours)
+1. ✅ Implement `GaussianSplatLOD`
+2. ✅ Add profiling hooks
+3. ✅ Implement distance-based LOD levels
+4. ✅ Add frustum culling support
+5. ⬜ Test: 100k splats at 60 FPS
 
-### Sprint 7: Performance (4-6 hours)
-1. ⬜ Implement `GaussianSplatLOD`
-2. ⬜ Add profiling hooks
-3. ⬜ Optimize sorting algorithm
-4. ⬜ Test: 100k splats at 60 FPS
+### Sprint 7: World Rendering (4-6 hours)
+1. ✅ Create `GaussianSplatBlock`
+2. ✅ Create `GaussianSplatBlockEntity`
+3. ✅ Create `GaussianSplatBlockEntityRenderer`
+4. ✅ Register with `ExampleRegistry`
+5. ✅ Fix crash when resource not found
+6. ⬜ Test: Place splat block in world
 
 **Total Estimate:** 40-54 hours
+**Completed:** Sprint 1-7 core implementation
+**Remaining:** Testing and optimization
 
 ---
 
