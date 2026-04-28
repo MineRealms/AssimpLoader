@@ -21,6 +21,7 @@ public class GaussianSplatBlockEntity extends BlockEntity {
 
     private GaussianSplatData splatData;
     private boolean initialized = false;
+    private boolean loadFailed = false;
     private String modelName = "example"; // Default model name
 
     public GaussianSplatBlockEntity(BlockPos pos, BlockState state) {
@@ -31,7 +32,7 @@ public class GaussianSplatBlockEntity extends BlockEntity {
      * Initialize splat data (lazy initialization)
      */
     private void initializeSplatData() {
-        if (!initialized) {
+        if (!initialized && !loadFailed) {
             try {
                 // Load splat data from resources
                 ResourceLocation location = new ResourceLocation("assimploader", "splats/" + modelName + ".splat");
@@ -48,10 +49,12 @@ public class GaussianSplatBlockEntity extends BlockEntity {
 
                 initialized = true;
             } catch (IOException e) {
-                cn.minerealms.assimploader.debug.DebugManager.error(
+                cn.minerealms.assimploader.debug.DebugManager.warn(
                     cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
-                    "GaussianSplatBlockEntity: Failed to load splat data: {}", e.getMessage()
+                    "GaussianSplatBlockEntity: Failed to load splat data from {}: {}. Block will render as fallback.",
+                    "assimploader:splats/" + modelName + ".splat", e.getMessage()
                 );
+                loadFailed = true;
             }
         }
     }
@@ -60,7 +63,7 @@ public class GaussianSplatBlockEntity extends BlockEntity {
      * Tick method - called every tick
      */
     public void tick() {
-        if (!initialized) {
+        if (!initialized && !loadFailed) {
             initializeSplatData();
         }
     }
@@ -93,6 +96,7 @@ public class GaussianSplatBlockEntity extends BlockEntity {
     public void setModelName(String modelName) {
         this.modelName = modelName;
         this.initialized = false;
+        this.loadFailed = false;
         this.splatData = null;
     }
 }

@@ -39,7 +39,12 @@ public class SplatLoader {
         String path = location.getPath();
         String extension = getExtension(path);
 
-        try (InputStream stream = resourceManager.getResource(location).get().open()) {
+        var resource = resourceManager.getResource(location);
+        if (resource.isEmpty()) {
+            throw new IOException("Resource not found: " + location);
+        }
+
+        try (InputStream stream = resource.get().open()) {
             return load(stream, extension);
         }
     }
