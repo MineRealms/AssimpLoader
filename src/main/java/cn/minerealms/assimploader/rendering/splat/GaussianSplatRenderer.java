@@ -53,6 +53,9 @@ public class GaussianSplatRenderer {
             DebugManager.info(DebugCategory.RENDER, "GaussianSplatRenderer: Using TBO fallback for Oculus compatibility");
         }
 
+        // Initialize Oculus shader injection
+        GaussianSplatOculusInjector.initialize();
+
         initialized = true;
 
         DebugManager.info(DebugCategory.RENDER, "GaussianSplatRenderer initialized");
