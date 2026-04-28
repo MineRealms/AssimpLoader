@@ -72,11 +72,11 @@ public class TextureSampleNode extends Node {
             // Try to load and draw texture
             Image textureImage = getOrLoadTextureImage();
             if (textureImage != null) {
-                // Draw the texture preview
+                // Draw the texture preview using 8-parameter drawImage
                 canvas.save();
-                canvas.drawImage(textureImage, null,
-                    bodyX + 15, bodyY + 15,
-                    bodyX + bodyWidth - 15, bodyY + 15 + previewHeight - 10,
+                canvas.drawImage(textureImage,
+                    0, 0, textureImage.getWidth(), textureImage.getHeight(), // src rect
+                    bodyX + 15, bodyY + 15, bodyX + bodyWidth - 15, bodyY + 15 + previewHeight - 10, // dst rect
                     paint);
                 canvas.restore();
             } else {

@@ -17,6 +17,9 @@ import icyllis.modernui.graphics.drawable.Drawable;
 import icyllis.modernui.graphics.drawable.ShapeDrawable;
 import icyllis.modernui.core.Context;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+
 /**
  * Node Properties Panel
  *
@@ -382,16 +385,40 @@ public class NodePropertiesPanel extends LinearLayout {
         labelParams.setMargins(10, 10, 10, 5);
         propertiesContainer.addView(labelView, labelParams);
 
-        // Text input (using TextView as editable for now - Phase 10 will add proper text editing)
+        // Text input display (clickable to open editor)
         TextView textView = new TextView(getContext());
-        textView.setText(initialValue.isEmpty() ? "(No texture)" : initialValue);
+        textView.setText(initialValue.isEmpty() ? "(Click to edit)" : initialValue);
         textView.setTextColor(initialValue.isEmpty() ? 0xFF666666 : 0xFFFFFFFF);
         textView.setBackground(createColorDrawable(0xFF2A2A2A));
         textView.setPadding(10, 10, 10, 10);
 
-        // TODO: Add proper text editing in Phase 10 (requires ModernUI TextField or custom input dialog)
+        // Open native text input screen on click
         textView.setOnClickListener(v -> {
-            DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] Text input clicked (editing not yet implemented)");
+            DebugManager.debug(DebugCategory.LOOKDEV, "[NodePropertiesPanel] Opening text input dialog for: {}", label);
+
+            // Get current screen (ModernUI screen)
+            Minecraft mc = Minecraft.getInstance();
+
+            // Open text input screen
+            mc.execute(() -> {
+                TextInputScreen inputScreen = new TextInputScreen(
+                    Component.literal("Edit " + label),
+                    mc.screen,
+                    initialValue,
+                    newValue -> {
+                        // Update the display
+                        textView.setText(newValue.isEmpty() ? "(Click to edit)" : newValue);
+                        textView.setTextColor(newValue.isEmpty() ? 0xFF666666 : 0xFFFFFFFF);
+
+                        // Notify listener
+                        listener.onTextChanged(newValue);
+
+                        DebugManager.debug(DebugCategory.LOOKDEV,
+                            "[NodePropertiesPanel] Text updated: {} = {}", label, newValue);
+                    }
+                );
+                mc.setScreen(inputScreen);
+            });
         });
 
         LayoutParams inputParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
