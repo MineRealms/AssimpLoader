@@ -34,12 +34,19 @@ public class FrustumCuller {
     public void updateFrustum(Matrix4f viewProjection) {
         if (!lastViewProjection.equals(viewProjection)) {
             lastViewProjection.set(viewProjection);
-            frustum.prepare(viewProjection.m00(), viewProjection.m01(), viewProjection.m02(), viewProjection.m03(),
-                           viewProjection.m10(), viewProjection.m11(), viewProjection.m12(), viewProjection.m13(),
-                           viewProjection.m20(), viewProjection.m21(), viewProjection.m22(), viewProjection.m23(),
-                           viewProjection.m30(), viewProjection.m31(), viewProjection.m32(), viewProjection.m33());
+            // Minecraft's Frustum.prepare() takes 3 doubles (x, y, z camera position)
+            // We'll need to call this differently - store the matrix for now
             initialized = true;
         }
+    }
+
+    /**
+     * Update frustum with camera position
+     * Call this once per frame before rendering
+     */
+    public void updateFrustum(double camX, double camY, double camZ) {
+        frustum.prepare(camX, camY, camZ);
+        initialized = true;
     }
 
     /**
