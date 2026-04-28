@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.example;
 
 import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.animation.BoneHierarchyBuilder;
+import cn.minerealms.assimploader.lod.LODManager;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.render.FrustumCuller;
@@ -14,6 +15,7 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 import java.io.IOException;
@@ -44,6 +46,20 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
         );
         if (!FrustumCuller.getInstance().isVisible(boundingBox)) {
             return; // Skip rendering if outside view frustum
+        }
+
+        // LOD: Calculate distance and determine LOD level
+        Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        Vec3 entityPos = new Vec3(
+            blockEntity.getBlockPos().getX() + 0.5,
+            blockEntity.getBlockPos().getY() + 0.5,
+            blockEntity.getBlockPos().getZ() + 0.5
+        );
+        LODManager.LODLevel lodLevel = LODManager.getLODLevel(cameraPos, entityPos);
+
+        // Skip rendering if too far (CULLED level)
+        if (lodLevel == LODManager.LODLevel.CULLED) {
+            return;
         }
 
         AnimationState animationState = blockEntity.getAnimationState();
@@ -160,6 +176,7 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
 
     @Override
     public int getViewDistance() {
-        return 64; // Render distance in blocks
+        // Match LOD culling distance (96 blocks)
+        return 96;
     }
 }
