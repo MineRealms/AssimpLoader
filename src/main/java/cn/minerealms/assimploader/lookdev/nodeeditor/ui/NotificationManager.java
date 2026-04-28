@@ -166,13 +166,19 @@ public class NotificationManager {
             }
         }
 
-        // Draw message text (placeholder)
-        // TODO: Draw actual text when ModernUI text rendering is available
+        // Draw message text
         float textX = iconX + iconSize + 10;
-        float textY = y + height / 2;
+        float textY = y + height / 2 + 4; // Baseline adjustment
         paint.setColor(withAlpha(0xFFFFFFFF, alphaInt));
-        // For now, just draw a rectangle to indicate text area
-        canvas.drawRect(textX, textY - 8, textX + 150, textY + 8, paint);
+        paint.setStyle(Paint.FILL);
+        cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+            canvas,
+            notification.message,
+            textX,
+            textY,
+            11.0f,
+            paint
+        );
     }
 
     /**

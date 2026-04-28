@@ -84,8 +84,17 @@ public abstract class Node {
             paint
         );
 
-        // TODO: Draw title text (ModernUI Canvas doesn't support text rendering yet)
-        // We'll need to use TextView overlays or wait for text API
+        // Draw title text
+        paint.setColor(0xFFFFFFFF);
+        paint.setStyle(Paint.FILL);
+        cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+            canvas,
+            title,
+            x + 10,
+            y + TITLE_BAR_HEIGHT / 2 + 4, // Center vertically (baseline adjustment)
+            10.0f,
+            paint
+        );
 
         // Draw body content
         drawBody(canvas, paint);
@@ -119,7 +128,17 @@ public abstract class Node {
             paint.setStrokeWidth(1.5f);
             canvas.drawCircle(x, socketY, SOCKET_RADIUS, paint);
 
-            // TODO: Draw socket label (ModernUI Canvas doesn't support text rendering yet)
+            // Draw socket label
+            paint.setColor(0xFFCCCCCC);
+            paint.setStyle(Paint.FILL);
+            cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+                canvas,
+                socket.getName(),
+                x + SOCKET_RADIUS + 8,
+                socketY + 4, // Baseline adjustment
+                9.0f,
+                paint
+            );
         }
 
         // Draw output sockets (right side)
@@ -138,7 +157,19 @@ public abstract class Node {
             paint.setStrokeWidth(1.5f);
             canvas.drawCircle(x + width, socketY, SOCKET_RADIUS, paint);
 
-            // TODO: Draw socket label (ModernUI Canvas doesn't support text rendering yet)
+            // Draw socket label (right-aligned)
+            paint.setColor(0xFFCCCCCC);
+            paint.setStyle(Paint.FILL);
+            String label = socket.getName();
+            float textWidth = cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.measureText(label, 9.0f);
+            cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+                canvas,
+                label,
+                x + width - SOCKET_RADIUS - textWidth - 8,
+                socketY + 4, // Baseline adjustment
+                9.0f,
+                paint
+            );
         }
     }
 

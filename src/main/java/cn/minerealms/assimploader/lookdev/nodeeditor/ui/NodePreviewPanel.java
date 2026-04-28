@@ -124,9 +124,17 @@ public class NodePreviewPanel extends View {
         paint.setColor(0xFF1E1E1E);
         canvas.drawRect(0, 0, getWidth(), 30, paint);
 
-        // Draw title text (placeholder)
+        // Draw title text
         paint.setColor(0xFFCCCCCC);
-        // TODO: Draw "Preview" text when text rendering available
+        paint.setStyle(Paint.FILL);
+        cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+            canvas,
+            "Preview",
+            10,
+            20,
+            11.0f,
+            paint
+        );
 
         // Draw preview area
         if (previewNode != null) {
@@ -175,7 +183,16 @@ public class NodePreviewPanel extends View {
         // Draw zoom indicator
         paint.setColor(0xFF888888);
         paint.setStyle(Paint.FILL);
-        // TODO: Draw zoom percentage text
+        String zoomText = String.format("%.0f%%", zoom * 100);
+        float textWidth = cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.measureText(zoomText, 9.0f);
+        cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+            canvas,
+            zoomText,
+            getWidth() - textWidth - 10,
+            getHeight() - 10,
+            9.0f,
+            paint
+        );
     }
 
     /**
@@ -212,9 +229,19 @@ public class NodePreviewPanel extends View {
             // Draw checkerboard pattern for texture placeholder
             drawCheckerboard(canvas, paint, x, y, size);
 
-            // Draw texture ID text (placeholder)
+            // Draw texture ID text
             paint.setColor(0xFFFFFFFF);
-            // TODO: Draw texture ID when text rendering available
+            paint.setStyle(Paint.FILL);
+            String texIdText = "Texture #" + intValue;
+            float textWidth = cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.measureText(texIdText, 10.0f);
+            cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+                canvas,
+                texIdText,
+                x + (size - textWidth) / 2,
+                y + size / 2 + 4,
+                10.0f,
+                paint
+            );
 
         } else {
             // Unknown type
@@ -243,7 +270,18 @@ public class NodePreviewPanel extends View {
 
         paint.setColor(0xFF666666);
         paint.setStyle(Paint.FILL);
-        // TODO: Draw "No node selected" text when text rendering available
+
+        // Draw "No node selected" text
+        String message = "No node selected";
+        float textWidth = cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.measureText(message, 11.0f);
+        cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+            canvas,
+            message,
+            centerX - textWidth / 2,
+            centerY + 4,
+            11.0f,
+            paint
+        );
 
         // Draw placeholder icon (circle with X)
         paint.setStyle(Paint.STROKE);

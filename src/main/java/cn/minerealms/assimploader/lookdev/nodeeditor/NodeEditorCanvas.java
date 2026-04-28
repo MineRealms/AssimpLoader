@@ -265,8 +265,24 @@ public class NodeEditorCanvas extends View {
      * Draw overlay UI (zoom level, etc.)
      */
     private void drawOverlay(Canvas canvas, int width, int height) {
-        // TODO: Add text rendering when ModernUI text API is available
-        // For now, zoom info is shown in status bar
+        // Draw zoom level in bottom-right corner
+        Paint paint = Paint.obtain();
+        paint.setColor(0xFFCCCCCC);
+        paint.setStyle(Paint.FILL);
+
+        String zoomText = String.format("Zoom: %.0f%%", zoom * 100);
+        float textWidth = cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.measureText(zoomText, 10.0f);
+
+        cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+            canvas,
+            zoomText,
+            width - textWidth - 10,
+            height - 10,
+            10.0f,
+            paint
+        );
+
+        paint.recycle();
     }
 
     @Override
