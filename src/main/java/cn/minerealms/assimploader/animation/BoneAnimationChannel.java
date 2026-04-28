@@ -35,12 +35,12 @@ public class BoneAnimationChannel {
             return new Vector3f(0, 0, 0);
         }
 
-        Keyframe<Vector3f>[] surrounding = Keyframe.findSurroundingKeyframes(positionKeys, time);
+        Keyframe.KeyframePair<Vector3f> surrounding = Keyframe.findSurroundingKeyframes(positionKeys, time);
         if (surrounding == null) {
             return new Vector3f(0, 0, 0);
         }
 
-        return Keyframe.interpolatePosition(surrounding[0], surrounding[1], time);
+        return Keyframe.interpolatePosition(surrounding.before(), surrounding.after(), time);
     }
 
     /**
@@ -51,12 +51,12 @@ public class BoneAnimationChannel {
             return new Quaternionf();
         }
 
-        Keyframe<Quaternionf>[] surrounding = Keyframe.findSurroundingKeyframes(rotationKeys, time);
+        Keyframe.KeyframePair<Quaternionf> surrounding = Keyframe.findSurroundingKeyframes(rotationKeys, time);
         if (surrounding == null) {
             return new Quaternionf();
         }
 
-        return Keyframe.interpolateRotation(surrounding[0], surrounding[1], time);
+        return Keyframe.interpolateRotation(surrounding.before(), surrounding.after(), time);
     }
 
     /**
@@ -67,12 +67,12 @@ public class BoneAnimationChannel {
             return new Vector3f(1, 1, 1);
         }
 
-        Keyframe<Vector3f>[] surrounding = Keyframe.findSurroundingKeyframes(scaleKeys, time);
+        Keyframe.KeyframePair<Vector3f> surrounding = Keyframe.findSurroundingKeyframes(scaleKeys, time);
         if (surrounding == null) {
             return new Vector3f(1, 1, 1);
         }
 
-        return Keyframe.interpolateScale(surrounding[0], surrounding[1], time);
+        return Keyframe.interpolateScale(surrounding.before(), surrounding.after(), time);
     }
 
     public String getBoneName() {
