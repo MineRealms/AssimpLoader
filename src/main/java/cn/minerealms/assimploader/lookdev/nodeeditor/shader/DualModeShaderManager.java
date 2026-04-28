@@ -134,14 +134,72 @@ public class DualModeShaderManager {
             "[DualModeShaderManager] Generated GLSL fragment: {} uniforms",
             fragment.getUsedUniforms().size());
 
-        // TODO: Use OculusShaderInjector to inject into target shader
-        // For now, return a placeholder result
+        // Use OculusShaderInjector to inject into target shader
+        if (OculusShaderInjector.isAvailable()) {
+            String targetShader = "gbuffers_textured";
+
+            // Convert Set<String> uniforms to Map<String, String> with types
+            Map<String, String> uniformsWithTypes = new HashMap<>();
+            for (String uniformName : fragment.getUsedUniforms()) {
+                // Infer type from uniform name convention
+                String type = inferUniformType(uniformName);
+                uniformsWithTypes.put(uniformName, type);
+            }
+
+            String injectedCode = OculusShaderInjector.injectToGBuffer(
+                targetShader,
+                fragment.getCode(),
+                uniformsWithTypes
+            );
+
+            if (injectedCode != null) {
+                DebugManager.info(DebugCategory.LOOKDEV,
+                    "[DualModeShaderManager] Successfully injected shader code");
+
+                return new CompiledShader(
+                    CompilationMode.INJECTION,
+                    injectedCode,
+                    null,
+                    fragment.getUsedUniforms()
+                );
+            } else {
+                DebugManager.error(DebugCategory.LOOKDEV,
+                    "[DualModeShaderManager] OculusShaderInjector.inject() returned null");
+            }
+        } else {
+            DebugManager.warn(DebugCategory.LOOKDEV,
+                "[DualModeShaderManager] OculusShaderInjector not available");
+        }
+
+        // Fallback: return fragment without injection
         return new CompiledShader(
             CompilationMode.INJECTION,
             fragment.getCode(),
             null,
             fragment.getUsedUniforms()
         );
+    }
+
+    /**
+     * Infer GLSL type from uniform name convention
+     */
+    private static String inferUniformType(String uniformName) {
+        // Common naming conventions
+        if (uniformName.startsWith("u_Texture") || uniformName.endsWith("Texture")) {
+            return "sampler2D";
+        } else if (uniformName.endsWith("Color") || uniformName.startsWith("color")) {
+            return "vec4";
+        } else if (uniformName.endsWith("Factor") || uniformName.contains("Metallic") ||
+                   uniformName.contains("Roughness") || uniformName.contains("Alpha")) {
+            return "float";
+        } else if (uniformName.endsWith("UV") || uniformName.contains("Scale")) {
+            return "vec2";
+        } else if (uniformName.endsWith("Normal") || uniformName.endsWith("Position")) {
+            return "vec3";
+        }
+
+        // Default to float
+        return "float";
     }
 
     /**

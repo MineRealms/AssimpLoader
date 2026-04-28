@@ -100,13 +100,39 @@ public class NodeBasedMaterial {
         // Set shader
         RenderSystem.setShader(() -> compiledShader.shaderInstance);
 
-        // Bind textures
+        // Bind textures to OpenGL texture units
+        int textureUnit = 0;
         for (Map.Entry<Integer, ResourceLocation> entry : textures.entrySet()) {
-            int unit = entry.getKey();
             ResourceLocation texture = entry.getValue();
-            // TODO: Bind texture to unit
-            // RenderSystem.setShaderTexture(unit, texture);
+
+            // Activate texture unit
+            RenderSystem.activeTexture(org.lwjgl.opengl.GL13.GL_TEXTURE0 + textureUnit);
+
+            // Bind texture using Minecraft's texture manager
+            net.minecraft.client.Minecraft.getInstance()
+                .getTextureManager()
+                .bindForSetup(texture);
+
+            // Set shader sampler uniform
+            if (compiledShader.shaderInstance != null) {
+                try {
+                    String samplerName = "u_Texture" + textureUnit;
+                    compiledShader.shaderInstance.setSampler(samplerName, textureUnit);
+                    DebugManager.debug(DebugCategory.LOOKDEV,
+                        "[NodeBasedMaterial] Bound texture {} to unit {} ({})",
+                        texture, textureUnit, samplerName);
+                } catch (Exception e) {
+                    DebugManager.warn(DebugCategory.LOOKDEV,
+                        "[NodeBasedMaterial] Failed to set sampler for texture unit {}: {}",
+                        textureUnit, e.getMessage());
+                }
+            }
+
+            textureUnit++;
         }
+
+        // Reset to texture unit 0
+        RenderSystem.activeTexture(org.lwjgl.opengl.GL13.GL_TEXTURE0);
 
         // Set uniforms
         setupUniforms();

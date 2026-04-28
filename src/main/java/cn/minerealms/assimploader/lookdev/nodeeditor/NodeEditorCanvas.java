@@ -63,6 +63,9 @@ public class NodeEditorCanvas extends View {
     // Graph change listener
     private OnGraphChangeListener graphChangeListener;
 
+    // Material update listener (for backend integration)
+    private MaterialUpdateListener materialUpdateListener;
+
     public NodeEditorCanvas(icyllis.modernui.core.Context context) {
         super(context);
         init();
@@ -528,6 +531,21 @@ public class NodeEditorCanvas extends View {
     }
 
     /**
+     * Material update listener interface (for backend integration)
+     */
+    @FunctionalInterface
+    public interface MaterialUpdateListener {
+        void onGraphChanged();
+    }
+
+    /**
+     * Set material update listener
+     */
+    public void setMaterialUpdateListener(MaterialUpdateListener listener) {
+        this.materialUpdateListener = listener;
+    }
+
+    /**
      * Get selected node
      */
     public Node getSelectedNode() {
@@ -643,12 +661,15 @@ public class NodeEditorCanvas extends View {
                 outputSocket.getNode().getTitle() + " -> " +
                 inputSocket.getNode().getTitle());
 
-            // TODO: BACKEND INTEGRATION (Phase 10)
-            // When connection is created, trigger material update:
-            // 1. Execute node graph
-            // 2. Generate new material
-            // 3. Apply to preview (if auto-update enabled)
-            // 4. Consider debouncing to avoid too many updates
+            // Trigger material update
+            if (materialUpdateListener != null) {
+                materialUpdateListener.onGraphChanged();
+            }
+
+            // Also trigger graph change listener
+            if (graphChangeListener != null) {
+                graphChangeListener.onGraphChanged();
+            }
         } catch (Exception e) {
             DebugManager.error(DebugCategory.LOOKDEV,
                 "[NodeEditorCanvas] Failed to create connection: " + e.getMessage());
