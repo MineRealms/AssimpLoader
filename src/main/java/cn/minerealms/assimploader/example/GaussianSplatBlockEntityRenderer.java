@@ -1,0 +1,112 @@
+package cn.minerealms.assimploader.example;
+
+import cn.minerealms.assimploader.rendering.splat.GaussianSplatRenderer;
+import cn.minerealms.assimploader.rendering.splat.data.GaussianSplatData;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
+
+import java.io.IOException;
+
+/**
+ * Renderer for GaussianSplatBlockEntity.
+ *
+ * Renders 3D Gaussian Splatting models in the Minecraft world.
+ */
+public class GaussianSplatBlockEntityRenderer implements BlockEntityRenderer<GaussianSplatBlockEntity> {
+
+    private GaussianSplatRenderer splatRenderer;
+    private boolean rendererInitialized = false;
+
+    public GaussianSplatBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
+    }
+
+    @Override
+    public void render(GaussianSplatBlockEntity blockEntity, float partialTick, PoseStack poseStack,
+                      MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
+
+        // Initialize renderer if needed
+        if (!rendererInitialized) {
+            splatRenderer = new GaussianSplatRenderer();
+            try {
+                splatRenderer.initialize();
+                rendererInitialized = true;
+                cn.minerealms.assimploader.debug.DebugManager.info(
+                    cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
+                    "GaussianSplatBlockEntityRenderer: Renderer initialized"
+                );
+            } catch (IOException e) {
+                cn.minerealms.assimploader.debug.DebugManager.error(
+                    cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
+                    "GaussianSplatBlockEntityRenderer: Failed to initialize renderer: {}", e.getMessage()
+                );
+                return;
+            }
+        }
+
+        // Get splat data
+        GaussianSplatData splatData = blockEntity.getSplatData();
+        if (splatData == null || !blockEntity.isInitialized()) {
+            return;
+        }
+
+        poseStack.pushPose();
+
+        // Center the model in the block
+        poseStack.translate(0.5, 0.5, 0.5);
+
+        // Get camera position
+        Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        Vec3 blockPos = new Vec3(
+            blockEntity.getBlockPos().getX() + 0.5,
+            blockEntity.getBlockPos().getY() + 0.5,
+            blockEntity.getBlockPos().getZ() + 0.5
+        );
+
+        // Calculate view and projection matrices
+        Matrix4f viewMatrix = new Matrix4f(poseStack.last().pose());
+        Matrix4f projectionMatrix = new Matrix4f(); // TODO: Get actual projection matrix from Minecraft
+
+        // Calculate camera position relative to block
+        Vector3f relativeCameraPos = new Vector3f(
+            (float) (cameraPos.x - blockPos.x),
+            (float) (cameraPos.y - blockPos.y),
+            (float) (cameraPos.z - blockPos.z)
+        );
+
+        // Calculate FOV (default Minecraft FOV is 70 degrees)
+        float fov = (float) Math.toRadians(70.0);
+        float fovX = fov;
+        float fovY = fov * 9.0f / 16.0f; // Aspect ratio 16:9
+        float focal = 1.0f / (float) Math.tan(fov / 2.0f);
+
+        // Render splats
+        try {
+            splatRenderer.render(
+                splatData,
+                viewMatrix,
+                projectionMatrix,
+                relativeCameraPos,
+                fovX, fovY, focal,
+                1.0f // scale modifier
+            );
+        } catch (Exception e) {
+            cn.minerealms.assimploader.debug.DebugManager.error(
+                cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
+                "GaussianSplatBlockEntityRenderer: Render failed: {}", e.getMessage()
+            );
+        }
+
+        poseStack.popPose();
+    }
+
+    @Override
+    public int getViewDistance() {
+        return 256; // Render distance for splats
+    }
+}

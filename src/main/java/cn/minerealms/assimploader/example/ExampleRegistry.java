@@ -61,6 +61,16 @@ public class ExampleRegistry {
         )
     );
 
+    // Gaussian Splat block with 3DGS model (using BlockEntityRenderer)
+    public static final RegistryObject<Block> GAUSSIAN_SPLAT = BLOCKS.register("gaussian_splat",
+        () -> new GaussianSplatBlock(BlockBehaviour.Properties.of()
+            .mapColor(MapColor.METAL)
+            .strength(3.0F, 6.0F)
+            .sound(SoundType.METAL)
+            .requiresCorrectToolForDrops()
+        )
+    );
+
     // Block entity
     public static final RegistryObject<BlockEntityType<TestModelBlockEntity>> TEST_MODEL_BLOCK_ENTITY =
         BLOCK_ENTITIES.register("test_model_block_entity",
@@ -79,6 +89,12 @@ public class ExampleRegistry {
             () -> BlockEntityType.Builder.of(CircleBlockEntity::new, CIRCLE.get()).build(null)
         );
 
+    // Gaussian Splat block entity
+    public static final RegistryObject<BlockEntityType<GaussianSplatBlockEntity>> GAUSSIAN_SPLAT_BLOCK_ENTITY =
+        BLOCK_ENTITIES.register("gaussian_splat_block_entity",
+            () -> BlockEntityType.Builder.of(GaussianSplatBlockEntity::new, GAUSSIAN_SPLAT.get()).build(null)
+        );
+
     // Block item
     public static final RegistryObject<Item> CNC_MACHINE_ITEM = ITEMS.register("cnc_machine",
         () -> new AssimpBlockItem(CNC_MACHINE.get(), new Item.Properties())
@@ -92,6 +108,11 @@ public class ExampleRegistry {
     // Circle block item
     public static final RegistryObject<Item> CIRCLE_ITEM = ITEMS.register("circle",
         () -> new AssimpBlockItem(CIRCLE.get(), new Item.Properties())
+    );
+
+    // Gaussian Splat block item
+    public static final RegistryObject<Item> GAUSSIAN_SPLAT_ITEM = ITEMS.register("gaussian_splat",
+        () -> new AssimpBlockItem(GAUSSIAN_SPLAT.get(), new Item.Properties())
     );
 
     public static void register(IEventBus modEventBus) {
@@ -109,6 +130,7 @@ public class ExampleRegistry {
             event.accept(CNC_MACHINE_ITEM);
             event.accept(CCB_ITEM);
             event.accept(CIRCLE_ITEM);
+            event.accept(GAUSSIAN_SPLAT_ITEM);
         }
     }
 }

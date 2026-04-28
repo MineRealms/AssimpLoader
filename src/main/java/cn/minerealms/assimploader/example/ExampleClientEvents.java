@@ -36,7 +36,11 @@ public class ExampleClientEvents {
             ExampleRegistry.CIRCLE_BLOCK_ENTITY.get(),
             CircleBlockEntityRenderer::new
         );
-        DebugManager.info(DebugCategory.CORE, "Registered block entity renderers: TestModel, CCB, Circle");
+        event.registerBlockEntityRenderer(
+            ExampleRegistry.GAUSSIAN_SPLAT_BLOCK_ENTITY.get(),
+            GaussianSplatBlockEntityRenderer::new
+        );
+        DebugManager.info(DebugCategory.CORE, "Registered block entity renderers: TestModel, CCB, Circle, GaussianSplat");
     }
 
     public static BlockEntityWithoutLevelRenderer getItemRenderer() {
