@@ -134,6 +134,12 @@ repositories {
         url 'https://oss.sonatype.org/content/repositories/snapshots/'
     }
 
+    // JSplat (local Maven repository)
+    maven {
+        name 'JSplat Local'
+        url 'file://H:/MinecraftMods/JSplat/.m2/repository'
+    }
+
     mavenCentral()
 }
 
@@ -181,6 +187,8 @@ dependencies {
     compileOnly 'org.antlr:antlr4-runtime:4.13.1'
 
     // Caliko IK Library - Source code integrated directly into src/main/java/au/
+
+    // JSplat - Gaussian Splatting IO modules (source code integrated directly into src/main/java/de/)
 
     // JUnit 5 for testing
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
