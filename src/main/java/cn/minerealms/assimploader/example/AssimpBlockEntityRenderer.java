@@ -9,6 +9,7 @@ import cn.minerealms.assimploader.model.AssimpMaterial;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.model.AssimpTexture;
+import cn.minerealms.assimploader.render.FrustumCuller;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -21,6 +22,7 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.AABB;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -47,6 +49,22 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
      */
     protected abstract String getModelName();
 
+    /**
+     * Get the bounding box for frustum culling.
+     * Override this to provide a custom bounding box.
+     * Default: 1x1x1 block at entity position
+     */
+    protected AABB getBoundingBox(T blockEntity) {
+        return new AABB(
+            blockEntity.getBlockPos().getX(),
+            blockEntity.getBlockPos().getY(),
+            blockEntity.getBlockPos().getZ(),
+            blockEntity.getBlockPos().getX() + 1,
+            blockEntity.getBlockPos().getY() + 1,
+            blockEntity.getBlockPos().getZ() + 1
+        );
+    }
+
     @Override
     public void render(T blockEntity, float partialTick, PoseStack poseStack,
                       MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
@@ -70,6 +88,12 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
                 DebugManager.error(DebugCategory.CORE, "DEBUG: Scene is NULL! Model not loaded for {}.", modelName);
             }
             return;
+        }
+
+        // Frustum culling: check if block entity is visible
+        AABB boundingBox = getBoundingBox(blockEntity);
+        if (boundingBox != null && !FrustumCuller.getInstance().isVisible(boundingBox)) {
+            return; // Skip rendering if outside view frustum
         }
 
         if (isFirstRender) {
