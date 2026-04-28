@@ -4,6 +4,7 @@ import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.animation.BoneHierarchyBuilder;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.model.AssimpMesh;
+import cn.minerealms.assimploader.render.FrustumCuller;
 import cn.minerealms.assimploader.rendering.SkinnedMeshRenderer;
 import cn.minerealms.assimploader.rendering.SimpleMeshRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -12,6 +13,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.phys.AABB;
 import org.joml.Matrix4f;
 
 import java.io.IOException;
@@ -30,6 +32,19 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
     @Override
     public void render(CircleBlockEntity blockEntity, float partialTick, PoseStack poseStack,
                       MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
+
+        // Frustum culling: check if block entity is visible
+        AABB boundingBox = new AABB(
+            blockEntity.getBlockPos().getX(),
+            blockEntity.getBlockPos().getY(),
+            blockEntity.getBlockPos().getZ(),
+            blockEntity.getBlockPos().getX() + 1,
+            blockEntity.getBlockPos().getY() + 1,
+            blockEntity.getBlockPos().getZ() + 1
+        );
+        if (!FrustumCuller.getInstance().isVisible(boundingBox)) {
+            return; // Skip rendering if outside view frustum
+        }
 
         AnimationState animationState = blockEntity.getAnimationState();
         if (animationState == null || !animationState.isInitialized()) {
