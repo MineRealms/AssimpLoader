@@ -89,7 +89,7 @@ public class OculusShaderInjector {
      * @param injectionPoint Where to inject the code
      * @return Transformed shader code, or null if injection fails
      */
-    public String inject(String targetShaderName,
+    public static String inject(String targetShaderName,
                          String fragmentCode,
                          Map<String, String> uniforms,
                          InjectionPoint injectionPoint) {
@@ -157,7 +157,7 @@ public class OculusShaderInjector {
     /**
      * Convert InjectionPoint to ASTInjectionPoint
      */
-    private ASTInjectionPoint convertInjectionPoint(InjectionPoint point) {
+    private static ASTInjectionPoint convertInjectionPoint(InjectionPoint point) {
         return switch (point) {
             case BEFORE_DECLARATIONS -> ASTInjectionPoint.BEFORE_DECLARATIONS;
             case BEFORE_FUNCTIONS -> ASTInjectionPoint.BEFORE_FUNCTIONS;
@@ -170,7 +170,7 @@ public class OculusShaderInjector {
     /**
      * Inject into gbuffer shader (main rendering pass)
      */
-    public String injectToGBuffer(String gbufferName,
+    public static String injectToGBuffer(String gbufferName,
                                   String fragmentCode,
                                   Map<String, String> uniforms) {
         return inject(gbufferName, fragmentCode, uniforms, InjectionPoint.MAIN_END);
@@ -179,7 +179,7 @@ public class OculusShaderInjector {
     /**
      * Inject into composite shader (post-processing)
      */
-    public String injectToComposite(String compositeName,
+    public static String injectToComposite(String compositeName,
                                     String fragmentCode,
                                     Map<String, String> uniforms) {
         return inject("composite_" + compositeName, fragmentCode, uniforms, InjectionPoint.MAIN_START);
@@ -199,7 +199,7 @@ public class OculusShaderInjector {
     /**
      * Get base fragment shader template for testing
      */
-    private String getBaseFragmentShader() {
+    private static String getBaseFragmentShader() {
         return """
             #version 330 core
             precision highp float;

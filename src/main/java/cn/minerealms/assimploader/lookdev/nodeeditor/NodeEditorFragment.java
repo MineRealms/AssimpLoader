@@ -18,6 +18,8 @@ import cn.minerealms.assimploader.lookdev.nodeeditor.ui.ResizableDivider;
 import cn.minerealms.assimploader.lookdev.nodeeditor.undo.CommandHistory;
 import cn.minerealms.assimploader.lookdev.nodeeditor.undo.AddNodeCommand;
 import cn.minerealms.assimploader.lookdev.nodeeditor.undo.DeleteNodeCommand;
+import cn.minerealms.assimploader.lookdev.nodeeditor.shader.DualModeShaderManager;
+import cn.minerealms.assimploader.lookdev.nodeeditor.shader.NodeBasedMaterial;
 import icyllis.modernui.annotation.NonNull;
 import icyllis.modernui.fragment.Fragment;
 import icyllis.modernui.graphics.drawable.ColorDrawable;
@@ -35,6 +37,10 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Node Editor Fragment - ComfyUI-style visual node editor.
@@ -71,6 +77,10 @@ public class NodeEditorFragment extends Fragment {
     // Material-node graph binding
     private MaterialNodeGraphManager nodeGraphManager;
     private PBRMaterial currentMaterial = null;
+
+    // Debouncing for auto-update
+    private ScheduledExecutorService debounceExecutor = Executors.newSingleThreadScheduledExecutor();
+    private ScheduledFuture<?> pendingUpdate = null;
 
     // State preservation
     private Map<String, Boolean> savedCategoryStates = null;
@@ -196,6 +206,13 @@ public class NodeEditorFragment extends Fragment {
             DebugManager.debug(DebugCategory.LOOKDEV,
                 "[NodeEditorFragment] Graph changed, updating preview");
             updateMaterialPreview();
+        });
+
+        // Set up material update listener for backend integration
+        canvas.setMaterialUpdateListener(() -> {
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Material update triggered");
+            scheduleGraphUpdate();
         });
 
         // Bottom status bar
@@ -505,7 +522,126 @@ public class NodeEditorFragment extends Fragment {
                 "[NodeEditorFragment] Failed to apply material", e);
         }
 
-        // TODO: In FULL_INTEGRATION mode, also generate and compile shader code
+        // In FULL_INTEGRATION mode, also generate and compile shader code
+        if (featureTier != FeatureTier.STANDALONE && DualModeShaderManager.hasShaderSupport()) {
+            compileAndApplyShader();
+        }
+    }
+
+    /**
+     * Schedule a debounced graph update
+     */
+    private void scheduleGraphUpdate() {
+        if (pendingUpdate != null) {
+            pendingUpdate.cancel(false);
+        }
+
+        pendingUpdate = debounceExecutor.schedule(() -> {
+            try {
+                applyMaterial();
+            } catch (Exception e) {
+                DebugManager.error(DebugCategory.LOOKDEV,
+                    "[NodeEditorFragment] Error during scheduled update", e);
+            }
+        }, 500, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Apply material from current node graph
+     */
+    private void applyMaterial() {
+        if (canvas == null) {
+            return;
+        }
+
+        try {
+            List<Node> nodes = canvas.getNodes();
+            List<NodeConnection> connections = canvas.getConnections();
+
+            if (nodes.isEmpty()) {
+                DebugManager.debug(DebugCategory.LOOKDEV,
+                    "[NodeEditorFragment] No nodes to compile");
+                return;
+            }
+
+            // Check for cycles
+            NodeGraphExecutor executor = new NodeGraphExecutor(nodes, connections);
+            if (executor.hasCycles()) {
+                DebugManager.error(DebugCategory.LOOKDEV,
+                    "[NodeEditorFragment] Cannot apply: graph has cycles");
+                setStatus("Error: Graph has cycles");
+                return;
+            }
+
+            // Generate and apply material
+            PBRMaterial material = generateMaterial();
+
+            // Update preview
+            if (propertiesPanel != null) {
+                propertiesPanel.updateMaterialPreviewWithMaterial(material);
+            }
+
+            // Apply to LookDevScreen
+            Fragment parent = getParentFragment();
+            if (parent != null) {
+                Fragment grandParent = parent.getParentFragment();
+                if (grandParent instanceof LookDevScreen) {
+                    ((LookDevScreen) grandParent).applyNodeGeneratedMaterial(material);
+                }
+            }
+
+            // In FULL_INTEGRATION mode, compile shader
+            if (featureTier != FeatureTier.STANDALONE && DualModeShaderManager.hasShaderSupport()) {
+                compileAndApplyShader();
+            }
+
+            DebugManager.debug(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Material applied successfully");
+
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Failed to apply material", e);
+            setStatus("Error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Compile and apply shader from node graph
+     */
+    private void compileAndApplyShader() {
+        if (canvas == null) {
+            return;
+        }
+
+        try {
+            List<Node> nodes = canvas.getNodes();
+            List<NodeConnection> connections = canvas.getConnections();
+
+            // Compile shader using DualModeShaderManager
+            DualModeShaderManager.CompiledShader compiled =
+                DualModeShaderManager.compile(nodes, connections, null);
+
+            if (compiled != null) {
+                DebugManager.info(DebugCategory.LOOKDEV,
+                    "[NodeEditorFragment] Shader compiled successfully in {} mode",
+                    compiled.getMode());
+
+                // Create NodeBasedMaterial if in full shader mode
+                if (compiled.isFullShaderMode()) {
+                    // TODO: Apply compiled shader to rendering
+                    setStatus("Shader compiled (Full mode)");
+                } else if (compiled.isInjectionMode()) {
+                    setStatus("Shader injected (Iris/Oculus mode)");
+                }
+            } else {
+                DebugManager.warn(DebugCategory.LOOKDEV,
+                    "[NodeEditorFragment] Shader compilation returned null");
+            }
+
+        } catch (Exception e) {
+            DebugManager.error(DebugCategory.LOOKDEV,
+                "[NodeEditorFragment] Shader compilation failed", e);
+        }
     }
 
     /**
@@ -873,6 +1009,19 @@ public class NodeEditorFragment extends Fragment {
             savedCategoryStates = palettePanel.getCategoryStates();
             DebugManager.debug(DebugCategory.LOOKDEV,
                 "[NodeEditorFragment] Saved category states: {}", savedCategoryStates.size());
+        }
+
+        // Shutdown debounce executor
+        if (debounceExecutor != null) {
+            debounceExecutor.shutdown();
+            try {
+                if (!debounceExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
+                    debounceExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                debounceExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
         }
 
         super.onDestroyView();
