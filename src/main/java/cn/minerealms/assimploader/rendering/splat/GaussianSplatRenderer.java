@@ -24,6 +24,7 @@ public class GaussianSplatRenderer {
     private final GaussianSplatShader shader;
     private final Map<GaussianSplatData, GaussianSplatVBO> vboCache;
     private final GaussianSplatSorter sorter;
+    private final GaussianSplatTBO tbo;
     private boolean initialized = false;
     private boolean useSSBO = false;
 
@@ -31,6 +32,7 @@ public class GaussianSplatRenderer {
         this.shader = new GaussianSplatShader();
         this.vboCache = new HashMap<>();
         this.sorter = new GaussianSplatSorter();
+        this.tbo = new GaussianSplatTBO();
     }
 
     /**
@@ -48,7 +50,7 @@ public class GaussianSplatRenderer {
         if (useSSBO) {
             DebugManager.info(DebugCategory.RENDER, "GaussianSplatRenderer: SSBO support enabled");
         } else {
-            DebugManager.warn(DebugCategory.RENDER, "GaussianSplatRenderer: SSBO not supported, TBO fallback not yet implemented");
+            DebugManager.info(DebugCategory.RENDER, "GaussianSplatRenderer: Using TBO fallback for Oculus compatibility");
         }
 
         initialized = true;
@@ -77,11 +79,6 @@ public class GaussianSplatRenderer {
 
         if (!initialized) {
             throw new IllegalStateException("Renderer not initialized");
-        }
-
-        if (!useSSBO) {
-            DebugManager.warn(DebugCategory.RENDER, "Cannot render splats: SSBO not supported");
-            return;
         }
 
         if (data.getSplatCount() == 0) {
@@ -164,6 +161,7 @@ public class GaussianSplatRenderer {
     public void delete() {
         clearCache();
         shader.delete();
+        tbo.cleanup();
         initialized = false;
     }
 

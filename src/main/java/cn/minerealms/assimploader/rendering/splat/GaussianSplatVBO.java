@@ -2,11 +2,14 @@ package cn.minerealms.assimploader.rendering.splat;
 
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
+import cn.minerealms.assimploader.rendering.splat.data.GaussianSplat;
 import cn.minerealms.assimploader.rendering.splat.data.GaussianSplatData;
 import org.lwjgl.opengl.*;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Manages VAO/VBO/SSBO for Gaussian splat rendering.
@@ -21,6 +24,8 @@ public class GaussianSplatVBO {
     private int quadEboId;
     private int splatSsboId;
     private int orderSsboId;
+    private GaussianSplatTBO splatTbo;
+    private GaussianSplatTBO orderTbo;
 
     private int splatCount;
     private boolean uploaded = false;
@@ -100,8 +105,34 @@ public class GaussianSplatVBO {
 
             GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, 0);
         } else {
-            // TODO: TBO fallback for Oculus compatibility
-            DebugManager.warn(DebugCategory.RENDER, "TBO fallback not yet implemented");
+            // TBO fallback for Oculus compatibility
+            GaussianSplatBuffer packer = new GaussianSplatBuffer(data.getShDegree());
+            FloatBuffer splatBuffer = packer.pack(data);
+
+            splatTbo = new GaussianSplatTBO();
+            splatTbo.upload(data, splatBuffer);
+
+            // Create order TBO (initially sequential)
+            orderTbo = new GaussianSplatTBO();
+            IntBuffer orderBuffer = IntBuffer.allocate(splatCount);
+            for (int i = 0; i < splatCount; i++) {
+                orderBuffer.put(i);
+            }
+            orderBuffer.flip();
+
+            // Convert int buffer to float buffer for TBO (TBO expects float data)
+            FloatBuffer orderFloatBuffer = FloatBuffer.allocate(splatCount);
+            orderBuffer.rewind();
+            while (orderBuffer.hasRemaining()) {
+                orderFloatBuffer.put((float) orderBuffer.get());
+            }
+            orderFloatBuffer.flip();
+
+            // Create dummy GaussianSplatData for order TBO
+            GaussianSplatData orderData = new GaussianSplatData(new ArrayList<>(), 0);
+            orderTbo.upload(orderData, orderFloatBuffer);
+
+            DebugManager.info(DebugCategory.RENDER, "Using TBO fallback for Oculus compatibility");
         }
 
         // Unbind
@@ -118,16 +149,28 @@ public class GaussianSplatVBO {
      * Upload sorted indices to GPU
      */
     public void uploadOrder(int[] sortedIndices) {
-        if (!uploaded || !useSSBO) {
+        if (!uploaded) {
             return;
         }
 
-        GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, orderSsboId);
-        IntBuffer orderBuffer = IntBuffer.allocate(sortedIndices.length);
-        orderBuffer.put(sortedIndices);
-        orderBuffer.flip();
-        GL15.glBufferSubData(GL43.GL_SHADER_STORAGE_BUFFER, 0, orderBuffer);
-        GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, 0);
+        if (useSSBO) {
+            GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, orderSsboId);
+            IntBuffer orderBuffer = IntBuffer.allocate(sortedIndices.length);
+            orderBuffer.put(sortedIndices);
+            orderBuffer.flip();
+            GL15.glBufferSubData(GL43.GL_SHADER_STORAGE_BUFFER, 0, orderBuffer);
+            GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, 0);
+        } else {
+            // TBO fallback: convert int to float
+            FloatBuffer orderFloatBuffer = FloatBuffer.allocate(sortedIndices.length);
+            for (int idx : sortedIndices) {
+                orderFloatBuffer.put((float) idx);
+            }
+            orderFloatBuffer.flip();
+
+            GaussianSplatData orderData = new GaussianSplatData(new ArrayList<>(), 0);
+            orderTbo.upload(orderData, orderFloatBuffer);
+        }
     }
 
     /**
@@ -142,6 +185,10 @@ public class GaussianSplatVBO {
         if (useSSBO) {
             GL30.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, 0, splatSsboId);
             GL30.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, 1, orderSsboId);
+        } else {
+            // Bind TBOs to texture units 0 and 1
+            splatTbo.bind(0);
+            orderTbo.bind(1);
         }
     }
 
@@ -149,6 +196,10 @@ public class GaussianSplatVBO {
      * Unbind VAO
      */
     public void unbind() {
+        if (!useSSBO) {
+            splatTbo.unbind(0);
+            orderTbo.unbind(1);
+        }
         GL30.glBindVertexArray(0);
     }
 
@@ -175,6 +226,13 @@ public class GaussianSplatVBO {
             if (useSSBO) {
                 GL15.glDeleteBuffers(splatSsboId);
                 GL15.glDeleteBuffers(orderSsboId);
+            } else {
+                if (splatTbo != null) {
+                    splatTbo.cleanup();
+                }
+                if (orderTbo != null) {
+                    orderTbo.cleanup();
+                }
             }
             uploaded = false;
         }
