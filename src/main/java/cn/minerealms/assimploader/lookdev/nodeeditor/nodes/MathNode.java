@@ -60,8 +60,6 @@ public class MathNode extends Node {
     @Override
     protected void drawBody(Canvas canvas, Paint paint) {
         // Draw operation symbol in center
-        // TODO: Add text rendering when available
-        // For now, draw a simple indicator box
         float boxSize = 30;
         float boxX = x + (width - boxSize) / 2;
         float boxY = y + TITLE_BAR_HEIGHT + 20;
@@ -74,6 +72,35 @@ public class MathNode extends Node {
         paint.setStyle(Paint.STROKE);
         paint.setStrokeWidth(2.0f);
         canvas.drawRect(boxX, boxY, boxX + boxSize, boxY + boxSize, paint);
+
+        // Draw operation symbol text
+        paint.setColor(0xFFFFFFFF);
+        paint.setStyle(Paint.FILL);
+        String symbol = getOperationSymbol();
+        float textWidth = cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.measureText(symbol, 14.0f);
+        cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+            canvas,
+            symbol,
+            boxX + (boxSize - textWidth) / 2,
+            boxY + boxSize / 2 + 5,
+            14.0f,
+            paint
+        );
+    }
+
+    /**
+     * Get symbol for current operation
+     */
+    private String getOperationSymbol() {
+        return switch (operation) {
+            case ADD -> "+";
+            case SUBTRACT -> "-";
+            case MULTIPLY -> "×";
+            case DIVIDE -> "÷";
+            case POWER -> "^";
+            case MIN -> "min";
+            case MAX -> "max";
+        };
     }
 
     /**

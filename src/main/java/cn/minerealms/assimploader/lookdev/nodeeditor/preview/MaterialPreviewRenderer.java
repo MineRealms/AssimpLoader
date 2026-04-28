@@ -181,7 +181,16 @@ public class MaterialPreviewRenderer {
         // Draw border
         drawBorder(poseStack, x, y, width, height, 0xFF444444);
 
-        // TODO: Draw text "Preview unavailable - Photon not loaded"
+        // Draw text "Preview unavailable - Photon not loaded"
+        String message = "Preview unavailable - Photon not loaded";
+        int textColor = 0xFF888888;
+        net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+        int textX = x + (width - font.width(message)) / 2;
+        int textY = y + (height - 9) / 2;
+        font.drawInBatch(message, textX, textY, textColor, true, poseStack.last().pose(),
+                        Minecraft.getInstance().renderBuffers().bufferSource(),
+                        net.minecraft.client.gui.Font.DisplayMode.NORMAL, 0, 15728880);
+        Minecraft.getInstance().renderBuffers().bufferSource().endBatch();
     }
 
     /**
@@ -194,7 +203,16 @@ public class MaterialPreviewRenderer {
         // Draw border
         drawBorder(poseStack, x, y, width, height, 0xFF666666);
 
-        // TODO: Draw text "No material loaded"
+        // Draw text "No material loaded"
+        String message = "No material loaded";
+        int textColor = 0xFF666666;
+        net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+        int textX = x + (width - font.width(message)) / 2;
+        int textY = y + (height - 9) / 2;
+        font.drawInBatch(message, textX, textY, textColor, true, poseStack.last().pose(),
+                        Minecraft.getInstance().renderBuffers().bufferSource(),
+                        net.minecraft.client.gui.Font.DisplayMode.NORMAL, 0, 15728880);
+        Minecraft.getInstance().renderBuffers().bufferSource().endBatch();
     }
 
     /**

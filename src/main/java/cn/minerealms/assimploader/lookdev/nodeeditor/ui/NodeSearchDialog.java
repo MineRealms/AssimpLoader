@@ -294,10 +294,18 @@ public class NodeSearchDialog {
             canvas.drawRect(x + 10, searchBoxY, x + 15, searchBoxY + 30, paint);
         }
 
-        // Draw search query text (placeholder - actual text rendering would go here)
+        // Draw search query text
         paint.setColor(0xFFCCCCCC);
-        // TODO: Draw actual text when ModernUI text rendering is available
-        // For now, just show a visual indicator
+        paint.setStyle(Paint.FILL);
+        String displayText = searchQuery.isEmpty() ? "Search nodes..." : searchQuery;
+        cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+            canvas,
+            displayText,
+            x + 20,
+            searchBoxY + 20,
+            11.0f,
+            paint
+        );
 
         // Draw results
         float resultY = searchBoxY + 40;
@@ -328,7 +336,28 @@ public class NodeSearchDialog {
                 canvas.drawCircle(x + width - 25, resultY + resultHeight / 2, 4, paint);
             }
 
-            // TODO: Draw node name and category text
+            // Draw node name and category text
+            paint.setColor(0xFFFFFFFF);
+            paint.setStyle(Paint.FILL);
+            cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+                canvas,
+                result.type.getDisplayName(),
+                x + 30,
+                resultY + 15,
+                11.0f,
+                paint
+            );
+
+            // Draw category name (smaller, gray)
+            paint.setColor(0xFF888888);
+            cn.minerealms.assimploader.lookdev.nodeeditor.ui.TextRenderer.drawText(
+                canvas,
+                result.type.getCategory().getDisplayName(),
+                x + 30,
+                resultY + 28,
+                9.0f,
+                paint
+            );
 
             resultY += resultHeight;
         }
