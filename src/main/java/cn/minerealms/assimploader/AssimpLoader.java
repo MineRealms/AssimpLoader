@@ -131,6 +131,15 @@ public class AssimpLoader {
         DebugLogger.debug("Client setup phase starting");
 
         event.enqueueWork(() -> {
+            // Initialize DebugManager and PerformanceProfiler
+            cn.minerealms.assimploader.debug.DebugManager.enable();
+
+            // Enable profiling if system property is set
+            if (Boolean.getBoolean("assimploader.profiling")) {
+                cn.minerealms.assimploader.debug.DebugManager.enableProfiling();
+                LOGGER.info("Performance profiling enabled via -Dassimploader.profiling=true");
+            }
+
             // Detect GPU capabilities for optimization
             try {
                 GLCapabilityDetector.detect();

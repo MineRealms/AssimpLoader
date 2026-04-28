@@ -3,11 +3,15 @@ package cn.minerealms.assimploader.debug;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * Centralized debug logging system for AssimpLoader.
  *
  * All debug output goes through this class with a unified prefix [ASSIMPLOADER].
  * Debug output can be toggled on/off via the enabled flag.
+ * Includes rate limiting to prevent log spam from high-frequency operations.
  */
 public class DebugManager {
 
@@ -25,7 +29,8 @@ public class DebugManager {
         LOOKDEV,    // LookDev viewer
         MODERNUI,   // ModernUI integration
         CACHE,      // Cache system
-        LIGHT       // Lighting system
+        LIGHT,      // Lighting system
+        PERF        // Performance profiling
     }
 
     /**
@@ -33,6 +38,19 @@ public class DebugManager {
      * Default: enabled
      */
     private static boolean enabled = true;
+
+    /**
+     * Performance profiling flag - controls PerformanceProfiler
+     * Default: disabled (enable for profiling sessions)
+     */
+    private static boolean profilingEnabled = false;
+
+    /**
+     * Rate limiting for high-frequency log messages
+     * Key: message hash, Value: last log timestamp
+     */
+    private static final Map<Integer, Long> rateLimitCache = new ConcurrentHashMap<>();
+    private static final long RATE_LIMIT_MS = 1000; // Log same message max once per second
 
     /**
      * Enable debug output
@@ -68,12 +86,57 @@ public class DebugManager {
         }
     }
 
+    /**
+     * Enable performance profiling
+     */
+    public static void enableProfiling() {
+        profilingEnabled = true;
+        PerformanceProfiler.initialize();
+        info(DebugCategory.PERF, "Performance profiling enabled");
+    }
+
+    /**
+     * Disable performance profiling
+     */
+    public static void disableProfiling() {
+        info(DebugCategory.PERF, "Performance profiling disabled");
+        PerformanceProfiler.shutdown();
+        profilingEnabled = false;
+    }
+
+    /**
+     * Check if profiling is enabled
+     */
+    public static boolean isProfilingEnabled() {
+        return profilingEnabled && enabled;
+    }
+
+    /**
+     * Set profiling enabled state
+     */
+    public static void setProfilingEnabled(boolean state) {
+        if (state) {
+            enableProfiling();
+        } else {
+            disableProfiling();
+        }
+    }
+
     // ==================== Debug Logging Methods ====================
 
     /**
-     * Log debug message with category
+     * Log debug message with category (rate-limited)
      */
     public static void debug(DebugCategory category, String message, Object... args) {
+        if (enabled && shouldLog(message)) {
+            LOGGER.debug(PREFIX + "[" + category.name() + "] " + message, args);
+        }
+    }
+
+    /**
+     * Log debug message with category (no rate limit)
+     */
+    public static void debugUnlimited(DebugCategory category, String message, Object... args) {
         if (enabled) {
             LOGGER.debug(PREFIX + "[" + category.name() + "] " + message, args);
         }
@@ -302,5 +365,30 @@ public class DebugManager {
             long duration = System.nanoTime() - startTime;
             error("[TIMING] {} failed after {:.2f}ms: {}", operation, duration / 1_000_000.0, e.getMessage(), e);
         }
+    }
+
+    // ==================== Rate Limiting ====================
+
+    /**
+     * Check if a message should be logged based on rate limiting
+     */
+    private static boolean shouldLog(String message) {
+        int hash = message.hashCode();
+        long now = System.currentTimeMillis();
+
+        Long lastLog = rateLimitCache.get(hash);
+        if (lastLog == null || now - lastLog >= RATE_LIMIT_MS) {
+            rateLimitCache.put(hash, now);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Clear rate limit cache
+     */
+    public static void clearRateLimitCache() {
+        rateLimitCache.clear();
     }
 }

@@ -84,6 +84,11 @@ public class SkinnedMeshRenderer {
             return;
         }
 
+        // Performance profiling
+        if (DebugManager.isProfilingEnabled()) {
+            cn.minerealms.assimploader.debug.PerformanceProfiler.start("skinned_mesh_render");
+        }
+
         // Get or create VBO
         SkinnedMeshVBO vbo = vboCache.computeIfAbsent(mesh, m -> {
             DebugManager.info(DebugCategory.RENDER, "Creating VBO for mesh: {}", m.getName());
@@ -98,6 +103,10 @@ public class SkinnedMeshRenderer {
         shader.setModelView(modelView);
 
         // Set bone matrices
+        if (DebugManager.isProfilingEnabled()) {
+            cn.minerealms.assimploader.debug.PerformanceProfiler.start("bone_matrix_upload");
+        }
+
         if (useTBO) {
             // Use TBO for efficient bone matrix upload
             Matrix4f[] boneMatrices = boneHierarchy.getFinalTransforms();
@@ -114,8 +123,12 @@ public class SkinnedMeshRenderer {
             DebugManager.debug(DebugCategory.RENDER, "Uploaded {} bone matrices via uniforms", boneCount);
         }
 
+        if (DebugManager.isProfilingEnabled()) {
+            cn.minerealms.assimploader.debug.PerformanceProfiler.end("bone_matrix_upload");
+        }
+
         int boneCount = boneHierarchy.getBoneCount();
-        DebugManager.info(DebugCategory.RENDER, "Rendering skinned mesh '{}' with {} bones (TBO: {})",
+        DebugManager.debug(DebugCategory.RENDER, "Rendering skinned mesh '{}' with {} bones (TBO: {})",
             mesh.getName(), boneCount, useTBO);
 
         // Bind texture
@@ -129,10 +142,22 @@ public class SkinnedMeshRenderer {
         shader.setLightLevel(lightLevel);
 
         // Render
+        if (DebugManager.isProfilingEnabled()) {
+            cn.minerealms.assimploader.debug.PerformanceProfiler.start("vbo_draw");
+        }
+
         vbo.render();
+
+        if (DebugManager.isProfilingEnabled()) {
+            cn.minerealms.assimploader.debug.PerformanceProfiler.end("vbo_draw");
+        }
 
         // Unbind
         shader.unbind();
+
+        if (DebugManager.isProfilingEnabled()) {
+            cn.minerealms.assimploader.debug.PerformanceProfiler.end("skinned_mesh_render");
+        }
     }
 
     /**

@@ -35,6 +35,11 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
     public void render(CircleBlockEntity blockEntity, float partialTick, PoseStack poseStack,
                       MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
 
+        // Performance profiling
+        if (cn.minerealms.assimploader.debug.DebugManager.isProfilingEnabled()) {
+            cn.minerealms.assimploader.debug.PerformanceProfiler.start("circle_render_total");
+        }
+
         // Frustum culling: check if block entity is visible
         AABB boundingBox = new AABB(
             blockEntity.getBlockPos().getX(),
@@ -45,6 +50,9 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
             blockEntity.getBlockPos().getZ() + 1
         );
         if (!FrustumCuller.getInstance().isVisible(boundingBox)) {
+            if (cn.minerealms.assimploader.debug.DebugManager.isProfilingEnabled()) {
+                cn.minerealms.assimploader.debug.PerformanceProfiler.end("circle_render_total");
+            }
             return; // Skip rendering if outside view frustum
         }
 
@@ -59,6 +67,9 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
 
         // Skip rendering if too far (CULLED level)
         if (lodLevel == LODManager.LODLevel.CULLED) {
+            if (cn.minerealms.assimploader.debug.DebugManager.isProfilingEnabled()) {
+                cn.minerealms.assimploader.debug.PerformanceProfiler.end("circle_render_total");
+            }
             return;
         }
 
@@ -68,6 +79,9 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
                 cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
                 "CircleBlockEntityRenderer: AnimationState is null or not initialized"
             );
+            if (cn.minerealms.assimploader.debug.DebugManager.isProfilingEnabled()) {
+                cn.minerealms.assimploader.debug.PerformanceProfiler.end("circle_render_total");
+            }
             return;
         }
 
@@ -77,6 +91,9 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
                 cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
                 "CircleBlockEntityRenderer: Scene is null"
             );
+            if (cn.minerealms.assimploader.debug.DebugManager.isProfilingEnabled()) {
+                cn.minerealms.assimploader.debug.PerformanceProfiler.end("circle_render_total");
+            }
             return;
         }
 
@@ -97,6 +114,10 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
             if (mesh.hasBones()) {
                 // Skeletal animation path
                 skinnedMeshes++;
+
+                if (cn.minerealms.assimploader.debug.DebugManager.isProfilingEnabled()) {
+                    cn.minerealms.assimploader.debug.PerformanceProfiler.start("circle_skinned_mesh");
+                }
 
                 // Initialize skinned renderer if needed
                 if (!skinnedRendererInitialized) {
@@ -135,9 +156,17 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
                         "CircleBlockEntityRenderer: BoneHierarchy is null for mesh"
                     );
                 }
+
+                if (cn.minerealms.assimploader.debug.DebugManager.isProfilingEnabled()) {
+                    cn.minerealms.assimploader.debug.PerformanceProfiler.end("circle_skinned_mesh");
+                }
             } else {
                 // Baked/vertex animation path - render using Minecraft's buffer system
                 bakedMeshes++;
+
+                if (cn.minerealms.assimploader.debug.DebugManager.isProfilingEnabled()) {
+                    cn.minerealms.assimploader.debug.PerformanceProfiler.start("circle_baked_mesh");
+                }
 
                 // Get texture (use embedded texture if available, or default white)
                 ResourceLocation texture = new ResourceLocation("minecraft", "textures/block/white_concrete.png");
@@ -160,6 +189,10 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
                     "CircleBlockEntityRenderer: Rendered baked animation mesh '{}'",
                     mesh.getName()
                 );
+
+                if (cn.minerealms.assimploader.debug.DebugManager.isProfilingEnabled()) {
+                    cn.minerealms.assimploader.debug.PerformanceProfiler.end("circle_baked_mesh");
+                }
             }
         }
 
@@ -172,6 +205,10 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
         }
 
         poseStack.popPose();
+
+        if (cn.minerealms.assimploader.debug.DebugManager.isProfilingEnabled()) {
+            cn.minerealms.assimploader.debug.PerformanceProfiler.end("circle_render_total");
+        }
     }
 
     @Override
