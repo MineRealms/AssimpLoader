@@ -93,17 +93,17 @@ public class AnimationPlayer {
             org.lwjgl.assimp.AINodeAnim channel = org.lwjgl.assimp.AINodeAnim.create(aiChannels.get(i));
             String nodeName = channel.mNodeName().dataString();
 
-            // Debug: Log node animation info (only once)
-            if (currentTime < 0.1 && i == 0) {
-                cn.minerealms.assimploader.debug.DebugManager.info(
-                    cn.minerealms.assimploader.debug.DebugManager.DebugCategory.ANIMATION,
-                    "Node animation channel: node='{}', posKeys={}, rotKeys={}, scaleKeys={}",
-                    nodeName,
-                    channel.mPositionKeys() != null ? channel.mPositionKeys().limit() : 0,
-                    channel.mRotationKeys() != null ? channel.mRotationKeys().limit() : 0,
-                    channel.mScalingKeys() != null ? channel.mScalingKeys().limit() : 0
-                );
-            }
+            // Debug: Log node animation info (disabled to reduce log spam)
+            // if (currentTime < 0.1 && i == 0) {
+            //     cn.minerealms.assimploader.debug.DebugManager.info(
+            //         cn.minerealms.assimploader.debug.DebugManager.DebugCategory.ANIMATION,
+            //         "Node animation channel: node='{}', posKeys={}, rotKeys={}, scaleKeys={}",
+            //         nodeName,
+            //         channel.mPositionKeys() != null ? channel.mPositionKeys().limit() : 0,
+            //         channel.mRotationKeys() != null ? channel.mRotationKeys().limit() : 0,
+            //         channel.mScalingKeys() != null ? channel.mScalingKeys().limit() : 0
+            //     );
+            // }
 
             // Get or create bone transform
             BoneTransform transform = boneTransforms.computeIfAbsent(nodeName, k -> new BoneTransform());

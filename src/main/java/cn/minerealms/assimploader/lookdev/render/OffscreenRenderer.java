@@ -200,7 +200,8 @@ public class OffscreenRenderer {
             return;
         }
 
-        DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Rendering to framebuffer FBO={}", framebufferId);
+        // Disabled to reduce log spam
+        // DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Rendering to framebuffer FBO={}", framebufferId);
 
         // Save current framebuffer
         int prevFramebuffer = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
@@ -230,10 +231,12 @@ public class OffscreenRenderer {
 
         // Render model if available
         if (currentModel != null && camera != null) {
-            DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Rendering model: {} meshes", currentModel.getMeshes().size());
+            // Disabled to reduce log spam
+            // DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Rendering model: {} meshes", currentModel.getMeshes().size());
             try {
                 renderModel();
-                DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Model rendered successfully");
+                // Disabled to reduce log spam
+                // DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Model rendered successfully");
             } catch (Exception e) {
                 DebugManager.error(DebugCategory.LOOKDEV, "[OffscreenRenderer] Render error", e);
             }
@@ -248,7 +251,8 @@ public class OffscreenRenderer {
         // Restore previous framebuffer
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevFramebuffer);
 
-        DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Render complete, texture ID: {}", colorTextureId);
+        // Disabled to reduce log spam
+        // DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Render complete, texture ID: {}", colorTextureId);
     }
 
     /**
@@ -300,7 +304,8 @@ public class OffscreenRenderer {
      * Render the current model with camera and material
      */
     private void renderModel() {
-        DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] renderModel() called");
+        // Disabled to reduce log spam
+        // DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] renderModel() called");
 
         // Load embedded textures if not cached
         String modelKey = "current_model";
@@ -333,7 +338,8 @@ public class OffscreenRenderer {
         Tesselator tesselator = Tesselator.getInstance();
         BufferBuilder bufferBuilder = tesselator.getBuilder();
 
-        DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Rendering {} meshes", currentModel.getMeshes().size());
+        // Disabled to reduce log spam
+        // DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Rendering {} meshes", currentModel.getMeshes().size());
 
         for (int meshIndex = 0; meshIndex < currentModel.getMeshes().size(); meshIndex++) {
             AssimpMesh mesh = currentModel.getMeshes().get(meshIndex);
@@ -386,7 +392,8 @@ public class OffscreenRenderer {
             renderMesh(mesh, material, poseStack, bufferBuilder, 0xF000F0, 0);
         }
 
-        DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] renderModel() complete");
+        // Disabled to reduce log spam
+        // DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] renderModel() complete");
     }
 
     /**
@@ -439,13 +446,15 @@ public class OffscreenRenderer {
             metallic = currentMaterial.getMetallicFactor();
             emissive = currentMaterial.getEmissiveFactor();
 
-            DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Using PBRMaterial - baseColor: ({}, {}, {}, {}), roughness: {}, metallic: {}, emissive: ({}, {}, {})",
-                baseColor.x, baseColor.y, baseColor.z, baseColor.w, roughness, metallic, emissive.x, emissive.y, emissive.z);
+            // Disabled to reduce log spam
+            // DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Using PBRMaterial - baseColor: ({}, {}, {}, {}), roughness: {}, metallic: {}, emissive: ({}, {}, {})",
+            //     baseColor.x, baseColor.y, baseColor.z, baseColor.w, roughness, metallic, emissive.x, emissive.y, emissive.z);
         } else {
             float[] diffuseColor = material != null ? material.getDiffuseColor() : new float[]{1.0f, 1.0f, 1.0f, 1.0f};
             baseColor = new Vector4f(diffuseColor[0], diffuseColor[1], diffuseColor[2], diffuseColor[3]);
-            DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Using AssimpMaterial diffuseColor: ({}, {}, {}, {})",
-                baseColor.x, baseColor.y, baseColor.z, baseColor.w);
+            // Disabled to reduce log spam
+            // DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Using AssimpMaterial diffuseColor: ({}, {}, {}, {})",
+            //     baseColor.x, baseColor.y, baseColor.z, baseColor.w);
         }
 
         Matrix4f pose = poseStack.last().pose();
