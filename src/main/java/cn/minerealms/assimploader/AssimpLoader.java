@@ -4,6 +4,7 @@ import cn.minerealms.assimploader.compat.photon.PhotonCompat;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.cache.ModelCacheManager;
 import cn.minerealms.assimploader.render.AssimpGeometryLoader;
+import cn.minerealms.assimploader.render.GLCapabilityDetector;
 import cn.minerealms.assimploader.util.DebugLogger;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
@@ -130,6 +131,15 @@ public class AssimpLoader {
         DebugLogger.debug("Client setup phase starting");
 
         event.enqueueWork(() -> {
+            // Detect GPU capabilities for optimization
+            try {
+                GLCapabilityDetector.detect();
+                GLCapabilityDetector.OptimizationLevel optLevel = GLCapabilityDetector.getRecommendedOptimizationLevel();
+                LOGGER.info("GPU optimization level: {} - {}", optLevel, optLevel.getDescription());
+            } catch (Exception e) {
+                LOGGER.warn("Failed to detect GPU capabilities, using fallback mode", e);
+            }
+
             // Initialize model loader
             modelLoader = new AssimpModelLoader();
             LOGGER.info("Assimp model loader initialized");
