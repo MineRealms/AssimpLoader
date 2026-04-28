@@ -112,26 +112,12 @@ public class CircleBlockEntityRenderer implements BlockEntityRenderer<CircleBloc
                 ResourceLocation texture = new ResourceLocation("minecraft", "textures/block/white_concrete.png");
                 if (scene.hasEmbeddedTextures()) {
                     texture = new ResourceLocation("assimploader", "embedded/circle_0");
-                    cn.minerealms.assimploader.debug.DebugManager.info(
-                        cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
-                        "CircleBlockEntityRenderer: Using embedded texture: {}", texture
-                    );
-                } else {
-                    cn.minerealms.assimploader.debug.DebugManager.info(
-                        cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
-                        "CircleBlockEntityRenderer: No embedded texture, using default: {}", texture
-                    );
                 }
 
                 // Get node transforms from animation player (for node animations)
                 java.util.Map<String, org.joml.Matrix4f> nodeTransforms = null;
                 if (animationState.getCurrentAnimation() != null) {
                     nodeTransforms = animationState.getCurrentAnimation().getBoneTransforms();
-                    cn.minerealms.assimploader.debug.DebugManager.info(
-                        cn.minerealms.assimploader.debug.DebugManager.DebugCategory.RENDER,
-                        "CircleBlockEntityRenderer: Got {} node transforms from animation",
-                        nodeTransforms.size()
-                    );
                 }
 
                 // Render using SimpleMeshRenderer with scene and node transforms

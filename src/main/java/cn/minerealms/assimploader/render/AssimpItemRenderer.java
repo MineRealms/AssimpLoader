@@ -1,5 +1,8 @@
 package cn.minerealms.assimploader.render;
 
+import cn.minerealms.assimploader.animation.AnimationState;
+import cn.minerealms.assimploader.animation.BoneHierarchyBuilder;
+import cn.minerealms.assimploader.animation.ClientAnimationManager;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.compat.OculusCompat;
@@ -9,6 +12,8 @@ import cn.minerealms.assimploader.model.AssimpMaterial;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.model.AssimpTexture;
+import cn.minerealms.assimploader.rendering.SimpleMeshRenderer;
+import cn.minerealms.assimploader.rendering.SkinnedMeshRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.platform.NativeImage;
@@ -29,6 +34,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -42,6 +48,8 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
     private final Map<String, Integer> sceneHashCache = new HashMap<>();
     private final Map<String, Boolean> loggedItems = new HashMap<>(); // Track which items we've logged
     private final Map<String, Boolean> modeLoggedMap = new HashMap<>();
+    private SkinnedMeshRenderer skinnedRenderer;
+    private boolean skinnedRendererInitialized = false;
 
     public AssimpItemRenderer(BlockEntityRenderDispatcher dispatcher) {
         super(dispatcher, Minecraft.getInstance().getEntityModels());
@@ -107,10 +115,13 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
         // Apply item-specific transforms based on display context
         applyItemTransforms(poseStack, displayContext);
 
-        // Choose rendering path based on import mode
+        // Get animation state from ClientAnimationManager
+        AnimationState animationState = ClientAnimationManager.getInstance().getOrCreateAnimationState(modelName);
+
+        // Choose rendering path based on import mode and mesh type
         if (scene.isDynamic()) {
-            // DYNAMIC mode: Traverse scene graph to preserve node transformations
-            renderSceneGraph(scene, poseStack, buffer, combinedLight, combinedOverlay, modelName);
+            // DYNAMIC mode: Check if we need skeletal or node animation
+            renderDynamicMode(scene, animationState, poseStack, buffer, combinedLight, combinedOverlay, modelName);
         } else {
             // STATIC mode: Direct mesh iteration (transformations already baked)
             renderMeshList(scene, poseStack, buffer, combinedLight, combinedOverlay, modelName);
@@ -160,7 +171,96 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
     }
 
     /**
-     * Render in DYNAMIC mode - traverse scene graph to apply node transformations
+     * Render in DYNAMIC mode - supports both skeletal and node animations
+     */
+    private void renderDynamicMode(AssimpScene scene, AnimationState animationState, PoseStack poseStack,
+                                   MultiBufferSource buffer, int combinedLight, int combinedOverlay, String modelName) {
+        if (animationState == null || !animationState.isInitialized()) {
+            // Fallback to static scene graph rendering
+            renderSceneGraph(scene, poseStack, buffer, combinedLight, combinedOverlay, modelName);
+            return;
+        }
+
+        // Get texture
+        ResourceLocation texture = getTextureForModel(scene, modelName);
+
+        // Render each mesh with appropriate method
+        for (AssimpMesh mesh : scene.getMeshes()) {
+            if (mesh.hasBones()) {
+                // Skeletal animation path
+                renderSkinnedMesh(mesh, animationState, poseStack, texture, combinedLight);
+            } else {
+                // Node animation path
+                renderNodeAnimatedMesh(mesh, animationState, scene, poseStack, buffer, texture, combinedLight, combinedOverlay);
+            }
+        }
+    }
+
+    /**
+     * Render skeletal animated mesh using SkinnedMeshRenderer
+     */
+    private void renderSkinnedMesh(AssimpMesh mesh, AnimationState animationState, PoseStack poseStack,
+                                   ResourceLocation texture, int combinedLight) {
+        // Initialize skinned renderer if needed
+        if (!skinnedRendererInitialized) {
+            skinnedRenderer = new SkinnedMeshRenderer();
+            try {
+                skinnedRenderer.initialize();
+                skinnedRendererInitialized = true;
+                DebugManager.info(DebugCategory.RENDER, "AssimpItemRenderer: SkinnedMeshRenderer initialized");
+            } catch (IOException e) {
+                DebugManager.error(DebugCategory.RENDER, "Failed to initialize SkinnedMeshRenderer", e);
+                return;
+            }
+        }
+
+        BoneHierarchyBuilder boneHierarchy = animationState.getBoneHierarchy(mesh);
+        if (boneHierarchy != null) {
+            // Get matrices
+            Matrix4f mvp = new Matrix4f(poseStack.last().pose());
+            Matrix4f mv = new Matrix4f(poseStack.last().pose());
+
+            // Calculate light level
+            float lightLevel = (combinedLight & 0xFFFF) / 240.0f;
+
+            // Render skinned mesh
+            skinnedRenderer.render(mesh, boneHierarchy, mvp, mv, texture,
+                    Minecraft.getInstance().getTextureManager(), lightLevel);
+        }
+    }
+
+    /**
+     * Render node-animated mesh using SimpleMeshRenderer
+     */
+    private void renderNodeAnimatedMesh(AssimpMesh mesh, AnimationState animationState, AssimpScene scene,
+                                       PoseStack poseStack, MultiBufferSource buffer, ResourceLocation texture,
+                                       int combinedLight, int combinedOverlay) {
+        // Get node transforms from animation player
+        Map<String, Matrix4f> nodeTransforms = null;
+        if (animationState.getCurrentAnimation() != null) {
+            nodeTransforms = animationState.getCurrentAnimation().getBoneTransforms();
+        }
+
+        // Render using SimpleMeshRenderer
+        SimpleMeshRenderer.render(mesh, poseStack, buffer, texture, combinedLight, combinedOverlay, scene, nodeTransforms);
+    }
+
+    /**
+     * Get texture for model (embedded or default)
+     */
+    private ResourceLocation getTextureForModel(AssimpScene scene, String modelName) {
+        ResourceLocation texture = new ResourceLocation("minecraft", "textures/block/white_concrete.png");
+        if (scene.hasEmbeddedTextures() && textureCache.containsKey(modelName)) {
+            Map<Integer, ResourceLocation> modelTextures = textureCache.get(modelName);
+            if (!modelTextures.isEmpty()) {
+                texture = modelTextures.get(0); // Use first texture
+            }
+        }
+        return texture;
+    }
+
+    /**
+     * Render in DYNAMIC mode - traverse scene graph to apply node transformations (fallback for non-animated)
      */
     private void renderSceneGraph(AssimpScene scene, PoseStack poseStack, MultiBufferSource buffer,
                                   int combinedLight, int combinedOverlay, String modelName) {
@@ -242,6 +342,11 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
         TextureManager textureManager = Minecraft.getInstance().getTextureManager();
         textureCache.put(modelName, new HashMap<>());
 
+        // Skip if no embedded textures
+        if (!scene.hasEmbeddedTextures() || scene.getTextures().isEmpty()) {
+            return;
+        }
+
         // Normalize model name for texture cache key (replace / with _)
         String normalizedName = modelName.replace("/", "_").replace(".fbx", "");
 
@@ -252,14 +357,7 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
             ResourceLocation textureLoc = new ResourceLocation("assimploader",
                 "embedded/" + normalizedName + "_" + i);
 
-            // Check if texture is already registered by AssimpBakedModel
-            if (textureManager.getTexture(textureLoc) != null) {
-                // Texture already registered, just cache the location
-                textureCache.get(modelName).put(i, textureLoc);
-                continue;
-            }
-
-            // Texture not registered yet, load it now
+            // Load and register the texture
             try {
                 NativeImage image = texture.loadAsNativeImage();
                 DynamicTexture dynamicTexture = new DynamicTexture(image);
