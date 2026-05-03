@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "minecraft-unified-debug": {
+      "command": "node",
+      "args": ["H:\\MinecraftMods\\MCPISNOTMCP\\mcp-server\\unified-server.js"]
+    }
+  }
+}

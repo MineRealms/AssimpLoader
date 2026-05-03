@@ -367,7 +367,10 @@ public class InstancedRenderer {
             GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, ebo);
 
             int[] indices = mesh.getIndices();
-            java.nio.IntBuffer indexBuffer = java.nio.IntBuffer.allocate(indices.length);
+            // IMPORTANT: Must use direct buffer for OpenGL
+            java.nio.ByteBuffer byteBuffer = java.nio.ByteBuffer.allocateDirect(indices.length * Integer.BYTES)
+                    .order(java.nio.ByteOrder.nativeOrder());
+            java.nio.IntBuffer indexBuffer = byteBuffer.asIntBuffer();
             indexBuffer.put(indices);
             indexBuffer.flip();
 

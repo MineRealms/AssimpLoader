@@ -6,6 +6,8 @@ import cn.minerealms.assimploader.rendering.splat.data.GaussianSplat;
 import cn.minerealms.assimploader.rendering.splat.data.GaussianSplatData;
 import org.lwjgl.opengl.*;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
@@ -18,6 +20,9 @@ import java.util.List;
  * Splat data is stored in SSBO binding 0, sorted indices in SSBO binding 1.
  */
 public class GaussianSplatVBO {
+
+    private static long lastLogTime = 0;
+    private static final long LOG_INTERVAL_MS = 5000; // Log every 5 seconds
 
     private int vaoId;
     private int quadVboId;
@@ -60,7 +65,11 @@ public class GaussianSplatVBO {
              1.0f,  1.0f, 1.0f, 1.0f,
             -1.0f,  1.0f, 0.0f, 1.0f
         };
-        FloatBuffer quadBuffer = FloatBuffer.allocate(quadVertices.length);
+
+        // IMPORTANT: Must use direct buffer for OpenGL
+        ByteBuffer quadByteBuffer = ByteBuffer.allocateDirect(quadVertices.length * Float.BYTES)
+                .order(ByteOrder.nativeOrder());
+        FloatBuffer quadBuffer = quadByteBuffer.asFloatBuffer();
         quadBuffer.put(quadVertices);
         quadBuffer.flip();
         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, quadBuffer, GL15.GL_STATIC_DRAW);
@@ -77,7 +86,11 @@ public class GaussianSplatVBO {
         quadEboId = GL15.glGenBuffers();
         GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, quadEboId);
         int[] quadIndices = {0, 1, 2, 2, 3, 0};
-        IntBuffer indexBuffer = IntBuffer.allocate(quadIndices.length);
+
+        // IMPORTANT: Must use direct buffer for OpenGL
+        ByteBuffer indexByteBuffer = ByteBuffer.allocateDirect(quadIndices.length * Integer.BYTES)
+                .order(ByteOrder.nativeOrder());
+        IntBuffer indexBuffer = indexByteBuffer.asIntBuffer();
         indexBuffer.put(quadIndices);
         indexBuffer.flip();
         GL15.glBufferData(GL15.GL_ELEMENT_ARRAY_BUFFER, indexBuffer, GL15.GL_STATIC_DRAW);
@@ -89,18 +102,116 @@ public class GaussianSplatVBO {
 
             GaussianSplatBuffer packer = new GaussianSplatBuffer(data.getShDegree());
             FloatBuffer splatBuffer = packer.pack(data);
-            GL15.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, splatBuffer, GL15.GL_STATIC_DRAW);
+
+            // Debug: Check buffer validity
+            if (splatBuffer == null) {
+                throw new RuntimeException("Splat buffer is null!");
+            }
+            if (splatBuffer.capacity() == 0) {
+                throw new RuntimeException("Splat buffer is empty!");
+            }
+
+            long bufferSizeBytes = (long) splatBuffer.remaining() * Float.BYTES;
+
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastLogTime > LOG_INTERVAL_MS) {
+                DebugManager.info(DebugCategory.RENDER, "Uploading SSBO: " + splatBuffer.remaining() +
+                               " floats (" + (bufferSizeBytes / 1024 / 1024) + " MB)");
+                DebugManager.info(DebugCategory.RENDER, "Buffer details: isDirect=" + splatBuffer.isDirect() +
+                               ", position=" + splatBuffer.position() + ", limit=" + splatBuffer.limit() +
+                               ", capacity=" + splatBuffer.capacity());
+                lastLogTime = currentTime;
+            }
+
+            // Check if buffer is too large (> 100MB is suspicious)
+            if (bufferSizeBytes > 100 * 1024 * 1024) {
+                throw new RuntimeException("Splat buffer too large: " + (bufferSizeBytes / 1024 / 1024) + " MB");
+            }
+
+            // Ensure buffer position is at 0 for OpenGL
+            splatBuffer.rewind();
+
+            // Use GL15.glBufferData with explicit size in bytes
+            long sizeInBytes = (long) splatBuffer.remaining() * Float.BYTES;
+
+            // Clear any previous errors
+            while (GL11.glGetError() != GL11.GL_NO_ERROR);
+
+            DebugManager.info(DebugCategory.RENDER,
+                "SSBO upload: allocating " + sizeInBytes + " bytes for " + splatCount + " splats");
+            GL15.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, sizeInBytes, GL15.GL_STATIC_DRAW);
+
+            int error1 = GL11.glGetError();
+            if (error1 != GL11.GL_NO_ERROR) {
+                throw new RuntimeException("glBufferData failed: 0x" + Integer.toHexString(error1) +
+                    " (size=" + sizeInBytes + " bytes)");
+            }
+
+            DebugManager.info(DebugCategory.RENDER,
+                "SSBO upload: uploading data (buffer pos=" + splatBuffer.position() +
+                ", limit=" + splatBuffer.limit() + ", remaining=" + splatBuffer.remaining() + ")");
+            GL15.glBufferSubData(GL43.GL_SHADER_STORAGE_BUFFER, 0, splatBuffer);
+
+            int error2 = GL11.glGetError();
+            if (error2 != GL11.GL_NO_ERROR) {
+                throw new RuntimeException("glBufferSubData failed: 0x" + Integer.toHexString(error2) +
+                    " (offset=0, size=" + (splatBuffer.remaining() * Float.BYTES) + " bytes)");
+            }
+
+            // Check for OpenGL errors (throttled to prevent log spam)
+            int error = GL11.glGetError();
+            if (error != GL11.GL_NO_ERROR) {
+                String errorKey = "glBufferData_SSBO_" + error;
+                if (cn.minerealms.assimploader.util.ErrorThrottler.shouldLog(errorKey, 5000)) {
+                    DebugManager.error(DebugCategory.RENDER,
+                        "OpenGL error after glBufferData (SSBO): 0x" + Integer.toHexString(error) +
+                        " (further identical errors will be throttled)");
+                }
+            }
+
             GL30.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, 0, splatSsboId);
 
             // Create SSBO for sorted indices
             orderSsboId = GL15.glGenBuffers();
             GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, orderSsboId);
-            IntBuffer orderBuffer = IntBuffer.allocate(splatCount);
+
+            // IMPORTANT: Must use direct buffer for OpenGL
+            ByteBuffer orderByteBuffer = ByteBuffer.allocateDirect(splatCount * Integer.BYTES)
+                    .order(ByteOrder.nativeOrder());
+            IntBuffer orderBuffer = orderByteBuffer.asIntBuffer();
+
             for (int i = 0; i < splatCount; i++) {
                 orderBuffer.put(i);
             }
             orderBuffer.flip();
-            GL15.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, orderBuffer, GL15.GL_DYNAMIC_DRAW);
+
+            // Use GL15.glBufferData with explicit size in bytes
+            long orderSizeInBytes = (long) orderBuffer.remaining() * Integer.BYTES;
+
+            // Clear any previous errors
+            while (GL11.glGetError() != GL11.GL_NO_ERROR);
+
+            DebugManager.info(DebugCategory.RENDER,
+                "Order SSBO upload: allocating " + orderSizeInBytes + " bytes for " + splatCount + " indices");
+            GL15.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, orderSizeInBytes, GL15.GL_DYNAMIC_DRAW);
+
+            int error3 = GL11.glGetError();
+            if (error3 != GL11.GL_NO_ERROR) {
+                throw new RuntimeException("glBufferData (order) failed: 0x" + Integer.toHexString(error3) +
+                    " (size=" + orderSizeInBytes + " bytes)");
+            }
+
+            DebugManager.info(DebugCategory.RENDER,
+                "Order SSBO upload: uploading data (buffer pos=" + orderBuffer.position() +
+                ", limit=" + orderBuffer.limit() + ", remaining=" + orderBuffer.remaining() + ")");
+            GL15.glBufferSubData(GL43.GL_SHADER_STORAGE_BUFFER, 0, orderBuffer);
+
+            int error4 = GL11.glGetError();
+            if (error4 != GL11.GL_NO_ERROR) {
+                throw new RuntimeException("glBufferSubData (order) failed: 0x" + Integer.toHexString(error4) +
+                    " (offset=0, size=" + (orderBuffer.remaining() * Integer.BYTES) + " bytes)");
+            }
+
             GL30.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, 1, orderSsboId);
 
             GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, 0);
@@ -114,14 +225,22 @@ public class GaussianSplatVBO {
 
             // Create order TBO (initially sequential)
             orderTbo = new GaussianSplatTBO();
-            IntBuffer orderBuffer = IntBuffer.allocate(splatCount);
+
+            // IMPORTANT: Must use direct buffer for OpenGL
+            ByteBuffer orderByteBuffer = ByteBuffer.allocateDirect(splatCount * Integer.BYTES)
+                    .order(ByteOrder.nativeOrder());
+            IntBuffer orderBuffer = orderByteBuffer.asIntBuffer();
+
             for (int i = 0; i < splatCount; i++) {
                 orderBuffer.put(i);
             }
             orderBuffer.flip();
 
             // Convert int buffer to float buffer for TBO (TBO expects float data)
-            FloatBuffer orderFloatBuffer = FloatBuffer.allocate(splatCount);
+            ByteBuffer orderFloatByteBuffer = ByteBuffer.allocateDirect(splatCount * Float.BYTES)
+                    .order(ByteOrder.nativeOrder());
+            FloatBuffer orderFloatBuffer = orderFloatByteBuffer.asFloatBuffer();
+
             orderBuffer.rewind();
             while (orderBuffer.hasRemaining()) {
                 orderFloatBuffer.put((float) orderBuffer.get());
@@ -155,14 +274,62 @@ public class GaussianSplatVBO {
 
         if (useSSBO) {
             GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, orderSsboId);
-            IntBuffer orderBuffer = IntBuffer.allocate(sortedIndices.length);
-            orderBuffer.put(sortedIndices);
+
+            // LOD system may return fewer indices than original splatCount
+            // We need to match the SSBO size allocated in upload()
+            int uploadCount = Math.min(sortedIndices.length, splatCount);
+
+            // IMPORTANT: Must use direct buffer for OpenGL
+            // Allocate buffer matching SSBO size to avoid GL_INVALID_VALUE
+            ByteBuffer orderByteBuffer = ByteBuffer.allocateDirect(splatCount * Integer.BYTES)
+                    .order(ByteOrder.nativeOrder());
+            IntBuffer orderBuffer = orderByteBuffer.asIntBuffer();
+
+            // Fill with sorted indices (may be less than splatCount due to LOD)
+            orderBuffer.put(sortedIndices, 0, uploadCount);
+
+            // Fill remaining slots with last valid index to avoid out-of-bounds
+            for (int i = uploadCount; i < splatCount; i++) {
+                orderBuffer.put(uploadCount > 0 ? sortedIndices[uploadCount - 1] : 0);
+            }
             orderBuffer.flip();
-            GL15.glBufferSubData(GL43.GL_SHADER_STORAGE_BUFFER, 0, orderBuffer);
+
+            // Clear any previous errors
+            while (GL11.glGetError() != GL11.GL_NO_ERROR);
+
+            long now = System.currentTimeMillis();
+            if (now - lastLogTime >= LOG_INTERVAL_MS) {
+                DebugManager.info(DebugCategory.RENDER,
+                    "uploadOrder: updating " + sortedIndices.length + "/" + splatCount + " indices, buffer state: pos=" +
+                    orderBuffer.position() + ", limit=" + orderBuffer.limit() + ", remaining=" + orderBuffer.remaining());
+                lastLogTime = now;
+            }
+
+            // Use ByteBuffer for glBufferSubData
+            orderByteBuffer.position(0);
+            orderByteBuffer.limit(splatCount * Integer.BYTES);
+            GL15.glBufferSubData(GL43.GL_SHADER_STORAGE_BUFFER, 0, orderByteBuffer);
+
+            int error = GL11.glGetError();
+            if (error != GL11.GL_NO_ERROR) {
+                String errorKey = "glBufferSubData_order_" + error;
+                if (cn.minerealms.assimploader.util.ErrorThrottler.shouldLog(errorKey, 5000)) {
+                    DebugManager.error(DebugCategory.RENDER,
+                        "glBufferSubData (uploadOrder) failed: 0x" + Integer.toHexString(error) +
+                        " (offset=0, size=" + (orderBuffer.remaining() * Integer.BYTES) + " bytes, " +
+                        "indices.length=" + sortedIndices.length + ") " +
+                        "(further identical errors will be throttled)");
+                }
+            }
+
             GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, 0);
         } else {
             // TBO fallback: convert int to float
-            FloatBuffer orderFloatBuffer = FloatBuffer.allocate(sortedIndices.length);
+            // IMPORTANT: Must use direct buffer for OpenGL
+            ByteBuffer orderFloatByteBuffer = ByteBuffer.allocateDirect(sortedIndices.length * Float.BYTES)
+                    .order(ByteOrder.nativeOrder());
+            FloatBuffer orderFloatBuffer = orderFloatByteBuffer.asFloatBuffer();
+
             for (int idx : sortedIndices) {
                 orderFloatBuffer.put((float) idx);
             }

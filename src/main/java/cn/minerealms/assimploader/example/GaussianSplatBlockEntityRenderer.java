@@ -1,5 +1,6 @@
 package cn.minerealms.assimploader.example;
 
+import cn.minerealms.assimploader.render.FrustumCuller;
 import cn.minerealms.assimploader.rendering.splat.GaussianSplatRenderer;
 import cn.minerealms.assimploader.rendering.splat.data.GaussianSplatData;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -7,6 +8,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -53,6 +56,12 @@ public class GaussianSplatBlockEntityRenderer implements BlockEntityRenderer<Gau
         GaussianSplatData splatData = blockEntity.getSplatData();
         if (splatData == null || !blockEntity.isInitialized()) {
             return;
+        }
+
+        // Frustum culling: check if splat is visible using dynamic bounding box
+        AABB boundingBox = getRenderBoundingBox(blockEntity, splatData);
+        if (boundingBox != null && !FrustumCuller.getInstance().isVisible(boundingBox)) {
+            return; // Skip rendering if outside view frustum
         }
 
         poseStack.pushPose();
@@ -108,5 +117,30 @@ public class GaussianSplatBlockEntityRenderer implements BlockEntityRenderer<Gau
     @Override
     public int getViewDistance() {
         return 256; // Render distance for splats
+    }
+
+    /**
+     * Calculate dynamic bounding box from splat data.
+     * Uses the pre-computed bounds from GaussianSplatData.
+     */
+    private AABB getRenderBoundingBox(GaussianSplatBlockEntity blockEntity, GaussianSplatData splatData) {
+        GaussianSplatData.BoundingBox bounds = splatData.getBounds();
+        if (bounds == null) {
+            return null; // No culling if bounds unavailable
+        }
+
+        Vector3f min = bounds.getMin();
+        Vector3f max = bounds.getMax();
+        BlockPos pos = blockEntity.getBlockPos();
+
+        // Transform bounds to world space (centered at block position + 0.5 offset)
+        return new AABB(
+            pos.getX() + 0.5 + min.x,
+            pos.getY() + 0.5 + min.y,
+            pos.getZ() + 0.5 + min.z,
+            pos.getX() + 0.5 + max.x,
+            pos.getY() + 0.5 + max.y,
+            pos.getZ() + 0.5 + max.z
+        );
     }
 }

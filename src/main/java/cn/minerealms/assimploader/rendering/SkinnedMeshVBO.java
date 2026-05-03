@@ -95,7 +95,11 @@ public class SkinnedMeshVBO {
         // Create EBO
         eboId = GL15.glGenBuffers();
         GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, eboId);
-        IntBuffer indexBuffer = IntBuffer.allocate(indices.length);
+
+        // IMPORTANT: Must use direct buffer for OpenGL
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(indices.length * Integer.BYTES)
+                .order(ByteOrder.nativeOrder());
+        IntBuffer indexBuffer = byteBuffer.asIntBuffer();
         indexBuffer.put(indices);
         indexBuffer.flip();
         GL15.glBufferData(GL15.GL_ELEMENT_ARRAY_BUFFER, indexBuffer, GL15.GL_STATIC_DRAW);
