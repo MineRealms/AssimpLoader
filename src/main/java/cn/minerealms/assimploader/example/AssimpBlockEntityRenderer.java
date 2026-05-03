@@ -42,6 +42,7 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
     private static final Map<String, Boolean> textureDebugLogged = new HashMap<>();
     private static final Map<String, Integer> renderCountMap = new HashMap<>();
     private static final Map<String, Boolean> modeLoggedMap = new HashMap<>();
+    private static final Map<String, AABB> boundingBoxCache = new HashMap<>(); // Cache for computed bounding boxes
 
     /**
      * Get the model name for this block entity.
@@ -52,16 +53,72 @@ public abstract class AssimpBlockEntityRenderer<T extends BlockEntity> implement
     /**
      * Get the bounding box for frustum culling.
      * Override this to provide a custom bounding box.
-     * Default: 1x1x1 block at entity position
+     * Default: Dynamically computed from model vertices with caching
      */
     protected AABB getBoundingBox(T blockEntity) {
-        return new AABB(
+        String modelName = getModelName();
+
+        // Check cache first
+        if (boundingBoxCache.containsKey(modelName)) {
+            AABB cachedBox = boundingBoxCache.get(modelName);
+            // Transform cached relative box to world space
+            return cachedBox.move(
+                blockEntity.getBlockPos().getX(),
+                blockEntity.getBlockPos().getY(),
+                blockEntity.getBlockPos().getZ()
+            );
+        }
+
+        // Compute bounding box from model vertices
+        AssimpScene scene = AssimpModelLoader.getCachedModel(modelName);
+        if (scene == null) {
+            return null; // No culling if model not loaded
+        }
+
+        float minX = Float.POSITIVE_INFINITY;
+        float minY = Float.POSITIVE_INFINITY;
+        float minZ = Float.POSITIVE_INFINITY;
+        float maxX = Float.NEGATIVE_INFINITY;
+        float maxY = Float.NEGATIVE_INFINITY;
+        float maxZ = Float.NEGATIVE_INFINITY;
+
+        // Iterate through all meshes to find bounds
+        for (AssimpMesh mesh : scene.getMeshes()) {
+            float[] vertices = mesh.getVertices();
+            for (int i = 0; i < vertices.length; i += 3) {
+                minX = Math.min(minX, vertices[i]);
+                minY = Math.min(minY, vertices[i + 1]);
+                minZ = Math.min(minZ, vertices[i + 2]);
+                maxX = Math.max(maxX, vertices[i]);
+                maxY = Math.max(maxY, vertices[i + 1]);
+                maxZ = Math.max(maxZ, vertices[i + 2]);
+            }
+        }
+
+        // Handle empty models
+        if (Float.isInfinite(minX) || Float.isInfinite(maxX)) {
+            DebugManager.warn(DebugCategory.CORE, "Model '{}' has no valid vertices, using default 1x1x1 bounding box", modelName);
+            AABB defaultBox = new AABB(0, 0, 0, 1, 1, 1);
+            boundingBoxCache.put(modelName, defaultBox);
+            return defaultBox.move(
+                blockEntity.getBlockPos().getX(),
+                blockEntity.getBlockPos().getY(),
+                blockEntity.getBlockPos().getZ()
+            );
+        }
+
+        // Cache the relative bounding box (without world position)
+        AABB relativeBox = new AABB(minX, minY, minZ, maxX, maxY, maxZ);
+        boundingBoxCache.put(modelName, relativeBox);
+
+        DebugManager.info(DebugCategory.CORE, "Computed bounding box for '{}': min({}, {}, {}), max({}, {}, {})",
+            modelName, minX, minY, minZ, maxX, maxY, maxZ);
+
+        // Return world-space bounding box
+        return relativeBox.move(
             blockEntity.getBlockPos().getX(),
             blockEntity.getBlockPos().getY(),
-            blockEntity.getBlockPos().getZ(),
-            blockEntity.getBlockPos().getX() + 1,
-            blockEntity.getBlockPos().getY() + 1,
-            blockEntity.getBlockPos().getZ() + 1
+            blockEntity.getBlockPos().getZ()
         );
     }
 
