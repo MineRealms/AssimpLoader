@@ -1,4 +1,0 @@
-{
-  "loader": "assimploader:assimp",
-  "model": "assimploader:models/block/cnc.fbx"
-}
