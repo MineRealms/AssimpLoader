@@ -87,6 +87,15 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 configurations {
     library
     implementation.extendsFrom library
+
+    // Only the LWJGL Assimp natives, kept out of runtimeClasspath on purpose: the '-all' jar
+    // has to bundle them, and resolving runtimeClasspath while the task graph is being built
+    // fails on a cold cache (the mapped Forge jar is produced by a ForgeGradle task that has
+    // not run yet). This configuration contains nothing but plain Maven artefacts.
+    assimpNatives {
+        canBeConsumed = false
+        canBeResolved = true
+    }
 }
 
 repositories {
@@ -110,11 +119,13 @@ dependencies {
     // Bundle LWJGL Assimp into the mod
     jarJar(group: 'org.lwjgl', name: 'lwjgl-assimp', version: '[3.3.1,3.3.2)')
 
-    // Natives are packaged into the jar by the `jar` task below; they must never be on the
-    // compile classpath and must never leak into other mods' classpath.
-    runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:natives-windows"
-    runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:natives-linux"
-    runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:natives-macos"
+    // Natives are packaged into the '-all' jar by the `jarJar` task below; they must never be
+    // on the compile classpath and must never leak into other mods' classpath.
+    // runtimeOnly keeps them available to the dev runs; assimpNatives is what gets bundled.
+    for (nativesClassifier in ['windows', 'linux', 'macos']) {
+        runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:natives-${nativesClassifier}"
+        assimpNatives "org.lwjgl:lwjgl-assimp:3.3.1:natives-${nativesClassifier}"
+    }
 
     // ModernUI - hard runtime dependency, served from its own maven.
     implementation fg.deobf("icyllis.modernui:ModernUI-Forge:${modernui_forge_version}")
@@ -168,9 +179,7 @@ tasks.named('jarJar').configure {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
     from {
-        project.configurations.runtimeClasspath.findAll {
-            it.name.contains('lwjgl-assimp') && it.name.contains('natives')
-        }.collect {
+        project.configurations.assimpNatives.collect {
             zipTree(it).matching {
                 exclude 'META-INF/**'
                 exclude '**/*.git'
