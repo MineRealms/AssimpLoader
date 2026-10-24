@@ -39,8 +39,10 @@ jobs:
       - name: Build
         run: |
           set -o pipefail
-          # --no-daemon: ForgeGradle keeps project-scoped state in statics and breaks with
-          # "Project services has been closed" when a daemon is reused; a fresh JVM avoids it.
+          # ForgeGradle generates the MCP/SRG artefacts lazily, from a worker thread, using the
+          # project's service registry. On a cold cache that generation happens during
+          # :compileJava and dies with "Project services has been closed" unless it runs on the
+          # build thread of a fresh JVM - hence no daemon and no parallel execution.
           ./gradlew build --stacktrace --console=plain --no-daemon -Dorg.gradle.parallel=false 2>&1 | tee gradle-build.log
 
       # GitHub only lets anonymous users read check-run *annotations*, not the raw log,
