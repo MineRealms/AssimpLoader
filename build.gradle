@@ -154,23 +154,26 @@ jar {
     }
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-    // Ship the Assimp natives for every platform inside the mod jar
-    from {
-        configurations.runtimeClasspath.findAll {
-            it.name.contains('lwjgl-assimp') && it.name.contains('natives')
-        }.collect {
-            zipTree(it).matching {
-                exclude 'META-INF/**'
-            }
-        }
-    }
 }
 
 jarJar.enable()
 
+// The '-all' jar is what users install, so the Assimp natives have to live there.
+// (Putting them in the plain jar only would ship a mod that cannot load its native library.)
 tasks.named('jarJar').configure {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from {
+        project.configurations.runtimeClasspath.findAll {
+            it.name.contains('lwjgl-assimp') && it.name.contains('natives')
+        }.collect {
+            zipTree(it).matching {
+                exclude 'META-INF/**'
+                exclude '**/*.git'
+                exclude '**/*.sha1'
+            }
+        }
+    }
 }
 
 mixin {
