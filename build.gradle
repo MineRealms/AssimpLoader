@@ -1,13 +1,12 @@
 buildscript {
     repositories {
         maven { url = 'https://maven.minecraftforge.net/' }
-        maven { url = 'https://maven.aliyun.com/repository/public' }
-        maven { url = 'https://repo.spongepowered.org/maven' }
         mavenCentral()
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
     }
     dependencies {
-        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '6.0.+', changing: true
-        classpath 'org.spongepowered:mixingradle:0.7.+'
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '6.0.54'
+        classpath 'org.spongepowered:mixingradle:0.7.38'
     }
 }
 
@@ -16,14 +15,12 @@ apply plugin: 'org.spongepowered.mixin'
 
 version = mod_version
 group = maven_group
-archivesBaseName = archives_base_name
+base { archivesName = archives_base_name }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 minecraft {
     mappings channel: 'official', version: '1.20.1'
-
-    // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
 
     runs {
         client {
@@ -93,54 +90,12 @@ configurations {
 }
 
 repositories {
-    mavenLocal()
-    maven { url = "https://maven.gtceu.com" }
-    maven { url = "https://maven.blamejared.com/" }
-    maven { url = "https://maven.virtuoel.com" }
-    maven { url "https://maven.blazing-coop.net/releases"}
-    maven { url = "https://jitpack.io" }
-    maven { url = "https://maven.saps.dev/releases" }
-    maven { url = "https://maven.blazing-coop.net/releases" }
-    maven { url = "https://www.cursemaven.com" }
-    maven { url = "https://maven.firstdarkdev.xyz/snapshots" }
-    maven { url = "https://maven.tterrag.com/" }
-    maven { url = "https://modmaven.dev" }
-    maven { url = 'https://maven.parchmentmc.org' }
-    maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
-    maven { url 'https://modmaven.dev/' }
-    maven { url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
-    maven { url 'https://www.cursemaven.com' }
-    maven { url "https://maven.firstdarkdev.xyz/snapshots"  }
-
-    // ModernUI-MC
-    maven {
-        name 'IzzelAliz Maven'
-        url 'https://maven.izzel.io/releases/'
-    }
-
-    // Photon and LDLib (from Photon's build.gradle)
-    maven {
-        name 'Latvian Maven'
-        url 'https://maven.latvian.dev/releases'
-    }
-    maven {
-        name 'JitPack'
-        url 'https://jitpack.io/'
-    }
-
-    // Caliko IK Library
-    maven {
-        name 'Sonatype Snapshots'
-        url 'https://oss.sonatype.org/content/repositories/snapshots/'
-    }
-
-    // JSplat (local Maven repository)
-    maven {
-        name 'JSplat Local'
-        url 'file://H:/MinecraftMods/JSplat/.m2/repository'
-    }
-
+    maven { url = 'https://maven.minecraftforge.net/' }
     mavenCentral()
+    // ModernUI
+    maven { url = 'https://maven.izzel.io/releases/' }
+    // glsl-transformer (optional Iris/Oculus shader injection)
+    maven { url = 'https://jitpack.io' }
 }
 
 dependencies {
@@ -152,101 +107,36 @@ dependencies {
     implementation(platform("org.lwjgl:lwjgl-bom:3.3.1"))
     implementation "org.lwjgl:lwjgl-assimp:3.3.1"
 
-    // Use jarJar to bundle LWJGL Assimp into the mod
+    // Bundle LWJGL Assimp into the mod
     jarJar(group: 'org.lwjgl', name: 'lwjgl-assimp', version: '[3.3.1,3.3.2)')
 
-    // Natives for development and runtime
-    def nativesClassifier = "natives-windows"
-    if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
-        nativesClassifier = "natives-linux"
-    } else if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
-        nativesClassifier = "natives-macos"
+    // Natives are packaged into the jar by the `jar` task below; they must never be on the
+    // compile classpath and must never leak into other mods' classpath.
+    runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:natives-windows"
+    runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:natives-linux"
+    runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:natives-macos"
+
+    // Optional soft dependencies, taken from the local `mods_dev` folder (not distributed).
+    // Only the jars we actually compile against are picked up.
+    def softDeps = fileTree(dir: 'mods_dev', include: [
+            'ModernUI-*.jar',
+            'photon-*.jar',
+            'ldlib-*.jar'
+    ])
+    if (!softDeps.isEmpty()) {
+        compileOnly softDeps
+        runtimeOnly softDeps
+    } else {
+        logger.warn("mods_dev/ is missing ModernUI/Photon/LDLib jars - the LookDev UI and Photon " +
+                "compatibility layer will not compile. See README (Development environment).")
     }
 
-    runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:${nativesClassifier}"
-
-    // Also include natives in the JAR for distribution
-    implementation "org.lwjgl:lwjgl-assimp:3.3.1:natives-windows"
-    implementation "org.lwjgl:lwjgl-assimp:3.3.1:natives-linux"
-    implementation "org.lwjgl:lwjgl-assimp:3.3.1:natives-macos"
-
-    // ImprovedMobs - Required dependency (temporarily disabled due to network issues)
-    // implementation fg.deobf("io.github.flemmli97:improvedmobs:${improvedmobs_version}-forge")
-    // implementation fg.deobf("io.github.flemmli97:tenshilib:${tenshilib_version}-forge")
-
-    // ModernUI-MC (from local files)
-    implementation fg.deobf(fileTree(dir: 'mods_dev', include: '*.jar'))
-
-    // Photon Integration (Optional - compileOnly for conditional loading)
-    compileOnly fg.deobf(fileTree(dir: 'mods_dev', include: '*.jar'))
-
-    // glsl-transformer (AGPLv3 许可证) - Optional for Iris/Oculus shader injection
+    // glsl-transformer (AGPLv3) - optional, only used when Iris/Oculus is present
     compileOnly 'io.github.douira:glsl-transformer:2.0.0-pre13'
-
-    // ANTLR4 运行时 (required by glsl-transformer)
     compileOnly 'org.antlr:antlr4-runtime:4.13.1'
 
-    // Caliko IK Library - Source code integrated directly into src/main/java/au/
-
-    // JSplat - Gaussian Splatting IO modules (source code integrated directly into src/main/java/de/)
-
-    // JUnit 5 for testing
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.3'
-}
-
-jar {
-    manifest {
-        attributes([
-                "Specification-Title"     : "assimploader",
-                "Specification-Vendor"    : "minerealms",
-                "Specification-Version"   : "1",
-                "Implementation-Title"    : project.name,
-                "Implementation-Version"  : project.jar.archiveVersion,
-                "Implementation-Vendor"   : "minerealms",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
-    }
-
-    // Set duplicate handling strategy
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-    // Include LWJGL Assimp natives in the JAR
-    from {
-        configurations.runtimeClasspath.findAll {
-            it.name.contains('lwjgl-assimp') && it.name.contains('natives')
-        }.collect {
-            zipTree(it).matching {
-                exclude 'META-INF/**'  // Exclude META-INF to avoid duplicates
-            }
-        }
-    }
-}
-
-// Enable jarJar to bundle LWJGL Assimp
-jarJar.enable()
-
-// Configure jarJar task to also include natives
-tasks.named('jarJar').configure {
-    // Set duplicate handling strategy
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-    // Include LWJGL Assimp natives in the jarJar output
-    from {
-        project.configurations.runtimeClasspath.findAll {
-            it.name.contains('lwjgl-assimp') && it.name.contains('natives')
-        }.collect {
-            zipTree(it).matching {
-                exclude 'META-INF/**'  // Exclude META-INF to avoid duplicates
-            }
-        }
-    }
-}
-
-mixin {
-    add sourceSets.main, "assimploader.refmap.json"
-    config "mixins.photon_compat.json"
-    config "mixins.iris_compat.json"
 }
 
 jar {
@@ -262,6 +152,31 @@ jar {
                 "MixinConfigs"            : "mixins.photon_compat.json,mixins.iris_compat.json"
         ])
     }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    // Ship the Assimp natives for every platform inside the mod jar
+    from {
+        configurations.runtimeClasspath.findAll {
+            it.name.contains('lwjgl-assimp') && it.name.contains('natives')
+        }.collect {
+            zipTree(it).matching {
+                exclude 'META-INF/**'
+            }
+        }
+    }
+}
+
+jarJar.enable()
+
+tasks.named('jarJar').configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+mixin {
+    add sourceSets.main, "assimploader.refmap.json"
+    config "mixins.photon_compat.json"
+    config "mixins.iris_compat.json"
 }
 
 jar.finalizedBy('reobfJar')
@@ -270,31 +185,34 @@ tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
 }
 
-// Enable JUnit 5 for testing
 tasks.withType(Test) {
     useJUnitPlatform()
 }
 
-// ==================== 自动部署和启动游戏 ====================
+// ==================== Deployment ====================
 
 /**
- * 复制构建的 JAR 到游戏 mods 目录
+ * Copy the built jar into a game's mods folder.
+ * The destination is machine-local: pass -PgameModsDir=... instead of hardcoding it.
  */
-task copyToGameMods(type: Copy) {
-    description = 'Copy built JAR to game mods directory'
+tasks.register('copyToGameMods', Copy) {
+    description = 'Copy built JAR to a game mods directory (requires -PgameModsDir=...)'
     group = 'deployment'
 
-    // Copy the jarJar output (-all.jar now includes both jarJar deps and natives)
+    def dest = project.findProperty('gameModsDir')
+    onlyIf { dest != null }
+
     from("${buildDir}/libs") {
         include '*-all.jar'
         rename '(.*)-all.jar', '$1.jar'
     }
-    into 'G:\\MinecraftGames\\CTNH-BaopuEdition\\.minecraft\\versions\\Create New Horizon\\mods'
+    if (dest != null) {
+        into dest
+    }
 
-    // 确保在 reobfJarJar 完成后执行
     dependsOn 'reobfJarJar'
 
     doLast {
-        println "✓ JAR 已复制到游戏 mods 目录: ${destinationDir}"
+        println "Copied jar to ${dest}"
     }
 }
