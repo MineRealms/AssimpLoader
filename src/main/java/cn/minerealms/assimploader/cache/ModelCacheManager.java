@@ -73,7 +73,6 @@ public class ModelCacheManager {
     public void remove(String resourcePath) {
         AssimpScene scene = cache.remove(resourcePath);
         if (scene != null) {
-            scene.release();
             DebugManager.debug(DebugCategory.CACHE, "Removed from cache: {}", resourcePath);
         }
     }
@@ -83,7 +82,6 @@ public class ModelCacheManager {
      */
     public void clearCache() {
         for (AssimpScene scene : cache.values()) {
-            scene.release();
         }
         cache.clear();
         totalMemoryUsage = 0;

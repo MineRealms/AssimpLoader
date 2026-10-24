@@ -165,7 +165,6 @@ public class MeshesResourceMixin {
             container.reBuild();
 
             // 6. 释放 Assimp 资源
-            scene.release();
 
             LOGGER.info("FBX mesh import completed successfully: {} mesh(es) imported", imported);
 

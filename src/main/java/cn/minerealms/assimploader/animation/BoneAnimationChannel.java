@@ -78,4 +78,16 @@ public class BoneAnimationChannel {
     public String getBoneName() {
         return boneName;
     }
+
+    public boolean hasPositionKeys() {
+        return positionKeys != null && positionKeys.length > 0;
+    }
+
+    public boolean hasRotationKeys() {
+        return rotationKeys != null && rotationKeys.length > 0;
+    }
+
+    public boolean hasScaleKeys() {
+        return scaleKeys != null && scaleKeys.length > 0;
+    }
 }

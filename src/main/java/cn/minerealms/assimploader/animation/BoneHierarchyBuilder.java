@@ -2,13 +2,11 @@ package cn.minerealms.assimploader.animation;
 
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
+import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpNode;
 import org.joml.Matrix4f;
-import org.lwjgl.assimp.AIBone;
-import org.lwjgl.assimp.AIMesh;
-import org.lwjgl.assimp.AINode;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -30,39 +28,37 @@ import java.util.Map;
  */
 public class BoneHierarchyBuilder {
 
-    private final Map<String, Bone> boneMap = new HashMap<>();
+    /**
+     * Insertion ordered: index N in {@link #getFinalTransforms()} must match bone index N in
+     * the vertex data, which is why the map is filled in the mesh's bone order.
+     */
+    private final Map<String, Bone> boneMap = new LinkedHashMap<>();
     private Bone rootBone;
 
     /**
-     * Build bone hierarchy from Assimp mesh bones
+     * Build the bone hierarchy for a skinned mesh.
+     *
+     * <p>Bones are inserted in the mesh's own bone order, so the index used by the vertex
+     * weights (see {@code AssimpMesh#getSkinnedData()}) is exactly the index of the matrix
+     * returned by {@link #getFinalTransforms()}.
      */
-    public void buildFromMesh(AIMesh aiMesh, AINode rootNode) {
-        int numBones = aiMesh.mNumBones();
-        if (numBones == 0) {
+    public void buildFromMesh(AssimpMesh mesh, AssimpNode rootNode) {
+        if (!mesh.hasBones()) {
             return;
         }
 
-        DebugManager.debug(DebugCategory.ANIMATION, "Building bone hierarchy from {} bones", numBones);
+        DebugManager.debug(DebugCategory.ANIMATION, "Building bone hierarchy from {} bones", mesh.getBoneOffsets().size());
 
-        // Extract all bones from mesh
-        for (int i = 0; i < numBones; i++) {
-            AIBone aiBone = AIBone.create(aiMesh.mBones().get(i));
-            String boneName = aiBone.mName().dataString();
-
-            // Create bone with offset matrix
-            Matrix4f offsetMatrix = convertMatrix(aiBone.mOffsetMatrix());
-            Bone bone = new Bone(boneName, offsetMatrix);
-
-            boneMap.put(boneName, bone);
-            DebugManager.debug(DebugCategory.ANIMATION, "  Bone: {} (offset matrix extracted)", boneName);
+        for (Map.Entry<String, Matrix4f> entry : mesh.getBoneOffsets().entrySet()) {
+            boneMap.put(entry.getKey(), new Bone(entry.getKey(), entry.getValue()));
         }
 
-        // Build hierarchy from scene graph
         if (rootNode != null) {
             buildHierarchy(rootNode, null);
         }
 
-        // Find root bone (bone with no parent)
+        // Every bone that never appeared in the scene graph becomes a root candidate;
+        // the first parentless bone is the root.
         for (Bone bone : boneMap.values()) {
             if (bone.getParent() == null) {
                 rootBone = bone;
@@ -72,47 +68,19 @@ public class BoneHierarchyBuilder {
         }
     }
 
-    /**
-     * Recursively build bone hierarchy from scene graph
-     */
-    private void buildHierarchy(AINode aiNode, Bone parentBone) {
-        String nodeName = aiNode.mName().dataString();
-
-        // Check if this node is a bone
-        Bone currentBone = boneMap.get(nodeName);
+    private void buildHierarchy(AssimpNode node, Bone parentBone) {
+        Bone currentBone = boneMap.get(node.getName());
 
         if (currentBone != null) {
-            // This node is a bone
-            if (parentBone != null) {
+            if (parentBone != null && currentBone != parentBone) {
                 parentBone.addChild(currentBone);
             }
-
-            // Set local transformation
-            Matrix4f localTransform = convertMatrix(aiNode.mTransformation());
-            currentBone.setLocalTransform(localTransform);
-
-            DebugManager.debug(DebugCategory.ANIMATION, "  Bone hierarchy: {} -> {}",
-                parentBone != null ? parentBone.getName() : "ROOT", nodeName);
+            currentBone.setLocalTransform(node.getTransformation());
         }
 
-        // Process children
-        int numChildren = aiNode.mNumChildren();
-        for (int i = 0; i < numChildren; i++) {
-            AINode childNode = AINode.create(aiNode.mChildren().get(i));
-            buildHierarchy(childNode, currentBone != null ? currentBone : parentBone);
+        for (AssimpNode child : node.getChildren()) {
+            buildHierarchy(child, currentBone != null ? currentBone : parentBone);
         }
-    }
-
-    /**
-     * Convert Assimp matrix to JOML matrix
-     */
-    private Matrix4f convertMatrix(org.lwjgl.assimp.AIMatrix4x4 aiMatrix) {
-        return new Matrix4f(
-            aiMatrix.a1(), aiMatrix.a2(), aiMatrix.a3(), aiMatrix.a4(),
-            aiMatrix.b1(), aiMatrix.b2(), aiMatrix.b3(), aiMatrix.b4(),
-            aiMatrix.c1(), aiMatrix.c2(), aiMatrix.c3(), aiMatrix.c4(),
-            aiMatrix.d1(), aiMatrix.d2(), aiMatrix.d3(), aiMatrix.d4()
-        );
     }
 
     /**

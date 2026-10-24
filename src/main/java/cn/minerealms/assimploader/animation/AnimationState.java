@@ -64,7 +64,7 @@ public class AnimationState {
         for (AssimpMesh mesh : scene.getMeshes()) {
             if (mesh.hasBones()) {
                 BoneHierarchyBuilder boneHierarchy = new BoneHierarchyBuilder();
-                boneHierarchy.buildFromMesh(mesh.getNativeMesh(), scene.getRootNode().getNativeNode());
+                boneHierarchy.buildFromMesh(mesh, scene.getRootNode());
                 boneHierarchies.put(mesh, boneHierarchy);
 
                 DebugManager.debug(DebugCategory.ANIMATION, "Built bone hierarchy for mesh: {} ({} bones)",
@@ -78,14 +78,8 @@ public class AnimationState {
             player.setLooping(true);
             animationPlayers.put(animation.getName(), player);
 
-            // Debug: Check animation channel types
-            var aiAnim = animation.getNativeAnimation();
-            int numChannels = aiAnim.mChannels() != null ? aiAnim.mChannels().limit() : 0;
-            int numMeshChannels = aiAnim.mMeshChannels() != null ? aiAnim.mMeshChannels().limit() : 0;
-            int numMorphMeshChannels = aiAnim.mMorphMeshChannels() != null ? aiAnim.mMorphMeshChannels().limit() : 0;
-
-            DebugManager.info(DebugCategory.ANIMATION, "Animation '{}': duration={}s, channels={}, meshChannels={}, morphChannels={}",
-                    animation.getName(), animation.getDuration(), numChannels, numMeshChannels, numMorphMeshChannels);
+            DebugManager.info(DebugCategory.ANIMATION, "Animation '{}': duration={} ticks, channels={}",
+                    animation.getName(), animation.getDuration(), animation.getChannels().size());
         }
 
         // Set default animation if available
@@ -169,6 +163,11 @@ public class AnimationState {
      */
     public BoneHierarchyBuilder getBoneHierarchy(AssimpMesh mesh) {
         return boneHierarchies.get(mesh);
+    }
+
+    /** All bone hierarchies, keyed by mesh. */
+    public Map<AssimpMesh, BoneHierarchyBuilder> getBoneHierarchies() {
+        return boneHierarchies;
     }
 
     /**
