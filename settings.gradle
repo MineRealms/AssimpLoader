@@ -1,14 +1,9 @@
 pluginManagement {
     repositories {
-        maven { url = 'https://maven.minecraftforge.net/' }
-        maven { url = 'https://maven.aliyun.com/repository/public' }
-        maven {
-            name = "Flemmli97"
-            url "https://maven.blazing-coop.net/releases"
-        }
-
         gradlePluginPortal()
+        maven { url = 'https://maven.minecraftforge.net/' }
+        mavenCentral()
     }
 }
 
-rootProject.name = "IntegratedIndustrialCraft"
+rootProject.name = "assimploader"
