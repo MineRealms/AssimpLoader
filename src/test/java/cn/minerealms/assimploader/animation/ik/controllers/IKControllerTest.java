@@ -134,6 +134,10 @@ class IKControllerTest {
         controller.setTarget(target);
         controller.update(0.016f);
 
+        // The controller only sets the chain target; solving happens in the manager.
+        ikManager.setEnabled(true);
+        ikManager.updateAll();
+
         // Chain should be updated
         assertFalse(controller.getChain().isDirty());
     }
@@ -296,6 +300,10 @@ class IKControllerTest {
         controller.enableRightFoot();
 
         controller.update(0.016f);
+
+        // The controller only sets the chain targets; solving happens in the manager.
+        ikManager.setEnabled(true);
+        ikManager.updateAll();
 
         // Chains should be updated
         assertFalse(controller.getLeftFootChain().isDirty());
