@@ -15,9 +15,10 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * CCB block that uses a custom Assimp model with BlockEntityRenderer.
+ * Example block that renders an Assimp model through a BlockEntityRenderer.
  */
 public class CCBBlock extends BaseEntityBlock {
+
     private static final VoxelShape SHAPE = Block.box(2, 0, 2, 14, 16, 14);
 
     public CCBBlock(Properties properties) {
@@ -42,7 +43,15 @@ public class CCBBlock extends BaseEntityBlock {
 
     @Nullable
     @Override
+    @SuppressWarnings("unchecked")
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return null; // No ticking needed
+        if (level.isClientSide) {
+            return (BlockEntityTicker<T>) (lvl, pos, st, be) -> {
+                if (be instanceof CCBBlockEntity ccb) {
+                    ccb.tick();
+                }
+            };
+        }
+        return null;
     }
 }

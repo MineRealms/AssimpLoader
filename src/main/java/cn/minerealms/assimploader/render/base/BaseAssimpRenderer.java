@@ -10,7 +10,6 @@ import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.model.AssimpTexture;
 import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -21,8 +20,6 @@ import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
-import org.joml.Vector3f;
-import org.joml.Vector4f;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -212,12 +209,6 @@ public abstract class BaseAssimpRenderer {
             // Choose render type
             RenderType renderType = getRenderType(material, textureLocation);
 
-            // Enable blending for transparent materials
-            if (material != null && material.isTransparent()) {
-                RenderSystem.enableBlend();
-                RenderSystem.defaultBlendFunc();
-            }
-
             VertexConsumer consumer = bufferSource.getBuffer(renderType);
 
             // Register PBR textures if shaders support it
@@ -268,12 +259,6 @@ public abstract class BaseAssimpRenderer {
                 // Choose render type
                 RenderType renderType = getRenderType(material, textureLocation);
 
-                // Enable blending for transparent materials
-                if (material != null && material.isTransparent()) {
-                    RenderSystem.enableBlend();
-                    RenderSystem.defaultBlendFunc();
-                }
-
                 VertexConsumer consumer = bufferSource.getBuffer(renderType);
 
                 // Register PBR textures if shaders support it
@@ -295,7 +280,10 @@ public abstract class BaseAssimpRenderer {
     }
 
     /**
-     * Render a single mesh with vertex data.
+     * Render a single mesh.
+     *
+     * <p>Allocation free: no per-vertex objects are created and each triangle emits exactly
+     * three vertices.
      */
     protected void renderMesh(AssimpMesh mesh, AssimpMaterial material, PoseStack poseStack,
                               VertexConsumer consumer, int packedLight, int packedOverlay) {
@@ -305,86 +293,105 @@ public abstract class BaseAssimpRenderer {
         float[] texCoords = mesh.getTexCoords();
         int[] indices = mesh.getIndices();
 
-        float[] diffuseColor = material != null ? material.getDiffuseColor() : new float[]{1.0f, 1.0f, 1.0f, 1.0f};
+        float red = 1f;
+        float green = 1f;
+        float blue = 1f;
+        float alpha = 1f;
 
-        // When shaders are active, use white color and let shader handle lighting
-        boolean shadersActive = OculusCompat.isShadersActive();
-        Vector4f color;
-        if (shadersActive) {
-            color = new Vector4f(1.0f, 1.0f, 1.0f, diffuseColor[3]);
-        } else {
-            color = new Vector4f(diffuseColor[0], diffuseColor[1], diffuseColor[2], diffuseColor[3]);
+        if (material != null) {
+            float[] diffuse = material.getDiffuseColor();
+            alpha = diffuse[3];
+            // With shaders active the pack computes lighting from normals, so keep the
+            // vertex colour white and only pass alpha through.
+            if (!OculusCompat.isShadersActive()) {
+                red = diffuse[0];
+                green = diffuse[1];
+                blue = diffuse[2];
+            }
         }
 
         Matrix4f pose = poseStack.last().pose();
-        Matrix3f normal = poseStack.last().normal();
+        Matrix3f normalMatrix = poseStack.last().normal();
 
-        // Render triangles with reversed winding order for Minecraft
-        for (int i = 0; i < indices.length; i += 3) {
-            int idx0 = indices[i];
-            int idx1 = indices[i + 1];
-            int idx2 = indices[i + 2];
+        int vertexCount = vertices.length / 3;
 
-            int vIdx0 = idx0 * 3;
-            int vIdx1 = idx1 * 3;
-            int vIdx2 = idx2 * 3;
+        // Assimp winds counter-clockwise for a right-handed system; Minecraft expects the
+        // opposite, so the triangle is emitted in reverse order.
+        for (int i = 0; i + 2 < indices.length; i += 3) {
+            int i0 = indices[i];
+            int i1 = indices[i + 1];
+            int i2 = indices[i + 2];
 
-            int tIdx0 = idx0 * 2;
-            int tIdx1 = idx1 * 2;
-            int tIdx2 = idx2 * 2;
-
-            // Vertices
-            Vector3f v0 = new Vector3f(vertices[vIdx0], vertices[vIdx0 + 1], vertices[vIdx0 + 2]);
-            Vector3f v1 = new Vector3f(vertices[vIdx1], vertices[vIdx1 + 1], vertices[vIdx1 + 2]);
-            Vector3f v2 = new Vector3f(vertices[vIdx2], vertices[vIdx2 + 1], vertices[vIdx2 + 2]);
-
-            // Normals
-            Vector3f n0, n1, n2;
-            if (normals != null && vIdx0 + 2 < normals.length && vIdx1 + 2 < normals.length && vIdx2 + 2 < normals.length) {
-                n0 = new Vector3f(normals[vIdx0], normals[vIdx0 + 1], normals[vIdx0 + 2]);
-                n1 = new Vector3f(normals[vIdx1], normals[vIdx1 + 1], normals[vIdx1 + 2]);
-                n2 = new Vector3f(normals[vIdx2], normals[vIdx2 + 1], normals[vIdx2 + 2]);
-            } else {
-                Vector3f defaultNorm = new Vector3f(0.0f, 1.0f, 0.0f);
-                n0 = n1 = n2 = defaultNorm;
+            if (i0 < 0 || i1 < 0 || i2 < 0 || i0 >= vertexCount || i1 >= vertexCount || i2 >= vertexCount) {
+                continue;
             }
 
-            // UV coordinates
-            float u0 = texCoords != null && tIdx0 + 1 < texCoords.length ? texCoords[tIdx0] : 0.0f;
-            float vt0 = texCoords != null && tIdx0 + 1 < texCoords.length ? texCoords[tIdx0 + 1] : 0.0f;
-            float u1 = texCoords != null && tIdx1 + 1 < texCoords.length ? texCoords[tIdx1] : 0.0f;
-            float vt1 = texCoords != null && tIdx1 + 1 < texCoords.length ? texCoords[tIdx1 + 1] : 0.0f;
-            float u2 = texCoords != null && tIdx2 + 1 < texCoords.length ? texCoords[tIdx2] : 0.0f;
-            float vt2 = texCoords != null && tIdx2 + 1 < texCoords.length ? texCoords[tIdx2 + 1] : 0.0f;
-
-            // Reverse winding order for Minecraft: v2, v1, v0, v0 (degenerate quad)
-            addVertex(consumer, pose, normal, v2, n2, u2, vt2, color, packedLight, packedOverlay);
-            addVertex(consumer, pose, normal, v1, n1, u1, vt1, color, packedLight, packedOverlay);
-            addVertex(consumer, pose, normal, v0, n0, u0, vt0, color, packedLight, packedOverlay);
-            addVertex(consumer, pose, normal, v0, n0, u0, vt0, color, packedLight, packedOverlay); // Duplicate last vertex
+            addVertex(consumer, pose, normalMatrix, vertices, normals, texCoords, i2,
+                    red, green, blue, alpha, packedLight, packedOverlay);
+            addVertex(consumer, pose, normalMatrix, vertices, normals, texCoords, i1,
+                    red, green, blue, alpha, packedLight, packedOverlay);
+            addVertex(consumer, pose, normalMatrix, vertices, normals, texCoords, i0,
+                    red, green, blue, alpha, packedLight, packedOverlay);
         }
     }
 
     /**
-     * Add a single vertex to the vertex consumer.
+     * Emit one vertex without allocating.
      */
-    protected void addVertex(VertexConsumer consumer, Matrix4f pose, Matrix3f normal,
-                             Vector3f position, Vector3f norm, float u, float v,
-                             Vector4f color, int packedLight, int packedOverlay) {
-        // Normalize the normal vector to ensure correct lighting
-        Vector3f normalizedNorm = new Vector3f(norm);
-        normalizedNorm.normalize();
+    protected void addVertex(VertexConsumer consumer, Matrix4f pose, Matrix3f normalMatrix,
+                             float[] vertices, float[] normals, float[] texCoords, int vertexIndex,
+                             float red, float green, float blue, float alpha,
+                             int packedLight, int packedOverlay) {
 
-        // Transform normal to world space using the normal matrix
-        normalizedNorm.mul(normal);
+        int p = vertexIndex * 3;
+        float x = vertices[p];
+        float y = vertices[p + 1];
+        float z = vertices[p + 2];
 
-        consumer.vertex(pose, position.x, position.y, position.z)
-            .color(color.x, color.y, color.z, color.w)
-            .uv(u, v)
-            .overlayCoords(packedOverlay)
-            .uv2(packedLight)
-            .normal(normalizedNorm.x, normalizedNorm.y, normalizedNorm.z)
-            .endVertex();
+        float nx = 0f;
+        float ny = 1f;
+        float nz = 0f;
+        if (normals != null && p + 2 < normals.length) {
+            nx = normals[p];
+            ny = normals[p + 1];
+            nz = normals[p + 2];
+
+            float lengthSq = nx * nx + ny * ny + nz * nz;
+            if (lengthSq > 1.0e-6f) {
+                float inverseLength = 1.0f / (float) Math.sqrt(lengthSq);
+                nx *= inverseLength;
+                ny *= inverseLength;
+                nz *= inverseLength;
+            } else {
+                nx = 0f;
+                ny = 1f;
+                nz = 0f;
+            }
+        }
+
+        // Apply the pose normal matrix by hand (JOML's Matrix3f#mul allocates nothing but
+        // needs a Vector3f, and we are deliberately avoiding those).
+        float tnx = normalMatrix.m00() * nx + normalMatrix.m10() * ny + normalMatrix.m20() * nz;
+        float tny = normalMatrix.m01() * nx + normalMatrix.m11() * ny + normalMatrix.m21() * nz;
+        float tnz = normalMatrix.m02() * nx + normalMatrix.m12() * ny + normalMatrix.m22() * nz;
+
+        float u = 0f;
+        float v = 0f;
+        if (texCoords != null) {
+            int t = vertexIndex * 2;
+            if (t + 1 < texCoords.length) {
+                u = texCoords[t];
+                v = texCoords[t + 1];
+            }
+        }
+
+        consumer.vertex(pose, x, y, z)
+                .color(red, green, blue, alpha)
+                .uv(u, v)
+                .overlayCoords(packedOverlay)
+                .uv2(packedLight)
+                .normal(tnx, tny, tnz)
+                .endVertex();
     }
 
     /**

@@ -172,18 +172,8 @@ public class SkinnedMeshRenderer {
         float[] texCoords = mesh.getTexCoords();
         int[] indices = mesh.getIndices();
 
-        // Get bone data - need to build bone name to index map first
-        Map<String, Integer> boneNameToIndexMap = new HashMap<>();
-        // This will be populated by BoneHierarchyBuilder
-        // For now, we'll extract it from the mesh
-        org.lwjgl.assimp.AIMesh aiMesh = mesh.getNativeMesh();
-        for (int i = 0; i < aiMesh.mNumBones(); i++) {
-            org.lwjgl.assimp.AIBone aiBone = org.lwjgl.assimp.AIBone.create(aiMesh.mBones().get(i));
-            String boneName = aiBone.mName().dataString();
-            boneNameToIndexMap.put(boneName, i);
-        }
-
-        SkinnedMeshProcessor.SkinnedMeshData skinnedData = mesh.getSkinnedData(boneNameToIndexMap);
+        // Bone weights were extracted at load time, in the mesh's bone order.
+        SkinnedMeshProcessor.SkinnedMeshData skinnedData = mesh.getSkinnedData();
 
         if (skinnedData == null) {
             throw new IllegalStateException("Failed to extract skinned data from mesh: " + mesh.getName());

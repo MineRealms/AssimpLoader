@@ -91,26 +91,21 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
                 resourceLoc = new ResourceLocation(modelLocation.getNamespace(), modelPath);
             }
 
-            // PRIORITY 1: Try external models directory first
-            // Convert resource path to external path: assimploader:models/block/cnc.fbx -> H:/MinecraftMods/ImprovedMobs/models/models/block/cnc.fbx
-            String externalModelsPath = "H:/MinecraftMods/ImprovedMobs/models/" +
-                                       resourceLoc.getPath();
-
-            java.nio.file.Path externalPath = java.nio.file.Paths.get(externalModelsPath);
-
-            if (java.nio.file.Files.exists(externalPath)) {
-                DebugManager.info(DebugCategory.RENDER, "Loading model from external models directory: {} with mode: {}", externalModelsPath, mode);
+            // PRIORITY 1: optional external model folder (see rendering.externalModelDirectory)
+            java.nio.file.Path externalPath = resolveExternalPath(resourceLoc);
+            if (externalPath != null) {
+                DebugManager.info(DebugCategory.RENDER, "Loading model from external directory: {} (mode {})", externalPath, mode);
                 try {
-                    AssimpModelLoader loader = new AssimpModelLoader();
-                    AssimpScene scene = loader.loadModel(externalPath, getImportMode());
+                    AssimpScene scene = cn.minerealms.assimploader.core.AsyncModelLoader
+                            .loadBlocking(externalPath, getImportMode());
                     if (scene != null) {
                         cachedScene = scene;
                         AssimpModelLoader.updateModelCache(modelName, scene);
-                        AssimpModelLoader.updateModelCache(simpleModelName, scene); // Also cache with simple name
-                        DebugManager.info(DebugCategory.RENDER, "Successfully loaded external model: {} (also as: {}) in {} mode", modelName, simpleModelName, mode);
+                        AssimpModelLoader.updateModelCache(simpleModelName, scene);
+                        DebugManager.info(DebugCategory.RENDER, "Loaded external model: {} (also as: {}) in {} mode", modelName, simpleModelName, mode);
                     }
                 } catch (Exception e) {
-                    DebugManager.error(DebugCategory.RENDER, "Failed to load external model from {}: {}", externalModelsPath, e.getMessage());
+                    DebugManager.error(DebugCategory.RENDER, "Failed to load external model from {}: {}", externalPath, e.getMessage());
                 }
             }
 
@@ -149,7 +144,7 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
             // PRIORITY 3: Create placeholder if both failed
             if (cachedScene == null) {
                 DebugManager.error(DebugCategory.RENDER, "FAILED TO LOAD MODEL: {} - Returning fallback model", modelName);
-                DebugManager.error(DebugCategory.RENDER, "  Tried external: {}", externalModelsPath);
+                DebugManager.error(DebugCategory.RENDER, "  Tried external: {}", externalPath);
                 DebugManager.error(DebugCategory.RENDER, "  Tried resource: {}", resourceLoc);
 
                 // Return Minecraft's missing model (purple/black checkerboard)
@@ -167,6 +162,25 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
             );
 
             return new AssimpBakedModel(cachedScene, whiteSprite, modelLocation);
+        }
+
+        /**
+         * Resolve the optional external model folder. Empty config = disabled.
+         */
+        private java.nio.file.Path resolveExternalPath(ResourceLocation resourceLoc) {
+            String configured = cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT
+                    .externalModelDirectory.get();
+            if (configured == null || configured.isBlank()) {
+                return null;
+            }
+
+            java.nio.file.Path root = java.nio.file.Paths.get(configured.trim());
+            if (!root.isAbsolute()) {
+                root = net.minecraft.client.Minecraft.getInstance().gameDirectory.toPath().resolve(root);
+            }
+
+            java.nio.file.Path candidate = root.resolve(resourceLoc.getPath());
+            return java.nio.file.Files.isRegularFile(candidate) ? candidate : null;
         }
 
         /**
