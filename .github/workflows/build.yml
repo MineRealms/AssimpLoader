@@ -34,12 +34,14 @@ jobs:
       # be redistributed through the repository. downloadDevDeps pins them by Modrinth
       # version id and verifies a sha512 checksum.
       - name: Download dev-only dependencies
-        run: ./gradlew downloadDevDeps --stacktrace
+        run: ./gradlew downloadDevDeps --stacktrace --no-daemon
 
       - name: Build
         run: |
           set -o pipefail
-          ./gradlew build --stacktrace --console=plain 2>&1 | tee gradle-build.log
+          # --no-daemon: ForgeGradle keeps project-scoped state in statics and breaks with
+          # "Project services has been closed" when a daemon is reused; a fresh JVM avoids it.
+          ./gradlew build --stacktrace --console=plain --no-daemon 2>&1 | tee gradle-build.log
 
       # GitHub only lets anonymous users read check-run *annotations*, not the raw log,
       # so failed builds re-emit the interesting part of the log as annotations.
