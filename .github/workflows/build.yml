@@ -63,6 +63,18 @@ jobs:
             echo "::error::gradle-build.log was not produced"
           fi
 
+      # TEMPORARY diagnostic: anonymous users cannot read job logs, only check-run
+      # annotations, so the whole log is re-emitted in 30-line chunks.
+      - name: Dump full log as annotations
+        if: failure()
+        run: |
+          [ -f gradle-build.log ] || exit 0
+          split -l 30 -d -a 3 gradle-build.log chunk_
+          for f in chunk_*; do
+            MSG=$(tr '\n' '\001' < "$f" | sed 's/%/%25/g; s/\001/%0A/g; s/\r//g')
+            echo "::error title=$f::$MSG"
+          done | head -40
+
       # Regression guard: the distributable jar must contain the Assimp natives, otherwise
       # the mod loads but cannot import a single model.
       - name: Verify the distributable jar
