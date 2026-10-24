@@ -41,7 +41,7 @@ jobs:
           set -o pipefail
           # --no-daemon: ForgeGradle keeps project-scoped state in statics and breaks with
           # "Project services has been closed" when a daemon is reused; a fresh JVM avoids it.
-          ./gradlew build --stacktrace --console=plain --no-daemon 2>&1 | tee gradle-build.log
+          ./gradlew build --stacktrace --console=plain --no-daemon -Dorg.gradle.parallel=false 2>&1 | tee gradle-build.log
 
       # GitHub only lets anonymous users read check-run *annotations*, not the raw log,
       # so failed builds re-emit the interesting part of the log as annotations.
@@ -64,18 +64,6 @@ jobs:
           else
             echo "::error::gradle-build.log was not produced"
           fi
-
-      # TEMPORARY diagnostic: anonymous users cannot read job logs, only check-run
-      # annotations, so the whole log is re-emitted in 30-line chunks.
-      - name: Dump full log as annotations
-        if: failure()
-        run: |
-          [ -f gradle-build.log ] || exit 0
-          split -l 30 -d -a 3 gradle-build.log chunk_
-          for f in chunk_*; do
-            MSG=$(tr '\n' '\001' < "$f" | sed 's/%/%25/g; s/\001/%0A/g; s/\r//g')
-            echo "::error title=$f::$MSG"
-          done | head -40
 
       # Regression guard: the distributable jar must contain the Assimp natives, otherwise
       # the mod loads but cannot import a single model.
