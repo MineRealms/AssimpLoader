@@ -3,6 +3,7 @@ package cn.minerealms.assimploader.animation.ik.solvers;
 import cn.minerealms.assimploader.animation.Bone;
 import cn.minerealms.assimploader.animation.ik.IKChain;
 import cn.minerealms.assimploader.animation.ik.IKSolver;
+import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -15,8 +16,19 @@ import org.joml.Vector3f;
  */
 public class CCDSolver implements IKSolver {
 
-    private static final int MAX_ITERATIONS = 10;
-    private static final float DISTANCE_THRESHOLD = 0.01f;
+    /**
+     * Get max iterations from config
+     */
+    private int getMaxIterations() {
+        return AssimpLoaderConfig.getIntOrDefault(AssimpLoaderConfig.COMMON.animIkMaxIterationsCCD, 10);
+    }
+
+    /**
+     * Get distance threshold from config
+     */
+    private float getDistanceThreshold() {
+        return AssimpLoaderConfig.getOrDefault(() -> AssimpLoaderConfig.COMMON.animIkDistanceThreshold.get().floatValue(), 0.01f);
+    }
 
     @Override
     public Type getType() {
@@ -32,8 +44,11 @@ public class CCDSolver implements IKSolver {
         Vector3f target = chain.getTarget();
         Bone endEffector = chain.getBones().get(chain.getBones().size() - 1);
 
+        int maxIterations = getMaxIterations();
+        float threshold = getDistanceThreshold();
+
         // Iteratively adjust each joint
-        for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+        for (int iteration = 0; iteration < maxIterations; iteration++) {
             boolean solved = true;
 
             // Work backwards from end to root
@@ -46,7 +61,7 @@ public class CCDSolver implements IKSolver {
 
                 // Check if we're close enough
                 float distanceToTarget = endPos.distance(target);
-                if (distanceToTarget < DISTANCE_THRESHOLD) {
+                if (distanceToTarget < threshold) {
                     return true; // Solved!
                 }
 

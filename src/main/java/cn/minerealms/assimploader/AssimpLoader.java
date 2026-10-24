@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader;
 
 import cn.minerealms.assimploader.compat.photon.PhotonCompat;
+import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.cache.ModelCacheManager;
 import cn.minerealms.assimploader.render.AssimpGeometryLoader;
@@ -43,9 +44,6 @@ public class AssimpLoader {
     public static final String MODID = "assimploader";
     public static final Logger LOGGER = LoggerFactory.getLogger("AssimpLoader");
 
-    // Debug toggle - set to true to enable detailed debug logging
-    public static final boolean DEBUG_ENABLED = Boolean.getBoolean("assimploader.debug");
-
     private static AssimpLoader instance;
     private AssimpModelLoader modelLoader;
 
@@ -53,6 +51,10 @@ public class AssimpLoader {
         instance = this;
 
         LOGGER.info("Initializing AssimpLoader - Advanced 3D Model Loading System");
+
+        // Register configuration FIRST
+        AssimpLoaderConfig.register();
+        LOGGER.info("Configuration system registered");
 
         // Initialize LWJGL Assimp bootstrap FIRST
         try {
@@ -77,16 +79,6 @@ public class AssimpLoader {
             DebugLogger.info("Assimp version: {}", assimpVersion);
         }
 
-        // ALWAYS enable debug logging for development
-        DebugLogger.setEnabled(true);
-        DebugLogger.info("=== AssimpLoader Initializing ===");
-        DebugLogger.info("Debug logging ENABLED by default");
-
-        // Initialize debug logging if enabled via system property
-        if (DEBUG_ENABLED) {
-            DebugLogger.info("Debug mode also enabled via -Dassimploader.debug=true");
-        }
-
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         // Register setup events
@@ -95,18 +87,15 @@ public class AssimpLoader {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(this::clientSetup);
             modEventBus.addListener(this::registerModelLoaders);
+            modEventBus.addListener(cn.minerealms.assimploader.lookdev.LookDevKeybind::registerKeyMappings);
         }
 
         // Register examples
         cn.minerealms.assimploader.example.ExampleRegistry.register(modEventBus);
 
-        // Register to Forge event bus
-        MinecraftForge.EVENT_BUS.register(this);
-
-        // Register auto-test manager (client-side only)
+        // Register auto-test manager (client-side only) - controlled by config
         if (FMLEnvironment.dist == Dist.CLIENT) {
             MinecraftForge.EVENT_BUS.register(cn.minerealms.assimploader.debug.AutoTestManager.class);
-            LOGGER.info("AutoTestManager registered (enabled: {})", cn.minerealms.assimploader.debug.AutoTestManager.AUTO_TEST_ENABLED);
         }
 
         // Initialize Photon integration (conditional)
@@ -131,13 +120,22 @@ public class AssimpLoader {
         DebugLogger.debug("Client setup phase starting");
 
         event.enqueueWork(() -> {
+            // Initialize debug logging from config
+            boolean debugEnabled = AssimpLoaderConfig.CLIENT.debugEnabled.get();
+            DebugLogger.setEnabled(debugEnabled);
+
+            if (debugEnabled) {
+                LOGGER.info("Debug logging enabled via config");
+                DebugLogger.info("=== AssimpLoader Debug Mode ===");
+            }
+
             // Initialize DebugManager and PerformanceProfiler
             cn.minerealms.assimploader.debug.DebugManager.enable();
 
-            // Enable profiling if system property is set
-            if (Boolean.getBoolean("assimploader.profiling")) {
+            // Enable profiling if configured
+            if (AssimpLoaderConfig.CLIENT.profilingEnabled.get()) {
                 cn.minerealms.assimploader.debug.DebugManager.enableProfiling();
-                LOGGER.info("Performance profiling enabled via -Dassimploader.profiling=true");
+                LOGGER.info("Performance profiling enabled via config");
             }
 
             // Detect GPU capabilities for optimization
@@ -198,5 +196,19 @@ public class AssimpLoader {
      */
     public static boolean isDebugEnabled() {
         return DebugLogger.isEnabled();
+    }
+
+    /**
+     * Get configuration instance
+     */
+    public static AssimpLoaderConfig.ClientConfig getClientConfig() {
+        return AssimpLoaderConfig.CLIENT;
+    }
+
+    /**
+     * Get common configuration instance
+     */
+    public static AssimpLoaderConfig.CommonConfig getCommonConfig() {
+        return AssimpLoaderConfig.COMMON;
     }
 }

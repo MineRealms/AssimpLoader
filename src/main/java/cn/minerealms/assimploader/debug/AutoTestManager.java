@@ -1,29 +1,46 @@
 package cn.minerealms.assimploader.debug;
 
+import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
+import java.util.List;
+
 /**
  * Auto-test manager for automated testing.
  *
- * When enabled, automatically executes test commands after joining world.
+ * When enabled via config, automatically executes test commands after joining world.
  */
 public class AutoTestManager {
-
-    // Configuration
-    public static boolean AUTO_TEST_ENABLED = Boolean.getBoolean("autotest.enabled"); // Enable via -Dautotest.enabled=true
-    private static final String[] TEST_COMMANDS = {
-        "/lookdev"
-    };
-    private static final int DELAY_TICKS = 100; // 5 seconds after world join
 
     // State
     private static boolean hasExecuted = false;
     private static int tickCounter = 0;
     private static boolean wasInWorld = false;
+
+    /**
+     * Check if auto-test is enabled
+     */
+    private static boolean isEnabled() {
+        return AssimpLoaderConfig.CLIENT.devAutoTestEnabled.get();
+    }
+
+    /**
+     * Get test commands from config
+     */
+    private static List<? extends String> getTestCommands() {
+        return AssimpLoaderConfig.CLIENT.devAutoTestCommands.get();
+    }
+
+    /**
+     * Get delay ticks from config
+     */
+    private static int getDelayTicks() {
+        return AssimpLoaderConfig.CLIENT.devAutoTestDelay.get();
+    }
 
     /**
      * Reset state when leaving world
@@ -40,7 +57,7 @@ public class AutoTestManager {
      */
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (!AUTO_TEST_ENABLED) {
+        if (!isEnabled()) {
             return;
         }
 
@@ -63,7 +80,7 @@ public class AutoTestManager {
             }
 
             // Execute commands after delay
-            if (!hasExecuted && tickCounter >= DELAY_TICKS) {
+            if (!hasExecuted && tickCounter >= getDelayTicks()) {
                 executeTestCommands(player);
                 hasExecuted = true;
             }
@@ -84,9 +101,10 @@ public class AutoTestManager {
      */
     private static void executeTestCommands(LocalPlayer player) {
         try {
-            DebugManager.info(DebugManager.DebugCategory.CORE, "AutoTest: Executing %d test commands", TEST_COMMANDS.length);
+            List<? extends String> commands = getTestCommands();
+            DebugManager.info(DebugManager.DebugCategory.CORE, "AutoTest: Executing %d test commands", commands.size());
 
-            for (String command : TEST_COMMANDS) {
+            for (String command : commands) {
                 DebugManager.info(DebugManager.DebugCategory.CORE, "AutoTest: Executing command: %s", command);
                 player.connection.sendCommand(command.startsWith("/") ? command.substring(1) : command);
             }
