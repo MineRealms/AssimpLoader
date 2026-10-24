@@ -128,11 +128,9 @@ dependencies {
             'ldlib-*.jar'
     ])
     if (softDeps.isEmpty()) {
-        throw new GradleException(
-                "mods_dev/ is missing photon-*.jar / ldlib-*.jar.\n" +
-                        "They are required to compile the optional Photon integration and are not " +
-                        "distributed with the repository.\n" +
-                        "Run:  ./gradlew downloadDevDeps")
+        // Not fatal at configuration time: `downloadDevDeps` has to be able to run first,
+        // and compileJava depends on it.
+        logger.warn("mods_dev/ has no photon/ldlib jars yet - run ./gradlew downloadDevDeps")
     }
     compileOnly softDeps
     runtimeOnly softDeps
@@ -248,6 +246,10 @@ def devOnlyDeps = [
                 sha512: '564f71dccc84854e84fc795d7c2972b785498de198bafdae22e46e7b6fd257e6b4cd0b24396eae7caaec16f090500069f06e6b43ad50130a9d50ee9923850c59'
         ]
 ]
+
+tasks.named('compileJava').configure {
+    dependsOn 'downloadDevDeps'
+}
 
 tasks.register('downloadDevDeps') {
     group = 'deployment'
