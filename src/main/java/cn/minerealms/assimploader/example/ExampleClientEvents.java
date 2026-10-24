@@ -25,22 +25,10 @@ public class ExampleClientEvents {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(
-            ExampleRegistry.TEST_MODEL_BLOCK_ENTITY.get(),
-            TestModelBlockEntityRenderer::new
-        );
-        event.registerBlockEntityRenderer(
-            ExampleRegistry.CCB_BLOCK_ENTITY.get(),
+            ExampleRegistry.CNC_BLOCK_ENTITY.get(),
             CCBBlockEntityRenderer::new
         );
-        event.registerBlockEntityRenderer(
-            ExampleRegistry.CIRCLE_BLOCK_ENTITY.get(),
-            CircleBlockEntityRenderer::new
-        );
-        event.registerBlockEntityRenderer(
-            ExampleRegistry.GAUSSIAN_SPLAT_BLOCK_ENTITY.get(),
-            GaussianSplatBlockEntityRenderer::new
-        );
-        DebugManager.info(DebugCategory.CORE, "Registered block entity renderers: TestModel, CCB, Circle, GaussianSplat");
+        DebugManager.info(DebugCategory.CORE, "Registered block entity renderer: CNC (CCB)");
     }
 
     public static BlockEntityWithoutLevelRenderer getItemRenderer() {

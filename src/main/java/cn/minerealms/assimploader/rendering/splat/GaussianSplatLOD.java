@@ -1,5 +1,6 @@
 package cn.minerealms.assimploader.rendering.splat;
 
+import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import cn.minerealms.assimploader.rendering.splat.data.GaussianSplat;
 import cn.minerealms.assimploader.rendering.splat.data.GaussianSplatData;
 import org.joml.Vector3f;
@@ -15,16 +16,39 @@ import java.util.List;
  */
 public class GaussianSplatLOD {
 
-    // LOD distance thresholds (in blocks)
-    private static final float LOD_DISTANCE_HIGH = 16.0f;    // Full detail
-    private static final float LOD_DISTANCE_MEDIUM = 32.0f;  // 50% splats
-    private static final float LOD_DISTANCE_LOW = 64.0f;     // 25% splats
-    private static final float LOD_DISTANCE_CULL = 128.0f;   // Cull completely
+    /**
+     * Get LOD distance thresholds from config
+     */
+    private static float getLodDistanceHigh() {
+        return AssimpLoaderConfig.CLIENT.splatLodDistanceHigh.get().floatValue();
+    }
 
-    // LOD reduction factors
-    private static final int LOD_FACTOR_HIGH = 1;    // Every splat
-    private static final int LOD_FACTOR_MEDIUM = 2;  // Every 2nd splat
-    private static final int LOD_FACTOR_LOW = 4;     // Every 4th splat
+    private static float getLodDistanceMedium() {
+        return AssimpLoaderConfig.CLIENT.splatLodDistanceMedium.get().floatValue();
+    }
+
+    private static float getLodDistanceLow() {
+        return AssimpLoaderConfig.CLIENT.splatLodDistanceLow.get().floatValue();
+    }
+
+    private static float getLodDistanceCull() {
+        return AssimpLoaderConfig.CLIENT.splatLodDistanceCull.get().floatValue();
+    }
+
+    /**
+     * Get LOD factors from config
+     */
+    private static int getLodFactorHigh() {
+        return AssimpLoaderConfig.CLIENT.splatLodFactorHigh.get();
+    }
+
+    private static int getLodFactorMedium() {
+        return AssimpLoaderConfig.CLIENT.splatLodFactorMedium.get();
+    }
+
+    private static int getLodFactorLow() {
+        return AssimpLoaderConfig.CLIENT.splatLodFactorLow.get();
+    }
 
     /**
      * Apply LOD filtering to splat data based on camera distance
@@ -46,10 +70,10 @@ public class GaussianSplatLOD {
         int lodFactor = getLODFactor(distance);
 
         // If full detail or culled, return as-is
-        if (lodFactor == LOD_FACTOR_HIGH) {
+        if (lodFactor == getLodFactorHigh()) {
             return data; // Full detail
         }
-        if (distance > LOD_DISTANCE_CULL) {
+        if (distance > getLodDistanceCull()) {
             return new GaussianSplatData(new ArrayList<>(), data.getShDegree()); // Empty (culled)
         }
 
@@ -88,7 +112,7 @@ public class GaussianSplatLOD {
             float distance = pos.distance(cameraPos);
             int lodFactor = getLODFactor(distance);
 
-            if (distance > LOD_DISTANCE_CULL) {
+            if (distance > getLodDistanceCull()) {
                 continue; // Cull
             }
 
@@ -105,12 +129,12 @@ public class GaussianSplatLOD {
      * Get LOD factor based on distance
      */
     private static int getLODFactor(float distance) {
-        if (distance < LOD_DISTANCE_HIGH) {
-            return LOD_FACTOR_HIGH;
-        } else if (distance < LOD_DISTANCE_MEDIUM) {
-            return LOD_FACTOR_MEDIUM;
-        } else if (distance < LOD_DISTANCE_LOW) {
-            return LOD_FACTOR_LOW;
+        if (distance < getLodDistanceHigh()) {
+            return getLodFactorHigh();
+        } else if (distance < getLodDistanceMedium()) {
+            return getLodFactorMedium();
+        } else if (distance < getLodDistanceLow()) {
+            return getLodFactorLow();
         } else {
             return Integer.MAX_VALUE; // Cull
         }
