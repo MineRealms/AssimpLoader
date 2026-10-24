@@ -7,6 +7,7 @@ import au.edu.federation.utils.Vec3f;
 import cn.minerealms.assimploader.animation.Bone;
 import cn.minerealms.assimploader.animation.ik.IKChain;
 import cn.minerealms.assimploader.animation.ik.IKSolver;
+import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -21,8 +22,20 @@ public class FABRIKSolver implements IKSolver {
 
     private FabrikStructure3D structure;
     private FabrikChain3D calikoChain;
-    private static final int MAX_ITERATIONS = 20;
-    private static final float SOLVE_DISTANCE_THRESHOLD = 0.01f;
+
+    /**
+     * Get max iterations from config
+     */
+    private int getMaxIterations() {
+        return AssimpLoaderConfig.getIntOrDefault(AssimpLoaderConfig.COMMON.animIkMaxIterationsFABRIK, 10);
+    }
+
+    /**
+     * Get distance threshold from config
+     */
+    private float getDistanceThreshold() {
+        return AssimpLoaderConfig.getOrDefault(() -> AssimpLoaderConfig.COMMON.animIkDistanceThreshold.get().floatValue(), 0.01f);
+    }
 
     @Override
     public Type getType() {
@@ -81,8 +94,8 @@ public class FABRIKSolver implements IKSolver {
         }
 
         // Set solver parameters
-        calikoChain.setMaxIterationAttempts(MAX_ITERATIONS);
-        calikoChain.setSolveDistanceThreshold(SOLVE_DISTANCE_THRESHOLD);
+        calikoChain.setMaxIterationAttempts(getMaxIterations());
+        calikoChain.setSolveDistanceThreshold(getDistanceThreshold());
 
         // Create structure (required by Caliko)
         structure = new FabrikStructure3D();

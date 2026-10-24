@@ -1,51 +1,42 @@
 package cn.minerealms.assimploader;
 
-import org.lwjgl.system.Configuration;
-
 /**
- * Bootstrap class for LWJGL Assimp initialization.
+ * Bootstrap for LWJGL Assimp.
  *
- * Must be called BEFORE any Assimp classes are loaded.
+ * <p>Native extraction is handled by LWJGL itself ({@code SharedLibraryLoader}) from the
+ * natives that are packaged inside this mod's jar, so there is nothing to extract here.
+ * Doing it by hand used to leave stale, unversioned DLLs in the temp folder and could
+ * hijack the global {@code org.lwjgl.librarypath} of every other mod.
  */
-public class AssimpBootstrap {
+public final class AssimpBootstrap {
 
     private static boolean initialized = false;
 
+    private AssimpBootstrap() {
+    }
+
     /**
-     * Initialize LWJGL Assimp configuration.
-     * This sets up the native library name for Assimp.
+     * Verifies that the Assimp bindings can be loaded. Never fatal: a missing native only
+     * disables model import, it must not prevent the game from starting.
      */
     public static void init() {
         if (initialized) {
             return;
         }
+        initialized = true;
+
+        if (!isAvailable()) {
+            AssimpLoader.LOGGER.warn("LWJGL Assimp is not on the classpath - model import is disabled");
+            return;
+        }
 
         try {
-            // Extract native libraries first (may fail in dev environment)
-            try {
-                if (!NativeLibraryExtractor.extractAndLoadNatives()) {
-                    AssimpLoader.LOGGER.warn("Failed to extract Assimp native libraries (may be normal in dev)");
-                }
-            } catch (Exception e) {
-                AssimpLoader.LOGGER.warn("Native library extraction failed (may be normal in dev): {}", e.getMessage());
-            }
-
-            // Set Assimp library name
-            Configuration.ASSIMP_LIBRARY_NAME.set("assimp");
-
-            AssimpLoader.LOGGER.info("LWJGL Assimp bootstrap initialized");
-            initialized = true;
-        } catch (Exception e) {
-            AssimpLoader.LOGGER.error("Failed to initialize LWJGL Assimp bootstrap", e);
-            throw new RuntimeException("LWJGL Assimp initialization failed", e);
+            AssimpLoader.LOGGER.info("LWJGL Assimp initialized: version {}", getVersion());
+        } catch (Throwable t) {
+            AssimpLoader.LOGGER.warn("LWJGL Assimp bindings present but the native library failed to load", t);
         }
     }
 
-    /**
-     * Check if LWJGL Assimp is available.
-     *
-     * @return true if Assimp classes can be loaded
-     */
     public static boolean isAvailable() {
         try {
             Class.forName("org.lwjgl.assimp.Assimp");
@@ -56,18 +47,16 @@ public class AssimpBootstrap {
     }
 
     /**
-     * Get LWJGL Assimp version string.
-     *
-     * @return version string or "unknown" if not available
+     * @return the native Assimp version, or {@code "unavailable"} when the native is missing
      */
     public static String getVersion() {
         try {
-            int major = org.lwjgl.assimp.Assimp.aiGetVersionMajor();
-            int minor = org.lwjgl.assimp.Assimp.aiGetVersionMinor();
-            int revision = org.lwjgl.assimp.Assimp.aiGetVersionRevision();
-            return String.format("%d.%d.%d", major, minor, revision);
-        } catch (Exception e) {
-            return "unknown";
+            return String.format("%d.%d.%d",
+                    org.lwjgl.assimp.Assimp.aiGetVersionMajor(),
+                    org.lwjgl.assimp.Assimp.aiGetVersionMinor(),
+                    org.lwjgl.assimp.Assimp.aiGetVersionRevision());
+        } catch (Throwable t) {
+            return "unavailable";
         }
     }
 }
