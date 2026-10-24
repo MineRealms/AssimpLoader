@@ -39,16 +39,29 @@ jobs:
       - name: Build
         run: |
           set -o pipefail
-          ./gradlew build --stacktrace 2>&1 | tee gradle-build.log
+          ./gradlew build --stacktrace --console=plain 2>&1 | tee gradle-build.log
 
       # GitHub only lets anonymous users read check-run *annotations*, not the raw log,
-      # so failed builds re-emit the tail of the log as annotations.
+      # so failed builds re-emit the interesting part of the log as annotations.
       - name: Surface the failure
         if: failure()
         run: |
-          tail -25 gradle-build.log | sed 's/%/%25/g; s/\r//g' | while IFS= read -r line; do
-            echo "::error::${line}"
-          done
+          emit() {
+            sed 's/%/%25/g; s/\r//g' | while IFS= read -r line; do
+              [ -n "$line" ] && echo "::error::$line"
+            done
+          }
+          if [ -f gradle-build.log ]; then
+            echo "log lines: $(wc -l < gradle-build.log)"
+            # The actionable part of a Gradle failure: the headline plus the
+            # "What went wrong" section (the stack trace alone is noise).
+            grep -a -E "^(FAILURE:|\* What went wrong|\* Try:|BUILD FAILED)" -A 30 gradle-build.log \
+              | head -60 | emit
+            echo "--- last 15 lines ---"
+            tail -15 gradle-build.log | emit
+          else
+            echo "::error::gradle-build.log was not produced"
+          fi
 
       # Regression guard: the distributable jar must contain the Assimp natives, otherwise
       # the mod loads but cannot import a single model.
