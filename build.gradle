@@ -116,20 +116,26 @@ dependencies {
     runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:natives-linux"
     runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:natives-macos"
 
-    // Optional soft dependencies, taken from the local `mods_dev` folder (not distributed).
-    // Only the jars we actually compile against are picked up.
+    // ModernUI - hard runtime dependency, served from its own maven.
+    implementation fg.deobf("icyllis.modernui:ModernUI-Forge:${modernui_forge_version}")
+    implementation fg.deobf("icyllis.modernui:ModernUI-Core:${modernui_core_version}")
+
+    // Photon + LDLib are compile-time only (the integration is optional at runtime) and are
+    // NOT redistributable, so they are fetched into mods_dev/ by downloadDevDeps instead of
+    // being committed. Run `./gradlew downloadDevDeps` on a fresh clone.
     def softDeps = fileTree(dir: 'mods_dev', include: [
-            'ModernUI-*.jar',
             'photon-*.jar',
             'ldlib-*.jar'
     ])
-    if (!softDeps.isEmpty()) {
-        compileOnly softDeps
-        runtimeOnly softDeps
-    } else {
-        logger.warn("mods_dev/ is missing ModernUI/Photon/LDLib jars - the LookDev UI and Photon " +
-                "compatibility layer will not compile. See README (Development environment).")
+    if (softDeps.isEmpty()) {
+        throw new GradleException(
+                "mods_dev/ is missing photon-*.jar / ldlib-*.jar.\n" +
+                        "They are required to compile the optional Photon integration and are not " +
+                        "distributed with the repository.\n" +
+                        "Run:  ./gradlew downloadDevDeps")
     }
+    compileOnly softDeps
+    runtimeOnly softDeps
 
     // glsl-transformer (AGPLv3) - optional, only used when Iris/Oculus is present
     compileOnly 'io.github.douira:glsl-transformer:2.0.0-pre13'
@@ -217,5 +223,86 @@ tasks.register('copyToGameMods', Copy) {
 
     doLast {
         println "Copied jar to ${dest}"
+    }
+}
+
+
+// ==================== Optional dev-only dependencies ====================
+
+/**
+ * Photon and LDLib are needed to compile the optional Photon editor integration, but they
+ * are not redistributable, so they are downloaded on demand instead of being committed.
+ *
+ * Pinned by Modrinth version id (not version number) so the artefacts can never silently
+ * change underneath us, and verified by sha512.
+ */
+def devOnlyDeps = [
+        [
+                name  : 'photon-forge-1.20.1-1.1.17.jar',
+                url   : 'https://cdn.modrinth.com/data/gzevkJbM/versions/a7chTVuf/photon-forge-1.20.1-1.1.17.jar',
+                sha512: 'b0bdc63d73f9eda4a38c16e2cedbf80e325f57ba4452fbab8959a8bbc9f3a99754298d8b45376aee69e87ad91508c63ad045d76233b304a6a1de9cbeaf02c8f6'
+        ],
+        [
+                name  : 'ldlib-forge-1.20.1-1.0.48.jar',
+                url   : 'https://cdn.modrinth.com/data/B1CBVXHX/versions/yhlCY3k1/ldlib-forge-1.20.1-1.0.48.jar',
+                sha512: '564f71dccc84854e84fc795d7c2972b785498de198bafdae22e46e7b6fd257e6b4cd0b24396eae7caaec16f090500069f06e6b43ad50130a9d50ee9923850c59'
+        ]
+]
+
+tasks.register('downloadDevDeps') {
+    group = 'deployment'
+    description = 'Downloads the non-redistributable dev-only mod jars into mods_dev/'
+
+    def targetDir = layout.projectDirectory.dir('mods_dev').asFile
+    outputs.dir(targetDir)
+
+    doLast {
+        def sha512 = { File file ->
+            def digest = java.security.MessageDigest.getInstance('SHA-512')
+            file.withInputStream { input ->
+                byte[] buffer = new byte[64 * 1024]
+                int read
+                while ((read = input.read(buffer)) != -1) {
+                    digest.update(buffer, 0, read)
+                }
+            }
+            digest.digest().collect { String.format('%02x', it) }.join()
+        }
+
+        targetDir.mkdirs()
+
+        devOnlyDeps.each { dep ->
+            def target = new File(targetDir, dep.name)
+
+            if (target.isFile() && sha512(target) == dep.sha512) {
+                logger.lifecycle("Already present: ${dep.name}")
+                return
+            }
+
+            logger.lifecycle("Downloading ${dep.name} ...")
+            def connection = new URL(dep.url).openConnection()
+            connection.setRequestProperty('User-Agent', 'assimploader-build')
+            connection.connectTimeout = 30_000
+            connection.readTimeout = 120_000
+
+            def temp = new File(targetDir, dep.name + '.part')
+            connection.inputStream.withStream { input ->
+                temp.withOutputStream { output -> output << input }
+            }
+
+            def actual = sha512(temp)
+            if (actual != dep.sha512) {
+                temp.delete()
+                throw new GradleException("Checksum mismatch for ${dep.name}: expected ${dep.sha512}, got ${actual}")
+            }
+
+            if (target.exists() && !target.delete()) {
+                throw new GradleException("Could not replace ${target}")
+            }
+            if (!temp.renameTo(target)) {
+                throw new GradleException("Could not move ${temp} to ${target}")
+            }
+            logger.lifecycle("Downloaded ${dep.name}")
+        }
     }
 }

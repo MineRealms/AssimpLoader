@@ -1,43 +1,73 @@
-name: Build Minecraft Mod
+name: Build
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ '**' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: 'gradle'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-    - name: Build with Gradle
-      run: ./gradlew build
+      # Photon and LDLib are needed to compile the optional Photon integration but must not
+      # be redistributed through the repository. downloadDevDeps pins them by Modrinth
+      # version id and verifies a sha512 checksum.
+      - name: Download dev-only dependencies
+        run: ./gradlew downloadDevDeps --stacktrace
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: assimploader-build
-        path: build/libs/*.jar
-        if-no-files-found: error
+      - name: Build
+        run: ./gradlew build --stacktrace
 
-    - name: Upload build reports on failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-reports
-        path: build/reports/
+      # Regression guard: the distributable jar must contain the Assimp natives, otherwise
+      # the mod loads but cannot import a single model.
+      - name: Verify the distributable jar
+        run: |
+          set -e
+          JAR=$(ls build/libs/*-all.jar)
+          echo "Checking $JAR"
+          for entry in windows/x64/org/lwjgl/assimp/assimp.dll \
+                       linux/x64/org/lwjgl/assimp/libassimp.so \
+                       macos/x64/org/lwjgl/assimp/libassimp.dylib \
+                       META-INF/mods.toml \
+                       mixins.photon_compat.json; do
+            unzip -l "$JAR" | grep -q "$entry" || { echo "missing $entry"; exit 1; }
+          done
+          echo "OK"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: assimploader-build
+          path: build/libs/*.jar
+          if-no-files-found: error
+
+      - name: Upload test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: |
+            build/reports/tests/test
+            build/test-results/test
+          if-no-files-found: ignore
