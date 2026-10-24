@@ -1,22 +1,33 @@
+# Build output
 build/
-*.ipr
-run/
-*.iws
 out/
-*.iml
-.gradle/
-output/
 bin/
-libs/
-miscdoc/
+classes/
+output/
 
+# Gradle / IDE
+.gradle/
+*.ipr
+*.iws
+*.iml
+.idea/
 .classpath
 .project
-.idea/
-classes/
 .metadata
-.vscode
-.settings
+.vscode/
+.settings/
 *.launch
-
 .cache
+
+# Local run directory (contains logs, worlds, options)
+run/
+logs/
+
+# Local third-party mod jars used for development only.
+# They are NOT redistributable and must never be committed.
+mods_dev/
+libs/
+
+# Local scratch
+miscdoc/
+*.log
