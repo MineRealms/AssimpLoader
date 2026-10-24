@@ -1,28 +1,36 @@
 package cn.minerealms.assimploader.model;
 
+import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
-import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 import org.lwjgl.PointerBuffer;
-import org.lwjgl.assimp.*;
+import org.lwjgl.assimp.AIAnimation;
+import org.lwjgl.assimp.AIMaterial;
+import org.lwjgl.assimp.AIMesh;
+import org.lwjgl.assimp.AINode;
+import org.lwjgl.assimp.AIScene;
+import org.lwjgl.assimp.AITexture;
+import org.lwjgl.assimp.Assimp;
 
 import javax.annotation.Nullable;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Wrapper for Assimp AIScene containing all model data.
+ * Fully materialised, Java-side copy of an Assimp scene.
  *
- * This class holds the native Assimp scene and provides convenient access
- * to meshes, materials, animations, and the scene graph.
- *
- * IMPORTANT: Must call release() when done to free native memory!
+ * <p>The native {@code aiScene} is consumed in the constructor and released immediately
+ * afterwards. Nothing in this class (or in {@link AssimpMesh}, {@link AssimpMaterial},
+ * {@link AssimpAnimation}, {@link AssimpTexture}, {@link AssimpNode}) points into native
+ * memory, which is what makes it safe to keep models cached for the lifetime of the game.
  */
 public class AssimpScene {
 
-    private final AIScene aiScene;
     private final Path sourcePath;
     private final List<AssimpMesh> meshes;
     private final List<AssimpMaterial> materials;
@@ -31,78 +39,91 @@ public class AssimpScene {
     private final AssimpNode rootNode;
     private final CoordinateSystemConverter.CoordinateSystem sourceCoordinateSystem;
     private final ModelImportMode importMode;
-    private final java.util.Map<Integer, String> meshIndexToNodeName;
+    private final Map<Integer, String> meshIndexToNodeName;
+    private final boolean skinned;
 
-    private boolean released = false;
-
-    public AssimpScene(AIScene aiScene, @Nullable Path sourcePath, CoordinateSystemConverter.CoordinateSystem coordinateSystem) {
-        this(aiScene, sourcePath, coordinateSystem, ModelImportMode.STATIC);
-    }
-
-    public AssimpScene(AIScene aiScene, @Nullable Path sourcePath, CoordinateSystemConverter.CoordinateSystem coordinateSystem, ModelImportMode importMode) {
-        this.aiScene = aiScene;
+    /**
+     * @param aiScene native scene; ownership is transferred and it is released before this
+     *                constructor returns
+     */
+    public AssimpScene(AIScene aiScene, @Nullable Path sourcePath,
+                       CoordinateSystemConverter.CoordinateSystem coordinateSystem,
+                       ModelImportMode importMode) {
         this.sourcePath = sourcePath;
         this.sourceCoordinateSystem = coordinateSystem;
         this.importMode = importMode;
 
-        // Parse meshes
-        this.meshes = new ArrayList<>();
-        int meshCount = aiScene.mNumMeshes();
-        if (meshCount > 0) {
-            PointerBuffer meshesBuffer = aiScene.mMeshes();
-            for (int i = 0; i < meshCount; i++) {
-                AIMesh aiMesh = AIMesh.create(meshesBuffer.get(i));
-                meshes.add(new AssimpMesh(aiMesh, i, coordinateSystem));
+        List<AssimpMesh> meshList = new ArrayList<>();
+        List<AssimpMaterial> materialList = new ArrayList<>();
+        List<AssimpAnimation> animationList = new ArrayList<>();
+        List<AssimpTexture> textureList = new ArrayList<>();
+        AssimpNode root = null;
+
+        try {
+            int meshCount = aiScene.mNumMeshes();
+            if (meshCount > 0) {
+                PointerBuffer buffer = aiScene.mMeshes();
+                for (int i = 0; i < meshCount; i++) {
+                    meshList.add(new AssimpMesh(AIMesh.create(buffer.get(i)), i, coordinateSystem));
+                }
+            }
+
+            int materialCount = aiScene.mNumMaterials();
+            if (materialCount > 0) {
+                PointerBuffer buffer = aiScene.mMaterials();
+                for (int i = 0; i < materialCount; i++) {
+                    materialList.add(new AssimpMaterial(AIMaterial.create(buffer.get(i)), i));
+                }
+            }
+
+            int animationCount = aiScene.mNumAnimations();
+            if (animationCount > 0) {
+                PointerBuffer buffer = aiScene.mAnimations();
+                for (int i = 0; i < animationCount; i++) {
+                    animationList.add(new AssimpAnimation(AIAnimation.create(buffer.get(i)), i, coordinateSystem));
+                }
+            }
+
+            int textureCount = aiScene.mNumTextures();
+            if (textureCount > 0) {
+                PointerBuffer buffer = aiScene.mTextures();
+                for (int i = 0; i < textureCount; i++) {
+                    textureList.add(new AssimpTexture(AITexture.create(buffer.get(i)), i));
+                }
+            }
+
+            AINode aiRoot = aiScene.mRootNode();
+            if (aiRoot != null) {
+                root = new AssimpNode(aiRoot);
+            }
+        } finally {
+            // Everything above has been copied into Java objects - the native scene is dead weight.
+            Assimp.aiReleaseImport(aiScene);
+        }
+
+        this.meshes = Collections.unmodifiableList(meshList);
+        this.materials = Collections.unmodifiableList(materialList);
+        this.animations = Collections.unmodifiableList(animationList);
+        this.textures = Collections.unmodifiableList(textureList);
+        this.rootNode = root;
+
+        this.meshIndexToNodeName = new HashMap<>();
+        if (root != null) {
+            buildMeshToNodeMapping(root);
+        }
+
+        boolean anySkinned = false;
+        for (AssimpMesh mesh : meshes) {
+            if (mesh.hasBones()) {
+                anySkinned = true;
+                break;
             }
         }
+        this.skinned = anySkinned;
 
-        // Parse materials
-        this.materials = new ArrayList<>();
-        int materialCount = aiScene.mNumMaterials();
-        if (materialCount > 0) {
-            PointerBuffer materialsBuffer = aiScene.mMaterials();
-            for (int i = 0; i < materialCount; i++) {
-                AIMaterial aiMaterial = AIMaterial.create(materialsBuffer.get(i));
-                materials.add(new AssimpMaterial(aiMaterial, i));
-            }
-        }
-
-        // Parse animations
-        this.animations = new ArrayList<>();
-        int animCount = aiScene.mNumAnimations();
-        if (animCount > 0) {
-            PointerBuffer animsBuffer = aiScene.mAnimations();
-            for (int i = 0; i < animCount; i++) {
-                AIAnimation aiAnim = AIAnimation.create(animsBuffer.get(i));
-                animations.add(new AssimpAnimation(aiAnim, i));
-            }
-        }
-
-        // Parse embedded textures
-        this.textures = new ArrayList<>();
-        int textureCount = aiScene.mNumTextures();
-        if (textureCount > 0) {
-            PointerBuffer texturesBuffer = aiScene.mTextures();
-            for (int i = 0; i < textureCount; i++) {
-                AITexture aiTexture = AITexture.create(texturesBuffer.get(i));
-                textures.add(new AssimpTexture(aiTexture, i));
-            }
-            DebugManager.info(DebugCategory.CORE, "Found {} embedded texture(s)", textureCount);
-        }
-
-        // Parse scene graph
-        AINode aiRootNode = aiScene.mRootNode();
-        this.rootNode = aiRootNode != null ? new AssimpNode(aiRootNode) : null;
-
-        // Build mesh index to node name mapping
-        this.meshIndexToNodeName = new java.util.HashMap<>();
-        if (this.rootNode != null) {
-            buildMeshToNodeMapping(this.rootNode);
-            DebugManager.debug(DebugCategory.CORE, "Built mesh-to-node mapping: {}", meshIndexToNodeName);
-        }
-
-        DebugManager.debug(DebugCategory.CORE, "AssimpScene created: {} meshes, {} materials, {} animations, {} textures, coordinate system: {}",
-                meshes.size(), materials.size(), animations.size(), textures.size(), coordinateSystem);
+        DebugManager.debug(DebugCategory.CORE,
+                "AssimpScene ready: {} meshes, {} materials, {} animations, {} textures, skinned={}",
+                meshes.size(), materials.size(), animations.size(), textures.size(), skinned);
     }
 
     public List<AssimpMesh> getMeshes() {
@@ -135,12 +156,13 @@ public class AssimpScene {
         return sourceCoordinateSystem;
     }
 
-    public AIScene getNativeScene() {
-        return aiScene;
-    }
-
     public boolean hasAnimations() {
         return !animations.isEmpty();
+    }
+
+    /** True when at least one mesh carries bone weights, i.e. GPU skinning can be used. */
+    public boolean hasSkeleton() {
+        return skinned;
     }
 
     public int getMeshCount() {
@@ -163,93 +185,36 @@ public class AssimpScene {
         return !textures.isEmpty();
     }
 
-    /**
-     * Get the import mode used for this scene.
-     */
     public ModelImportMode getImportMode() {
         return importMode;
     }
 
-    /**
-     * Check if this scene was loaded in dynamic mode (preserves scene graph).
-     */
     public boolean isDynamic() {
         return importMode == ModelImportMode.DYNAMIC;
     }
 
-    /**
-     * Find a node by name in the scene graph.
-     * Only works in DYNAMIC mode where scene graph is preserved.
-     *
-     * @param name The name of the node to find
-     * @return The node if found, null otherwise
-     */
     @Nullable
     public AssimpNode findNodeByName(String name) {
-        if (rootNode == null) {
-            return null;
-        }
-        return findNodeByNameRecursive(rootNode, name);
+        return rootNode == null ? null : rootNode.find(name);
     }
 
-    @Nullable
-    private AssimpNode findNodeByNameRecursive(AssimpNode node, String name) {
-        if (node.getName().equals(name)) {
-            return node;
-        }
-        for (AssimpNode child : node.getChildren()) {
-            AssimpNode found = findNodeByNameRecursive(child, name);
-            if (found != null) {
-                return found;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Build mapping from mesh index to node name by traversing scene graph.
-     */
     private void buildMeshToNodeMapping(AssimpNode node) {
-        // Register all meshes in this node
         for (int meshIndex : node.getMeshIndices()) {
             meshIndexToNodeName.put(meshIndex, node.getName());
         }
-
-        // Recursively process children
         for (AssimpNode child : node.getChildren()) {
             buildMeshToNodeMapping(child);
         }
     }
 
-    /**
-     * Get the node name that contains the given mesh.
-     *
-     * @param mesh The mesh to find the node for
-     * @return The node name, or null if not found
-     */
     @Nullable
     public String getNodeNameForMesh(AssimpMesh mesh) {
         return meshIndexToNodeName.get(mesh.getIndex());
     }
 
-    /**
-     * Release native Assimp memory.
-     * MUST be called when done with this scene!
-     */
-    public void release() {
-        if (!released) {
-            Assimp.aiReleaseImport(aiScene);
-            released = true;
-            DebugManager.debug(DebugCategory.CORE, "AssimpScene released");
-        }
-    }
-
-    @Override
-    protected void finalize() throws Throwable {
-        if (!released) {
-            DebugManager.warn(DebugCategory.CORE, "AssimpScene was not properly released! Memory leak detected.");
-            release();
-        }
-        super.finalize();
+    /** First animation clip, or {@code null}. */
+    @Nullable
+    public AssimpAnimation getDefaultAnimation() {
+        return animations.isEmpty() ? null : animations.get(0);
     }
 }

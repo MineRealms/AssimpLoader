@@ -207,7 +207,6 @@ public class MaterialsResourceMixin {
             container.reBuild();
 
             // 6. 释放 Assimp 资源
-            scene.release();
 
             LOGGER.info("FBX material import completed successfully: {} material(s) imported", imported);
 

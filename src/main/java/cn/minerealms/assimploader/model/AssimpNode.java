@@ -8,49 +8,37 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Wrapper for Assimp AINode representing scene graph hierarchy.
+ * Immutable snapshot of one node of the Assimp scene graph.
  *
- * Each node has:
- * - Transformation matrix
- * - List of mesh indices
- * - Parent-child relationships
+ * <p>Copied out of native memory at construction time, so it stays valid after the
+ * {@code aiScene} has been released.
  */
 public class AssimpNode {
 
-    private final AINode aiNode;
     private final String name;
     private final Matrix4f transformation;
     private final int[] meshIndices;
     private final List<AssimpNode> children;
 
     public AssimpNode(AINode aiNode) {
-        this.aiNode = aiNode;
         this.name = aiNode.mName().dataString();
 
-        // Convert transformation matrix
-        AIMatrix4x4 aiMatrix = aiNode.mTransformation();
+        AIMatrix4x4 m = aiNode.mTransformation();
         this.transformation = new Matrix4f(
-                aiMatrix.a1(), aiMatrix.a2(), aiMatrix.a3(), aiMatrix.a4(),
-                aiMatrix.b1(), aiMatrix.b2(), aiMatrix.b3(), aiMatrix.b4(),
-                aiMatrix.c1(), aiMatrix.c2(), aiMatrix.c3(), aiMatrix.c4(),
-                aiMatrix.d1(), aiMatrix.d2(), aiMatrix.d3(), aiMatrix.d4()
-        );
+                m.a1(), m.a2(), m.a3(), m.a4(),
+                m.b1(), m.b2(), m.b3(), m.b4(),
+                m.c1(), m.c2(), m.c3(), m.c4(),
+                m.d1(), m.d2(), m.d3(), m.d4());
 
-        // Get mesh indices
         int numMeshes = aiNode.mNumMeshes();
         this.meshIndices = new int[numMeshes];
         if (numMeshes > 0) {
             aiNode.mMeshes().get(meshIndices);
         }
 
-        // Parse children recursively
-        this.children = new ArrayList<>();
-        int numChildren = aiNode.mNumChildren();
-        if (numChildren > 0) {
-            for (int i = 0; i < numChildren; i++) {
-                AINode childNode = AINode.create(aiNode.mChildren().get(i));
-                children.add(new AssimpNode(childNode));
-            }
+        this.children = new ArrayList<>(aiNode.mNumChildren());
+        for (int i = 0; i < aiNode.mNumChildren(); i++) {
+            children.add(new AssimpNode(AINode.create(aiNode.mChildren().get(i))));
         }
     }
 
@@ -70,7 +58,17 @@ public class AssimpNode {
         return children;
     }
 
-    public AINode getNativeNode() {
-        return aiNode;
+    /** Depth-first lookup by node name. */
+    public AssimpNode find(String nodeName) {
+        if (name.equals(nodeName)) {
+            return this;
+        }
+        for (AssimpNode child : children) {
+            AssimpNode found = child.find(nodeName);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
     }
 }

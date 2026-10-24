@@ -1,6 +1,4 @@
 package cn.minerealms.assimploader.model;
-import cn.minerealms.assimploader.debug.DebugManager;
-import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 
 import org.lwjgl.assimp.AIColor4D;
 import org.lwjgl.assimp.AIMaterial;
@@ -9,286 +7,219 @@ import org.lwjgl.assimp.AIString;
 import static org.lwjgl.assimp.Assimp.*;
 
 /**
- * Wrapper for Assimp AIMaterial containing material properties.
+ * Immutable snapshot of one Assimp material.
  *
- * Supports:
- * - Diffuse, specular, ambient colors
- * - Texture maps (diffuse, normal, specular, etc.)
- * - PBR properties (metallic, roughness)
- * - Transparency and blending
+ * <p>All properties are read out of native memory once, in the constructor, so this object
+ * remains usable after the owning {@code aiScene} has been released.
  */
 public class AssimpMaterial {
 
-    private final AIMaterial aiMaterial;
     private final int index;
+    private final String name;
+    private final float[] diffuseColor;
+    private final float[] specularColor;
+    private final float[] ambientColor;
+    private final String diffuseTexture;
+    private final String normalTexture;
+    private final String specularTexture;
 
     public AssimpMaterial(AIMaterial aiMaterial, int index) {
-        this.aiMaterial = aiMaterial;
         this.index = index;
+        this.name = readName(aiMaterial);
+        this.diffuseColor = readDiffuseColor(aiMaterial);
+        this.specularColor = readColor(aiMaterial, AI_MATKEY_COLOR_SPECULAR, 1f, 1f, 1f, 1f);
+        this.ambientColor = readColor(aiMaterial, AI_MATKEY_COLOR_AMBIENT, 0.2f, 0.2f, 0.2f, 1f);
+        this.diffuseTexture = readTexturePath(aiMaterial, aiTextureType_DIFFUSE);
+        this.normalTexture = readTexturePath(aiMaterial, aiTextureType_NORMALS);
+        this.specularTexture = readTexturePath(aiMaterial, aiTextureType_SPECULAR);
     }
 
-    public int getIndex() {
-        return index;
-    }
+    // ------------------------------------------------------------------ native readers
 
-    /**
-     * Get diffuse texture path if exists
-     * Returns either a file path or an embedded texture reference like "*0", "*1", etc.
-     */
-    public String getDiffuseTexture() {
+    private static String readName(AIMaterial aiMaterial) {
         AIString path = AIString.calloc();
-        if (aiGetMaterialTexture(aiMaterial, aiTextureType_DIFFUSE, 0, path, (int[]) null, null, null, null, null, null) == aiReturn_SUCCESS) {
-            String texPath = path.dataString();
-            path.free();
-            return texPath;
-        }
-        path.free();
-        return null;
-    }
-
-    /**
-     * Check if the texture path refers to an embedded texture
-     * Embedded textures are referenced as "*0", "*1", "*2", etc.
-     */
-    public boolean isEmbeddedTexture(String texturePath) {
-        return texturePath != null && texturePath.startsWith("*");
-    }
-
-    /**
-     * Get the embedded texture index from a texture path like "*0", "*1"
-     * Returns -1 if not an embedded texture reference
-     */
-    public int getEmbeddedTextureIndex(String texturePath) {
-        if (isEmbeddedTexture(texturePath)) {
-            try {
-                return Integer.parseInt(texturePath.substring(1));
-            } catch (NumberFormatException e) {
-                return -1;
+        try {
+            if (aiGetMaterialString(aiMaterial, AI_MATKEY_NAME, aiTextureType_NONE, 0, path) == aiReturn_SUCCESS) {
+                return path.dataString();
             }
+            return "material_" + System.identityHashCode(aiMaterial);
+        } finally {
+            path.free();
         }
-        return -1;
     }
 
-    /**
-     * Check if material has any texture
-     */
-    public boolean hasTexture() {
-        String diffuse = getDiffuseTexture();
-        return diffuse != null && !diffuse.isEmpty();
-    }
-
-    /**
-     * Get normal map texture path if exists
-     */
-    public String getNormalTexture() {
+    private static String readTexturePath(AIMaterial aiMaterial, int textureType) {
         AIString path = AIString.calloc();
-        if (aiGetMaterialTexture(aiMaterial, aiTextureType_NORMALS, 0, path, (int[]) null, null, null, null, null, null) == aiReturn_SUCCESS) {
-            String texPath = path.dataString();
-            path.free();
-            return texPath;
-        }
-        path.free();
-        return null;
-    }
-
-    /**
-     * Get specular map texture path if exists
-     */
-    public String getSpecularTexture() {
-        AIString path = AIString.calloc();
-        if (aiGetMaterialTexture(aiMaterial, aiTextureType_SPECULAR, 0, path, (int[]) null, null, null, null, null, null) == aiReturn_SUCCESS) {
-            String texPath = path.dataString();
-            path.free();
-            return texPath;
-        }
-        path.free();
-        return null;
-    }
-
-    /**
-     * Get normal map path for PBR rendering.
-     * Returns the path from material if available, otherwise generates conventional path.
-     *
-     * @return Normal map path, or null if no diffuse texture exists
-     */
-    public String getNormalMapPath() {
-        // First check if material has explicit normal map
-        String normalTex = getNormalTexture();
-        if (normalTex != null && !normalTex.isEmpty()) {
-            return normalTex;
-        }
-
-        // Generate conventional path from diffuse texture
-        String diffuseTex = getDiffuseTexture();
-        if (diffuseTex != null && !diffuseTex.isEmpty() && !isEmbeddedTexture(diffuseTex)) {
-            // Convention: texture.png -> texture_n.png
-            int dotIndex = diffuseTex.lastIndexOf('.');
-            if (dotIndex > 0) {
-                return diffuseTex.substring(0, dotIndex) + "_n" + diffuseTex.substring(dotIndex);
+        try {
+            if (aiGetMaterialTexture(aiMaterial, textureType, 0, path,
+                    (int[]) null, null, null, null, null, null) == aiReturn_SUCCESS) {
+                String value = path.dataString();
+                return value == null || value.isEmpty() ? null : value;
             }
+            return null;
+        } finally {
+            path.free();
         }
+    }
 
-        return null;
+    private static float[] readColor(AIMaterial aiMaterial, String key, float r, float g, float b, float a) {
+        AIColor4D color = AIColor4D.create();
+        if (aiGetMaterialColor(aiMaterial, key, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
+            return new float[]{color.r(), color.g(), color.b(), color.a()};
+        }
+        return new float[]{r, g, b, a};
     }
 
     /**
-     * Get specular map path for PBR rendering.
-     * Returns the path from material if available, otherwise generates conventional path.
-     *
-     * @return Specular map path, or null if no diffuse texture exists
+     * Diffuse/base colour, with the separate opacity keys folded into the alpha channel
+     * (FBX PhongE exports transparency separately from the diffuse colour).
      */
-    public String getSpecularMapPath() {
-        // First check if material has explicit specular map
-        String specularTex = getSpecularTexture();
-        if (specularTex != null && !specularTex.isEmpty()) {
-            return specularTex;
-        }
-
-        // Generate conventional path from diffuse texture
-        String diffuseTex = getDiffuseTexture();
-        if (diffuseTex != null && !diffuseTex.isEmpty() && !isEmbeddedTexture(diffuseTex)) {
-            // Convention: texture.png -> texture_s.png
-            int dotIndex = diffuseTex.lastIndexOf('.');
-            if (dotIndex > 0) {
-                return diffuseTex.substring(0, dotIndex) + "_s" + diffuseTex.substring(dotIndex);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Get diffuse color from material
-     * Returns RGBA values in range [0, 1]
-     */
-    public float[] getDiffuseColor() {
+    private static float[] readDiffuseColor(AIMaterial aiMaterial) {
         AIColor4D color = AIColor4D.create();
 
-        // Try standard diffuse color first
+        float[] result = null;
         if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_DIFFUSE, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
-            float[] result = new float[]{color.r(), color.g(), color.b(), color.a()};
-
-            // Check for separate opacity/transparency properties
-            float opacity = getOpacityFromProperties();
-            if (opacity >= 0.0f && opacity < 0.99f) {
-                // Use the opacity property if it's explicitly set and not fully opaque
-                result[3] = opacity;
-            }
-            return result;
+            result = new float[]{color.r(), color.g(), color.b(), color.a()};
+        } else if (aiGetMaterialColor(aiMaterial, AI_MATKEY_BASE_COLOR, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
+            result = new float[]{color.r(), color.g(), color.b(), color.a()};
         }
 
-        // Try base color (PBR materials)
-        if (aiGetMaterialColor(aiMaterial, AI_MATKEY_BASE_COLOR, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
-            float[] result = new float[]{color.r(), color.g(), color.b(), color.a()};
-
-            float opacity = getOpacityFromProperties();
-            if (opacity >= 0.0f && opacity < 0.99f) {
-                result[3] = opacity;
-            }
-            return result;
+        if (result == null) {
+            return new float[]{1f, 1f, 1f, 1f};
         }
 
-        // Return white as default (no warning needed - this is normal for some FBX materials)
-        return new float[]{1.0f, 1.0f, 1.0f, 1.0f};
+        float opacity = readOpacityProperty(aiMaterial);
+        if (opacity >= 0f && opacity < 0.99f) {
+            result[3] = opacity;
+        }
+        return result;
     }
 
     /**
-     * Get opacity from material properties (separate from diffuse alpha)
-     * Returns -1 if no opacity property is found
-     *
-     * For FBX PhongE materials:
-     * - TransparencyFactor: 0 = opaque, 1 = fully transparent (needs inversion)
-     * - TransparentColor: RGB color that defines transparency
+     * @return an explicit opacity in [0,1], or -1 when the material does not define one
      */
-    private float getOpacityFromProperties() {
+    private static float readOpacityProperty(AIMaterial aiMaterial) {
         float[] value = new float[1];
-        int[] pMax = new int[1];
+        int[] max = new int[1];
 
-        // Try AI_MATKEY_OPACITY first (FBX exports this as the primary opacity value)
-        // Opacity: 0 = transparent, 1 = opaque (direct)
-        if (aiGetMaterialFloatArray(aiMaterial, AI_MATKEY_OPACITY, aiTextureType_NONE, 0, value, pMax) == aiReturn_SUCCESS) {
-            // Only use if it's explicitly set (not default 0.0 or 1.0)
+        // Opacity: 0 = transparent, 1 = opaque
+        if (aiGetMaterialFloatArray(aiMaterial, AI_MATKEY_OPACITY, aiTextureType_NONE, 0, value, max) == aiReturn_SUCCESS) {
             if (value[0] > 0.01f && value[0] < 0.99f) {
                 return value[0];
             }
         }
 
-        // Try AI_MATKEY_TRANSPARENCYFACTOR (backup, some formats use this)
-        // TransparencyFactor: 0 = opaque, 1 = transparent (inverted)
-        if (aiGetMaterialFloatArray(aiMaterial, AI_MATKEY_TRANSPARENCYFACTOR, aiTextureType_NONE, 0, value, pMax) == aiReturn_SUCCESS) {
-            // Only use if it's explicitly set (not default 0.0 or 1.0)
+        // TransparencyFactor: inverted relative to opacity
+        if (aiGetMaterialFloatArray(aiMaterial, AI_MATKEY_TRANSPARENCYFACTOR, aiTextureType_NONE, 0, value, max) == aiReturn_SUCCESS) {
             if (value[0] > 0.01f && value[0] < 0.99f) {
-                float opacity = 1.0f - value[0];  // Invert: 0 becomes 1 (opaque), 1 becomes 0 (transparent)
-                return opacity;
+                return 1.0f - value[0];
             }
         }
 
-        // Check TransparentColor (RGB color defining transparency)
-        AIColor4D transparentColor = AIColor4D.create();
-        if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_TRANSPARENT, aiTextureType_NONE, 0, transparentColor) == aiReturn_SUCCESS) {
-            // If transparent color is black (0,0,0), material is opaque
-            // If transparent color is white (1,1,1), material is fully transparent
-            float avgTransparency = (transparentColor.r() + transparentColor.g() + transparentColor.b()) / 3.0f;
-            if (avgTransparency > 0.01f) {
-                float opacity = 1.0f - avgTransparency;
-                return opacity;
+        // TransparentColor: white = fully transparent, black = opaque
+        AIColor4D transparent = AIColor4D.create();
+        if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_TRANSPARENT, aiTextureType_NONE, 0, transparent) == aiReturn_SUCCESS) {
+            float average = (transparent.r() + transparent.g() + transparent.b()) / 3.0f;
+            if (average > 0.01f) {
+                return 1.0f - average;
             }
         }
 
-        return -1.0f;  // No opacity property found
+        return -1f;
     }
 
-    /**
-     * Get opacity/transparency value
-     * Returns value in range [0, 1] where 0 = fully transparent, 1 = fully opaque
-     * This returns the final opacity considering all sources
-     */
-    public float getOpacity() {
-        float[] diffuse = getDiffuseColor();
-        float opacity = diffuse[3];  // Return the alpha from diffuse color (which may have been overridden)
+    // ------------------------------------------------------------------ accessors
 
-        // Debug log for transparency detection
-        if (opacity < 0.99f) {
-            DebugManager.debug(DebugCategory.CORE, 
-                "Material {} has transparency: opacity={}, diffuse alpha={}",
-                index, opacity, diffuse[3]
-            );
-        }
-
-        return opacity;
+    public int getIndex() {
+        return index;
     }
 
-    /**
-     * Check if material is transparent (has alpha < 1.0)
-     */
-    public boolean isTransparent() {
-        float opacity = getOpacity();
-        return opacity < 0.99f;
+    public String getName() {
+        return name;
     }
 
-    /**
-     * Get specular color from material
-     */
+    public float[] getDiffuseColor() {
+        return diffuseColor.clone();
+    }
+
     public float[] getSpecularColor() {
-        AIColor4D color = AIColor4D.create();
-        if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_SPECULAR, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
-            return new float[]{color.r(), color.g(), color.b(), color.a()};
-        }
-        return new float[]{1.0f, 1.0f, 1.0f, 1.0f};
+        return specularColor.clone();
     }
 
-    /**
-     * Get ambient color from material
-     */
     public float[] getAmbientColor() {
-        AIColor4D color = AIColor4D.create();
-        if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_AMBIENT, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
-            return new float[]{color.r(), color.g(), color.b(), color.a()};
-        }
-        return new float[]{0.2f, 0.2f, 0.2f, 1.0f};
+        return ambientColor.clone();
     }
 
-    public AIMaterial getNativeMaterial() {
-        return aiMaterial;
+    public String getDiffuseTexture() {
+        return diffuseTexture;
+    }
+
+    public String getNormalTexture() {
+        return normalTexture;
+    }
+
+    public String getSpecularTexture() {
+        return specularTexture;
+    }
+
+    /** @return 1 = opaque, 0 = fully transparent */
+    public float getOpacity() {
+        return diffuseColor[3];
+    }
+
+    public boolean isTransparent() {
+        return getOpacity() < 0.99f;
+    }
+
+    public boolean hasTexture() {
+        return diffuseTexture != null;
+    }
+
+    /** Embedded textures are referenced by the material as "*0", "*1", ... */
+    public boolean isEmbeddedTexture(String texturePath) {
+        return texturePath != null && texturePath.startsWith("*");
+    }
+
+    public int getEmbeddedTextureIndex(String texturePath) {
+        if (!isEmbeddedTexture(texturePath)) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(texturePath.substring(1));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /** Explicit normal map, or the conventional {@code <diffuse>_n.png} sibling. */
+    public String getNormalMapPath() {
+        if (normalTexture != null && !normalTexture.isEmpty()) {
+            return normalTexture;
+        }
+        return siblingTexture("_n");
+    }
+
+    /** Explicit specular map, or the conventional {@code <diffuse>_s.png} sibling. */
+    public String getSpecularMapPath() {
+        if (specularTexture != null && !specularTexture.isEmpty()) {
+            return specularTexture;
+        }
+        return siblingTexture("_s");
+    }
+
+    private String siblingTexture(String suffix) {
+        if (diffuseTexture == null || diffuseTexture.isEmpty() || isEmbeddedTexture(diffuseTexture)) {
+            return null;
+        }
+        int dot = diffuseTexture.lastIndexOf('.');
+        if (dot <= 0) {
+            return null;
+        }
+        return diffuseTexture.substring(0, dot) + suffix + diffuseTexture.substring(dot);
+    }
+
+    @Override
+    public String toString() {
+        return "AssimpMaterial[" + index + ", " + name + ", diffuse=" + diffuseTexture + "]";
     }
 }

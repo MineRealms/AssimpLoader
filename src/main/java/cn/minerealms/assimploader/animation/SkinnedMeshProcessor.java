@@ -1,5 +1,6 @@
 package cn.minerealms.assimploader.animation;
 
+import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import org.lwjgl.assimp.AIBone;
@@ -15,30 +16,36 @@ import java.util.Map;
  * Extracts:
  * - Bone weights per vertex
  * - Bone indices per vertex
- * - Up to 4 bones per vertex (GPU limitation)
+ * - Configurable bones per vertex (default 4, max 8)
  *
  * Output format for GPU:
- * - boneIndices: int[vertexCount * 4]
- * - boneWeights: float[vertexCount * 4]
+ * - boneIndices: int[vertexCount * maxBonesPerVertex]
+ * - boneWeights: float[vertexCount * maxBonesPerVertex]
  *
  * References:
  * - https://learnopengl.com/Guest-Articles/2020/Skeletal-Animation
  */
 public class SkinnedMeshProcessor {
 
-    private static final int MAX_BONES_PER_VERTEX = 4;
+    /**
+     * Get max bones per vertex from config
+     */
+    private static int getMaxBonesPerVertex() {
+        return AssimpLoaderConfig.getIntOrDefault(AssimpLoaderConfig.COMMON.animMaxBonesPerVertex, 4);
+    }
 
     /**
      * Vertex bone data structure
      */
     private static class VertexBoneData {
-        int[] boneIndices = new int[MAX_BONES_PER_VERTEX];
-        float[] boneWeights = new float[MAX_BONES_PER_VERTEX];
+        int[] boneIndices = new int[8]; // Max 8 bones (configurable)
+        float[] boneWeights = new float[8];
         int count = 0;
 
         void addBoneData(int boneIndex, float weight) {
-            if (count >= MAX_BONES_PER_VERTEX) {
-                DebugManager.warn(DebugCategory.ANIMATION, "Vertex has more than {} bones, ignoring extra bones", MAX_BONES_PER_VERTEX);
+            int maxBones = getMaxBonesPerVertex();
+            if (count >= maxBones) {
+                DebugManager.warn(DebugCategory.ANIMATION, "Vertex has more than {} bones, ignoring extra bones", maxBones);
                 return;
             }
 
@@ -117,14 +124,15 @@ public class SkinnedMeshProcessor {
      */
     private static SkinnedMeshData convertToFlatArrays(VertexBoneData[] vertexBoneData) {
         int numVertices = vertexBoneData.length;
-        int[] boneIndices = new int[numVertices * MAX_BONES_PER_VERTEX];
-        float[] boneWeights = new float[numVertices * MAX_BONES_PER_VERTEX];
+        int maxBones = getMaxBonesPerVertex();
+        int[] boneIndices = new int[numVertices * maxBones];
+        float[] boneWeights = new float[numVertices * maxBones];
 
         for (int i = 0; i < numVertices; i++) {
             VertexBoneData data = vertexBoneData[i];
-            int baseIndex = i * MAX_BONES_PER_VERTEX;
+            int baseIndex = i * maxBones;
 
-            for (int j = 0; j < MAX_BONES_PER_VERTEX; j++) {
+            for (int j = 0; j < maxBones; j++) {
                 boneIndices[baseIndex + j] = data.boneIndices[j];
                 boneWeights[baseIndex + j] = data.boneWeights[j];
             }
@@ -154,7 +162,8 @@ public class SkinnedMeshProcessor {
         }
 
         public int getVertexCount() {
-            return boneIndices.length / MAX_BONES_PER_VERTEX;
+            int maxBones = getMaxBonesPerVertex();
+            return boneIndices.length / maxBones;
         }
     }
 }

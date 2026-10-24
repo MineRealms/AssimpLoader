@@ -111,7 +111,6 @@ public class ModelRegistry {
     public void unregisterModel(ModelResourceLocation location) {
         AssimpScene scene = models.remove(location);
         if (scene != null) {
-            scene.release();
             LOGGER.info("Unregistered model: {}", location);
         }
     }
@@ -120,7 +119,6 @@ public class ModelRegistry {
      * Clears all registered models.
      */
     public void clearAll() {
-        models.values().forEach(AssimpScene::release);
         models.clear();
         cacheManager.clearCache();
         LOGGER.info("Cleared all models from registry");

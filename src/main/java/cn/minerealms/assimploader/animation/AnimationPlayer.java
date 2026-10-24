@@ -82,164 +82,19 @@ public class AnimationPlayer {
      * Calculate bone transformations at current time
      */
     private void updateBoneTransforms() {
-        // Use AnimationDataExtractor to get interpolated transforms at current time
-        var aiChannels = animation.getNativeAnimation().mChannels();
-        if (aiChannels == null) {
-            return;
-        }
+        for (BoneAnimationChannel channel : animation.getChannels()) {
+            BoneTransform transform = boneTransforms.computeIfAbsent(channel.getBoneName(), k -> new BoneTransform());
 
-        int numChannels = aiChannels.limit();
-        for (int i = 0; i < numChannels; i++) {
-            org.lwjgl.assimp.AINodeAnim channel = org.lwjgl.assimp.AINodeAnim.create(aiChannels.get(i));
-            String nodeName = channel.mNodeName().dataString();
-
-            // Debug: Log node animation info (disabled to reduce log spam)
-            // if (currentTime < 0.1 && i == 0) {
-            //     cn.minerealms.assimploader.debug.DebugManager.info(
-            //         cn.minerealms.assimploader.debug.DebugManager.DebugCategory.ANIMATION,
-            //         "Node animation channel: node='{}', posKeys={}, rotKeys={}, scaleKeys={}",
-            //         nodeName,
-            //         channel.mPositionKeys() != null ? channel.mPositionKeys().limit() : 0,
-            //         channel.mRotationKeys() != null ? channel.mRotationKeys().limit() : 0,
-            //         channel.mScalingKeys() != null ? channel.mScalingKeys().limit() : 0
-            //     );
-            // }
-
-            // Get or create bone transform
-            BoneTransform transform = boneTransforms.computeIfAbsent(nodeName, k -> new BoneTransform());
-
-            // Interpolate position
-            Vector3f position = interpolatePosition(channel, currentTime);
-            if (position != null) {
-                transform.setPosition(position);
+            if (channel.hasPositionKeys()) {
+                transform.setPosition(channel.getPosition(currentTime));
             }
-
-            // Interpolate rotation
-            Quaternionf rotation = interpolateRotation(channel, currentTime);
-            if (rotation != null) {
-                transform.setRotation(rotation);
+            if (channel.hasRotationKeys()) {
+                transform.setRotation(channel.getRotation(currentTime));
             }
-
-            // Interpolate scale
-            Vector3f scale = interpolateScale(channel, currentTime);
-            if (scale != null) {
-                transform.setScale(scale);
+            if (channel.hasScaleKeys()) {
+                transform.setScale(channel.getScale(currentTime));
             }
         }
-    }
-
-    /**
-     * Interpolate position at given time
-     */
-    private Vector3f interpolatePosition(org.lwjgl.assimp.AINodeAnim channel, double time) {
-        var keys = channel.mPositionKeys();
-        if (keys == null || keys.limit() == 0) {
-            return null;
-        }
-
-        // Single key - no interpolation needed
-        if (keys.limit() == 1) {
-            var key = keys.get(0);
-            return new Vector3f(key.mValue().x(), key.mValue().y(), key.mValue().z());
-        }
-
-        // Find surrounding keyframes
-        int index = 0;
-        for (int i = 0; i < keys.limit() - 1; i++) {
-            if (time < keys.get(i + 1).mTime()) {
-                index = i;
-                break;
-            }
-        }
-
-        var key0 = keys.get(index);
-        var key1 = keys.get(Math.min(index + 1, keys.limit() - 1));
-
-        // Calculate interpolation factor
-        double deltaTime = key1.mTime() - key0.mTime();
-        float factor = deltaTime > 0 ? (float)((time - key0.mTime()) / deltaTime) : 0.0f;
-        factor = Math.max(0.0f, Math.min(1.0f, factor));
-
-        // Linear interpolation
-        Vector3f pos0 = new Vector3f(key0.mValue().x(), key0.mValue().y(), key0.mValue().z());
-        Vector3f pos1 = new Vector3f(key1.mValue().x(), key1.mValue().y(), key1.mValue().z());
-        return pos0.lerp(pos1, factor);
-    }
-
-    /**
-     * Interpolate rotation at given time
-     */
-    private Quaternionf interpolateRotation(org.lwjgl.assimp.AINodeAnim channel, double time) {
-        var keys = channel.mRotationKeys();
-        if (keys == null || keys.limit() == 0) {
-            return null;
-        }
-
-        // Single key - no interpolation needed
-        if (keys.limit() == 1) {
-            var key = keys.get(0);
-            return new Quaternionf(key.mValue().x(), key.mValue().y(), key.mValue().z(), key.mValue().w());
-        }
-
-        // Find surrounding keyframes
-        int index = 0;
-        for (int i = 0; i < keys.limit() - 1; i++) {
-            if (time < keys.get(i + 1).mTime()) {
-                index = i;
-                break;
-            }
-        }
-
-        var key0 = keys.get(index);
-        var key1 = keys.get(Math.min(index + 1, keys.limit() - 1));
-
-        // Calculate interpolation factor
-        double deltaTime = key1.mTime() - key0.mTime();
-        float factor = deltaTime > 0 ? (float)((time - key0.mTime()) / deltaTime) : 0.0f;
-        factor = Math.max(0.0f, Math.min(1.0f, factor));
-
-        // Spherical linear interpolation (SLERP)
-        Quaternionf rot0 = new Quaternionf(key0.mValue().x(), key0.mValue().y(), key0.mValue().z(), key0.mValue().w());
-        Quaternionf rot1 = new Quaternionf(key1.mValue().x(), key1.mValue().y(), key1.mValue().z(), key1.mValue().w());
-        return rot0.slerp(rot1, factor);
-    }
-
-    /**
-     * Interpolate scale at given time
-     */
-    private Vector3f interpolateScale(org.lwjgl.assimp.AINodeAnim channel, double time) {
-        var keys = channel.mScalingKeys();
-        if (keys == null || keys.limit() == 0) {
-            return null;
-        }
-
-        // Single key - no interpolation needed
-        if (keys.limit() == 1) {
-            var key = keys.get(0);
-            return new Vector3f(key.mValue().x(), key.mValue().y(), key.mValue().z());
-        }
-
-        // Find surrounding keyframes
-        int index = 0;
-        for (int i = 0; i < keys.limit() - 1; i++) {
-            if (time < keys.get(i + 1).mTime()) {
-                index = i;
-                break;
-            }
-        }
-
-        var key0 = keys.get(index);
-        var key1 = keys.get(Math.min(index + 1, keys.limit() - 1));
-
-        // Calculate interpolation factor
-        double deltaTime = key1.mTime() - key0.mTime();
-        float factor = deltaTime > 0 ? (float)((time - key0.mTime()) / deltaTime) : 0.0f;
-        factor = Math.max(0.0f, Math.min(1.0f, factor));
-
-        // Linear interpolation
-        Vector3f scale0 = new Vector3f(key0.mValue().x(), key0.mValue().y(), key0.mValue().z());
-        Vector3f scale1 = new Vector3f(key1.mValue().x(), key1.mValue().y(), key1.mValue().z());
-        return scale0.lerp(scale1, factor);
     }
 
     /**
