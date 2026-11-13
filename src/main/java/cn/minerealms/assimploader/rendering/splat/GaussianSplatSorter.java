@@ -1,93 +1,67 @@
 package cn.minerealms.assimploader.rendering.splat;
 
 import cn.minerealms.assimploader.rendering.splat.data.GaussianSplat;
+import it.unimi.dsi.fastutil.ints.IntArrays;
+import it.unimi.dsi.fastutil.ints.IntComparator;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Depth-based sorting for Gaussian splats.
- *
- * Sorts splats back-to-front based on view matrix for correct alpha blending.
- */
-public class GaussianSplatSorter {
+/** Reusable original-index ordering, back to front in view space. */
+public final class GaussianSplatSorter {
+    private int[] sortedIndices = new int[0];
+    private float[] depths = new float[0];
+    private int count;
+    private final Vector3f position = new Vector3f();
+    private final IntComparator comparator = (left, right) -> {
+        int order = Float.compare(depths[right], depths[left]);
+        return order != 0 ? order : Integer.compare(left, right);
+    };
 
-    private int[] sortedIndices;
-    private float[] depths;
-
-    public GaussianSplatSorter() {
-    }
-
-    /**
-     * Sort splats by depth (back-to-front)
-     *
-     * @param splats List of splats to sort
-     * @param viewMatrix View matrix for depth computation
-     */
     public void sort(List<GaussianSplat> splats, Matrix4f viewMatrix) {
-        int count = splats.size();
+        ensureCapacity(splats.size());
+        for (int i = 0; i < splats.size(); i++) sortedIndices[i] = i;
+        sortPrepared(splats, viewMatrix, splats.size());
+    }
 
-        // Allocate or resize arrays
-        if (sortedIndices == null || sortedIndices.length != count) {
-            sortedIndices = new int[count];
-            depths = new float[count];
-        }
+    public void sort(List<GaussianSplat> splats, Matrix4f viewMatrix, int[] originalIndices, int selectedCount) {
+        if (selectedCount < 0 || selectedCount > originalIndices.length) throw new IllegalArgumentException("Invalid selected count");
+        ensureCapacity(Math.max(splats.size(), selectedCount));
+        System.arraycopy(originalIndices, 0, sortedIndices, 0, selectedCount);
+        sortPrepared(splats, viewMatrix, selectedCount);
+    }
 
-        // Compute depths
+    private void sortPrepared(List<GaussianSplat> splats, Matrix4f view, int selectedCount) {
+        if (!view.isFinite()) throw new IllegalArgumentException("Non-finite view matrix");
+        count = selectedCount;
         for (int i = 0; i < count; i++) {
-            GaussianSplat splat = splats.get(i);
-            Vector3f pos = splat.getPosition();
-
-            // Depth = -view_matrix[2] * pos (third row of view matrix)
-            float depth = -(viewMatrix.m20() * pos.x + viewMatrix.m21() * pos.y + viewMatrix.m22() * pos.z + viewMatrix.m23());
-            depths[i] = depth;
-            sortedIndices[i] = i;
+            int index = sortedIndices[i];
+            if (index < 0 || index >= splats.size()) throw new IllegalArgumentException("Splat index out of bounds");
+            splats.get(index).getPosition(position);
+            // JOML fields use column then row; view-space z is row 2.
+            float depth = -(view.m02() * position.x + view.m12() * position.y
+                    + view.m22() * position.z + view.m32());
+            depths[index] = Float.isFinite(depth) ? depth : Float.NEGATIVE_INFINITY;
         }
-
-        // Sort indices by depth (back-to-front = descending depth)
-        quickSort(0, count - 1);
+        IntArrays.quickSort(sortedIndices, 0, count, comparator);
     }
 
-    /**
-     * Get sorted indices array
-     */
-    public int[] getSortedIndices() {
-        return sortedIndices;
-    }
-
-    /**
-     * Quick sort implementation for depth sorting
-     */
-    private void quickSort(int low, int high) {
-        if (low < high) {
-            int pi = partition(low, high);
-            quickSort(low, pi - 1);
-            quickSort(pi + 1, high);
+    private void ensureCapacity(int capacity) {
+        if (sortedIndices.length < capacity) {
+            sortedIndices = new int[capacity];
+            depths = new float[capacity];
         }
     }
 
-    private int partition(int low, int high) {
-        float pivot = depths[sortedIndices[high]];
-        int i = low - 1;
-
-        for (int j = low; j < high; j++) {
-            // Sort descending (back-to-front)
-            if (depths[sortedIndices[j]] > pivot) {
-                i++;
-                // Swap indices
-                int temp = sortedIndices[i];
-                sortedIndices[i] = sortedIndices[j];
-                sortedIndices[j] = temp;
-            }
-        }
-
-        // Swap pivot
-        int temp = sortedIndices[i + 1];
-        sortedIndices[i + 1] = sortedIndices[high];
-        sortedIndices[high] = temp;
-
-        return i + 1;
+    /** Compatibility snapshot; rendering uses the backing buffer plus explicit count. */
+    public int[] getSortedIndices() { return Arrays.copyOf(sortedIndices, count); }
+    int[] indicesBuffer() { return sortedIndices; }
+    public int getSortedCount() { return count; }
+    void clear() {
+        sortedIndices = new int[0];
+        depths = new float[0];
+        count = 0;
     }
 }

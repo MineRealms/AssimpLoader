@@ -27,6 +27,7 @@ public class GaussianSplatBuffer {
     private final int stride; // floats per splat
 
     public GaussianSplatBuffer(int shDegree) {
+        if (shDegree < 0 || shDegree > 3) throw new IllegalArgumentException("SH degree must be 0-3");
         this.shDim = (shDegree + 1) * (shDegree + 1);
         this.stride = 11 + shDim * 3;
     }
@@ -36,10 +37,16 @@ public class GaussianSplatBuffer {
      */
     public FloatBuffer pack(GaussianSplatData data) {
         int splatCount = data.getSplatCount();
-        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(splatCount * stride * Float.BYTES)
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(Math.multiplyExact(Math.multiplyExact(splatCount, stride), Float.BYTES))
                 .order(ByteOrder.nativeOrder());
-        FloatBuffer buffer = byteBuffer.asFloatBuffer();
+        return pack(data, byteBuffer.asFloatBuffer());
+    }
 
+    /** Packs into caller-owned storage so GPU upload can release native staging immediately. */
+    public FloatBuffer pack(GaussianSplatData data, FloatBuffer buffer) {
+        int values = Math.multiplyExact(data.getSplatCount(), stride);
+        if (buffer.capacity() < values) throw new IllegalArgumentException("Splat packing buffer is too small");
+        buffer.clear();
         for (GaussianSplat splat : data.getSplats()) {
             packSplat(buffer, splat);
         }
@@ -76,17 +83,8 @@ public class GaussianSplatBuffer {
 
         // SH coefficients (shDim * 3 floats)
         float[] sh = splat.getSH();
-        for (float v : sh) {
-            buffer.put(v);
-        }
-
-        // Pad if necessary to match expected shDim
-        int actualShDim = sh.length / 3;
-        if (actualShDim < shDim) {
-            for (int i = actualShDim * 3; i < shDim * 3; i++) {
-                buffer.put(0.0f);
-            }
-        }
+        int expected = shDim * 3;
+        for (int i = 0; i < expected; i++) buffer.put(i < sh.length && Float.isFinite(sh[i]) ? sh[i] : 0);
     }
 
     public int getStride() {
