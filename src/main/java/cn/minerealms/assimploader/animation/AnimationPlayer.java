@@ -3,12 +3,14 @@ package cn.minerealms.assimploader.animation;
 import cn.minerealms.assimploader.animation.ik.IKManager;
 import cn.minerealms.assimploader.animation.ik.Skeleton;
 import cn.minerealms.assimploader.model.AssimpAnimation;
+import cn.minerealms.assimploader.model.AssimpNode;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -27,6 +29,9 @@ public class AnimationPlayer {
 
     private final AssimpAnimation animation;
     private final Map<String, BoneTransform> boneTransforms;
+    private final Map<String, Matrix4f> bindTransforms = new HashMap<>();
+    private final Map<String, Matrix4f> matrixTransforms = new HashMap<>();
+    private final Map<String, Matrix4f> matrixView = Collections.unmodifiableMap(matrixTransforms);
 
     private double currentTime = 0.0;
     private boolean playing = false;
@@ -38,8 +43,19 @@ public class AnimationPlayer {
     private IKManager ikManager;
 
     public AnimationPlayer(AssimpAnimation animation) {
+        this(animation, null);
+    }
+
+    public AnimationPlayer(AssimpAnimation animation, AssimpNode rootNode) {
         this.animation = animation;
         this.boneTransforms = new HashMap<>();
+        if (rootNode != null) collectBindTransforms(rootNode);
+        updateBoneTransforms();
+    }
+
+    private void collectBindTransforms(AssimpNode node) {
+        bindTransforms.put(node.getName(), new Matrix4f(node.getTransformation()));
+        for (AssimpNode child : node.getChildren()) collectBindTransforms(child);
     }
 
     /**
@@ -48,18 +64,21 @@ public class AnimationPlayer {
      * @param deltaTime Time elapsed since last update (in seconds)
      */
     public void update(double deltaTime) {
-        if (!playing) {
+        if (!playing || !Double.isFinite(deltaTime)) {
             return;
         }
 
         currentTime += deltaTime * speed * animation.getTicksPerSecond();
 
         double duration = animation.getDuration();
-        if (currentTime > duration) {
+        if (!Double.isFinite(duration) || duration <= 0) {
+            currentTime = 0;
+            if (!looping) playing = false;
+        } else if (currentTime >= duration || currentTime < 0) {
             if (looping) {
-                currentTime = currentTime % duration;
+                currentTime = ((currentTime % duration) + duration) % duration;
             } else {
-                currentTime = duration;
+                currentTime = Math.max(0, Math.min(duration, currentTime));
                 playing = false;
             }
         }
@@ -83,7 +102,8 @@ public class AnimationPlayer {
      */
     private void updateBoneTransforms() {
         for (BoneAnimationChannel channel : animation.getChannels()) {
-            BoneTransform transform = boneTransforms.computeIfAbsent(channel.getBoneName(), k -> new BoneTransform());
+            BoneTransform transform = boneTransforms.computeIfAbsent(channel.getBoneName(),
+                    name -> new BoneTransform(bindTransforms.get(name)));
 
             if (channel.hasPositionKeys()) {
                 transform.setPosition(channel.getPosition(currentTime));
@@ -94,6 +114,7 @@ public class AnimationPlayer {
             if (channel.hasScaleKeys()) {
                 transform.setScale(channel.getScale(currentTime));
             }
+            transform.toMatrix(matrixTransforms.computeIfAbsent(channel.getBoneName(), name -> new Matrix4f()));
         }
     }
 
@@ -113,6 +134,7 @@ public class AnimationPlayer {
 
     public void play() {
         playing = true;
+        updateBoneTransforms();
     }
 
     public void pause() {
@@ -122,6 +144,7 @@ public class AnimationPlayer {
     public void stop() {
         playing = false;
         currentTime = 0.0;
+        updateBoneTransforms();
     }
 
     public void setLooping(boolean looping) {
@@ -129,6 +152,7 @@ public class AnimationPlayer {
     }
 
     public void setSpeed(float speed) {
+        if (!Float.isFinite(speed)) throw new IllegalArgumentException("Animation speed must be finite");
         this.speed = speed;
     }
 
@@ -169,11 +193,7 @@ public class AnimationPlayer {
      * Used by AnimationState to update BoneHierarchyBuilder
      */
     public Map<String, Matrix4f> getBoneTransforms() {
-        Map<String, Matrix4f> transforms = new HashMap<>();
-        for (Map.Entry<String, BoneTransform> entry : boneTransforms.entrySet()) {
-            transforms.put(entry.getKey(), entry.getValue().toMatrix());
-        }
-        return transforms;
+        return matrixView;
     }
 
     /**
@@ -246,27 +266,38 @@ public class AnimationPlayer {
         private Vector3f scale;
 
         public BoneTransform() {
+            this(null);
+        }
+
+        public BoneTransform(Matrix4f bindTransform) {
             this.position = new Vector3f(0, 0, 0);
             this.rotation = new Quaternionf();
             this.scale = new Vector3f(1, 1, 1);
+            if (bindTransform != null) {
+                bindTransform.getTranslation(position);
+                bindTransform.getScale(scale);
+                bindTransform.getUnnormalizedRotation(rotation).normalize();
+            }
         }
 
         public Matrix4f toMatrix() {
-            Matrix4f matrix = new Matrix4f();
-            matrix.translationRotateScale(position, rotation, scale);
-            return matrix;
+            return toMatrix(new Matrix4f());
+        }
+
+        private Matrix4f toMatrix(Matrix4f target) {
+            return target.translationRotateScale(position, rotation, scale);
         }
 
         public void setPosition(Vector3f position) {
-            this.position = position;
+            this.position.set(position);
         }
 
         public void setRotation(Quaternionf rotation) {
-            this.rotation = rotation;
+            this.rotation.set(rotation);
         }
 
         public void setScale(Vector3f scale) {
-            this.scale = scale;
+            this.scale.set(scale);
         }
     }
 }

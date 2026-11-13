@@ -115,7 +115,7 @@ public class AnimationBlender {
         }
 
         // Apply blended transforms to each bone
-        for (String boneName : hierarchy.getAllBones().keySet()) {
+        for (String boneName : hierarchy.getHierarchyNodes().keySet()) {
             Bone bone = hierarchy.getBone(boneName);
             if (bone == null) continue;
 

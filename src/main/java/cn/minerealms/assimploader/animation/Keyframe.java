@@ -35,11 +35,8 @@ public class Keyframe<T> {
      * Linear interpolation between two Vector3f keyframes
      */
     private static Vector3f interpolateVector3f(Keyframe<Vector3f> k1, Keyframe<Vector3f> k2, double time) {
-        double delta = k2.time - k1.time;
-        double factor = (time - k1.time) / delta;
-
         Vector3f result = new Vector3f();
-        k1.value.lerp(k2.value, (float) factor, result);
+        k1.value.lerp(k2.value, interpolationFactor(k1, k2, time), result);
         return result;
     }
 
@@ -54,12 +51,18 @@ public class Keyframe<T> {
      * Spherical linear interpolation between two rotation keyframes
      */
     public static Quaternionf interpolateRotation(Keyframe<Quaternionf> k1, Keyframe<Quaternionf> k2, double time) {
-        double delta = k2.time - k1.time;
-        double factor = (time - k1.time) / delta;
-
         Quaternionf result = new Quaternionf();
-        k1.value.slerp(k2.value, (float) factor, result);
+        k1.value.slerp(k2.value, interpolationFactor(k1, k2, time), result);
         return result;
+    }
+
+    private static float interpolationFactor(Keyframe<?> before, Keyframe<?> after, double time) {
+        double delta = after.time - before.time;
+        // Endpoint pairs and constant channels deliberately reference the same key twice.
+        if (delta <= 0) {
+            return 0f;
+        }
+        return (float) Math.max(0, Math.min(1, (time - before.time) / delta));
     }
 
     /**

@@ -24,6 +24,7 @@ public class Bone {
     private Bone parent;
 
     private Matrix4f localTransform;
+    private final Matrix4f bindTransform = new Matrix4f();
     private Matrix4f globalTransform;
     private Matrix4f finalTransform;
 
@@ -77,6 +78,19 @@ public class Bone {
 
     public void setLocalTransform(Matrix4f localTransform) {
         this.localTransform.set(localTransform);
+    }
+
+    public void setBindTransform(Matrix4f transform) {
+        bindTransform.set(transform);
+        localTransform.set(transform);
+    }
+
+    public Matrix4f getBindTransform() {
+        return bindTransform;
+    }
+
+    public void resetToBindPose() {
+        localTransform.set(bindTransform);
     }
 
     public Matrix4f getGlobalTransform() {

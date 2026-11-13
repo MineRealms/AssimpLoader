@@ -7,6 +7,9 @@ import cn.minerealms.assimploader.model.AssimpNode;
 import org.joml.Matrix4f;
 
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,6 +36,8 @@ public class BoneHierarchyBuilder {
      * the vertex data, which is why the map is filled in the mesh's bone order.
      */
     private final Map<String, Bone> boneMap = new LinkedHashMap<>();
+    private final Map<String, Bone> hierarchyNodes = new LinkedHashMap<>();
+    private final List<Bone> roots = new ArrayList<>();
     private Bone rootBone;
 
     /**
@@ -43,13 +48,21 @@ public class BoneHierarchyBuilder {
      * returned by {@link #getFinalTransforms()}.
      */
     public void buildFromMesh(AssimpMesh mesh, AssimpNode rootNode) {
-        if (!mesh.hasBones()) {
+        buildFromOffsets(mesh.getBoneOffsets(), rootNode);
+    }
+
+    void buildFromOffsets(Map<String, Matrix4f> offsets, AssimpNode rootNode) {
+        boneMap.clear();
+        hierarchyNodes.clear();
+        roots.clear();
+        rootBone = null;
+        if (offsets.isEmpty()) {
             return;
         }
 
-        DebugManager.debug(DebugCategory.ANIMATION, "Building bone hierarchy from {} bones", mesh.getBoneOffsets().size());
+        DebugManager.debug(DebugCategory.ANIMATION, "Building bone hierarchy from {} bones", offsets.size());
 
-        for (Map.Entry<String, Matrix4f> entry : mesh.getBoneOffsets().entrySet()) {
+        for (Map.Entry<String, Matrix4f> entry : offsets.entrySet()) {
             boneMap.put(entry.getKey(), new Bone(entry.getKey(), entry.getValue()));
         }
 
@@ -57,29 +70,29 @@ public class BoneHierarchyBuilder {
             buildHierarchy(rootNode, null);
         }
 
-        // Every bone that never appeared in the scene graph becomes a root candidate;
-        // the first parentless bone is the root.
         for (Bone bone : boneMap.values()) {
-            if (bone.getParent() == null) {
-                rootBone = bone;
-                DebugManager.debug(DebugCategory.ANIMATION, "Root bone: {}", bone.getName());
-                break;
+            if (!hierarchyNodes.containsKey(bone.getName())) {
+                hierarchyNodes.put(bone.getName(), bone);
+                roots.add(bone);
             }
         }
+        rootBone = roots.isEmpty() ? null : roots.get(0);
+        updateTransforms();
     }
 
     private void buildHierarchy(AssimpNode node, Bone parentBone) {
-        Bone currentBone = boneMap.get(node.getName());
-
-        if (currentBone != null) {
-            if (parentBone != null && currentBone != parentBone) {
-                parentBone.addChild(currentBone);
-            }
-            currentBone.setLocalTransform(node.getTransformation());
+        // Non-weighted parents still carry bind transforms and animation channels.
+        Bone currentBone = boneMap.getOrDefault(node.getName(), new Bone(node.getName(), new Matrix4f()));
+        hierarchyNodes.put(node.getName(), currentBone);
+        currentBone.setBindTransform(node.getTransformation());
+        if (parentBone != null) {
+            parentBone.addChild(currentBone);
+        } else {
+            roots.add(currentBone);
         }
 
         for (AssimpNode child : node.getChildren()) {
-            buildHierarchy(child, currentBone != null ? currentBone : parentBone);
+            buildHierarchy(child, currentBone);
         }
     }
 
@@ -87,7 +100,7 @@ public class BoneHierarchyBuilder {
      * Get bone by name
      */
     public Bone getBone(String name) {
-        return boneMap.get(name);
+        return hierarchyNodes.get(name);
     }
 
     /**
@@ -101,7 +114,11 @@ public class BoneHierarchyBuilder {
      * Get all bones
      */
     public Map<String, Bone> getAllBones() {
-        return boneMap;
+        return Collections.unmodifiableMap(boneMap);
+    }
+
+    public Map<String, Bone> getHierarchyNodes() {
+        return Collections.unmodifiableMap(hierarchyNodes);
     }
 
     /**
@@ -116,7 +133,7 @@ public class BoneHierarchyBuilder {
      * Used by animation system to apply animated transforms
      */
     public void updateBoneTransform(String boneName, Matrix4f localTransform) {
-        Bone bone = boneMap.get(boneName);
+        Bone bone = hierarchyNodes.get(boneName);
         if (bone != null) {
             bone.setLocalTransform(localTransform);
         }
@@ -127,8 +144,8 @@ public class BoneHierarchyBuilder {
      * Call this after setting animation transforms
      */
     public void updateTransforms() {
-        if (rootBone != null) {
-            rootBone.updateTransforms();
+        for (Bone root : roots) {
+            root.updateTransforms();
         }
     }
 
@@ -169,8 +186,8 @@ public class BoneHierarchyBuilder {
      * Reset all bones to bind pose
      */
     public void resetToBindPose() {
-        for (Bone bone : boneMap.values()) {
-            bone.setLocalTransform(new Matrix4f().identity());
+        for (Bone bone : hierarchyNodes.values()) {
+            bone.resetToBindPose();
         }
         updateTransforms();
     }
@@ -179,9 +196,11 @@ public class BoneHierarchyBuilder {
      * Print bone hierarchy for debugging
      */
     public void printHierarchy() {
-        if (rootBone != null) {
+        if (!roots.isEmpty()) {
             DebugManager.info(DebugCategory.ANIMATION, "Bone Hierarchy:");
-            printBoneRecursive(rootBone, 0);
+            for (Bone root : roots) {
+                printBoneRecursive(root, 0);
+            }
         }
     }
 
