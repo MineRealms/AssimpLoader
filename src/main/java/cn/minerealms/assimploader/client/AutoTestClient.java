@@ -8,9 +8,12 @@ import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.client.ClientCommandHandler;
 
 @Mod.EventBusSubscriber(modid = "assimploader", value = Dist.CLIENT)
 public class AutoTestClient {
+
+    private static final boolean ENABLED = Boolean.getBoolean("autotest.enabled");
 
     private enum State {
         WAIT_TITLE,
@@ -37,6 +40,8 @@ public class AutoTestClient {
 
     @SubscribeEvent
     public static void onScreenOpened(ScreenEvent.Opening event) {
+        if (!ENABLED || Boolean.getBoolean("autotest.pbr")) return;
+        if (Boolean.getBoolean("autotest.capture") || Boolean.getBoolean("autotest.startupOnly")) return;
         Screen newScreen = event.getNewScreen();
 
         if (newScreen instanceof TitleScreen) {
@@ -52,16 +57,18 @@ public class AutoTestClient {
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (!ENABLED || Boolean.getBoolean("autotest.pbr")) return;
+        if (Boolean.getBoolean("autotest.capture") || Boolean.getBoolean("autotest.startupOnly")) return;
         if (event.phase != TickEvent.Phase.END) return;
 
         Minecraft mc = Minecraft.getInstance();
         long now = System.currentTimeMillis();
 
-        // Watchdog disabled - no auto-exit on timeout
-        // if (lastStateChangeTime > 0 && now - lastStateChangeTime > WATCHDOG_MS && state != State.DONE) {
-        //     failAndExit(mc, "watchdog timeout in state: " + state);
-        //     return;
-        // }
+        if (lastStateChangeTime > 0 && now - lastStateChangeTime > WATCHDOG_MS
+                && state != State.DONE && state != State.FAILED) {
+            failAndExit(mc, "watchdog timeout in state: " + state);
+            return;
+        }
 
         switch (state) {
             case WAIT_TITLE -> {
@@ -122,7 +129,9 @@ public class AutoTestClient {
         if (mc.player == null || mc.player.connection == null) return;
 
         try {
-            mc.player.connection.sendCommand("lookdev");
+            if (!ClientCommandHandler.runCommand("lookdev")) {
+                throw new IllegalStateException("LookDev client command is unavailable");
+            }
         } catch (Exception e) {
             failAndExit(mc, "send command error: " + e.getMessage());
         }
