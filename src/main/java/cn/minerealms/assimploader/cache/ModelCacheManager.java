@@ -1,97 +1,54 @@
 package cn.minerealms.assimploader.cache;
 
-import cn.minerealms.assimploader.debug.DebugManager;
-import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
+import cn.minerealms.assimploader.core.AssimpModelLoader;
+import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpScene;
+import cn.minerealms.assimploader.resource.ResourcePackIntegration;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.loading.FMLEnvironment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 
-/**
- * Model cache manager for efficient model reuse.
- *
- * Caches loaded models to avoid redundant file I/O and parsing.
- * Thread-safe for async loading.
- *
- * Phase 5 implementation - resource loading and caching
- */
-public class ModelCacheManager {
-
+/** Compatibility facade over the canonical model repository; this class owns no competing cache. */
+public final class ModelCacheManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ModelCacheManager.class);
     private static final ModelCacheManager INSTANCE = new ModelCacheManager();
-    private final Map<String, AssimpScene> cache = new ConcurrentHashMap<>();
-    private long totalMemoryUsage = 0;
 
-    private ModelCacheManager() {
-        DebugManager.info(DebugCategory.CACHE, "ModelCacheManager initialized");
-    }
+    private ModelCacheManager() {}
 
-    public static ModelCacheManager getInstance() {
-        return INSTANCE;
-    }
+    public static ModelCacheManager getInstance() { return INSTANCE; }
 
-    /**
-     * Load a model from path (with caching)
-     */
     public AssimpScene loadModel(String resourcePath) {
-        // Check cache first
-        if (cache.containsKey(resourcePath)) {
-            DebugManager.debug(DebugCategory.CACHE, "Model loaded from cache: {}", resourcePath);
-            return cache.get(resourcePath);
+        AssimpScene existing = get(resourcePath);
+        if (existing != null) return existing;
+        try {
+            try {
+                Path path = Path.of(resourcePath);
+                if (Files.isRegularFile(path)) return AssimpModelLoader.loadCachedFile(path, ModelImportMode.STATIC);
+            } catch (InvalidPathException ignored) {
+                // Namespaced resource locations are not Windows filesystem paths.
+            }
+            if (FMLEnvironment.dist == Dist.CLIENT) {
+                ResourceLocation resource = resourcePath.contains(":") ? new ResourceLocation(resourcePath)
+                        : new ResourceLocation("assimploader", resourcePath);
+                return ResourcePackIntegration.getInstance().loadModel(resource, ModelImportMode.STATIC);
+            }
+        } catch (IOException | RuntimeException exception) {
+            LOGGER.error("Cannot load model {}", resourcePath, exception);
         }
-
-        // Load model (implementation depends on resource system)
-        // For now, return null - will be implemented with resource pack integration
-        DebugManager.warn(DebugCategory.CACHE, "Model loading not yet implemented: {}", resourcePath);
         return null;
     }
 
-    /**
-     * Get cached model by resource path
-     */
-    public AssimpScene get(String resourcePath) {
-        return cache.get(resourcePath);
-    }
-
-    /**
-     * Cache a loaded model
-     */
-    public void put(String resourcePath, AssimpScene scene) {
-        cache.put(resourcePath, scene);
-        DebugManager.debug(DebugCategory.CACHE, "Cached model: {}", resourcePath);
-    }
-
-    /**
-     * Check if model is cached
-     */
-    public boolean contains(String resourcePath) {
-        return cache.containsKey(resourcePath);
-    }
-
-    /**
-     * Remove model from cache and release memory
-     */
-    public void remove(String resourcePath) {
-        AssimpScene scene = cache.remove(resourcePath);
-        if (scene != null) {
-            DebugManager.debug(DebugCategory.CACHE, "Removed from cache: {}", resourcePath);
-        }
-    }
-
-    /**
-     * Clear all cached models
-     */
-    public void clearCache() {
-        for (AssimpScene scene : cache.values()) {
-        }
-        cache.clear();
-        totalMemoryUsage = 0;
-        DebugManager.info(DebugCategory.CACHE, "Model cache cleared");
-    }
-
-    /**
-     * Get cache size
-     */
-    public int size() {
-        return cache.size();
-    }
+    public AssimpScene get(String resourcePath) { return AssimpModelLoader.getCachedModel(resourcePath); }
+    public void put(String resourcePath, AssimpScene scene) { AssimpModelLoader.updateModelCache(resourcePath, scene); }
+    public boolean contains(String resourcePath) { return get(resourcePath) != null; }
+    public void remove(String resourcePath) { AssimpModelLoader.removeCachedModel(resourcePath); }
+    public void clearCache() { AssimpModelLoader.clearCache(); }
+    public int size() { return AssimpModelLoader.getLoadedModels().size(); }
 }
