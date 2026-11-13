@@ -3,9 +3,8 @@ package cn.minerealms.assimploader.lookdev;
 import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
-import cn.minerealms.assimploader.lookdev.ui.LookDevScreen;
+import cn.minerealms.assimploader.lookdev.ui.LoadedModelsScreen;
 import com.mojang.blaze3d.platform.InputConstants;
-import icyllis.modernui.mc.MuiModApi;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
@@ -63,11 +62,13 @@ public final class LookDevKeybind {
         }
 
         while (openLookDev.consumeClick()) {
+            if (!cn.minerealms.assimploader.config.AssimpLoaderConfig.getOrDefault(
+                    cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT.devLookdevEnabled::get, true)) continue;
             if (minecraft.player == null) {
                 continue;
             }
             try {
-                MuiModApi.openScreen(new LookDevScreen());
+                minecraft.setScreen(new LoadedModelsScreen());
             } catch (Throwable t) {
                 DebugManager.error(DebugCategory.LOOKDEV, "Failed to open LookDev viewer", t);
             }

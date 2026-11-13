@@ -71,8 +71,6 @@ public class LookDevOverlayRenderer {
      */
     @SubscribeEvent
     public void onScreenRender(ScreenEvent.Render.Post event) {
-        DebugManager.info(DebugCategory.LOOKDEV, "[LookDevOverlayRenderer] onScreenRender called, enabled={}, activeRenderer={}", enabled, activeRenderer != null);
-
         if (!enabled || activeRenderer == null) {
             return;
         }

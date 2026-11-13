@@ -24,7 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Main LookDev viewer screen.
+ * Legacy editor fragment, retained for source compatibility with dormant editor components.
+ * The L key and /lookdev command use LoadedModelsScreen instead.
  *
  * Three-panel layout:
  * - Left: Model tree (20% width)

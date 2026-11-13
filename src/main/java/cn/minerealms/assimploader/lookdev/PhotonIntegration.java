@@ -49,25 +49,15 @@ public class PhotonIntegration {
      * Check if any Photon-compatible mod is loaded
      */
     public static boolean isPhotonAvailable() {
-        return isPhotonLoaded() || isOculusLoaded();
+        return isPhotonLoaded();
     }
 
     /**
      * Get the current feature tier based on loaded mods
      */
     public static FeatureTier getFeatureTier() {
-        if (cachedTier == null) {
-            if (isPhotonAvailable()) {
-                cachedTier = FeatureTier.FULL_INTEGRATION;
-                DebugManager.info(DebugCategory.LOOKDEV,
-                    "[PhotonIntegration] Feature tier: FULL_INTEGRATION (Photon available)");
-            } else {
-                cachedTier = FeatureTier.STANDALONE;
-                DebugManager.info(DebugCategory.LOOKDEV,
-                    "[PhotonIntegration] Feature tier: STANDALONE (Photon not available)");
-            }
-        }
-        return cachedTier;
+        // The particle editor mod does not supply a node-material compilation backend.
+        return FeatureTier.STANDALONE;
     }
 
     /**
@@ -95,13 +85,7 @@ public class PhotonIntegration {
      * Get a user-friendly status message
      */
     public static String getStatusMessage() {
-        FeatureTier tier = getFeatureTier();
-        if (tier == FeatureTier.FULL_INTEGRATION) {
-            String modName = isPhotonLoaded() ? "Photon" : "Oculus";
-            return "Full integration enabled (" + modName + " detected)";
-        } else {
-            return "Standalone mode (Photon not detected)";
-        }
+        return "Node material editing is inactive";
     }
 
     /**

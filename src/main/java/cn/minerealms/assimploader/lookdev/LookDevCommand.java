@@ -3,10 +3,10 @@ package cn.minerealms.assimploader.lookdev;
 import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
-import cn.minerealms.assimploader.lookdev.ui.LookDevScreen;
+import cn.minerealms.assimploader.lookdev.ui.LoadedModelsScreen;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
-import icyllis.modernui.mc.MuiModApi;
+import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -30,6 +30,8 @@ public class LookDevCommand {
 
             dispatcher.register(
                 Commands.literal("lookdev")
+                    .requires(source -> cn.minerealms.assimploader.config.AssimpLoaderConfig.getOrDefault(
+                            cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT.devLookdevEnabled::get, true))
                     .executes(LookDevCommand::openLookDevScreen)
             );
 
@@ -46,14 +48,7 @@ public class LookDevCommand {
         try {
             DebugManager.info(DebugCategory.LOOKDEV, "Opening LookDev screen via command");
 
-            // Create and open the LookDev screen using ModernUI
-            LookDevScreen fragment = new LookDevScreen();
-            MuiModApi.openScreen(fragment);
-
-            context.getSource().sendSuccess(
-                () -> Component.literal("Opening LookDev Viewer..."),
-                false
-            );
+            Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(new LoadedModelsScreen()));
 
             DebugManager.info(DebugCategory.LOOKDEV, "LookDev screen opened successfully");
             return 1;
