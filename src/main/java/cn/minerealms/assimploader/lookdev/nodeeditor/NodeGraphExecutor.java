@@ -135,9 +135,6 @@ public class NodeGraphExecutor {
                 }
             }
 
-            // Reverse to get correct execution order
-            Collections.reverse(sorted);
-
             DebugManager.debug(DebugCategory.LOOKDEV,
                 "[NodeGraphExecutor] Execution order computed: {} nodes in order", sorted.size());
 

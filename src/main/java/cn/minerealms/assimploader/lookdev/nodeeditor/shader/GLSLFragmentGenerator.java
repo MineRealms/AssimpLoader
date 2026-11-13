@@ -55,9 +55,6 @@ public class GLSLFragmentGenerator {
         nodeVariables.clear();
         variableCounter = 0;
 
-        // Generate uniform declarations
-        String uniforms = emitter.emitUniforms();
-
         // Generate node computation code
         StringBuilder code = new StringBuilder();
         for (Node node : executionOrder) {
@@ -76,7 +73,7 @@ public class GLSLFragmentGenerator {
         String outputAssignment = generateOutputAssignment(outputConfig, executionOrder);
 
         // Combine all parts
-        String finalCode = uniforms + code.toString() + outputAssignment;
+        String finalCode = emitter.emitUniforms() + code.toString() + outputAssignment;
 
         return new GLSLFragment(
             finalCode,

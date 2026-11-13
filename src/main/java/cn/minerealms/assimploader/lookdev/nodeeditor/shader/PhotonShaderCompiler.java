@@ -3,6 +3,7 @@ package cn.minerealms.assimploader.lookdev.nodeeditor.shader;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.PhotonIntegration;
+import cn.minerealms.assimploader.util.AssimpLoaderPaths;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
@@ -12,7 +13,6 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,7 +32,10 @@ public class PhotonShaderCompiler {
 
     private static final Map<String, CompiledShader> shaderCache = new HashMap<>();
     private static final String SHADER_NAMESPACE = "assimploader";
-    private static final Path SHADER_BASE_PATH = Paths.get("resourcepacks/assimploader_shaders/assets/" + SHADER_NAMESPACE + "/shaders/core");
+    private static Path shaderBasePath() {
+        return AssimpLoaderPaths.gameDirectory().resolve("resourcepacks/assimploader_shaders/assets/")
+                .resolve(SHADER_NAMESPACE).resolve("shaders/core").normalize();
+    }
 
     /**
      * Compile shader code into a usable shader instance
@@ -97,24 +100,25 @@ public class PhotonShaderCompiler {
         DebugManager.tryCatch("[PhotonShaderCompiler] writeShaderFiles", () -> {
             // Create shader directory
             DebugManager.debug(DebugCategory.LOOKDEV,
-                "[PhotonShaderCompiler] Creating shader directory: {}", SHADER_BASE_PATH);
-            Files.createDirectories(SHADER_BASE_PATH);
+                "[PhotonShaderCompiler] Creating shader directory: {}", shaderBasePath());
+            Path shaderBasePath = shaderBasePath();
+            Files.createDirectories(shaderBasePath);
 
             // Write vertex shader
-            Path vshPath = SHADER_BASE_PATH.resolve(shaderName + ".vsh");
+            Path vshPath = shaderBasePath.resolve(shaderName + ".vsh");
             DebugManager.debug(DebugCategory.LOOKDEV,
                 "[PhotonShaderCompiler] Writing vertex shader: {}", vshPath);
             Files.writeString(vshPath, shaderCode.vertexShader);
 
             // Write fragment shader
-            Path fshPath = SHADER_BASE_PATH.resolve(shaderName + ".fsh");
+            Path fshPath = shaderBasePath.resolve(shaderName + ".fsh");
             DebugManager.debug(DebugCategory.LOOKDEV,
                 "[PhotonShaderCompiler] Writing fragment shader: {}", fshPath);
             Files.writeString(fshPath, shaderCode.fragmentShader);
 
             // Write shader config JSON
             String configJson = generateShaderConfig(shaderName);
-            Path jsonPath = SHADER_BASE_PATH.resolve(shaderName + ".json");
+            Path jsonPath = shaderBasePath.resolve(shaderName + ".json");
             DebugManager.debug(DebugCategory.LOOKDEV,
                 "[PhotonShaderCompiler] Writing shader config: {}", jsonPath);
             Files.writeString(jsonPath, configJson);

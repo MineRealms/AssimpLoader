@@ -2,7 +2,6 @@ package cn.minerealms.assimploader.lookdev.nodeeditor.shader;
 
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
-import cn.minerealms.assimploader.lookdev.PhotonIntegration;
 import cn.minerealms.assimploader.lookdev.nodeeditor.*;
 import cn.minerealms.assimploader.lookdev.nodeeditor.nodes.OutputNode;
 
@@ -43,12 +42,6 @@ public class ShaderCodeGenerator {
             "[ShaderCodeGenerator] Starting shader generation");
 
         return DebugManager.tryCatch("[ShaderCodeGenerator] generate", () -> {
-            if (!PhotonIntegration.hasShaderSupport()) {
-                DebugManager.warn(DebugCategory.LOOKDEV,
-                    "[ShaderCodeGenerator] Shader generation not available in STANDALONE mode");
-                return null;
-            }
-
             // Check for cycles
             DebugManager.debug(DebugCategory.LOOKDEV,
                 "[ShaderCodeGenerator] Checking for cycles in node graph");
@@ -133,6 +126,15 @@ public class ShaderCodeGenerator {
      * Generate fragment shader from node graph
      */
     private String generateFragmentShader(List<Node> executionOrder, OutputNode outputNode) {
+        // Emitting nodes discovers uniforms and samplers required by the shader header.
+        StringBuilder computations = new StringBuilder();
+        for (Node node : executionOrder) {
+            String nodeCode = emitter.emitNode(node, this);
+            if (nodeCode != null && !nodeCode.isEmpty()) {
+                computations.append(emitter.indent(nodeCode, 1)).append("\n");
+            }
+        }
+
         StringBuilder sb = new StringBuilder();
 
         // Header
@@ -154,14 +156,7 @@ public class ShaderCodeGenerator {
         // Main function start
         sb.append("void main() {\n");
 
-        // Generate code for each node in execution order
-        for (Node node : executionOrder) {
-            String nodeCode = emitter.emitNode(node, this);
-            if (nodeCode != null && !nodeCode.isEmpty()) {
-                sb.append(emitter.indent(nodeCode, 1));
-                sb.append("\n");
-            }
-        }
+        sb.append(computations);
 
         // Get final output values from MaterialOutputNode
         sb.append(emitter.indent("// Final material output", 1));
