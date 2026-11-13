@@ -1,7 +1,0 @@
-{
-  "variants": {
-    "": {
-      "model": "assimploader:block/cnc_machine"
-    }
-  }
-}

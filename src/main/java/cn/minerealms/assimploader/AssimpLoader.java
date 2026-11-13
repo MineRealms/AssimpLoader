@@ -7,6 +7,7 @@ import cn.minerealms.assimploader.cache.ModelCacheManager;
 import cn.minerealms.assimploader.render.AssimpGeometryLoader;
 import cn.minerealms.assimploader.render.GLCapabilityDetector;
 import cn.minerealms.assimploader.util.DebugLogger;
+import cn.minerealms.assimploader.util.AssimpLoaderPaths;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ModelEvent;
@@ -91,7 +92,7 @@ public class AssimpLoader {
         }
 
         // Register examples
-        cn.minerealms.assimploader.example.ExampleRegistry.register(modEventBus);
+        cn.minerealms.assimploader.showcase.ShowcaseRegistry.register(modEventBus);
 
         // Register auto-test manager (client-side only) - controlled by config
         if (FMLEnvironment.dist == Dist.CLIENT) {
@@ -122,6 +123,8 @@ public class AssimpLoader {
         event.enqueueWork(() -> {
             // Initialize debug logging from config
             boolean debugEnabled = AssimpLoaderConfig.CLIENT.debugEnabled.get();
+            DebugLogger.setDebugLogPath(AssimpLoaderPaths.resolveGamePath(
+                    AssimpLoaderConfig.CLIENT.debugLogPath.get(), "logs/assimploader-debug.log"));
             DebugLogger.setEnabled(debugEnabled);
 
             if (debugEnabled) {
@@ -130,7 +133,9 @@ public class AssimpLoader {
             }
 
             // Initialize DebugManager and PerformanceProfiler
-            cn.minerealms.assimploader.debug.DebugManager.enable();
+            cn.minerealms.assimploader.debug.DebugManager.configure(
+                    AssimpLoaderConfig.CLIENT.debugRateLimitMs.get(), AssimpLoaderConfig.CLIENT.debugCategories.get());
+            cn.minerealms.assimploader.debug.DebugManager.setEnabled(debugEnabled);
 
             // Enable profiling if configured
             if (AssimpLoaderConfig.CLIENT.profilingEnabled.get()) {
@@ -188,6 +193,7 @@ public class AssimpLoader {
      */
     public static void setDebugEnabled(boolean enabled) {
         DebugLogger.setEnabled(enabled);
+        cn.minerealms.assimploader.debug.DebugManager.setEnabled(enabled);
         LOGGER.info("AssimpLoader debug logging {}", enabled ? "enabled" : "disabled");
     }
 
