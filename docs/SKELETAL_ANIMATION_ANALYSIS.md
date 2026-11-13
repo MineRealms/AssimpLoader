@@ -1,5 +1,7 @@
 # Skeletal Animation Rendering Analysis
 
+> Historical analysis. CNC/CCB was subsequently removed at the user's request. The unchecked CNC animation task below remains a historical test gap, not a passed result. Current showcase assets are listed in [Model Showcase](MODEL_SHOWCASE.md); CIWS node pivots are not evidence of complex skeletal skinning coverage.
+
 ## Executive Summary
 
 **结论：AssimpLoader 已经完整支持 FBX 骨骼数据提取，但缺少 GPU 渲染管线集成。**

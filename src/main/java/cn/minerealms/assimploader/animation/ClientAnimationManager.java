@@ -3,6 +3,7 @@ package cn.minerealms.assimploader.animation;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import net.minecraft.client.Minecraft;
+import cn.minerealms.assimploader.core.AssimpModelLoader;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -33,28 +34,18 @@ public class ClientAnimationManager {
      * @return AnimationState for this model
      */
     public AnimationState getOrCreateAnimationState(String modelName) {
-        return animationStates.computeIfAbsent(modelName, name -> {
-            DebugManager.info(DebugCategory.ANIMATION,
-                "ClientAnimationManager: Creating AnimationState for item model '{}'", name);
-            AnimationState state = new AnimationState(name);
-
-            // Initialize the animation state
-            state.initialize();
-
-            // Auto-play first animation if available
-            if (state.isInitialized()) {
-                String[] availableAnimations = state.getAvailableAnimations();
-                if (availableAnimations != null && availableAnimations.length > 0) {
-                    String firstAnim = availableAnimations[0];
-                    state.playAnimation(firstAnim);
-                    DebugManager.info(DebugCategory.ANIMATION,
-                        "ClientAnimationManager: Auto-playing animation '{}' for item model '{}'",
-                        firstAnim, name);
-                }
-            }
-
-            return state;
-        });
+        var scene = AssimpModelLoader.getCachedModel(modelName);
+        if (scene == null || !scene.isDynamic() || (!scene.hasAnimations() && !scene.hasSkeleton())) {
+            animationStates.remove(modelName);
+            return null;
+        }
+        AnimationState existing = animationStates.get(modelName);
+        if (existing != null && existing.getScene() == scene) return existing;
+        AnimationState state = new AnimationState(modelName, scene);
+        state.initialize();
+        if (!state.isInitialized()) return null;
+        animationStates.put(modelName, state);
+        return state;
     }
 
     /**
@@ -68,7 +59,7 @@ public class ClientAnimationManager {
             return;
         }
 
-        float deltaTime = (currentTime - lastUpdateTime) / 1000.0f;
+        float deltaTime = Math.max(0, Math.min(0.25f, (currentTime - lastUpdateTime) / 1000.0f));
         lastUpdateTime = currentTime;
 
         // Update all active animations
@@ -83,8 +74,6 @@ public class ClientAnimationManager {
      * Clear all animation states (e.g., on resource reload).
      */
     public void clear() {
-        DebugManager.info(DebugCategory.ANIMATION,
-            "ClientAnimationManager: Clearing {} animation states", animationStates.size());
         animationStates.clear();
         lastUpdateTime = 0;
     }

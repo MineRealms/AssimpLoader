@@ -11,6 +11,7 @@ import org.lwjgl.assimp.AIMesh;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 /**
  * Per-instance animation state for a BlockEntity or Entity.
@@ -36,10 +37,14 @@ public class AnimationState {
     private final Map<AssimpMesh, org.joml.Matrix4f[]> cachedBoneTransforms = new HashMap<>();
 
     public AnimationState(String modelName) {
+        this(modelName, AssimpModelLoader.getCachedModel(modelName,
+                cn.minerealms.assimploader.core.ModelImportMode.DYNAMIC));
+    }
+
+    public AnimationState(String modelName, AssimpScene scene) {
         this.modelName = modelName;
-        // IMPORTANT: Always use DYNAMIC mode for animation - STATIC mode removes bones!
-        this.scene = AssimpModelLoader.getCachedModel(modelName, cn.minerealms.assimploader.core.ModelImportMode.DYNAMIC);
-        this.animationPlayers = new HashMap<>();
+        this.scene = scene;
+        this.animationPlayers = new LinkedHashMap<>();
         this.boneHierarchies = new HashMap<>();
 
         if (scene == null) {
@@ -74,7 +79,7 @@ public class AnimationState {
 
         // Create animation players for each animation in the FBX
         for (AssimpAnimation animation : scene.getAnimations()) {
-            AnimationPlayer player = new AnimationPlayer(animation);
+            AnimationPlayer player = new AnimationPlayer(animation, scene.getRootNode());
             player.setLooping(true);
             animationPlayers.put(animation.getName(), player);
 
@@ -90,6 +95,7 @@ public class AnimationState {
         }
 
         initialized = true;
+        applyCurrentTransforms();
     }
 
     /**
@@ -108,21 +114,14 @@ public class AnimationState {
         // Mark transforms as dirty - need recalculation
         transformsDirty = true;
 
-        // Log animation time occasionally (every 60 frames = ~3 seconds at 20 TPS)
-        if (updateCounter++ % 60 == 0) {
-            DebugManager.info(DebugCategory.ANIMATION,
-                "AnimationState update: animation='{}', time={}s, meshes with bones={}",
-                currentAnimation.getAnimation().getName(),
-                currentAnimation.getCurrentTime(),
-                boneHierarchies.size());
-        }
+        applyCurrentTransforms();
+    }
 
-        // Update bone hierarchies with new transforms
+    private void applyCurrentTransforms() {
+        Map<String, org.joml.Matrix4f> boneTransforms = currentAnimation == null
+                ? Map.of() : currentAnimation.getBoneTransforms();
         for (Map.Entry<AssimpMesh, BoneHierarchyBuilder> entry : boneHierarchies.entrySet()) {
             BoneHierarchyBuilder boneHierarchy = entry.getValue();
-
-            // Apply animation transforms to bones
-            Map<String, org.joml.Matrix4f> boneTransforms = currentAnimation.getBoneTransforms();
             for (Map.Entry<String, org.joml.Matrix4f> transform : boneTransforms.entrySet()) {
                 boneHierarchy.updateBoneTransform(transform.getKey(), transform.getValue());
             }
@@ -131,8 +130,6 @@ public class AnimationState {
             boneHierarchy.updateTransforms();
         }
     }
-
-    private int updateCounter = 0;
 
     /**
      * Play a specific animation by name
@@ -152,7 +149,10 @@ public class AnimationState {
         }
 
         currentAnimation = player;
+        for (BoneHierarchyBuilder hierarchy : boneHierarchies.values()) hierarchy.resetToBindPose();
         currentAnimation.play();
+        applyCurrentTransforms();
+        transformsDirty = true;
 
         DebugManager.debug(DebugCategory.ANIMATION, "Playing animation: {}", animationName);
         return true;

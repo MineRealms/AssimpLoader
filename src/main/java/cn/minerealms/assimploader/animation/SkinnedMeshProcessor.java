@@ -9,6 +9,7 @@ import org.lwjgl.assimp.AIVertexWeight;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Arrays;
 
 /**
  * Processes skinned mesh data for skeletal animation.
@@ -31,27 +32,36 @@ public class SkinnedMeshProcessor {
      * Get max bones per vertex from config
      */
     private static int getMaxBonesPerVertex() {
-        return AssimpLoaderConfig.getIntOrDefault(AssimpLoaderConfig.COMMON.animMaxBonesPerVertex, 4);
+        return Math.max(1, Math.min(8,
+                AssimpLoaderConfig.getIntOrDefault(AssimpLoaderConfig.COMMON.animMaxBonesPerVertex, 4)));
     }
 
     /**
      * Vertex bone data structure
      */
-    private static class VertexBoneData {
-        int[] boneIndices = new int[8]; // Max 8 bones (configurable)
-        float[] boneWeights = new float[8];
+    static class VertexBoneData {
+        final int[] boneIndices;
+        final float[] boneWeights;
         int count = 0;
 
-        void addBoneData(int boneIndex, float weight) {
-            int maxBones = getMaxBonesPerVertex();
-            if (count >= maxBones) {
-                DebugManager.warn(DebugCategory.ANIMATION, "Vertex has more than {} bones, ignoring extra bones", maxBones);
-                return;
-            }
+        VertexBoneData(int maxBones) {
+            boneIndices = new int[maxBones];
+            Arrays.fill(boneIndices, -1);
+            boneWeights = new float[maxBones];
+        }
 
-            boneIndices[count] = boneIndex;
-            boneWeights[count] = weight;
-            count++;
+        void addBoneData(int boneIndex, float weight) {
+            if (boneIndex < 0 || !Float.isFinite(weight) || weight <= 0) return;
+            int slot = Math.min(count, boneWeights.length - 1);
+            if (count == boneWeights.length && weight <= boneWeights[slot]) return;
+            while (slot > 0 && weight > boneWeights[slot - 1]) {
+                boneIndices[slot] = boneIndices[slot - 1];
+                boneWeights[slot] = boneWeights[slot - 1];
+                slot--;
+            }
+            boneIndices[slot] = boneIndex;
+            boneWeights[slot] = weight;
+            count = Math.min(count + 1, boneWeights.length);
         }
 
         void normalize() {
@@ -74,13 +84,14 @@ public class SkinnedMeshProcessor {
     public static SkinnedMeshData extractBoneWeights(AIMesh aiMesh, Map<String, Integer> boneNameToIndexMap) {
         int numVertices = aiMesh.mNumVertices();
         int numBones = aiMesh.mNumBones();
+        int maxBones = getMaxBonesPerVertex();
 
         DebugManager.debug(DebugCategory.ANIMATION, "Extracting bone weights: {} vertices, {} bones", numVertices, numBones);
 
         // Initialize vertex bone data
         VertexBoneData[] vertexBoneData = new VertexBoneData[numVertices];
         for (int i = 0; i < numVertices; i++) {
-            vertexBoneData[i] = new VertexBoneData();
+            vertexBoneData[i] = new VertexBoneData(maxBones);
         }
 
         // Extract bone weights
@@ -116,15 +127,14 @@ public class SkinnedMeshProcessor {
         }
 
         // Convert to flat arrays
-        return convertToFlatArrays(vertexBoneData);
+        return convertToFlatArrays(vertexBoneData, maxBones);
     }
 
     /**
      * Convert vertex bone data to flat arrays for GPU
      */
-    private static SkinnedMeshData convertToFlatArrays(VertexBoneData[] vertexBoneData) {
+    private static SkinnedMeshData convertToFlatArrays(VertexBoneData[] vertexBoneData, int maxBones) {
         int numVertices = vertexBoneData.length;
-        int maxBones = getMaxBonesPerVertex();
         int[] boneIndices = new int[numVertices * maxBones];
         float[] boneWeights = new float[numVertices * maxBones];
 
@@ -138,7 +148,7 @@ public class SkinnedMeshProcessor {
             }
         }
 
-        return new SkinnedMeshData(boneIndices, boneWeights);
+        return new SkinnedMeshData(boneIndices, boneWeights, numVertices);
     }
 
     /**
@@ -147,10 +157,20 @@ public class SkinnedMeshProcessor {
     public static class SkinnedMeshData {
         private final int[] boneIndices;
         private final float[] boneWeights;
+        private final int vertexCount;
 
         public SkinnedMeshData(int[] boneIndices, float[] boneWeights) {
+            this(boneIndices, boneWeights, boneIndices.length / getMaxBonesPerVertex());
+        }
+
+        public SkinnedMeshData(int[] boneIndices, float[] boneWeights, int vertexCount) {
+            if (boneIndices.length != boneWeights.length || vertexCount < 0
+                    || (vertexCount == 0 ? boneIndices.length != 0 : boneIndices.length % vertexCount != 0)) {
+                throw new IllegalArgumentException("Invalid bone influence layout");
+            }
             this.boneIndices = boneIndices;
             this.boneWeights = boneWeights;
+            this.vertexCount = vertexCount;
         }
 
         public int[] getBoneIndices() {
@@ -162,8 +182,7 @@ public class SkinnedMeshProcessor {
         }
 
         public int getVertexCount() {
-            int maxBones = getMaxBonesPerVertex();
-            return boneIndices.length / maxBones;
+            return vertexCount;
         }
     }
 }
