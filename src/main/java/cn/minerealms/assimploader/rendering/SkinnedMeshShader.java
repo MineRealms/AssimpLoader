@@ -41,6 +41,10 @@ public class SkinnedMeshShader {
     private int u_LightColor;
     private int u_AmbientColor;
     private int u_LightLevel;
+    private int u_Tint;
+    private int u_BoneCount;
+    private int u_Lightmap, u_Overlay, u_LightUV, u_OverlayUV, u_ColorModulator;
+    private int u_FogStart, u_FogEnd, u_FogColor, u_FogShape;
 
     private boolean compiled = false;
 
@@ -51,6 +55,10 @@ public class SkinnedMeshShader {
      * Compile and link the shader program
      */
     public void compile() throws IOException {
+        compile(cn.minerealms.assimploader.render.GLCapabilityDetector.isTBOSupported());
+    }
+
+    public void compile(boolean useTBO) throws IOException {
         if (compiled) {
             return;
         }
@@ -59,10 +67,10 @@ public class SkinnedMeshShader {
         String vertexSource;
         String fragmentSource;
 
-        try {
+        if (useTBO) {
             vertexSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh_tbo.vert"));
             fragmentSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh_tbo.frag"));
-        } catch (IOException e) {
+        } else {
             // Fallback to standard shaders
             vertexSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh.vert"));
             fragmentSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh.frag"));
@@ -95,6 +103,17 @@ public class SkinnedMeshShader {
         u_LightColor = GL20.glGetUniformLocation(programId, "u_LightColor");
         u_AmbientColor = GL20.glGetUniformLocation(programId, "u_AmbientColor");
         u_LightLevel = GL20.glGetUniformLocation(programId, "u_LightLevel");
+        u_Tint = GL20.glGetUniformLocation(programId, "u_Tint");
+        u_BoneCount = GL20.glGetUniformLocation(programId, "u_BoneCount");
+        u_Lightmap = GL20.glGetUniformLocation(programId, "u_Lightmap");
+        u_Overlay = GL20.glGetUniformLocation(programId, "u_Overlay");
+        u_LightUV = GL20.glGetUniformLocation(programId, "u_LightUV");
+        u_OverlayUV = GL20.glGetUniformLocation(programId, "u_OverlayUV");
+        u_ColorModulator = GL20.glGetUniformLocation(programId, "u_ColorModulator");
+        u_FogStart = GL20.glGetUniformLocation(programId, "u_FogStart");
+        u_FogEnd = GL20.glGetUniformLocation(programId, "u_FogEnd");
+        u_FogColor = GL20.glGetUniformLocation(programId, "u_FogColor");
+        u_FogShape = GL20.glGetUniformLocation(programId, "u_FogShape");
 
         compiled = true;
     }
@@ -143,9 +162,11 @@ public class SkinnedMeshShader {
         int maxBones = 64; // Reduced for compatibility
         int boneCount = Math.min(matrices.length / 16, maxBones);
         if (boneCount > 0) {
-            float[] truncated = new float[boneCount * 16];
-            System.arraycopy(matrices, 0, truncated, 0, truncated.length);
-            GL20.glUniformMatrix4fv(u_BoneMatrices, false, truncated);
+            if (matrices.length <= maxBones * 16) GL20.glUniformMatrix4fv(u_BoneMatrices, false, matrices);
+            else {
+                float[] truncated = java.util.Arrays.copyOf(matrices, boneCount * 16);
+                GL20.glUniformMatrix4fv(u_BoneMatrices, false, truncated);
+            }
         }
     }
 
@@ -202,27 +223,51 @@ public class SkinnedMeshShader {
         GL20.glUniform1f(u_LightLevel, level);
     }
 
+    public void setTint(float[] tint) {
+        GL20.glUniform4f(u_Tint, tint[0], tint[1], tint[2], tint[3]);
+    }
+
+    public void setBoneCount(int count) {
+        GL20.glUniform1i(u_BoneCount, count);
+    }
+
+    public void setMinecraftLighting(int light, int overlay) {
+        GL20.glUniform1i(u_Overlay, 1);
+        GL20.glUniform1i(u_Lightmap, 2);
+        GL20.glUniform2i(u_LightUV, light & 0xffff, light >>> 16 & 0xffff);
+        GL20.glUniform2i(u_OverlayUV, overlay & 0xffff, overlay >>> 16 & 0xffff);
+        float[] color = RenderSystem.getShaderColor(), fog = RenderSystem.getShaderFogColor();
+        GL20.glUniform4f(u_ColorModulator, color[0], color[1], color[2], color[3]);
+        GL20.glUniform1f(u_FogStart, RenderSystem.getShaderFogStart());
+        GL20.glUniform1f(u_FogEnd, RenderSystem.getShaderFogEnd());
+        GL20.glUniform4f(u_FogColor, fog[0], fog[1], fog[2], fog[3]);
+        GL20.glUniform1i(u_FogShape, RenderSystem.getShaderFogShape().getIndex());
+    }
+
     /**
      * Clean up shader resources
      */
     public void delete() {
-        if (compiled) {
+        if (vertexShaderId != 0) {
             GL20.glDeleteShader(vertexShaderId);
-            GL20.glDeleteShader(fragmentShaderId);
-            GL20.glDeleteProgram(programId);
-            compiled = false;
+            vertexShaderId = 0;
         }
+        if (fragmentShaderId != 0) {
+            GL20.glDeleteShader(fragmentShaderId);
+            fragmentShaderId = 0;
+        }
+        if (programId != 0) {
+            GL20.glDeleteProgram(programId);
+            programId = 0;
+        }
+        compiled = false;
     }
 
     /**
      * Load shader source from resource location
      */
     private String loadShaderSource(ResourceLocation location) throws IOException {
-        String path = "/assets/" + location.getNamespace() + "/" + location.getPath();
-        try (InputStream stream = SkinnedMeshShader.class.getResourceAsStream(path)) {
-            if (stream == null) {
-                throw new IOException("Shader not found: " + path);
-            }
+        try (InputStream stream = Minecraft.getInstance().getResourceManager().open(location)) {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
                 return reader.lines().collect(Collectors.joining("\n"));
             }
@@ -239,6 +284,7 @@ public class SkinnedMeshShader {
 
         if (GL20.glGetShaderi(shaderId, GL20.GL_COMPILE_STATUS) == GL20.GL_FALSE) {
             String log = GL20.glGetShaderInfoLog(shaderId);
+            GL20.glDeleteShader(shaderId);
             String typeName = type == GL20.GL_VERTEX_SHADER ? "vertex" : "fragment";
             throw new RuntimeException("Failed to compile " + typeName + " shader: " + log);
         }

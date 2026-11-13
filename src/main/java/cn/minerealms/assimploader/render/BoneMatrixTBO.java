@@ -46,16 +46,21 @@ public class BoneMatrixTBO {
         }
 
         // Upload matrix data to buffer
-        buffer.clear();
-        for (Matrix4f matrix : matrices) {
-            matrix.get(buffer);
-        }
-        buffer.flip();
+        packMatrices(matrices, buffer);
 
         // Upload to GPU
         GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, tboId);
         GL15.glBufferData(GL31.GL_TEXTURE_BUFFER, buffer, GL15.GL_DYNAMIC_DRAW);
         GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, 0);
+    }
+
+    /** Pack consecutive column-major matrices without relying on JOML advancing the cursor. */
+    static void packMatrices(Matrix4f[] matrices, FloatBuffer target) {
+        target.clear();
+        for (int i = 0; i < matrices.length; i++) {
+            matrices[i].get(i * 16, target);
+        }
+        target.limit(matrices.length * 16);
     }
 
     /**
