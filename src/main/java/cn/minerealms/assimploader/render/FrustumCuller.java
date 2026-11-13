@@ -6,14 +6,14 @@ import net.minecraft.world.phys.AABB;
 import org.joml.Matrix4f;
 
 /**
- * Frustum culling utility to skip rendering off-screen entities.
- * Reduces rendering overhead by 50-70% in large scenes.
+ * Frustum culling utility for callers with a camera-relative view-projection matrix.
  */
 public class FrustumCuller {
     private static FrustumCuller instance;
     private Frustum frustum;
     private Matrix4f lastViewProjection;
     private boolean initialized = false;
+    private double cameraX, cameraY, cameraZ;
 
     private FrustumCuller() {
         this.frustum = new Frustum(new Matrix4f(), new Matrix4f());
@@ -32,10 +32,10 @@ public class FrustumCuller {
      * Call this once per frame before rendering
      */
     public void updateFrustum(Matrix4f viewProjection) {
-        if (!lastViewProjection.equals(viewProjection)) {
+        if (!initialized || !lastViewProjection.equals(viewProjection)) {
             lastViewProjection.set(viewProjection);
-            // Minecraft's Frustum.prepare() takes 3 doubles (x, y, z camera position)
-            // We'll need to call this differently - store the matrix for now
+            frustum = new Frustum(new Matrix4f(), viewProjection);
+            frustum.prepare(cameraX, cameraY, cameraZ);
             initialized = true;
         }
     }
@@ -45,8 +45,10 @@ public class FrustumCuller {
      * Call this once per frame before rendering
      */
     public void updateFrustum(double camX, double camY, double camZ) {
+        cameraX = camX;
+        cameraY = camY;
+        cameraZ = camZ;
         frustum.prepare(camX, camY, camZ);
-        initialized = true;
     }
 
     /**
@@ -91,5 +93,6 @@ public class FrustumCuller {
     public void reset() {
         initialized = false;
         lastViewProjection.identity();
+        cameraX = cameraY = cameraZ = 0;
     }
 }

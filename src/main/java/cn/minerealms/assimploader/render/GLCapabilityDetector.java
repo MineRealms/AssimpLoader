@@ -57,7 +57,7 @@ public class GLCapabilityDetector {
 
             if (computeShaderSupported) {
                 int maxWorkGroupSize = GL11.glGetInteger(GL43.GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS);
-                int maxWorkGroupCountX = GL11.glGetInteger(GL43.GL_MAX_COMPUTE_WORK_GROUP_COUNT);
+                int maxWorkGroupCountX = GL30.glGetIntegeri(GL43.GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0);
                 AssimpLoader.LOGGER.info("Max Compute Work Group Invocations: {}", maxWorkGroupSize);
                 AssimpLoader.LOGGER.info("Max Compute Work Group Count (X): {}", maxWorkGroupCountX);
             }
@@ -102,11 +102,11 @@ public class GLCapabilityDetector {
     private static void logOptimizationRecommendations() {
         AssimpLoader.LOGGER.info("=== Optimization Recommendations ===");
 
-        if (glVersionMajor >= 4 && glVersionMinor >= 3) {
+        if (glVersionMajor > 4 || (glVersionMajor == 4 && glVersionMinor >= 3)) {
             AssimpLoader.LOGGER.info("OpenGL 4.3+: All optimizations available (Compute Shader, SSBO, TBO, UBO, Instancing)");
-        } else if (glVersionMajor >= 3 && glVersionMinor >= 3) {
+        } else if (glVersionMajor > 3 || (glVersionMajor == 3 && glVersionMinor >= 3)) {
             AssimpLoader.LOGGER.info("OpenGL 3.3+: TBO, UBO, and Instancing available. Compute Shader not supported.");
-        } else if (glVersionMajor >= 3 && glVersionMinor >= 1) {
+        } else if (glVersionMajor == 3 && glVersionMinor >= 1) {
             AssimpLoader.LOGGER.info("OpenGL 3.1+: TBO and UBO available. Instancing and Compute Shader not supported.");
         } else {
             AssimpLoader.LOGGER.warn("OpenGL < 3.1: Limited optimization support. Consider upgrading GPU drivers.");
