@@ -1,5 +1,8 @@
 package cn.minerealms.assimploader.resource;
 
+import cn.minerealms.assimploader.core.AssimpModelLoader;
+import cn.minerealms.assimploader.core.ModelImportMode;
+import cn.minerealms.assimploader.model.AssimpScene;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
@@ -28,6 +31,17 @@ public class ResourcePackIntegration {
         return INSTANCE;
     }
 
+    public AssimpScene loadModel(ResourceLocation location, ModelImportMode mode) throws IOException {
+        ResourceManager manager = Minecraft.getInstance().getResourceManager();
+        ResourceLocation resolved = resolveModelLocation(location.getNamespace(), location.getPath());
+        if (manager.getResource(resolved).isPresent()) return AssimpModelLoader.loadCachedResource(manager, resolved, mode);
+        for (String extension : new String[]{"fbx", "glb", "gltf", "dae", "obj", "blend", "3ds"}) {
+            ResourceLocation candidate = new ResourceLocation(resolved.getNamespace(), resolved.getPath() + "." + extension);
+            if (manager.getResource(candidate).isPresent()) return AssimpModelLoader.loadCachedResource(manager, candidate, mode);
+        }
+        throw new IOException("Model resource not found: " + resolved);
+    }
+
     /**
      * Loads a model file from Minecraft's resource system.
      * Returns an InputStream for the model data.
@@ -48,25 +62,25 @@ public class ResourcePackIntegration {
     }
 
     /**
-     * Extracts a model file to a temporary location for Assimp to load.
-     * Assimp requires file paths, not streams, so we need to extract resources.
+     * Exports just the main file for diagnostics. Model loading uses the resource IO adapter instead.
      */
+    @Deprecated
     public Optional<Path> extractModelToTemp(ResourceLocation location) {
         Optional<InputStream> stream = loadModelStream(location);
         if (stream.isEmpty()) {
             return Optional.empty();
         }
 
-        try {
+        Path tempFile = null;
+        try (InputStream in = stream.get()) {
             // Create temp file with appropriate extension
             String fileName = location.getPath();
-            String extension = fileName.substring(fileName.lastIndexOf('.'));
-            Path tempFile = Files.createTempFile("assimp_model_", extension);
+            int dot = fileName.lastIndexOf('.');
+            String extension = dot >= 0 ? fileName.substring(dot) : ".model";
+            tempFile = Files.createTempFile("assimp_model_", extension);
 
             // Copy resource to temp file
-            try (InputStream in = stream.get()) {
-                Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
-            }
+            Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
 
             // Mark for deletion on exit
             tempFile.toFile().deleteOnExit();
@@ -75,6 +89,13 @@ public class ResourcePackIntegration {
             return Optional.of(tempFile);
 
         } catch (IOException e) {
+            if (tempFile != null) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (IOException cleanupFailure) {
+                    e.addSuppressed(cleanupFailure);
+                }
+            }
             LOGGER.error("Failed to extract model to temp file: {}", location, e);
             return Optional.empty();
         }

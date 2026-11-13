@@ -1,133 +1,57 @@
 package cn.minerealms.assimploader.resource;
 
-import cn.minerealms.assimploader.cache.ModelCacheManager;
+import cn.minerealms.assimploader.core.AssimpModelLoader;
+import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpScene;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.io.IOException;
 
-/**
- * Central registry for all loaded Assimp models.
- * Provides model lookup and lifecycle management.
- */
-public class ModelRegistry {
+/** Compatibility API over the canonical loader. Variant labels do not create duplicate scene ownership. */
+public final class ModelRegistry {
     private static final Logger LOGGER = LoggerFactory.getLogger(ModelRegistry.class);
     private static final ModelRegistry INSTANCE = new ModelRegistry();
 
-    private final Map<ModelResourceLocation, AssimpScene> models = new ConcurrentHashMap<>();
-    private final ModelCacheManager cacheManager = ModelCacheManager.getInstance();
-
     private ModelRegistry() {}
+    public static ModelRegistry getInstance() { return INSTANCE; }
 
-    public static ModelRegistry getInstance() {
-        return INSTANCE;
-    }
-
-    /**
-     * Registers a model with the registry.
-     */
     public void registerModel(ModelResourceLocation location, AssimpScene scene) {
-        models.put(location, scene);
-        LOGGER.info("Registered model: {}", location);
+        AssimpModelLoader.registerModel(resource(location), scene);
     }
 
-    /**
-     * Gets a model from the registry, loading it if necessary.
-     */
     public AssimpScene getModel(ModelResourceLocation location) {
-        return models.computeIfAbsent(location, this::loadModel);
-    }
-
-    /**
-     * Gets a model by simple ResourceLocation (uses default variant).
-     */
-    public AssimpScene getModel(ResourceLocation location) {
-        return getModel(new ModelResourceLocation(location));
-    }
-
-    private AssimpScene loadModel(ModelResourceLocation location) {
+        ResourceLocation resource = resource(location);
+        ModelImportMode mode = location.isAnimated() ? ModelImportMode.DYNAMIC : ModelImportMode.STATIC;
+        AssimpScene cached = AssimpModelLoader.getCachedModel(AssimpModelLoader.canonicalIdentity(resource), mode);
+        if (cached != null) return cached;
         try {
-            String path = resolveModelPath(location);
-            AssimpScene scene = cacheManager.loadModel(path);
-
-            if (scene == null) {
-                LOGGER.error("Failed to load model: {}", location);
-                return null;
-            }
-
-            LOGGER.info("Loaded model: {} from {}", location, path);
-            return scene;
-        } catch (Exception e) {
-            LOGGER.error("Error loading model: {}", location, e);
+            return ResourcePackIntegration.getInstance().loadModel(resource, mode);
+        } catch (IOException exception) {
+            LOGGER.error("Cannot load model {}", location, exception);
             return null;
         }
     }
 
-    /**
-     * Resolves a ModelResourceLocation to an actual file path.
-     * Searches in resource packs and mod resources.
-     */
-    private String resolveModelPath(ModelResourceLocation location) {
-        ResourceLocation rl = location.getLocation();
+    public AssimpScene getModel(ResourceLocation location) { return getModel(new ModelResourceLocation(location)); }
 
-        // Try multiple search paths
-        String[] searchPaths = {
-            "assets/" + rl.getNamespace() + "/models/" + rl.getPath(),
-            "assets/" + rl.getNamespace() + "/models/" + rl.getPath() + ".fbx",
-            "assets/" + rl.getNamespace() + "/models/" + rl.getPath() + ".gltf",
-            "assets/" + rl.getNamespace() + "/models/" + rl.getPath() + ".obj",
-            "models/" + rl.getPath(),
-            "models/" + rl.getPath() + ".fbx"
-        };
-
-        // Check if file exists in any search path
-        for (String path : searchPaths) {
-            java.io.File file = new java.io.File(path);
-            if (file.exists()) {
-                LOGGER.debug("Resolved model path: {} -> {}", location, path);
-                return path;
-            }
-        }
-
-        // Fallback to default path
-        String defaultPath = "assets/" + rl.getNamespace() + "/models/" + rl.getPath();
-        LOGGER.warn("Model file not found, using default path: {}", defaultPath);
-        return defaultPath;
-    }
-
-    /**
-     * Checks if a model is registered.
-     */
     public boolean hasModel(ModelResourceLocation location) {
-        return models.containsKey(location);
+        return AssimpModelLoader.getCachedModel(AssimpModelLoader.canonicalIdentity(resource(location)),
+                location.isAnimated() ? ModelImportMode.DYNAMIC : ModelImportMode.STATIC) != null;
     }
 
-    /**
-     * Unregisters a model and cleans up its resources.
-     */
     public void unregisterModel(ModelResourceLocation location) {
-        AssimpScene scene = models.remove(location);
-        if (scene != null) {
-            LOGGER.info("Unregistered model: {}", location);
-        }
+        String key = AssimpModelLoader.canonicalIdentity(resource(location)) + (location.isAnimated() ? "#dynamic" : "#static");
+        AssimpModelLoader.removeCachedModel(key);
     }
 
-    /**
-     * Clears all registered models.
-     */
-    public void clearAll() {
-        models.clear();
-        cacheManager.clearCache();
-        LOGGER.info("Cleared all models from registry");
-    }
+    public void clearAll() { AssimpModelLoader.clearCache(); }
+    public int getModelCount() { return AssimpModelLoader.getLoadedModels().size(); }
 
-    /**
-     * Gets the number of registered models.
-     */
-    public int getModelCount() {
-        return models.size();
+    private static ResourceLocation resource(ModelResourceLocation location) {
+        ResourceLocation resource = location.getLocation();
+        String path = resource.getPath();
+        return new ResourceLocation(resource.getNamespace(), path.startsWith("models/") ? path : "models/" + path);
     }
 }

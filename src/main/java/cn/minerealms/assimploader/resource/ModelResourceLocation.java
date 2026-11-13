@@ -42,7 +42,7 @@ public class ModelResourceLocation {
      * Example: "assimploader:models/entity/zombie.gltf"
      */
     public String toFilePath() {
-        return "models/" + location.getPath();
+        return location.getPath().startsWith("models/") ? location.getPath() : "models/" + location.getPath();
     }
 
     @Override
