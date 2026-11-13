@@ -1,0 +1,5 @@
+{
+  "loader": "assimploader:assimp",
+  "model": "assimploader:models/showcase/probe_no_uv.fbx",
+  "mode": "static"
+}
