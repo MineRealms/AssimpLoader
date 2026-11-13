@@ -13,8 +13,19 @@ import java.util.function.Consumer;
  */
 public class AssimpBlockItem extends BlockItem {
 
+    private final String modelName;
+
     public AssimpBlockItem(Block block, Properties properties) {
+        this(block, properties, null);
+    }
+
+    public AssimpBlockItem(Block block, Properties properties, String modelName) {
         super(block, properties);
+        this.modelName = modelName;
+    }
+
+    public String getModelName() {
+        return modelName;
     }
 
     @Override
