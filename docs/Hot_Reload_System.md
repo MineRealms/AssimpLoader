@@ -1,113 +1,103 @@
-# FBX Model Hot-Reload System
+# Model Hot-Reload System
 
-## Overview
+This guide describes the current client implementation. Model parsing runs on workers; complete replacement batches are published to the shared model repository. See [loading and lifecycle details](LOADING_FIXES.md) and the [PBR asset specification](PBR_ASSET_SPEC.md) for material requirements.
 
-This system allows you to hot-reload FBX models without restarting Minecraft, making model iteration much faster during development.
+## Configure the Model Directory
 
-## Setup
+Edit `<game-directory>/config/assimploader-client.toml`:
 
-1. **External Model Directory**: `H:\MinecraftMods\ImprovedMobs\models`
-   - Place your FBX files in this directory
-   - Files should be named with `.fbx` extension (e.g., `cnc.fbx`, `machine.fbx`)
-
-2. **Model Naming**: The model name is extracted from the filename without extension
-   - `cnc.fbx` → model name: `cnc`
-   - `my_model.fbx` → model name: `my_model`
-
-## Usage
-
-### In-Game Command
-
+```toml
+[hotreload]
+    enabled = true
+    resourcePath = "AssimpLoader/Resource"
+    autoReloadEnabled = false
+    watcherPollInterval = 1000
+    supportedExtensions = ["fbx", "gltf", "glb", "dae", "obj", "blend"]
 ```
+
+Relative paths resolve against the active Minecraft game directory, not the shell working directory or another mod's project. Forge `runClient` normally uses this project's `run/` directory. An absolute directory can be configured explicitly; there is no hardcoded developer drive.
+
+The default override layout is:
+
+```text
+<game-directory>/AssimpLoader/Resource/
+  assimploader/
+    models/
+      showcase/
+        ciws_textured.fbx
+        portal_pbr.fbx
+        textures/
+          body.png
+```
+
+The legacy layout `<resourcePath>/models/...` also means namespace `assimploader`. Other namespaces must use `<resourcePath>/<namespace>/models/...`.
+
+Keep the complete model resource path. For example, both of these target `assimploader:models/showcase/ciws_textured.fbx`:
+
+```text
+AssimpLoader/Resource/assimploader/models/showcase/ciws_textured.fbx
+AssimpLoader/Resource/models/showcase/ciws_textured.fbx
+```
+
+Use one layout per model. Two files targeting the same identity cause the batch to fail instead of selecting one arbitrarily. Model identity includes namespace, full extensionless path and import mode; a bare filename is only a convenience alias when unambiguous. Paths must satisfy Minecraft resource naming rules, so use lowercase names. Symlinks escaping the configured root are rejected.
+
+## Manual Reload
+
+```text
 /assimploader reload
 ```
 
-**Requirements**: OP level 2 (operator permissions)
+This is a local client command. It needs no OP permission and affects only this client's model assets, including on multiplayer. The mod and command must be installed on the client, and `hotreload.enabled` must be true.
 
-**What it does**:
-1. Scans `H:\MinecraftMods\ImprovedMobs\models` directory
-2. Loads all `.fbx` files found
-3. Updates the model cache with new data
-4. Triggers a resource pack reload to refresh all models in-game
+The command:
 
-### Workflow
+1. Creates the root's `models/` directory if needed and scans the configured root recursively.
+2. Imports files matching `supportedExtensions` away from the render thread.
+3. Preserves already loaded STATIC/DYNAMIC variants; a new external-only model starts as STATIC.
+4. Publishes the completed batch only if imports succeeded and the resource generation is still current.
+5. Invalidates dependent client render resources; current scenes and textures are rebuilt/uploaded as needed by the normal client render path.
 
-1. **Edit your FBX model** in Blender/Maya/etc.
-2. **Export to** `H:\MinecraftMods\ImprovedMobs\models\your_model.fbx`
-3. **Run command** `/assimploader reload` in-game
-4. **See changes** immediately without restarting Minecraft!
+A failed required import leaves the previous batch intact. Deleting an override restores the scene saved when that override was first applied, or removes the entry if it existed only as an external model. A scene initially loaded through `rendering.externalModelDirectory` can itself be that saved original; F3+T performs a fresh lookup against the current files and packs. A successful command reports the number of imported **variants**, which can exceed the file count.
 
-## Technical Details
+The command does not create block/item registry entries or JSON wrappers for arbitrary new files. Replace a model that already has a registered renderer, or use [LookDev](LOOKDEV_PREVIEW.md) to inspect loaded scenes.
 
-### Architecture
+## F3+T and Persistent Overrides
 
-- **ModelHotReloadManager**: Scans directory and loads FBX files
-- **AssimpModelLoader**: Static cache for hot-reloaded models
-- **AssimpGeometryLoader**: Checks cache before loading from resources
-- **ModelHotReloadCommand**: Brigadier command registration
+F3+T performs Minecraft's full resource-pack reload and model rebake. It clears the repository and hot-reload override tracking before loading the JSON-referenced resources again. `/assimploader reload` publishes an external batch directly; it does not trigger a full resource-pack reload.
 
-### Model Priority
+To make the same external files participate in initial loading and F3+T, also configure:
 
-When baking a model, the system checks in this order:
-1. **Hot-reloaded cache** (from `/assimploader reload` command)
-2. **Resource pack** (from `assets/modid/models/...`)
-3. **JAR resources** (bundled with mod)
-
-### Supported Features
-
-All standard FBX features are supported:
-- ✅ PhongE materials with diffuse colors
-- ✅ Vertex colors
-- ✅ UV coordinates
-- ✅ Normals
-- ✅ Multiple meshes
-- ✅ Coordinate system conversion (right-hand → left-hand)
-- ✅ Minecraft lighting integration
-
-## Example
-
-```bash
-# 1. Export your model
-# Blender: File → Export → FBX (.fbx)
-# Save to: H:\MinecraftMods\ImprovedMobs\models\cnc.fbx
-
-# 2. In Minecraft, run:
-/assimploader reload
-
-# Output:
-# [AssimpLoader] Starting model hot-reload...
-# [AssimpLoader] Hot-reloading model: cnc from H:\MinecraftMods\ImprovedMobs\models\cnc.fbx
-# [AssimpLoader] Successfully reloaded model: cnc
-# [AssimpLoader] Successfully reloaded 1 model(s)!
+```toml
+[rendering]
+    externalModelDirectory = "AssimpLoader/Resource"
 ```
+
+The geometry loader first searches `<externalModelDirectory>/<namespace>/<resourcePath>` and, only for namespace `assimploader`, the legacy `<externalModelDirectory>/<resourcePath>`. It then falls back to the selected resource packs and bundled resources. The default value is empty, which disables this initial-load override. Keep it aligned with `hotreload.resourcePath` when using one folder for both workflows.
+
+Without `rendering.externalModelDirectory`, F3+T restores the resource-pack model; run `/assimploader reload` afterward to reapply the external batch. F3+T is also the normal path for resource-pack/JSON changes. If resource reload overlaps a background external import, the stale batch is rejected; retry once resource loading finishes.
+
+## Automatic Reload
+
+Set `hotreload.autoReloadEnabled = true` to enable polling. `watcherPollInterval` is milliseconds, defaults to 1000, and accepts 100 through 10000. Scans run on a worker and fingerprint regular files by path, size and modification time. A changed fingerprint requests the same batch reload as the command.
+
+This is a polling watcher, not a guarantee that an editor has finished writing every side file. Export to a temporary location, then replace the completed files together, or use manual reload after the exporter finishes. A failed automatic reload is logged; fix/save the files again or run the command to retry.
+
+## Textures and Animations
+
+- Keep embedded images or relative texture references valid. For file imports, external textures must remain inside the model file's directory or its descendants; do not reference an absolute authoring-machine path or `../` outside that directory.
+- Keep glTF `.bin` and other required side files with their model. Reload imports complete scenes, including animation data supported by the selected format and import mode.
+- STATIC import pretransforms geometry. Use a DYNAMIC JSON model when node hierarchy, pivots or animation must remain available.
+- For PBR conventions, raw Blender maps and LabPBR `_n`/`_s` files have different meanings. Follow the [PBR specification](PBR_ASSET_SPEC.md); a grayscale roughness image is not a ready-to-use `_s` texture.
 
 ## Troubleshooting
 
-### Command not found
-- Make sure you have OP permissions (level 2+)
-- Check that the mod is loaded (`/mods` command)
+| Symptom | Check |
+|---|---|
+| Command is unavailable | Client has AssimpLoader installed; use the command in the client's chat. It is not a dedicated-server command. |
+| Reload reports disabled | `hotreload.enabled` in the active instance's client config. |
+| No variants imported | Active game directory, configured root, allowed extensions and full resource paths. |
+| Previous model remains | `logs/latest.log` for import errors, duplicate identities, invalid resource names or a concurrent resource reload. |
+| Model reverts after F3+T | Configure `rendering.externalModelDirectory` or reapply the external batch after resource reload. |
+| Missing texture | Relative paths, embedded image names and directory containment; examine material source diagnostics before judging PBR in the world. |
 
-### Models not updating
-- Verify the FBX file is in the correct directory
-- Check the filename matches the model reference in your JSON
-- Look for errors in `logs/latest.log`
-
-### Directory not found
-- The system will create the directory automatically on first use
-- Manually create: `mkdir H:\MinecraftMods\ImprovedMobs\models`
-
-## Performance Notes
-
-- Hot-reload triggers a full resource pack reload (`F3+T` equivalent)
-- This may cause a brief freeze (1-3 seconds) depending on resource pack size
-- Model cache is stored in memory - no disk I/O after initial load
-- Concurrent loading is thread-safe (uses `ConcurrentHashMap`)
-
-## Future Enhancements
-
-Potential improvements:
-- [ ] Watch directory for automatic reload on file change
-- [ ] Selective model reload (only changed files)
-- [ ] Hot-reload for animations
-- [ ] Hot-reload for textures
-- [ ] Web-based model preview
+Reload cost depends on file count, geometry, texture decoding and subsequent GPU upload. Workers avoid native parsing on the render thread, but no fixed stall time or zero-overhead guarantee is made.

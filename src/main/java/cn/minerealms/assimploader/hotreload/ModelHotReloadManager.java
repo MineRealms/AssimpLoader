@@ -1,171 +1,160 @@
 package cn.minerealms.assimploader.hotreload;
 
-import cn.minerealms.assimploader.AssimpLoader;
-import cn.minerealms.assimploader.animation.ClientAnimationManager;
+import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
+import cn.minerealms.assimploader.core.AsyncModelLoader;
+import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpScene;
-import net.minecraft.client.Minecraft;
+import cn.minerealms.assimploader.util.AssimpLoaderPaths;
+import net.minecraft.resources.ResourceLocation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.stream.Stream;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
-/**
- * Manages hot-reloading of models from .minecraft/AssimpLoader/Resource directory.
- *
- * Directory structure:
- * - .minecraft/AssimpLoader/Resource/models/    - Model files (FBX, GLTF, etc.)
- * - .minecraft/AssimpLoader/Resource/textures/  - Texture files
- * - .minecraft/AssimpLoader/Resource/animations/ - Animation files
- */
-public class ModelHotReloadManager {
+/** Manual and automatic external overrides share the canonical repository and publish complete batches. */
+public final class ModelHotReloadManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ModelHotReloadManager.class);
+    private static final Object LOCK = new Object();
+    private static Map<String, AssimpScene> originals = Map.of();
+    private static Set<String> overrideKeys = Set.of();
+    private static CompletableFuture<Integer> pending;
 
-    // Use relative path from game directory (.minecraft)
-    private static final Path EXTERNAL_MODEL_DIR = getGameDirectory().resolve("AssimpLoader/Resource/models");
-    private static final Map<String, AssimpScene> loadedModels = new HashMap<>();
+    private ModelHotReloadManager() {}
 
-    /**
-     * Get the game directory (.minecraft)
-     */
-    private static Path getGameDirectory() {
-        return Minecraft.getInstance().gameDirectory.toPath();
+    public static boolean isEnabled() {
+        return AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.hotReloadEnabled::get, true);
     }
 
-    /**
-     * Reload all models from AssimpLoader/Resource/models directory
-     * Scans recursively and preserves directory structure for model names
-     * @return Number of models successfully reloaded
-     */
-    public static int reloadModels() {
-        AssimpLoader.LOGGER.info("Starting hot-reload from: {}", EXTERNAL_MODEL_DIR.toAbsolutePath());
+    public static Path getResourceRoot() {
+        String configured = AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.hotReloadResourcePath::get, "AssimpLoader/Resource");
+        return AssimpLoaderPaths.resolveGamePath(configured, "AssimpLoader/Resource");
+    }
 
-        if (!Files.exists(EXTERNAL_MODEL_DIR)) {
-            AssimpLoader.LOGGER.warn("Hot-reload directory does not exist: {}", EXTERNAL_MODEL_DIR.toAbsolutePath());
-            AssimpLoader.LOGGER.info("Create directory at: {}", EXTERNAL_MODEL_DIR.toAbsolutePath());
-            try {
-                Files.createDirectories(EXTERNAL_MODEL_DIR);
-                AssimpLoader.LOGGER.info("Created hot-reload directory");
-            } catch (IOException e) {
-                AssimpLoader.LOGGER.error("Failed to create hot-reload directory", e);
-            }
+    /** This compatibility entry point blocks its caller; commands and the watcher use reloadModelsAsync(). */
+    public static int reloadModels() {
+        try {
+            return reloadModelsAsync().join();
+        } catch (CompletionException exception) {
+            LOGGER.error("External model reload failed", exception.getCause());
             return 0;
         }
+    }
 
-        int reloadedCount = 0;
-        loadedModels.clear();
-
-        try (Stream<Path> files = Files.walk(EXTERNAL_MODEL_DIR)) {
-            for (Path file : files.filter(Files::isRegularFile).toList()) {
-                String fileName = file.getFileName().toString().toLowerCase();
-
-                // Support multiple model formats
-                String extension = null;
-                if (fileName.endsWith(".fbx")) {
-                    extension = ".fbx";
-                } else if (fileName.endsWith(".gltf")) {
-                    extension = ".gltf";
-                } else if (fileName.endsWith(".glb")) {
-                    extension = ".glb";
-                } else if (fileName.endsWith(".dae")) {
-                    extension = ".dae";
-                } else if (fileName.endsWith(".obj")) {
-                    extension = ".obj";
-                } else if (fileName.endsWith(".blend")) {
-                    extension = ".blend";
-                }
-
-                if (extension == null) {
-                    continue; // Skip unsupported files
-                }
-
+    public static CompletableFuture<Integer> reloadModelsAsync() {
+        if (!isEnabled()) return CompletableFuture.failedFuture(new IOException("Model hot reload is disabled in configuration"));
+        Path root;
+        try {
+            root = getResourceRoot();
+        } catch (RuntimeException exception) {
+            return CompletableFuture.failedFuture(new IOException("Invalid external model resource path", exception));
+        }
+        synchronized (LOCK) {
+            if (pending != null && !pending.isDone()) return pending;
+            long generation = AssimpModelLoader.getCacheGeneration();
+            Map<String, AssimpScene> before = AssimpModelLoader.getLoadedModels();
+            Map<String, AssimpScene> originalSnapshot = new HashMap<>(originals);
+            Set<String> previousKeys = Set.copyOf(overrideKeys);
+            List<String> extensions = new ArrayList<>(AssimpLoaderConfig.getOrDefault(
+                    AssimpLoaderConfig.CLIENT.hotReloadSupportedExtensions::get, List.of("fbx", "gltf", "glb", "dae", "obj", "blend")));
+            pending = CompletableFuture.supplyAsync(() -> {
                 try {
-                    // Get relative path from EXTERNAL_MODEL_DIR to preserve directory structure
-                    // Example: AssimpLoader/Resource/models/block/cnc.fbx -> block/cnc
-                    Path relativePath = EXTERNAL_MODEL_DIR.relativize(file);
-                    String relativePathStr = relativePath.toString().replace('\\', '/');
-                    String modelName = relativePathStr.substring(0, relativePathStr.lastIndexOf('.'));
-
-                    AssimpLoader.LOGGER.info("Hot-reloading model: {} from {}", modelName, file);
-
-                    // Get simple model name for cache lookup
-                    String simpleModelName = fileName.substring(0, fileName.lastIndexOf('.'));
-
-                    // Check if this model exists in resource pack cache to get its original mode
-                    AssimpScene existingScene = AssimpModelLoader.getCachedModel(simpleModelName);
-                    cn.minerealms.assimploader.core.ModelImportMode mode = cn.minerealms.assimploader.core.ModelImportMode.STATIC;
-
-                    if (existingScene != null) {
-                        mode = existingScene.getImportMode();
-                        AssimpLoader.LOGGER.info("Using existing mode {} for model {}", mode, simpleModelName);
-                    } else {
-                        AssimpLoader.LOGGER.warn("Model {} not found in cache, defaulting to STATIC mode", simpleModelName);
-                    }
-
-                    // Decode on the model-loader pool when async loading is enabled
-                    AssimpScene scene = cn.minerealms.assimploader.core.AsyncModelLoader.loadBlocking(file, mode);
-
-                    if (scene != null) {
-                        // Store with full path as key (e.g., "models/block/cnc")
-                        loadedModels.put(modelName, scene);
-
-                        // Also store with just filename for backward compatibility (e.g., "cnc")
-                        loadedModels.put(simpleModelName, scene);
-
-                        // CRITICAL: Update global cache so all systems use the new model
-                        // This ensures hot-reload takes priority over resource pack and JAR resources
-                        AssimpModelLoader.updateModelCache(simpleModelName, scene);
-                        AssimpModelLoader.updateModelCache(modelName, scene); // Also update full path key
-
-                        reloadedCount++;
-                        AssimpLoader.LOGGER.info("Successfully reloaded model: {} (also as: {}) with mode {}",
-                            modelName, simpleModelName, mode);
-                    } else {
-                        AssimpLoader.LOGGER.error("Failed to load model: {}", file);
-                    }
-                } catch (Exception e) {
-                    AssimpLoader.LOGGER.error("Error loading model from {}", file, e);
+                    return reload(root, extensions, generation, before, originalSnapshot, previousKeys);
+                } catch (IOException exception) {
+                    throw new CompletionException(exception);
                 }
+            });
+            return pending;
+        }
+    }
+
+    private static int reload(Path root, List<String> extensions, long generation,
+                              Map<String, AssimpScene> before, Map<String, AssimpScene> base,
+                              Set<String> previous) throws IOException {
+        Files.createDirectories(root.resolve("models"));
+        Path realRoot = root.toRealPath();
+        Map<String, AssimpScene> replacement = new HashMap<>();
+        Map<String, AssimpScene> nextOriginals = new HashMap<>();
+        Set<String> nextKeys = new HashSet<>();
+        List<Path> paths;
+        try (var files = Files.walk(root)) {
+            paths = files.filter(Files::isRegularFile).sorted().toList();
+        }
+        for (Path path : paths) {
+            String filename = path.getFileName().toString();
+            int dot = filename.lastIndexOf('.');
+            if (dot < 0 || extensions.stream().noneMatch(extension -> extension.equalsIgnoreCase(filename.substring(dot + 1)))) continue;
+            if (!path.toRealPath().startsWith(realRoot)) throw new IOException("External model symlink escapes configured root: " + path);
+            ResourceLocation location = resourceLocation(root.relativize(path).toString().replace('\\', '/'));
+            String identity = AssimpModelLoader.canonicalIdentity(location);
+            List<String> existingKeys = before.keySet().stream().filter(key -> key.startsWith(identity + "#")).toList();
+            if (existingKeys.isEmpty()) existingKeys = List.of(identity + "#static");
+            for (String key : existingKeys) {
+                ModelImportMode mode = key.endsWith("#dynamic") ? ModelImportMode.DYNAMIC : ModelImportMode.STATIC;
+                AssimpScene scene = AsyncModelLoader.loadBlocking(path, mode);
+                if (scene == null) throw new IOException("Failed to load external model: " + path);
+                if (replacement.put(key, scene) != null) throw new IOException("Duplicate external model identity: " + key);
+                nextKeys.add(key);
+                AssimpScene original = previous.contains(key) ? base.get(key) : before.get(key);
+                if (original != null) nextOriginals.put(key, original);
             }
-        } catch (IOException e) {
-            AssimpLoader.LOGGER.error("Error scanning external model directory", e);
         }
-
-        // Trigger model manager refresh on client
-        if (reloadedCount > 0) {
-            refreshModelManager();
+        Set<String> removed = new HashSet<>(previous);
+        removed.removeAll(nextKeys);
+        for (String deleted : removed) {
+            AssimpScene original = base.get(deleted);
+            if (original != null) replacement.put(deleted, original);
         }
-
-        AssimpLoader.LOGGER.info("Hot-reload complete. Reloaded {} model(s)", reloadedCount);
-        return reloadedCount;
+        synchronized (LOCK) {
+            if (!isEnabled()) throw new IOException("Model hot reload was disabled while parsing");
+            if (!AssimpModelLoader.replaceCachedModels(generation, replacement, removed)) {
+                throw new IOException("Model resources changed during external reload; retry after the resource reload finishes");
+            }
+            originals = Map.copyOf(nextOriginals);
+            overrideKeys = Set.copyOf(nextKeys);
+        }
+        LOGGER.info("Reloaded {} external model variants from {}", nextKeys.size(), root);
+        return nextKeys.size();
     }
 
-    /**
-     * Get a hot-reloaded model by name
-     */
-    public static AssimpScene getModel(String modelName) {
-        return loadedModels.get(modelName);
+    static ResourceLocation resourceLocation(String relative) throws IOException {
+        String path = relative;
+        String namespace = "assimploader";
+        int slash = path.indexOf('/');
+        if (slash > 0 && path.substring(slash + 1).startsWith("models/")) {
+            namespace = path.substring(0, slash);
+            path = path.substring(slash + 1);
+        } else if (!path.startsWith("models/")) {
+            path = "models/" + path;
+        }
+        try {
+            return new ResourceLocation(namespace, path);
+        } catch (RuntimeException exception) {
+            throw new IOException("Invalid external model resource name: " + relative, exception);
+        }
     }
 
-    /**
-     * Check if a model has been hot-reloaded
-     */
-    public static boolean hasModel(String modelName) {
-        return loadedModels.containsKey(modelName);
+    public static AssimpScene getModel(String name) {
+        AssimpScene scene = AssimpModelLoader.getCachedModel(name);
+        if (scene == null) return null;
+        synchronized (LOCK) {
+            return overrideKeys.stream().anyMatch(key -> AssimpModelLoader.getCachedModel(key) == scene) ? scene : null;
+        }
     }
 
-    /**
-     * Refresh the Minecraft model manager to apply changes
-     * Hot-reload only updates external model cache, does NOT trigger resource pack reload
-     */
-    private static void refreshModelManager() {
-        // Clear ClientAnimationManager cache so items get new AnimationState
-        ClientAnimationManager.clearCache();
-        AssimpLoader.LOGGER.info("Cleared ClientAnimationManager cache for hot-reload");
+    public static boolean hasModel(String name) {
+        return getModel(name) != null;
+    }
 
-        AssimpLoader.LOGGER.info("Hot-reload complete. All renderers will use new models.");
+    public static void forgetOverrides() {
+        synchronized (LOCK) {
+            originals = Map.of();
+            overrideKeys = Set.of();
+        }
     }
 }
