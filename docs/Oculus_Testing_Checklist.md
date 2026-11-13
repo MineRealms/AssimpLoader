@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides a comprehensive testing checklist for the Oculus shader integration in AssimpLoader. All tests should pass before merging the OculusSupport branch.
+This document is a manual test plan, not a record that every listed configuration has passed. Current completed checks and screenshots are recorded in [PBR Validation](PBR_VALIDATION_2026-11-13.md); setup and limitations are in [Oculus PBR Usage](OCULUS_PBR_USAGE.md). CNC/CCB was removed at the user's request, so tests below use the current showcase fixtures.
 
 ## Test Environment Setup
 
@@ -27,20 +27,27 @@ This document provides a comprehensive testing checklist for the Oculus shader i
 4. **Oculus with PBR Shader Pack**
    - Minecraft 1.20.1 with Forge
    - AssimpLoader + Oculus mods
-   - PBR-capable shader pack (BSL, Complementary, Seus PTGI)
-   - Shaders enabled
+   - A shader pack configured to consume LabPBR entity textures
+   - The validated setup is Oculus 1.8.0, Embeddium 0.3.31 and Complementary Unbound r5.3 with `RP_MODE=3`; other packs/settings require separate verification
+   - Shaders and the pack's resource-pack/PBR material setting enabled
 
 ### Test Models
 
-Use these existing models:
-- **CNC Machine** (`models/block/cnc.fbx`) - Opaque model
-- **CCB Block** (`models/block/ccb.fbx`) - Transparent model
+Use the assets listed in [Model Showcase](MODEL_SHOWCASE.md):
+
+| Fixture | World/item ID | Purpose |
+|---|---|---|
+| Textured CIWS | `assimploader:showcase_ciws_textured` | Opaque geometry, embedded base-color texture and articulated node hierarchy |
+| PBR probe | `assimploader:showcase_pbr_probe` | Normal-map detail and matte/polished dielectric/metal comparison |
+| PBR portal | `assimploader:showcase_portal_pbr` | Multiple materials, metal, rough surfaces, glass and emission |
+
+The CIWS base-color atlas alone is not evidence that authored normal/roughness/metallic images reached the shader. Use the probe or portal for that check. `/assimpdemo` places the showcase in a sufficiently clear area and requires permission level 2; the local `/assimploader reload` command has no OP requirement.
 
 ## Phase 1: Soft Dependency Detection
 
 ### Test 1.1: Mod Loading Without Oculus
 - [ ] Launch Minecraft without Oculus installed
-- [ ] Check logs for: "Oculus not found - using vanilla rendering"
+- [ ] Confirm Oculus is absent and the model uses the vanilla rendering path
 - [ ] Verify no ClassNotFoundException or NoClassDefFoundError
 - [ ] Verify game loads successfully
 
@@ -48,7 +55,7 @@ Use these existing models:
 
 ### Test 1.2: Mod Loading With Oculus
 - [ ] Launch Minecraft with Oculus installed
-- [ ] Check logs for: "Oculus detected - shader support enabled"
+- [ ] Confirm Oculus is detected and the shader state matches the selected pack
 - [ ] Verify OculusCompat initializes successfully
 - [ ] Verify game loads successfully
 
@@ -65,7 +72,7 @@ Use these existing models:
 ## Phase 2: Vanilla Rendering (No Oculus)
 
 ### Test 2.1: Block Entity Rendering
-- [ ] Place CNC machine block in world
+- [ ] Place `assimploader:showcase_ciws_textured` in world
 - [ ] Verify model renders correctly
 - [ ] Check texture is applied
 - [ ] Verify lighting works (day/night cycle)
@@ -74,7 +81,7 @@ Use these existing models:
 **Expected Result**: Perfect vanilla rendering
 
 ### Test 2.2: Item Rendering
-- [ ] Hold CNC machine item in hand (first person)
+- [ ] Hold `assimploader:showcase_ciws_textured` in hand (first person)
 - [ ] View in third person
 - [ ] Place in inventory GUI
 - [ ] Drop on ground
@@ -83,20 +90,22 @@ Use these existing models:
 **Expected Result**: Correct rendering in all contexts
 
 ### Test 2.3: Transparent Model
-- [ ] Place CCB block in world
+- [ ] Place `assimploader:showcase_portal_pbr` in world
 - [ ] Verify transparency works correctly
 - [ ] Check no z-fighting or sorting issues
-- [ ] Verify lighting through transparent parts
+- [ ] Verify glass uses authored alpha and remains visible against the background
 
 **Expected Result**: Proper transparency rendering
 
-### Test 2.4: Performance
+### Test 2.4: Optional Performance Investigation
+
+Run this only when investigating a concrete performance issue; it is not required for the current bug-fix acceptance.
 - [ ] Place 50+ test blocks in world
 - [ ] Measure FPS (F3 debug screen)
 - [ ] Verify no performance degradation
 - [ ] Check memory usage is stable
 
-**Expected Result**: No performance impact vs. baseline
+**Expected Result**: Record frame-time/memory observations with fixture count and hardware; do not infer zero overhead from an unmeasured scene
 
 ## Phase 3: Oculus Installed, Shaders Disabled
 
@@ -104,22 +113,22 @@ Use these existing models:
 - [ ] Launch with Oculus but shaders disabled
 - [ ] Verify vanilla rendering is used
 - [ ] Check logs for: shader detection returns false
-- [ ] Verify no shader-specific code executes
+- [ ] Verify the renderer does not replace the active vanilla shader program with a PBR-specific program
 
 **Expected Result**: Identical to vanilla rendering
 
-### Test 3.2: No Performance Overhead
+### Test 3.2: Optional Performance Comparison
 - [ ] Measure FPS with shaders disabled
 - [ ] Compare to vanilla (no Oculus) FPS
-- [ ] Verify difference is < 1%
+- [ ] Record differences and measurement conditions if this optional test is performed
 
-**Expected Result**: Negligible performance difference
+**Expected Result**: A measured result, with no unverified percentage claim
 
 ## Phase 4: Shader-Aware Rendering
 
 ### Test 4.1: Basic Shader Compatibility
 - [ ] Enable basic shader pack (Sildur's Lite)
-- [ ] Place CNC machine block
+- [ ] Place `assimploader:showcase_ciws_textured`
 - [ ] Verify model renders with shader effects
 - [ ] Check lighting is shader-enhanced
 - [ ] Verify shadows work correctly
@@ -128,8 +137,8 @@ Use these existing models:
 
 ### Test 4.2: RenderType Selection
 - [ ] Check logs for RenderType selection
-- [ ] Verify entityCutout is used for opaque materials
-- [ ] Verify entityTranslucent is used for transparent materials
+- [ ] Verify opaque materials use the entity-cutout shader state with triangle geometry
+- [ ] Verify glass uses the entity-translucent shader state with triangle geometry
 - [ ] Confirm shader compatibility
 
 **Expected Result**: Correct RenderType based on material
@@ -143,9 +152,9 @@ Use these existing models:
 **Expected Result**: Proper shadow casting
 
 ### Test 4.4: Translucency with Shaders
-- [ ] Place CCB block with shaders enabled
+- [ ] Place `assimploader:showcase_portal_pbr` with shaders enabled
 - [ ] Verify transparency works with shader effects
-- [ ] Check refraction/distortion if supported
+- [ ] Verify authored alpha blending and PBR highlights; Blender Transmission/IOR is not converted into physical refraction
 - [ ] Verify no rendering glitches
 
 **Expected Result**: Enhanced transparency rendering
@@ -153,18 +162,16 @@ Use these existing models:
 ## Phase 5: PBR Texture Support
 
 ### Test 5.1: PBR System Detection
-- [ ] Enable PBR shader pack (BSL/Complementary)
-- [ ] Check logs for: "PBR texture system initialized successfully"
-- [ ] Verify isPBRAvailable() returns true
-- [ ] Confirm PBRTextureManager is accessible
+- [ ] Enable the configured LabPBR shader pack described above
+- [ ] Check for `Registered Oculus PBR loader for AssimpLoader material textures`
+- [ ] Inspect ready material diagnostics for actual normal/specular images and their sources
+- [ ] Confirm the probe's three materials retain distinct PBR textures despite sharing an albedo
 
-**Expected Result**: PBR system initializes correctly
+**Expected Result**: Actual material channels are prepared and handed to Oculus. A positive API flag or nonzero default texture ID alone does not establish this
 
 ### Test 5.2: Conventional Texture Paths
-- [ ] Create test model with textures:
-  - `test.png` (albedo)
-  - `test_n.png` (normal map)
-  - `test_s.png` (specular map)
+- [ ] Use a copy of the PBR probe and explicitly pack `body_n.png`/`body_s.png` as LabPBR siblings of the referenced `body.png`
+- [ ] Keep raw Blender normal/roughness/metallic filenames separate; follow [PBR Asset Specification](PBR_ASSET_SPEC.md)
 - [ ] Place block in world
 - [ ] Verify all textures are loaded
 - [ ] Check logs for PBR texture registration
@@ -172,7 +179,7 @@ Use these existing models:
 **Expected Result**: All PBR textures detected and loaded
 
 ### Test 5.3: Normal Map Rendering
-- [ ] Create model with detailed normal map
+- [ ] Use the PBR probe's normal-detail surface or the portal's authored normal maps
 - [ ] Enable PBR shader pack
 - [ ] Verify surface detail from normal map
 - [ ] Check lighting responds to normals
@@ -181,13 +188,13 @@ Use these existing models:
 **Expected Result**: Realistic surface detail
 
 ### Test 5.4: Specular Map Rendering
-- [ ] Create model with varied specular map
+- [ ] Use the probe's matte dielectric, polished dielectric and polished metal materials
 - [ ] Enable PBR shader pack
 - [ ] Verify reflectivity varies across surface
-- [ ] Check highlights respond to lighting
+- [ ] Capture matched views with AssimpLoader PBR enabled/disabled under the same active shader pack
 - [ ] Verify roughness/metallic properties
 
-**Expected Result**: Realistic material properties
+**Expected Result**: Roughness/metal response changes in matched world captures; retain material source diagnostics alongside the screenshots
 
 ### Test 5.5: PBR Fallback
 - [ ] Enable non-PBR shader pack
@@ -226,9 +233,12 @@ Use these existing models:
 ## Phase 7: Hot-Reload Testing
 
 ### Test 7.1: Model Hot-Reload
+
+Use the namespace/path layout and separate F3+T behavior in [Model Hot-Reload](Hot_Reload_System.md).
+
 - [ ] Place test block in world
-- [ ] Modify FBX model file
-- [ ] Trigger hot-reload
+- [ ] Modify an external copy of `ciws_textured.fbx` at the configured override path
+- [ ] Run `/assimploader reload` and wait for its success/failure message
 - [ ] Verify model updates correctly
 - [ ] Check texture cache is cleared
 
@@ -251,7 +261,9 @@ Use these existing models:
 
 **Expected Result**: Smooth shader pack transitions
 
-## Phase 8: Performance Testing
+## Phase 8: Optional Performance Testing
+
+This historical benchmark plan is deferred for the current bug-fix work. No entries below imply measurements have been run.
 
 ### Test 8.1: Baseline Performance
 - [ ] Measure FPS with vanilla rendering
@@ -297,13 +309,13 @@ Use these existing models:
 
 ## Success Criteria
 
-All tests must pass with these results:
+For tests actually executed, record results with version/settings and evidence. The unchecked list is not an assertion of broad compatibility or measured overhead:
 
 ✅ **No Crashes**: Zero crashes in any configuration  
 ✅ **Graceful Degradation**: Works perfectly without Oculus  
 ✅ **Shader Compatibility**: Works with major shader packs  
 ✅ **PBR Support**: Normal/specular maps work when supported  
-✅ **Performance**: < 5% overhead when shaders disabled  
+**Performance**: Investigate observed regressions; attach measurements only when the optional comparison is performed.
 ✅ **Visual Quality**: No artifacts, glitches, or missing faces  
 ✅ **Error Handling**: Clean fallback on any error  
 

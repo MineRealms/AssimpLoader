@@ -1,5 +1,7 @@
 # Gaussian Splatting 集成完整报告
 
+> 历史实现记录，不能作为当前完成验收。`faf7b5e` 已删除 Gaussian 示例的世界入口；下文描述的缺陷属于当时快照，当前布局、排序及回退修复见 [Gaussian 修复](../GAUSSIAN_FIXES_2026-11-13.md)，首轮问题见 [2026-11-13 审计报告](../AUDIT_2026-11-13.md#剩余问题)。
+
 ## 项目概述
 
 已完成 3D Gaussian Splatting (3DGS) 渲染系统的完整集成，包括数据加载、GPU 渲染、Oculus 兼容性、LOD 优化等功能。

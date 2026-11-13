@@ -1,5 +1,7 @@
 # Oculus Integration Plan for AssimpLoader
 
+> Historical plan. CNC/CCB was subsequently removed at the user's request. Use the CIWS for opaque geometry and the portal/PBR probe for transparency and material tests in the [current test checklist](Oculus_Testing_Checklist.md). Proposed checks below are not completed validation; current results are in [PBR Validation](PBR_VALIDATION_2026-11-13.md).
+
 ## Overview
 
 This document outlines the integration strategy for Oculus (Iris Shaders for Forge) support in AssimpLoader. The integration will be implemented as a **soft dependency** - AssimpLoader will work with or without Oculus, providing enhanced shader-based rendering when available.
@@ -256,9 +258,9 @@ public class AssimpShaderUniforms {
 
 ### Test Models
 
-- **Opaque Model**: CNC machine (existing)
-- **Translucent Model**: CCB block (existing)
-- **PBR Model**: New test model with normal/specular maps
+- **Opaque Model**: `assimploader:showcase_ciws_textured`
+- **Translucent Model**: `assimploader:showcase_portal_pbr` (authored glass alpha)
+- **PBR Model**: `assimploader:showcase_pbr_probe` (normal/roughness/metallic inputs)
 
 ## File Structure
 

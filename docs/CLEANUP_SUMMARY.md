@@ -1,9 +1,11 @@
 # AssimpLoader Cleanup & Configuration System - Summary
 
+> Historical cleanup record. The original cleanup kept CNC/CCB; it was subsequently removed at the user's request. Current examples are the CIWS, knife, probes and portal described in [Model Showcase](MODEL_SHOWCASE.md). The file lists and completion claims below describe that earlier cleanup, not a new verification result. For current reload behavior, use [Model Hot-Reload](Hot_Reload_System.md).
+
 ## Completed Tasks
 
 ### 1. ✅ Removed Example Blocks
-**Kept**: CNC (CCB) block with FBX model
+**Kept at that time**: CNC (CCB) block with FBX model; subsequently removed
 **Removed**:
 - Circle block (animated FBX)
 - TestModel block (CNC machine)
@@ -20,8 +22,8 @@
 - All Java files for removed blocks
 
 **Updated Files**:
-- `ExampleRegistry.java` - Now only registers CNC block
-- `ExampleClientEvents.java` - Only registers CCB renderer
+- `ExampleRegistry.java` - At that time, only registered the CNC block
+- `ExampleClientEvents.java` - At that time, only registered the CCB renderer
 
 ---
 
@@ -248,11 +250,11 @@ Edit `.minecraft/config/assimploader-client.toml`:
 ## Summary
 
 Successfully cleaned up the AssimpLoader codebase by:
-1. Removing all example blocks except CNC (CCB)
+1. Removing the older examples while retaining CNC (CCB) at that time; CNC/CCB was subsequently removed
 2. Migrating hot-reload to relative .minecraft path
 3. Removing hardcoded DEBUG flag
 4. Implementing comprehensive Forge config system
 5. Migrating 17 hardcoded constants to config
 6. Creating detailed documentation
 
-The mod is now more maintainable, user-friendly, and performant!
+This summary is retained for migration history. It does not establish current runtime correctness or performance.

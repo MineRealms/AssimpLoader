@@ -31,3 +31,6 @@ libs/
 # Local scratch
 miscdoc/
 *.log
+__pycache__/
+*.py[cod]
+*.blend[0-9]

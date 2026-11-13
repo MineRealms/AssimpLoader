@@ -2,7 +2,7 @@
 
 ## 概述
 
-AssimpLoader 现在拥有完整的骨骼动画系统，支持从 FBX 文件加载和播放动画。每个方块/物品都有独立的动画状态，可以播放不同的动画。
+本页保留动画集成的示例设计，代码片段不是可直接复制的完整 Mod。当前实现与验证边界见 [加载修复](LOADING_FIXES.md) 和 [修复与验收](FIXES_2026-11-13.md)；美术导出的单位、UV、PBR、层级和枢轴要求见 [资产接入规范](PBR_ASSET_SPEC.md)。每个方块/物品应使用独立动画状态，不修改共享缓存场景。
 
 ## 系统架构
 
@@ -33,7 +33,7 @@ SkinnedMeshRenderer (GPU 蒙皮渲染)
 - **动画 (Animations)**: 一个或多个动画片段
 
 **推荐设置**:
-- 导出格式: FBX 2020 或更新版本
+- 导出格式: Assimp 可读的二进制 FBX；当前 Blender 导出的 FBX 7400 已验证，无需所谓 FBX 2020 以上
 - 包含: Mesh, Skeleton, Animation, Skin Weights
 - 坐标系: Y-up (会自动转换到 Minecraft 坐标系)
 
@@ -46,16 +46,19 @@ SkinnedMeshRenderer (GPU 蒙皮渲染)
 assets/assimploader/models/your_model.fbx
 ```
 
-#### 方式 B: 热重载 (Hot Reload) - 推荐开发时使用
+#### 方式 B: 配置的外部覆盖目录
+
+设置 `hotreload.resourcePath`，目录结构为 `<root>/<namespace>/<resourcePath>`。例如：
+
 ```
-H:/MinecraftMods/AssimpLoader/external_models/your_model.fbx
+<root>/assimploader/models/your_model.fbx
 ```
 
-热重载会自动监控文件变化，修改后立即生效，无需重启游戏。
+客户端执行 `/assimploader reload`，或配置 `hotreload.autoReloadEnabled` 开启监听。资源包修改可按 F3+T；注册代码仍需重启。详见 [加载与重载](LOADING_FIXES.md)。有动画的 geometry JSON 必须使用 `"mode": "dynamic"`。
 
 ### 3. 创建方块 (Block)
 
-参考 `TestModelBlock.java`:
+方块定义示意：
 
 ```java
 public class MyAnimatedBlock extends BaseEntityBlock {
@@ -81,7 +84,7 @@ public class MyAnimatedBlock extends BaseEntityBlock {
 
 ### 4. 创建 BlockEntity
 
-参考 `TestModelBlockEntity.java`:
+方块实体定义示意：
 
 ```java
 public class MyAnimatedBlockEntity extends BlockEntity {
@@ -305,12 +308,7 @@ public void tick() {
 SkinnedMeshRenderer 会自动缓存每个网格的 VBO，相同模型的多个实例共享 VBO。
 
 ### 2. 动画更新频率
-默认每 tick 更新一次 (20 TPS)。如果需要更流畅的动画，可以在 render 方法中使用 partialTick：
-
-```java
-float deltaTime = 0.05f * partialTick; // 插值
-animationState.update(deltaTime);
-```
+通常每 tick 更新一次 (20 TPS)。`partialTick` 是当前 tick 内的插值位置，不是每帧经过的时间；不要每帧再累计 `0.05 * partialTick`，否则动画速度随帧率变化。需要平滑显示时在独立采样状态插值，或使用真实帧时间，并避免与 tick 重复推进同一播放器。
 
 ### 3. 按需初始化
 AnimationState 使用懒加载，只在第一次访问时初始化，节省内存。
@@ -370,13 +368,11 @@ A: 优化建议：
 
 ## 示例项目
 
-参考以下文件查看完整示例：
-- `TestModelBlock.java` - 方块定义
-- `TestModelBlockEntity.java` - BlockEntity 实现
-- `TestModelBlockEntityRenderer.java` - 渲染器实现
-- `ExampleRegistry.java` - 注册代码
+当前展示注册与资源链参考 `showcase/ShowcaseRegistry.java`、`ShowcaseBlockEntity.java` 和 `ShowcaseBlockEntityRenderer.java`。它们用于静止展示，并非完整骨骼动画示例；原有 TestModel / CNC / CCB 注册类不再存在。动画实例接入应参考 `AnimationState` 与 `render/base/AnimatedBlockEntityRenderer` 的实际 API。
 
-## 下一步
+## 历史规划
+
+以下为早期规划，不代表当前缺失清单。动画混合、IK 等已有实现和数据测试，实际可用范围以修复记录为准。
 
 - [ ] 添加动画混合 (Animation Blending)
 - [ ] 添加动画过渡 (Animation Transition)

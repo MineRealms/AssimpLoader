@@ -1,5 +1,7 @@
 # GLSL Transformer Integration - 完成报告
 
+> 历史框架搭建报告。当前注入器处理测试模板，尚未接入真实 Iris shader 源；不能以本报告的阶段完成率作为游戏内效果验收。当前结论见 [2026-11-13 审计报告](../AUDIT_2026-11-13.md)。
+
 ## 执行概览
 
 已成功完成 `glsl-transformer.md` 文档中 Phase 1、Phase 2 和 Phase 4 的基础框架搭建。

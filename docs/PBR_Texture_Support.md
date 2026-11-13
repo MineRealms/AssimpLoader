@@ -1,5 +1,7 @@
 # PBR Texture Support for Oculus Integration
 
+> Historical design. Use the [current Oculus PBR guide](OCULUS_PBR_USAGE.md) and [asset specification](PBR_ASSET_SPEC.md) for implemented FBX/glTF conversion, the optional loader bridge, LabPBR channels and runtime verification. The APIs and assumptions below are retained as historical notes. CNC/CCB was subsequently removed at the user's request; current fixtures are the CIWS, PBR probe and portal in [Model Showcase](MODEL_SHOWCASE.md).
+
 ## Overview
 
 AssimpLoader now supports PBR (Physically Based Rendering) textures when Oculus shaders are active. This enables FBX models to use normal maps, specular maps, and other advanced material properties for realistic lighting and surface detail.
@@ -61,17 +63,17 @@ When exported to FBX, these will be detected automatically.
 
 ### Option 2: Conventional File Naming
 
-Place PBR textures alongside your FBX model with conventional names:
+Historical example layout, using a current asset name (not the shipped portal's actual texture layout):
 
 ```
-models/block/
-├── cnc.fbx
-├── cnc.png          (albedo/diffuse)
-├── cnc_n.png        (normal map)
-└── cnc_s.png        (specular map)
+models/showcase/
+  portal_pbr.fbx
+  body.png          (albedo/diffuse, referenced by the material)
+  body_n.png        (already packed LabPBR normal/AO/height)
+  body_s.png        (already packed LabPBR smoothness/F0/emissive)
 ```
 
-The system will automatically find and register them.
+In the current implementation, sibling names derive from the referenced albedo basename, not the FBX basename. `_n` and `_s` must already contain LabPBR channels; they are not raw Blender normal or roughness images. Raw Blender maps use the conversion workflow documented in the current guide.
 
 ## Shader Pack Compatibility
 
