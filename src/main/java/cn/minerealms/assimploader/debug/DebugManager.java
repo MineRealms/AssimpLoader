@@ -4,6 +4,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Set;
+import java.util.EnumSet;
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -30,14 +33,16 @@ public class DebugManager {
         MODERNUI,   // ModernUI integration
         CACHE,      // Cache system
         LIGHT,      // Lighting system
-        PERF        // Performance profiling
+        PERF,       // Performance profiling
+        IK,
+        SPLAT
     }
 
     /**
      * Global debug flag - controls all debug output
-     * Default: enabled
+     * Default: disabled; errors remain visible independently.
      */
-    private static boolean enabled = true;
+    private static volatile boolean enabled = false;
 
     /**
      * Performance profiling flag - controls PerformanceProfiler
@@ -50,7 +55,19 @@ public class DebugManager {
      * Key: message hash, Value: last log timestamp
      */
     private static final Map<Integer, Long> rateLimitCache = new ConcurrentHashMap<>();
-    private static final long RATE_LIMIT_MS = 1000; // Log same message max once per second
+    private static volatile long rateLimitMs = 3000;
+    private static volatile Set<DebugCategory> categories = EnumSet.allOf(DebugCategory.class);
+
+    public static void configure(long intervalMs, Collection<? extends String> names) {
+        EnumSet<DebugCategory> selected = EnumSet.noneOf(DebugCategory.class);
+        for (String name : names) {
+            try { selected.add(DebugCategory.valueOf(name.toUpperCase(java.util.Locale.ROOT))); }
+            catch (IllegalArgumentException ignored) { }
+        }
+        categories = selected;
+        rateLimitMs = Math.max(0, intervalMs);
+        rateLimitCache.clear();
+    }
 
     /**
      * Enable debug output
@@ -128,7 +145,7 @@ public class DebugManager {
      * Log debug message with category (rate-limited)
      */
     public static void debug(DebugCategory category, String message, Object... args) {
-        if (enabled && shouldLog(message)) {
+        if (enabled && categories.contains(category) && LOGGER.isDebugEnabled() && shouldLog(message)) {
             LOGGER.debug(PREFIX + "[" + category.name() + "] " + message, args);
         }
     }
@@ -137,7 +154,7 @@ public class DebugManager {
      * Log debug message with category (no rate limit)
      */
     public static void debugUnlimited(DebugCategory category, String message, Object... args) {
-        if (enabled) {
+        if (enabled && categories.contains(category) && LOGGER.isDebugEnabled()) {
             LOGGER.debug(PREFIX + "[" + category.name() + "] " + message, args);
         }
     }
@@ -146,7 +163,7 @@ public class DebugManager {
      * Log info message with category
      */
     public static void info(DebugCategory category, String message, Object... args) {
-        if (enabled) {
+        if (enabled && categories.contains(category)) {
             LOGGER.info(PREFIX + "[" + category.name() + "] " + message, args);
         }
     }
@@ -155,34 +172,28 @@ public class DebugManager {
      * Log warning message with category
      */
     public static void warn(DebugCategory category, String message, Object... args) {
-        if (enabled) {
-            LOGGER.warn(PREFIX + "[" + category.name() + "] " + message, args);
-        }
+        LOGGER.warn(PREFIX + "[" + category.name() + "] " + message, args);
     }
 
     /**
      * Log error message with category
      */
     public static void error(DebugCategory category, String message, Object... args) {
-        if (enabled) {
-            LOGGER.error(PREFIX + "[" + category.name() + "] " + message, args);
-        }
+        LOGGER.error(PREFIX + "[" + category.name() + "] " + message, args);
     }
 
     /**
      * Log error with exception and category
      */
     public static void error(DebugCategory category, String message, Throwable throwable) {
-        if (enabled) {
-            LOGGER.error(PREFIX + "[" + category.name() + "] " + message, throwable);
-        }
+        LOGGER.error(PREFIX + "[" + category.name() + "] " + message, throwable);
     }
 
     /**
      * Log debug message
      */
     public static void debug(String message, Object... args) {
-        if (enabled) {
+        if (enabled && LOGGER.isDebugEnabled()) {
             LOGGER.debug(PREFIX + message, args);
         }
     }
@@ -200,27 +211,21 @@ public class DebugManager {
      * Log warning message
      */
     public static void warn(String message, Object... args) {
-        if (enabled) {
-            LOGGER.warn(PREFIX + message, args);
-        }
+        LOGGER.warn(PREFIX + message, args);
     }
 
     /**
      * Log error message
      */
     public static void error(String message, Object... args) {
-        if (enabled) {
-            LOGGER.error(PREFIX + message, args);
-        }
+        LOGGER.error(PREFIX + message, args);
     }
 
     /**
      * Log error with exception
      */
     public static void error(String message, Throwable throwable) {
-        if (enabled) {
-            LOGGER.error(PREFIX + message, throwable);
-        }
+        LOGGER.error(PREFIX + message, throwable);
     }
 
     // ==================== Category-Specific Logging ====================
@@ -377,7 +382,8 @@ public class DebugManager {
         long now = System.currentTimeMillis();
 
         Long lastLog = rateLimitCache.get(hash);
-        if (lastLog == null || now - lastLog >= RATE_LIMIT_MS) {
+        if (lastLog == null || now - lastLog >= rateLimitMs) {
+            if (rateLimitCache.size() > 4096) rateLimitCache.clear();
             rateLimitCache.put(hash, now);
             return true;
         }

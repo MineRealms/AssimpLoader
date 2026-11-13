@@ -1,9 +1,10 @@
 package cn.minerealms.assimploader.debug;
 
 import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,7 +34,8 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class PerformanceProfiler {
 
-    private static final String LOG_FILE = "logs/assimploader_performance.log";
+    private static final Path LOG_FILE = cn.minerealms.assimploader.util.AssimpLoaderPaths.resolveGamePath(
+            null, "logs/assimploader_performance.log");
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     // Performance counters
@@ -132,10 +134,10 @@ public class PerformanceProfiler {
 
         synchronized (writerLock) {
             try {
-                File logFile = new File(LOG_FILE);
-                logFile.getParentFile().mkdirs();
-
-                logWriter = new BufferedWriter(new FileWriter(logFile, true));
+                Path logFile = LOG_FILE;
+                Files.createDirectories(logFile.getParent());
+                logWriter = Files.newBufferedWriter(logFile, StandardCharsets.UTF_8,
+                        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
                 writeLog("=".repeat(80));
                 writeLog("AssimpLoader Performance Profiler Initialized");
                 writeLog("Timestamp: " + DATE_FORMAT.format(new Date()));

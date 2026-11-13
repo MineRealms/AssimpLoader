@@ -1,5 +1,7 @@
 # AssimpLoader Configuration System Design
 
+> Historical configuration design. Consult [Config User Guide](CONFIG_USER_GUIDE.md), [Model Hot-Reload](Hot_Reload_System.md) and the current config class for implemented behavior. CNC/CCB was subsequently removed at the user's request; current fixtures are the CIWS, probes and portal listed in [Model Showcase](MODEL_SHOWCASE.md).
+
 ## Overview
 This document outlines the comprehensive configuration system for AssimpLoader, replacing hardcoded flags and constants with a flexible, user-configurable system.
 
@@ -276,10 +278,10 @@ This document outlines the comprehensive configuration system for AssimpLoader, 
     # Range: 0-1200, Default: 100
     autoTestDelay = 100
     
-    # Enable example blocks (CNC machine, etc.)
+    # Reserved legacy option; current showcase registry entries are not gated by it
     exampleBlocksEnabled = true
     
-    # Enable LookDev node editor
+    # Enable LookDev loaded-model preview; node editing is inactive
     lookdevEnabled = true
 ```
 

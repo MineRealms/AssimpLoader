@@ -4,11 +4,11 @@ import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.nodeeditor.Node;
 import cn.minerealms.assimploader.lookdev.nodeeditor.NodeConnection;
+import cn.minerealms.assimploader.util.AssimpLoaderPaths;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -29,17 +29,20 @@ import java.util.stream.Stream;
  */
 public class MaterialFileManager {
 
-    private static final Path MATERIALS_DIR = Paths.get("config/assimploader/materials");
     private static final String FILE_EXTENSION = ".material.json";
+
+    private static Path materialsDirectory() {
+        return AssimpLoaderPaths.configDirectory().resolve("assimploader/materials").normalize();
+    }
 
     /**
      * Initialize materials directory
      */
     public static void initialize() {
         try {
-            Files.createDirectories(MATERIALS_DIR);
+            Files.createDirectories(materialsDirectory());
             DebugManager.info(DebugCategory.LOOKDEV,
-                "[MaterialFileManager] Initialized materials directory: " + MATERIALS_DIR);
+                "[MaterialFileManager] Initialized materials directory: " + materialsDirectory());
         } catch (IOException e) {
             DebugManager.error(DebugCategory.LOOKDEV,
                 "[MaterialFileManager] Failed to create materials directory: " + e.getMessage());
@@ -52,7 +55,7 @@ public class MaterialFileManager {
     public static boolean save(String materialName, List<Node> nodes, List<NodeConnection> connections) {
         try {
             // Ensure directory exists
-            Files.createDirectories(MATERIALS_DIR);
+            Files.createDirectories(materialsDirectory());
 
             // Serialize to JSON
             String json = MaterialSerializer.serialize(materialName, nodes, connections);
@@ -152,11 +155,12 @@ public class MaterialFileManager {
      */
     public static List<String> listMaterials() {
         try {
-            if (!Files.exists(MATERIALS_DIR)) {
+            Path directory = materialsDirectory();
+            if (!Files.exists(directory)) {
                 return new ArrayList<>();
             }
 
-            try (Stream<Path> paths = Files.list(MATERIALS_DIR)) {
+            try (Stream<Path> paths = Files.list(directory)) {
                 return paths
                     .filter(path -> path.toString().endsWith(FILE_EXTENSION))
                     .map(path -> {
@@ -178,7 +182,7 @@ public class MaterialFileManager {
      */
     private static Path getMaterialPath(String materialName) {
         String fileName = sanitizeFileName(materialName) + FILE_EXTENSION;
-        return MATERIALS_DIR.resolve(fileName);
+        return materialsDirectory().resolve(fileName);
     }
 
     /**

@@ -6,6 +6,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.client.ClientCommandHandler;
 
 import java.util.List;
 
@@ -106,7 +107,8 @@ public class AutoTestManager {
 
             for (String command : commands) {
                 DebugManager.info(DebugManager.DebugCategory.CORE, "AutoTest: Executing command: %s", command);
-                player.connection.sendCommand(command.startsWith("/") ? command.substring(1) : command);
+                String input = command.startsWith("/") ? command.substring(1) : command;
+                if (!ClientCommandHandler.runCommand(input)) player.connection.sendCommand(input);
             }
 
             DebugManager.info(DebugManager.DebugCategory.CORE, "AutoTest: All commands executed successfully");

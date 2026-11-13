@@ -3,6 +3,7 @@ package cn.minerealms.assimploader.lookdev.preset;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.material.MaterialOverride;
+import cn.minerealms.assimploader.util.AssimpLoaderPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
@@ -11,7 +12,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,8 +34,7 @@ public class PresetManager {
     public PresetManager() {
         try {
             // Get Minecraft directory
-            Path minecraftDir = Paths.get(".").toAbsolutePath().normalize();
-            this.presetsPath = minecraftDir.resolve(PRESETS_DIR);
+            this.presetsPath = AssimpLoaderPaths.gameDirectory().resolve(PRESETS_DIR).normalize();
 
             // Create presets directory if it doesn't exist
             Files.createDirectories(presetsPath);

@@ -6,11 +6,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
@@ -42,7 +41,7 @@ public class DebugLogger {
     private static boolean enabled = false;
 
     // Debug log file
-    private static Path debugLogPath = Paths.get("logs/assimploader-debug.log");
+    private static Path debugLogPath = AssimpLoaderPaths.resolveGamePath(null, "logs/assimploader-debug.log");
     private static BufferedWriter debugWriter = null;
 
     // Rate limiting: message hash -> last log time
@@ -211,7 +210,7 @@ public class DebugLogger {
             Files.createDirectories(debugLogPath.getParent());
 
             // Open debug log file (overwrite mode)
-            debugWriter = new BufferedWriter(new FileWriter(debugLogPath.toFile(), false));
+            debugWriter = Files.newBufferedWriter(debugLogPath, StandardCharsets.UTF_8);
 
             // Write header
             debugWriter.write("=".repeat(80) + "\n");
@@ -267,7 +266,7 @@ public class DebugLogger {
         if (enabled) {
             closeDebugLog();
         }
-        debugLogPath = path;
+        debugLogPath = path.toAbsolutePath().normalize();
         if (enabled) {
             initializeDebugLog();
         }

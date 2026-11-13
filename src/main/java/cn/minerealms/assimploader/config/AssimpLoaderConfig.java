@@ -189,7 +189,7 @@ public class AssimpLoaderConfig {
                 .define("enabled", true);
 
             oculusShaderInjectionEnabled = builder
-                .comment("Enable shader injection for custom materials")
+                .comment("Reserved legacy option; node-material shader injection is inactive")
                 .define("shaderInjectionEnabled", true);
 
             oculusPbrSupportEnabled = builder
@@ -197,11 +197,11 @@ public class AssimpLoaderConfig {
                 .define("pbrSupportEnabled", true);
 
             oculusInjectionPriority = builder
-                .comment("Shader injection priority (higher = inject later)")
+                .comment("Reserved legacy option; no shader injection is installed")
                 .defineInRange("injectionPriority", 100, 0, 1000);
 
             oculusSplatShaderEnabled = builder
-                .comment("Enable Gaussian Splatting shader injection")
+                .comment("Reserved legacy option; Gaussian shader-pack injection is inactive")
                 .define("splatShaderEnabled", true);
 
             builder.pop();
@@ -218,11 +218,11 @@ public class AssimpLoaderConfig {
                 .define("asyncLoadingEnabled", true);
 
             modelCacheSize = builder
-                .comment("Model cache size (number of cached models)")
+                .comment("Maximum unpinned/on-demand file models; JSON models stay pinned until resource reload")
                 .defineInRange("modelCacheSize", 100, 10, 1000);
 
             textureCacheSizeMB = builder
-                .comment("Texture cache size (MB)")
+                .comment("Reserved texture-budget setting; shared material textures currently live until resource invalidation")
                 .defineInRange("textureCacheSizeMB", 512, 64, 2048);
 
             tboEnabled = builder
@@ -302,7 +302,7 @@ public class AssimpLoaderConfig {
                 .defineInRange("lodFactorLow", 4, 1, 10);
 
             splatCompressedPLYEnabled = builder
-                .comment("Enable compressed PLY support")
+                .comment("Reserved format option; compressed PLY is rejected, scalar PLY is supported")
                 .define("compressedPLYEnabled", true);
 
             splatCacheSize = builder
@@ -328,11 +328,11 @@ public class AssimpLoaderConfig {
                 .defineInRange("autoTestDelay", 100, 0, 1200);
 
             devExampleBlocksEnabled = builder
-                .comment("Enable example blocks (CNC machine, etc.)")
+                .comment("Reserved legacy option; example registry IDs remain registered for save compatibility")
                 .define("exampleBlocksEnabled", true);
 
             devLookdevEnabled = builder
-                .comment("Enable LookDev node editor")
+                .comment("Enable LookDev loaded-model preview; node editing is inactive")
                 .define("lookdevEnabled", true);
 
             builder.pop();

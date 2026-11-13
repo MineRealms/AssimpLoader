@@ -1,5 +1,7 @@
 # AssimpLoader Configuration Guide
 
+> 2026-11-13: See [current fixes and verification](FIXES_2026-11-13.md) for active behavior. The node editor is inactive. Shader injection, compressed PLY, example-registration toggling and the texture MB budget remain reserved compatibility fields; their presence does not enable those features. `modelCacheSize` applies to unpinned file models; JSON models stay pinned until reload. GPU presets use available features, with `LOW` disabling bone TBO and `FALLBACK` selecting vanilla/CPU rendering. Current config comments describe these boundaries.
+
 This guide explains all configuration options available in AssimpLoader and how to use them effectively.
 
 ## Configuration Files
@@ -262,22 +264,24 @@ Configure the hot-reload development system.
 ### `hotreload.resourcePath`
 - **Type**: String
 - **Default**: `"AssimpLoader/Resource"`
-- **Description**: Hot-reload directory (relative to .minecraft)
+- **Description**: External reload root, relative to the active game directory or an explicitly configured absolute path
 - **Directory structure**:
   ```
-  .minecraft/
-    AssimpLoader/
-      Resource/
-        models/     - Model files (FBX, GLTF, etc.)
-        textures/   - Texture files
-        animations/ - Animation files
+  <game-directory>/AssimpLoader/Resource/
+    assimploader/
+      models/
+        showcase/
+          portal_pbr.fbx
+          textures/  - Relative images referenced by this model
   ```
+- **Resource identity**: Preserve `<namespace>/models/...`; the legacy `models/...` layout means namespace `assimploader`. The full path must match the JSON model resource. The command does not register new blocks or items.
+- **F3+T**: Set `rendering.externalModelDirectory` to the same root if overrides must load during resource rebake. Otherwise, run `/assimploader reload` again after F3+T. See [Model Hot-Reload](Hot_Reload_System.md).
 
 ### `hotreload.autoReloadEnabled`
 - **Type**: Boolean
 - **Default**: `false`
 - **Description**: Automatically reload on file change
-- **Performance**: Requires file watcher, may impact performance
+- **Behavior**: Background polling requests the same batch import as `/assimploader reload` when file path, size or modification time changes
 
 ### `hotreload.watcherPollInterval`
 - **Type**: Integer (100-10000)
@@ -380,14 +384,14 @@ Tools for mod development and testing.
 ### `dev.exampleBlocksEnabled`
 - **Type**: Boolean
 - **Default**: `true`
-- **Description**: Enable example blocks (CNC machine)
-- **When to use**: Disable in production modpacks
+- **Description**: Reserved legacy option; it is not a switch for current showcase registry entries
+- **Migration**: CNC/CCB was removed at the user's request. Use CIWS, knife, probe or portal IDs from [Model Showcase](MODEL_SHOWCASE.md); this option does not restore old IDs.
 
 ### `dev.lookdevEnabled`
 - **Type**: Boolean
 - **Default**: `true`
-- **Description**: Enable LookDev node editor
-- **When to use**: For material authoring
+- **Description**: Enable LookDev loaded-model preview; node editing is inactive
+- **When to use**: Inspect loaded models with orbit, pan and zoom; see [LookDev Preview](LOOKDEV_PREVIEW.md)
 
 ---
 
