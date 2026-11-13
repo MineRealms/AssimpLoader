@@ -1,7 +1,5 @@
 package cn.minerealms.assimploader.rendering.splat;
 
-import cn.minerealms.assimploader.debug.DebugManager;
-import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -11,6 +9,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
 /**
@@ -34,6 +33,7 @@ public class GaussianSplatShader {
     private int u_render_mod;
 
     private boolean compiled = false;
+    private final float[] matrixData = new float[16];
 
     public GaussianSplatShader() {
     }
@@ -42,6 +42,10 @@ public class GaussianSplatShader {
      * Compile and link the shader program
      */
     public void compile() throws IOException {
+        compile(org.lwjgl.opengl.GL.getCapabilities().OpenGL43);
+    }
+
+    public void compile(boolean useSSBO) throws IOException {
         if (compiled) {
             return;
         }
@@ -49,35 +53,49 @@ public class GaussianSplatShader {
         // Load shader sources
         String vertexSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/core/gaussian_splat.vert"));
         String fragmentSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/core/gaussian_splat.frag"));
+        if (useSSBO) vertexSource = vertexSource.replace("#version 330 core", "#version 430 core\n#define SPLAT_SSBO");
 
         // Compile shaders
-        vertexShaderId = compileShader(GL20.GL_VERTEX_SHADER, vertexSource);
-        fragmentShaderId = compileShader(GL20.GL_FRAGMENT_SHADER, fragmentSource);
+        try {
+            vertexShaderId = compileShader(GL20.GL_VERTEX_SHADER, vertexSource);
+            fragmentShaderId = compileShader(GL20.GL_FRAGMENT_SHADER, fragmentSource);
 
-        // Link program
-        programId = GL20.glCreateProgram();
-        GL20.glAttachShader(programId, vertexShaderId);
-        GL20.glAttachShader(programId, fragmentShaderId);
-        GL20.glLinkProgram(programId);
+            // Link program
+            programId = GL20.glCreateProgram();
+            GL20.glAttachShader(programId, vertexShaderId);
+            GL20.glAttachShader(programId, fragmentShaderId);
+            GL20.glLinkProgram(programId);
 
-        // Check link status
-        if (GL20.glGetProgrami(programId, GL20.GL_LINK_STATUS) == GL20.GL_FALSE) {
-            String log = GL20.glGetProgramInfoLog(programId);
-            throw new RuntimeException("Failed to link Gaussian splat shader: " + log);
+            if (GL20.glGetProgrami(programId, GL20.GL_LINK_STATUS) == GL20.GL_FALSE) {
+                String log = GL20.glGetProgramInfoLog(programId);
+                throw new RuntimeException("Failed to link Gaussian splat shader: " + log);
+            }
+
+            u_view_matrix = GL20.glGetUniformLocation(programId, "view_matrix");
+            u_projection_matrix = GL20.glGetUniformLocation(programId, "projection_matrix");
+            u_hfovxy_focal = GL20.glGetUniformLocation(programId, "hfovxy_focal");
+            u_cam_pos = GL20.glGetUniformLocation(programId, "cam_pos");
+            u_sh_dim = GL20.glGetUniformLocation(programId, "sh_dim");
+            u_scale_modifier = GL20.glGetUniformLocation(programId, "scale_modifier");
+            u_render_mod = GL20.glGetUniformLocation(programId, "render_mod");
+            int previous = org.lwjgl.opengl.GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
+            GL20.glUseProgram(programId);
+            try {
+                GL20.glUniform1i(GL20.glGetUniformLocation(programId, "gaussianDataTBO"), 0);
+                GL20.glUniform1i(GL20.glGetUniformLocation(programId, "gaussianOrderTBO"), 1);
+            } finally {
+                GL20.glUseProgram(previous);
+            }
+
+            compiled = true;
+        } catch (RuntimeException | Error failure) {
+            delete();
+            throw failure;
+        } finally {
+            if (vertexShaderId != 0) GL20.glDeleteShader(vertexShaderId);
+            if (fragmentShaderId != 0) GL20.glDeleteShader(fragmentShaderId);
+            vertexShaderId = fragmentShaderId = 0;
         }
-
-        // Get uniform locations
-        u_view_matrix = GL20.glGetUniformLocation(programId, "view_matrix");
-        u_projection_matrix = GL20.glGetUniformLocation(programId, "projection_matrix");
-        u_hfovxy_focal = GL20.glGetUniformLocation(programId, "hfovxy_focal");
-        u_cam_pos = GL20.glGetUniformLocation(programId, "cam_pos");
-        u_sh_dim = GL20.glGetUniformLocation(programId, "sh_dim");
-        u_scale_modifier = GL20.glGetUniformLocation(programId, "scale_modifier");
-        u_render_mod = GL20.glGetUniformLocation(programId, "render_mod");
-
-        compiled = true;
-
-        DebugManager.info(DebugCategory.RENDER, "GaussianSplatShader compiled successfully");
     }
 
     /**
@@ -101,18 +119,16 @@ public class GaussianSplatShader {
      * Set view matrix
      */
     public void setViewMatrix(Matrix4f matrix) {
-        float[] data = new float[16];
-        matrix.get(data);
-        GL20.glUniformMatrix4fv(u_view_matrix, false, data);
+        matrix.get(matrixData);
+        GL20.glUniformMatrix4fv(u_view_matrix, false, matrixData);
     }
 
     /**
      * Set projection matrix
      */
     public void setProjectionMatrix(Matrix4f matrix) {
-        float[] data = new float[16];
-        matrix.get(data);
-        GL20.glUniformMatrix4fv(u_projection_matrix, false, data);
+        matrix.get(matrixData);
+        GL20.glUniformMatrix4fv(u_projection_matrix, false, matrixData);
     }
 
     /**
@@ -162,12 +178,11 @@ public class GaussianSplatShader {
      * Clean up shader resources
      */
     public void delete() {
-        if (compiled) {
-            GL20.glDeleteShader(vertexShaderId);
-            GL20.glDeleteShader(fragmentShaderId);
-            GL20.glDeleteProgram(programId);
-            compiled = false;
-        }
+        if (vertexShaderId != 0) GL20.glDeleteShader(vertexShaderId);
+        if (fragmentShaderId != 0) GL20.glDeleteShader(fragmentShaderId);
+        if (programId != 0) GL20.glDeleteProgram(programId);
+        vertexShaderId = fragmentShaderId = programId = 0;
+        compiled = false;
     }
 
     /**
@@ -179,7 +194,7 @@ public class GaussianSplatShader {
             if (stream == null) {
                 throw new IOException("Shader not found: " + path);
             }
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
                 return reader.lines().collect(Collectors.joining("\n"));
             }
         }
@@ -196,6 +211,7 @@ public class GaussianSplatShader {
         if (GL20.glGetShaderi(shaderId, GL20.GL_COMPILE_STATUS) == GL20.GL_FALSE) {
             String log = GL20.glGetShaderInfoLog(shaderId);
             String typeName = type == GL20.GL_VERTEX_SHADER ? "vertex" : "fragment";
+            GL20.glDeleteShader(shaderId);
             throw new RuntimeException("Failed to compile " + typeName + " shader: " + log);
         }
 

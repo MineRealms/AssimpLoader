@@ -1,190 +1,102 @@
 package cn.minerealms.assimploader.rendering.splat;
 
-import cn.minerealms.assimploader.debug.DebugManager;
-import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
-import cn.minerealms.assimploader.render.GLCapabilityDetector;
+import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import cn.minerealms.assimploader.rendering.splat.data.GaussianSplatData;
+import com.mojang.blaze3d.systems.RenderSystem;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL31;
+import org.lwjgl.opengl.GL;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Main renderer for Gaussian splats.
- *
- * Manages VBO caching, sorting, and instanced rendering.
- * Follows the same pattern as SkinnedMeshRenderer.
- */
-public class GaussianSplatRenderer {
+/** Standalone splat renderer. It is not registered as a world renderer or shader-pack injector. */
+public final class GaussianSplatRenderer {
+    private final GaussianSplatShader shader = new GaussianSplatShader();
+    private final Map<GaussianSplatData, GaussianSplatVBO> cache = new LinkedHashMap<>(16, 0.75f, true);
+    private final GaussianSplatSorter sorter = new GaussianSplatSorter();
+    private int[] selected = new int[0];
+    private boolean initialized;
+    private boolean ssbo;
 
-    private final GaussianSplatShader shader;
-    private final Map<GaussianSplatData, GaussianSplatVBO> vboCache;
-    private final GaussianSplatSorter sorter;
-    private final GaussianSplatTBO tbo;
-    private boolean initialized = false;
-    private boolean useSSBO = false;
-
-    public GaussianSplatRenderer() {
-        this.shader = new GaussianSplatShader();
-        this.vboCache = new HashMap<>();
-        this.sorter = new GaussianSplatSorter();
-        this.tbo = new GaussianSplatTBO();
-    }
-
-    /**
-     * Initialize the renderer (compile shaders)
-     */
     public void initialize() throws IOException {
-        if (initialized) {
-            return;
+        RenderSystem.assertOnRenderThread();
+        if (initialized) return;
+        var capabilities = GL.getCapabilities();
+        if (!capabilities.OpenGL33) throw new IOException("Gaussian splat renderer requires OpenGL 3.3");
+        ssbo = capabilities.OpenGL43;
+        try {
+            shader.compile(ssbo);
+            initialized = true;
+        } catch (IOException | RuntimeException | Error failure) {
+            shader.delete();
+            throw failure;
         }
-
-        shader.compile();
-
-        // Check if SSBO is supported
-        useSSBO = GLCapabilityDetector.isSSBOSupported();
-        if (useSSBO) {
-            DebugManager.info(DebugCategory.RENDER, "GaussianSplatRenderer: SSBO support enabled");
-        } else {
-            DebugManager.info(DebugCategory.RENDER, "GaussianSplatRenderer: Using TBO fallback for Oculus compatibility");
-        }
-
-        // Initialize Oculus shader injection
-        GaussianSplatOculusInjector.initialize();
-
-        initialized = true;
-
-        DebugManager.info(DebugCategory.RENDER, "GaussianSplatRenderer initialized");
     }
 
-    /**
-     * Render Gaussian splats
-     *
-     * @param data Splat data
-     * @param viewMatrix View matrix
-     * @param projectionMatrix Projection matrix
-     * @param cameraPos Camera position
-     * @param fovX Horizontal FOV (radians)
-     * @param fovY Vertical FOV (radians)
-     * @param focal Focal length
-     * @param scaleModifier Scale modifier
-     */
-    public void render(GaussianSplatData data,
-                       Matrix4f viewMatrix,
-                       Matrix4f projectionMatrix,
-                       Vector3f cameraPos,
-                       float fovX, float fovY, float focal,
-                       float scaleModifier) {
-
-        if (!initialized) {
-            throw new IllegalStateException("Renderer not initialized");
+    public void render(GaussianSplatData data, Matrix4f view, Matrix4f projection, Vector3f camera,
+                       float fovX, float fovY, float focal, float scaleModifier) {
+        RenderSystem.assertOnRenderThread();
+        if (!initialized) throw new IllegalStateException("Renderer not initialized");
+        if (data == null || data.getSplatCount() == 0) return;
+        if (!view.isFinite() || !projection.isFinite() || !camera.isFinite()
+                || !Float.isFinite(fovX) || !Float.isFinite(fovY) || !Float.isFinite(focal)
+                || !Float.isFinite(scaleModifier) || fovX <= 0 || fovY <= 0 || fovX >= Math.PI
+                || fovY >= Math.PI || focal <= 0 || scaleModifier <= 0) {
+            throw new IllegalArgumentException("Invalid splat render parameters");
         }
-
-        if (data.getSplatCount() == 0) {
-            return;
-        }
-
-        // Performance profiling
-        if (DebugManager.isProfilingEnabled()) {
-            cn.minerealms.assimploader.debug.PerformanceProfiler.start("splat_render");
-        }
-
-        // Apply LOD filtering
-        if (DebugManager.isProfilingEnabled()) {
-            cn.minerealms.assimploader.debug.PerformanceProfiler.start("splat_lod");
-        }
-        GaussianSplatData lodData = GaussianSplatLOD.applyLOD(data, cameraPos);
-        if (DebugManager.isProfilingEnabled()) {
-            cn.minerealms.assimploader.debug.PerformanceProfiler.end("splat_lod");
-        }
-
-        if (lodData.getSplatCount() == 0) {
-            if (DebugManager.isProfilingEnabled()) {
-                cn.minerealms.assimploader.debug.PerformanceProfiler.end("splat_render");
+        if (selected.length < data.getSplatCount()) selected = new int[data.getSplatCount()];
+        int count = GaussianSplatLOD.selectIndices(data, camera, selected, GaussianSplatLOD.Settings.configured());
+        if (count == 0) return;
+        sorter.sort(data.getSplats(), view, selected, count);
+        try (GaussianSplatRenderState ignored = new GaussianSplatRenderState(ssbo)) {
+            GaussianSplatVBO vbo = cache.get(data);
+            if (vbo == null) {
+                vbo = new GaussianSplatVBO();
+                vbo.upload(data, ssbo);
+                cache.put(data, vbo);
+                trimCache(data);
             }
-            return; // All splats culled
-        }
-
-        // Get or create VBO (use original data as key for caching)
-        GaussianSplatVBO vbo = vboCache.computeIfAbsent(data, d -> {
-            DebugManager.info(DebugCategory.RENDER, "Creating VBO for splat data: {} splats", d.getSplatCount());
-            return createVBO(d);
-        });
-
-        // Sort splats by depth
-        if (DebugManager.isProfilingEnabled()) {
-            cn.minerealms.assimploader.debug.PerformanceProfiler.start("splat_sort");
-        }
-        sorter.sort(lodData.getSplats(), viewMatrix);
-        if (DebugManager.isProfilingEnabled()) {
-            cn.minerealms.assimploader.debug.PerformanceProfiler.end("splat_sort");
-        }
-
-        // Upload sorted indices
-        vbo.uploadOrder(sorter.getSortedIndices());
-
-        // Setup render state
-        GaussianSplatRenderState.setup();
-
-        // Bind shader and set uniforms
-        shader.bind();
-        shader.setViewMatrix(viewMatrix);
-        shader.setProjectionMatrix(projectionMatrix);
-        shader.setHFovxyFocal((float) Math.tan(fovX / 2.0f), (float) Math.tan(fovY / 2.0f), focal);
-        shader.setCameraPos(cameraPos);
-        shader.setShDim(data.getShDim());
-        shader.setScaleModifier(scaleModifier);
-        shader.setRenderMod(3); // Full rendering with SH degree 3
-
-        // Render instanced
-        vbo.render();
-
-        // Unbind
-        shader.unbind();
-
-        // Restore render state
-        GaussianSplatRenderState.restore();
-
-        if (DebugManager.isProfilingEnabled()) {
-            cn.minerealms.assimploader.debug.PerformanceProfiler.end("splat_render");
+            vbo.uploadOrder(sorter.indicesBuffer(), sorter.getSortedCount());
+            GaussianSplatRenderState.setup();
+            shader.bind();
+            shader.setViewMatrix(view);
+            shader.setProjectionMatrix(projection);
+            shader.setHFovxyFocal((float) Math.tan(fovX / 2), (float) Math.tan(fovY / 2), focal);
+            shader.setCameraPos(camera);
+            shader.setShDim(data.getShDim());
+            shader.setScaleModifier(scaleModifier);
+            shader.setRenderMod(data.getShDegree());
+            vbo.render();
         }
     }
 
-    /**
-     * Create VBO for splat data
-     */
-    private GaussianSplatVBO createVBO(GaussianSplatData data) {
-        GaussianSplatVBO vbo = new GaussianSplatVBO();
-        vbo.upload(data, useSSBO);
-        return vbo;
+    private void trimCache(GaussianSplatData current) {
+        int limit;
+        try { limit = AssimpLoaderConfig.CLIENT.splatCacheSize.get(); }
+        catch (IllegalStateException unloaded) { limit = AssimpLoaderConfig.CLIENT.splatCacheSize.getDefault(); }
+        Iterator<Map.Entry<GaussianSplatData, GaussianSplatVBO>> entries = cache.entrySet().iterator();
+        while (cache.size() > Math.max(1, limit) && entries.hasNext()) {
+            var entry = entries.next();
+            if (entry.getKey() == current) continue;
+            entry.getValue().delete();
+            entries.remove();
+        }
     }
 
-    /**
-     * Clear VBO cache
-     */
     public void clearCache() {
-        for (GaussianSplatVBO vbo : vboCache.values()) {
-            vbo.delete();
-        }
-        vboCache.clear();
-        DebugManager.info(DebugCategory.RENDER, "Cleared Gaussian splat VBO cache");
+        for (GaussianSplatVBO vbo : cache.values()) vbo.delete();
+        cache.clear();
+        selected = new int[0];
+        sorter.clear();
     }
 
-    /**
-     * Clean up renderer resources
-     */
     public void delete() {
         clearCache();
         shader.delete();
-        tbo.cleanup();
         initialized = false;
     }
-
-    public boolean isInitialized() {
-        return initialized;
-    }
+    public boolean isInitialized() { return initialized; }
 }

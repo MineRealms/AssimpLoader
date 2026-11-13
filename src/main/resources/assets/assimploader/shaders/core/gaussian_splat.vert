@@ -5,7 +5,7 @@
  *
  * Modified for Minecraft 1.20.1 compatibility:
  * - Changed #version 430 -> #version 330 (Minecraft baseline)
- * - Kept SSBO for now (will add TBO fallback later)
+ * - Scalar TBO fallback; SSBO is selected by the OpenGL 4.3 shader variant.
  */
 
 #version 330 core
@@ -35,10 +35,7 @@ layout(location = 0) in vec2 position;
 #define OPACITY_IDX 10
 #define SH_IDX 11
 
-// SSBO requires OpenGL 4.3, but we'll use it with extension check
-// TODO: Add TBO fallback for Oculus compatibility
-#extension GL_ARB_shader_storage_buffer_object : require
-
+#ifdef SPLAT_SSBO
 layout (std430, binding=0) buffer gaussian_data {
     float g_data[];
 };
@@ -46,6 +43,26 @@ layout (std430, binding=0) buffer gaussian_data {
 layout (std430, binding=1) buffer gaussian_order {
     int gi[];
 };
+#else
+uniform samplerBuffer gaussianDataTBO;
+uniform isamplerBuffer gaussianOrderTBO;
+#endif
+
+float read_data(int offset) {
+#ifdef SPLAT_SSBO
+    return g_data[offset];
+#else
+    return texelFetch(gaussianDataTBO, offset).r;
+#endif
+}
+
+int read_order(int offset) {
+#ifdef SPLAT_SSBO
+    return gi[offset];
+#else
+    return texelFetch(gaussianOrderTBO, offset).r;
+#endif
+}
 
 uniform mat4 view_matrix;
 uniform mat4 projection_matrix;
@@ -108,22 +125,30 @@ vec3 computeCov2D(vec4 mean_view, float focal_x, float focal_y, float tan_fovx, 
 
 vec3 get_vec3(int offset)
 {
-    return vec3(g_data[offset], g_data[offset + 1], g_data[offset + 2]);
+    return vec3(read_data(offset), read_data(offset + 1), read_data(offset + 2));
 }
 
 vec4 get_vec4(int offset)
 {
-    return vec4(g_data[offset], g_data[offset + 1], g_data[offset + 2], g_data[offset + 3]);
+    return vec4(read_data(offset), read_data(offset + 1), read_data(offset + 2), read_data(offset + 3));
 }
 
 void main()
 {
-    int boxid = gi[gl_InstanceID];
-    int total_dim = 3 + 4 + 3 + 1 + sh_dim;
+    color = vec3(0.0);
+    alpha = 0.0;
+    conic = vec3(0.0);
+    coordxy = vec2(0.0);
+    int boxid = read_order(gl_InstanceID);
+    int total_dim = 11 + sh_dim * 3;
     int start = boxid * total_dim;
     vec4 g_pos = vec4(get_vec3(start + POS_IDX), 1.0);
     vec4 g_pos_view = view_matrix * g_pos;
     vec4 g_pos_screen = projection_matrix * g_pos_view;
+    if (g_pos_screen.w <= 0.000001 || abs(g_pos_view.z) <= 0.000001) {
+        gl_Position = vec4(-100.0, -100.0, -100.0, 1.0);
+        return;
+    }
     g_pos_screen.xyz = g_pos_screen.xyz / g_pos_screen.w;
     g_pos_screen.w = 1.0;
 
@@ -136,7 +161,7 @@ void main()
 
     vec4 g_rot = get_vec4(start + ROT_IDX);
     vec3 g_scale = get_vec3(start + SCALE_IDX);
-    float g_opacity = g_data[start + OPACITY_IDX];
+    float g_opacity = read_data(start + OPACITY_IDX);
 
     mat3 cov3d = computeCov3D(g_scale * scale_modifier, g_rot);
     vec2 wh = 2.0 * hfovxy_focal.xy * hfovxy_focal.z;
@@ -150,9 +175,9 @@ void main()
 
     // Invert covariance (EWA algorithm)
     float det = (cov2d.x * cov2d.z - cov2d.y * cov2d.y);
-    if (det == 0.0)
+    if (det <= 0.00000001 || isnan(det) || isinf(det) || cov2d.x <= 0.0 || cov2d.z <= 0.0)
     {
-        gl_Position = vec4(0.0, 0.0, 0.0, 0.0);
+        gl_Position = vec4(-100.0, -100.0, -100.0, 1.0);
         return;
     }
 
@@ -179,17 +204,17 @@ void main()
     // Convert SH to color
     int sh_start = start + SH_IDX;
     vec3 dir = g_pos.xyz - cam_pos;
-    dir = normalize(dir);
+    dir = length(dir) > 0.000001 ? normalize(dir) : vec3(0.0, 0.0, 1.0);
     color = SH_C0 * get_vec3(sh_start);
 
-    if (sh_dim > 3 && render_mod >= 1)
+    if (sh_dim >= 4 && render_mod >= 1)
     {
         float x = dir.x;
         float y = dir.y;
         float z = dir.z;
         color = color - SH_C1 * y * get_vec3(sh_start + 1 * 3) + SH_C1 * z * get_vec3(sh_start + 2 * 3) - SH_C1 * x * get_vec3(sh_start + 3 * 3);
 
-        if (sh_dim > 12 && render_mod >= 2)
+        if (sh_dim >= 9 && render_mod >= 2)
         {
             float xx = x * x, yy = y * y, zz = z * z;
             float xy = x * y, yz = y * z, xz = x * z;
@@ -200,7 +225,7 @@ void main()
                 SH_C2_3 * xz * get_vec3(sh_start + 7 * 3) +
                 SH_C2_4 * (xx - yy) * get_vec3(sh_start + 8 * 3);
 
-            if (sh_dim > 27 && render_mod >= 3)
+            if (sh_dim >= 16 && render_mod >= 3)
             {
                 color = color +
                     SH_C3_0 * y * (3.0 * xx - yy) * get_vec3(sh_start + 9 * 3) +

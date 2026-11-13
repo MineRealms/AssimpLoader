@@ -1,157 +1,80 @@
 package cn.minerealms.assimploader.rendering.splat;
 
-import cn.minerealms.assimploader.AssimpLoader;
-import cn.minerealms.assimploader.render.GLCapabilityDetector;
 import cn.minerealms.assimploader.rendering.splat.data.GaussianSplatData;
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
 import org.lwjgl.opengl.*;
 
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 
-/**
- * Texture Buffer Object (TBO) for Gaussian splat data transfer to GPU.
- * Fallback for Oculus compatibility when SSBO is unavailable.
- *
- * Layout: Same as GaussianSplatBuffer
- * - position (3 floats)
- * - rotation (4 floats: w, x, y, z)
- * - scale (3 floats)
- * - opacity (1 float)
- * - sh coefficients (shDim * 3 floats)
- */
-public class GaussianSplatTBO {
-    private int tboId = -1;
-    private int textureId = -1;
-    private int capacity = 0;
-    private int stride = 0;
-    private boolean initialized = false;
+/** Scalar texture buffers: R32F cloud data and R32I original point indices. */
+public final class GaussianSplatTBO {
+    private int buffer;
+    private int texture;
+    private int capacity;
+    private int stride;
 
-    /**
-     * Upload splat data to GPU via TBO
-     *
-     * @param data Gaussian splat data
-     * @param buffer Packed float buffer from GaussianSplatBuffer
-     */
-    public void upload(GaussianSplatData data, FloatBuffer buffer) {
-        if (data == null || buffer == null || data.getSplatCount() == 0) {
-            return;
+    public void upload(GaussianSplatData data, FloatBuffer values) {
+        if (data == null || values == null) throw new IllegalArgumentException("Missing splat data");
+        stride = new GaussianSplatBuffer(data.getShDegree()).getStride();
+        if (values.remaining() != Math.multiplyExact(data.getSplatCount(), stride)) {
+            throw new IllegalArgumentException("Packed splat stride does not match metadata");
         }
-
-        // Check if TBO is supported
-        if (!GLCapabilityDetector.isTBOSupported()) {
-            AssimpLoader.LOGGER.warn("TBO not supported, cannot upload splat data");
-            return;
-        }
-
-        int splatCount = data.getSplatCount();
-        int shDim = (data.getShDegree() + 1) * (data.getShDegree() + 1);
-        int newStride = 11 + shDim * 3;
-
-        // Initialize or resize if needed
-        if (!initialized || capacity < splatCount || stride != newStride) {
-            if (initialized) {
-                cleanup();
-            }
-            initialize(splatCount, newStride);
-        }
-
-        // Upload to GPU
-        GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, tboId);
-        GL15.glBufferData(GL31.GL_TEXTURE_BUFFER, buffer, GL15.GL_DYNAMIC_DRAW);
-        GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, 0);
+        allocate(values.remaining(), GL30.GL_R32F);
+        GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, buffer);
+        if (values.hasRemaining()) GL15.glBufferSubData(GL31.GL_TEXTURE_BUFFER, 0, values);
     }
 
-    /**
-     * Initialize TBO with given capacity
-     */
-    private void initialize(int splatCount, int strideFloats) {
-        capacity = splatCount;
-        stride = strideFloats;
-
-        // Create buffer object
-        tboId = GL15.glGenBuffers();
-        GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, tboId);
-        GL15.glBufferData(GL31.GL_TEXTURE_BUFFER, (long) capacity * stride * Float.BYTES, GL15.GL_DYNAMIC_DRAW);
-
-        // Create texture object
-        textureId = GL11.glGenTextures();
-        GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, textureId);
-        GL31.glTexBuffer(GL31.GL_TEXTURE_BUFFER, GL30.GL_RGBA32F, tboId);
-
-        // Unbind
-        GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, 0);
-        GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, 0);
-
-        initialized = true;
-
-        AssimpLoader.LOGGER.info("GaussianSplatTBO initialized: capacity={} splats, stride={} floats, size={} KB",
-                capacity, stride, (capacity * stride * 4) / 1024);
+    public void allocateIndices(int count) {
+        stride = 1;
+        allocate(count, GL30.GL_R32I);
     }
 
-    /**
-     * Bind TBO to texture unit for shader access
-     *
-     * @param textureUnit Texture unit (0-31)
-     */
-    public void bind(int textureUnit) {
-        if (!initialized || textureId == -1) {
-            return;
+    private void allocate(int scalars, int format) {
+        if (scalars < 0 || scalars > GL11.glGetInteger(GL31.GL_MAX_TEXTURE_BUFFER_SIZE)) {
+            throw new IllegalArgumentException("Splat texture buffer exceeds GPU scalar capacity");
         }
-
-        GlStateManager._activeTexture(GL13.GL_TEXTURE0 + textureUnit);
-        GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, textureId);
+        cleanup();
+        try {
+            buffer = GL15.glGenBuffers();
+            GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, buffer);
+            GL15.glBufferData(GL31.GL_TEXTURE_BUFFER, Math.max(1L, scalars) * Integer.BYTES, GL15.GL_DYNAMIC_DRAW);
+            texture = GL11.glGenTextures();
+            GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, texture);
+            GL31.glTexBuffer(GL31.GL_TEXTURE_BUFFER, format, buffer);
+            capacity = scalars;
+        } catch (RuntimeException | Error failure) {
+            cleanup();
+            throw failure;
+        }
     }
 
-    /**
-     * Unbind TBO from texture unit
-     *
-     * @param textureUnit Texture unit (0-31)
-     */
-    public void unbind(int textureUnit) {
-        GlStateManager._activeTexture(GL13.GL_TEXTURE0 + textureUnit);
+    public void updateIndices(IntBuffer indices) {
+        if (indices.remaining() > capacity) throw new IllegalArgumentException("Too many splat indices");
+        GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, buffer);
+        if (indices.hasRemaining()) GL15.glBufferSubData(GL31.GL_TEXTURE_BUFFER, 0, indices);
+    }
+
+    public void bind(int unit) {
+        if (texture == 0) throw new IllegalStateException("Texture buffer not initialized");
+        RenderSystem.activeTexture(GL13.GL_TEXTURE0 + unit);
+        GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, texture);
+    }
+
+    public void unbind(int unit) {
+        RenderSystem.activeTexture(GL13.GL_TEXTURE0 + unit);
         GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, 0);
     }
 
-    /**
-     * Cleanup GPU resources
-     */
     public void cleanup() {
-        if (tboId != -1) {
-            GL15.glDeleteBuffers(tboId);
-            tboId = -1;
-        }
-        if (textureId != -1) {
-            GL11.glDeleteTextures(textureId);
-            textureId = -1;
-        }
-        initialized = false;
+        if (texture != 0) GL11.glDeleteTextures(texture);
+        if (buffer != 0) GL15.glDeleteBuffers(buffer);
+        buffer = texture = 0;
+        capacity = 0;
     }
 
-    /**
-     * Check if TBO is initialized
-     */
-    public boolean isInitialized() {
-        return initialized;
-    }
-
-    /**
-     * Get current capacity (number of splats)
-     */
-    public int getCapacity() {
-        return capacity;
-    }
-
-    /**
-     * Get texture ID for shader binding
-     */
-    public int getTextureId() {
-        return textureId;
-    }
-
-    /**
-     * Get stride in floats
-     */
-    public int getStride() {
-        return stride;
-    }
+    public boolean isInitialized() { return texture != 0; }
+    public int getCapacity() { return stride > 0 ? capacity / stride : capacity; }
+    public int getTextureId() { return texture; }
+    public int getStride() { return stride; }
 }
