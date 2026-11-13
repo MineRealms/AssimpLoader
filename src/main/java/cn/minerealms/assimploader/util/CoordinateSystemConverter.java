@@ -3,6 +3,7 @@ package cn.minerealms.assimploader.util;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.lwjgl.assimp.AIMatrix4x4;
 
 /**
  * Coordinate system converter for transforming between different 3D coordinate systems.
@@ -63,49 +64,30 @@ public class CoordinateSystemConverter {
             .identity()
             .scale(1, 1, -1); // Negate Z to convert right-handed to left-handed
 
-    // FBX to OpenGL: FBX and OpenGL both Y-up, but FBX is +Z forward, OpenGL is -Z forward
-    // However, since we're going FBX -> Minecraft directly, and both use +Z forward,
-    // we only need to flip handedness (negate X or Z)
-    private static final Matrix4f FBX_TO_OPENGL = new Matrix4f()
-            .identity(); // No transformation needed - both are Y-up, right-handed
-            // The Z direction difference is handled by the OPENGL_TO_MINECRAFT conversion
+    private static final Matrix4f FBX_TO_MINECRAFT = new Matrix4f().scaling(-1, 1, 1);
 
     private static final Matrix4f Z_UP_TO_Y_UP = new Matrix4f()
             .identity()
             .rotateX((float) Math.toRadians(-90)); // Rotate -90° around X
 
+    private static final Matrix4f[][] CONVERSION_MATRICES = buildConversionMatrices();
+
+    private static Matrix4f[][] buildConversionMatrices() {
+        CoordinateSystem[] systems = CoordinateSystem.values();
+        Matrix4f[][] matrices = new Matrix4f[systems.length][systems.length];
+        for (CoordinateSystem from : systems) {
+            for (CoordinateSystem to : systems) {
+                matrices[from.ordinal()][to.ordinal()] = toMinecraft(to).invert().mul(toMinecraft(from));
+            }
+        }
+        return matrices;
+    }
+
     /**
      * Convert a position vector from source to target coordinate system
      */
     public static Vector3f convertPosition(Vector3f position, CoordinateSystem from, CoordinateSystem to) {
-        if (from == to) {
-            return new Vector3f(position);
-        }
-
-        Vector3f result = new Vector3f(position);
-
-        // Direct conversion from FBX to Minecraft
-        if (from == CoordinateSystem.FBX_RIGHT_HANDED && to == CoordinateSystem.MINECRAFT_LEFT_HANDED) {
-            // FBX: Right-handed, Y-up, +Z-forward
-            // Minecraft: Left-handed, Y-up, +Z-forward (south)
-            // To convert right-hand to left-hand: negate X axis
-            result.x = -result.x;
-            return result;
-        }
-
-        // Fallback: Convert via OpenGL as intermediate format
-        if (from == CoordinateSystem.FBX_RIGHT_HANDED) {
-            FBX_TO_OPENGL.transformPosition(result);
-        } else if (from == CoordinateSystem.Z_UP_RIGHT_HANDED) {
-            Z_UP_TO_Y_UP.transformPosition(result);
-        }
-
-        // Convert from OpenGL to target
-        if (to == CoordinateSystem.MINECRAFT_LEFT_HANDED) {
-            OPENGL_TO_MINECRAFT.transformPosition(result);
-        }
-
-        return result;
+        return CONVERSION_MATRICES[from.ordinal()][to.ordinal()].transformPosition(new Vector3f(position));
     }
 
     /**
@@ -113,34 +95,7 @@ public class CoordinateSystemConverter {
      * Direction vectors don't include translation
      */
     public static Vector3f convertDirection(Vector3f direction, CoordinateSystem from, CoordinateSystem to) {
-        if (from == to) {
-            return new Vector3f(direction);
-        }
-
-        Vector3f result = new Vector3f(direction);
-
-        // Direct conversion from FBX to Minecraft
-        if (from == CoordinateSystem.FBX_RIGHT_HANDED && to == CoordinateSystem.MINECRAFT_LEFT_HANDED) {
-            // FBX: Right-handed, Y-up, +Z-forward
-            // Minecraft: Left-handed, Y-up, +Z-forward (south)
-            // To convert right-hand to left-hand: negate X axis
-            result.x = -result.x;
-            return result;
-        }
-
-        // Fallback: Convert via OpenGL as intermediate format
-        if (from == CoordinateSystem.FBX_RIGHT_HANDED) {
-            FBX_TO_OPENGL.transformDirection(result);
-        } else if (from == CoordinateSystem.Z_UP_RIGHT_HANDED) {
-            Z_UP_TO_Y_UP.transformDirection(result);
-        }
-
-        // Convert from OpenGL to target
-        if (to == CoordinateSystem.MINECRAFT_LEFT_HANDED) {
-            OPENGL_TO_MINECRAFT.transformDirection(result);
-        }
-
-        return result;
+        return CONVERSION_MATRICES[from.ordinal()][to.ordinal()].transformDirection(new Vector3f(direction));
     }
 
     /**
@@ -151,21 +106,18 @@ public class CoordinateSystemConverter {
             return new Matrix4f(matrix);
         }
 
-        Matrix4f result = new Matrix4f(matrix);
+        Matrix4f basis = getConversionMatrix(from, to);
+        return new Matrix4f(basis).mul(matrix).mul(new Matrix4f(basis).invert());
+    }
 
-        // Convert to OpenGL as intermediate format
-        if (from == CoordinateSystem.FBX_RIGHT_HANDED) {
-            result = new Matrix4f(FBX_TO_OPENGL).mul(result).mul(new Matrix4f(FBX_TO_OPENGL).invert());
-        } else if (from == CoordinateSystem.Z_UP_RIGHT_HANDED) {
-            result = new Matrix4f(Z_UP_TO_Y_UP).mul(result).mul(new Matrix4f(Z_UP_TO_Y_UP).invert());
-        }
-
-        // Convert from OpenGL to target
-        if (to == CoordinateSystem.MINECRAFT_LEFT_HANDED) {
-            result = new Matrix4f(OPENGL_TO_MINECRAFT).mul(result).mul(new Matrix4f(OPENGL_TO_MINECRAFT).invert());
-        }
-
-        return result;
+    /** Copy Assimp's row-major fields into JOML's column-major constructor, then change basis. */
+    public static Matrix4f convertMatrix(AIMatrix4x4 matrix, CoordinateSystem from, CoordinateSystem to) {
+        Matrix4f copied = new Matrix4f(
+                matrix.a1(), matrix.b1(), matrix.c1(), matrix.d1(),
+                matrix.a2(), matrix.b2(), matrix.c2(), matrix.d2(),
+                matrix.a3(), matrix.b3(), matrix.c3(), matrix.d3(),
+                matrix.a4(), matrix.b4(), matrix.c4(), matrix.d4());
+        return convertMatrix(copied, from, to);
     }
 
     /**
@@ -176,17 +128,8 @@ public class CoordinateSystemConverter {
             return new Quaternionf(rotation);
         }
 
-        // Extract Euler angles
-        Vector3f euler = new Vector3f();
-        rotation.getEulerAnglesXYZ(euler);
-
-        // Convert rotation by transforming the rotation axis
-        // For coordinate system conversion, we need to adjust the rotation
-        Matrix4f conversionMatrix = getConversionMatrix(from, to);
-
-        // Apply conversion to the rotation
-        // This is a simplified approach - for production, use proper quaternion conversion
-        return new Quaternionf(rotation).mul(new Quaternionf().rotationXYZ(euler.x, euler.y, euler.z));
+        Matrix4f converted = convertMatrix(new Matrix4f().rotation(rotation), from, to);
+        return converted.getNormalizedRotation(new Quaternionf()).normalize();
     }
 
     /**
@@ -230,23 +173,15 @@ public class CoordinateSystemConverter {
      * Get the transformation matrix for converting between coordinate systems
      */
     public static Matrix4f getConversionMatrix(CoordinateSystem from, CoordinateSystem to) {
-        Matrix4f result = new Matrix4f().identity();
+        return new Matrix4f(CONVERSION_MATRICES[from.ordinal()][to.ordinal()]);
+    }
 
-        // Build conversion matrix
-        if (from != to) {
-            // Convert to OpenGL as intermediate
-            if (from == CoordinateSystem.FBX_RIGHT_HANDED) {
-                result.mul(FBX_TO_OPENGL);
-            } else if (from == CoordinateSystem.Z_UP_RIGHT_HANDED) {
-                result.mul(Z_UP_TO_Y_UP);
-            }
-
-            // Convert from OpenGL to target
-            if (to == CoordinateSystem.MINECRAFT_LEFT_HANDED) {
-                result.mul(OPENGL_TO_MINECRAFT);
-            }
-        }
-
-        return result;
+    private static Matrix4f toMinecraft(CoordinateSystem system) {
+        return switch (system) {
+            case MINECRAFT_LEFT_HANDED -> new Matrix4f();
+            case OPENGL_RIGHT_HANDED -> new Matrix4f(OPENGL_TO_MINECRAFT);
+            case FBX_RIGHT_HANDED -> new Matrix4f(FBX_TO_MINECRAFT);
+            case Z_UP_RIGHT_HANDED -> new Matrix4f(OPENGL_TO_MINECRAFT).mul(Z_UP_TO_Y_UP);
+        };
     }
 }

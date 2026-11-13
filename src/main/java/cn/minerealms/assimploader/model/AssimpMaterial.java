@@ -1,8 +1,10 @@
 package cn.minerealms.assimploader.model;
 
-import org.lwjgl.assimp.AIColor4D;
+import cn.minerealms.assimploader.material.PbrMaterialInputs;
 import org.lwjgl.assimp.AIMaterial;
 import org.lwjgl.assimp.AIString;
+
+import java.util.Locale;
 
 import static org.lwjgl.assimp.Assimp.*;
 
@@ -22,16 +24,24 @@ public class AssimpMaterial {
     private final String diffuseTexture;
     private final String normalTexture;
     private final String specularTexture;
+    private final PbrMaterialInputs pbrInputs;
+    private final boolean blendAlpha;
 
     public AssimpMaterial(AIMaterial aiMaterial, int index) {
+        this(aiMaterial, index, "", "");
+    }
+
+    public AssimpMaterial(AIMaterial aiMaterial, int index, String sourceFormat, String sourceGenerator) {
         this.index = index;
         this.name = readName(aiMaterial);
         this.diffuseColor = readDiffuseColor(aiMaterial);
         this.specularColor = readColor(aiMaterial, AI_MATKEY_COLOR_SPECULAR, 1f, 1f, 1f, 1f);
         this.ambientColor = readColor(aiMaterial, AI_MATKEY_COLOR_AMBIENT, 0.2f, 0.2f, 0.2f, 1f);
-        this.diffuseTexture = readTexturePath(aiMaterial, aiTextureType_DIFFUSE);
-        this.normalTexture = readTexturePath(aiMaterial, aiTextureType_NORMALS);
+        this.diffuseTexture = firstTexturePath(aiMaterial, aiTextureType_DIFFUSE, aiTextureType_BASE_COLOR);
+        this.normalTexture = firstTexturePath(aiMaterial, aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA);
         this.specularTexture = readTexturePath(aiMaterial, aiTextureType_SPECULAR);
+        this.pbrInputs = readPbrInputs(aiMaterial, sourceFormat, sourceGenerator);
+        this.blendAlpha = readBlendAlpha(aiMaterial);
     }
 
     // ------------------------------------------------------------------ native readers
@@ -49,12 +59,34 @@ public class AssimpMaterial {
     }
 
     private static String readTexturePath(AIMaterial aiMaterial, int textureType) {
+        PbrMaterialInputs.TextureRef texture = readTexture(aiMaterial, textureType, 0);
+        return texture == null ? null : texture.path();
+    }
+
+    private static boolean readBlendAlpha(AIMaterial material) {
+        AIString mode = AIString.calloc();
+        try {
+            return aiGetMaterialString(material, AI_MATKEY_GLTF_ALPHAMODE, aiTextureType_NONE, 0, mode) == aiReturn_SUCCESS
+                    && "BLEND".equals(mode.dataString());
+        } finally {
+            mode.free();
+        }
+    }
+
+    private static String firstTexturePath(AIMaterial material, int first, int second) {
+        String path = readTexturePath(material, first);
+        return path != null ? path : readTexturePath(material, second);
+    }
+
+    private static PbrMaterialInputs.TextureRef readTexture(AIMaterial aiMaterial, int textureType, int channel) {
         AIString path = AIString.calloc();
         try {
+            int[] uv = {0};
             if (aiGetMaterialTexture(aiMaterial, textureType, 0, path,
-                    (int[]) null, null, null, null, null, null) == aiReturn_SUCCESS) {
+                    null, uv, null, null, null, null) == aiReturn_SUCCESS) {
                 String value = path.dataString();
-                return value == null || value.isEmpty() ? null : value;
+                return value == null || value.isBlank() ? null
+                        : new PbrMaterialInputs.TextureRef(value, channel, Math.max(0, uv[0]));
             }
             return null;
         } finally {
@@ -62,12 +94,80 @@ public class AssimpMaterial {
         }
     }
 
-    private static float[] readColor(AIMaterial aiMaterial, String key, float r, float g, float b, float a) {
-        AIColor4D color = AIColor4D.create();
-        if (aiGetMaterialColor(aiMaterial, key, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
-            return new float[]{color.r(), color.g(), color.b(), color.a()};
+    private static PbrMaterialInputs.TextureRef firstTexture(AIMaterial material, int first, int second) {
+        var texture = readTexture(material, first, 0);
+        return texture != null ? texture : readTexture(material, second, 0);
+    }
+
+    private static PbrMaterialInputs readPbrInputs(AIMaterial material, String sourceFormat, String sourceGenerator) {
+        String format = sourceFormat == null ? "" : sourceFormat.toLowerCase(Locale.ROOT);
+        String generator = sourceGenerator == null ? "" : sourceGenerator.toLowerCase(Locale.ROOT);
+        boolean blenderFbx = format.contains("fbx") && generator.contains("blender");
+        boolean gltf = format.contains("gltf") || format.contains("glb");
+        // Assimp maps Wavefront OBJ's legacy map_Ns gloss map to
+        // aiTextureType_DIFFUSE_ROUGHNESS. That slot is not evidence of a
+        // metallic/roughness workflow, so only formats with an unambiguous
+        // modern PBR contract may populate these two channels.
+        boolean modernPbr = blenderFbx || gltf;
+        var normal = firstTexture(material, aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA);
+        var roughness = modernPbr ? readTexture(material, aiTextureType_DIFFUSE_ROUGHNESS, 0) : null;
+        var metallic = modernPbr ? readTexture(material, aiTextureType_METALNESS, 0) : null;
+        if (blenderFbx && roughness == null) roughness = readTexture(material, aiTextureType_SHININESS, 0);
+        if (gltf) {
+            var combined = readTexture(material, AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, 0);
+            if (combined != null) {
+                if (roughness == null) roughness = new PbrMaterialInputs.TextureRef(combined.path(), 1, combined.uvIndex());
+                if (metallic == null) metallic = new PbrMaterialInputs.TextureRef(combined.path(), 2, combined.uvIndex());
+            }
         }
-        return new float[]{r, g, b, a};
+        var occlusion = firstTexture(material, aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP);
+        var emissive = firstTexture(material, aiTextureType_EMISSION_COLOR, aiTextureType_EMISSIVE);
+        float roughnessFactor = modernPbr ? readScalarProperty(material, AI_MATKEY_ROUGHNESS_FACTOR) : Float.NaN;
+        float metallicFactor = modernPbr ? readScalarProperty(material, AI_MATKEY_METALLIC_FACTOR) : Float.NaN;
+        PbrMaterialInputs.Workflow workflow = PbrMaterialInputs.Workflow.NONE;
+        float f0 = 0.04f;
+        if (blenderFbx) {
+            workflow = PbrMaterialInputs.Workflow.BLENDER_FBX;
+            float shininess = readScalarProperty(material, AI_MATKEY_SHININESS);
+            roughnessFactor = roughness != null ? 1f : Float.isFinite(shininess)
+                    ? 1f - (float) Math.sqrt(Math.max(0, shininess) / 100f) : 0.5f;
+            metallicFactor = metallic != null ? 1f : fallback(readScalarProperty(material, AI_MATKEY_REFLECTIVITY), 0f);
+            f0 = fallback(readScalarProperty(material, AI_MATKEY_SHININESS_STRENGTH), 0.25f) * 0.16f;
+        } else if (gltf) {
+            workflow = PbrMaterialInputs.Workflow.METALLIC_ROUGHNESS;
+            roughnessFactor = fallback(roughnessFactor, 1f);
+            metallicFactor = fallback(metallicFactor, metallic != null || gltf ? 1f : 0f);
+        } else {
+            roughnessFactor = 0.5f;
+            metallicFactor = 0f;
+        }
+        float normalScale = readScalarProperty(material, _AI_MATKEY_GLTF_SCALE_BASE, aiTextureType_NORMALS);
+        if (!Float.isFinite(normalScale) && blenderFbx) normalScale = readScalarProperty(material, AI_MATKEY_BUMPSCALING);
+        float occlusionStrength = readScalarProperty(material, _AI_MATKEY_GLTF_STRENGTH_BASE,
+                gltf ? aiTextureType_LIGHTMAP : aiTextureType_AMBIENT_OCCLUSION);
+        float[] emission = readColorProperty(material, AI_MATKEY_COLOR_EMISSIVE);
+        if (emission == null) emission = emissive == null ? new float[]{0, 0, 0} : new float[]{1, 1, 1};
+        float intensity = fallback(readScalarProperty(material, AI_MATKEY_EMISSIVE_INTENSITY), 1f);
+        return new PbrMaterialInputs(workflow, normal, roughness, metallic, occlusion, emissive,
+                roughnessFactor, metallicFactor, fallback(normalScale, 1f), fallback(occlusionStrength, 1f),
+                emission[0] * intensity, emission[1] * intensity, emission[2] * intensity, f0);
+    }
+
+    private static float fallback(float value, float fallback) { return Float.isFinite(value) ? value : fallback; }
+
+    private static float[] readColor(AIMaterial aiMaterial, String key, float r, float g, float b, float a) {
+        float[] color = readColorProperty(aiMaterial, key);
+        return color == null ? new float[]{r, g, b, a} : color;
+    }
+
+    private static float[] readColorProperty(AIMaterial aiMaterial, String key) {
+        float[] values = {0f, 0f, 0f, 1f};
+        int[] count = {4};
+        if (aiGetMaterialFloatArray(aiMaterial, key, aiTextureType_NONE, 0, values, count) != aiReturn_SUCCESS
+                || count[0] < 3) return null;
+        // RGB properties have no fourth component; only an authored RGBA property supplies alpha.
+        values[3] = count[0] < 4 || !Float.isFinite(values[3]) ? 1f : clampUnit(values[3]);
+        return values;
     }
 
     /**
@@ -75,23 +175,13 @@ public class AssimpMaterial {
      * (FBX PhongE exports transparency separately from the diffuse colour).
      */
     private static float[] readDiffuseColor(AIMaterial aiMaterial) {
-        AIColor4D color = AIColor4D.create();
-
-        float[] result = null;
-        if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_DIFFUSE, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
-            result = new float[]{color.r(), color.g(), color.b(), color.a()};
-        } else if (aiGetMaterialColor(aiMaterial, AI_MATKEY_BASE_COLOR, aiTextureType_NONE, 0, color) == aiReturn_SUCCESS) {
-            result = new float[]{color.r(), color.g(), color.b(), color.a()};
-        }
-
-        if (result == null) {
-            return new float[]{1f, 1f, 1f, 1f};
-        }
+        float[] result = readColorProperty(aiMaterial, AI_MATKEY_COLOR_DIFFUSE);
+        if (result == null) result = readColorProperty(aiMaterial, AI_MATKEY_BASE_COLOR);
+        if (result == null) result = new float[]{1f, 1f, 1f, 1f};
 
         float opacity = readOpacityProperty(aiMaterial);
-        if (opacity >= 0f && opacity < 0.99f) {
-            result[3] = opacity;
-        }
+        // Importers may expose the same alpha through both properties; multiplying would apply it twice.
+        if (opacity >= 0f) result[3] = Math.min(result[3], opacity);
         return result;
     }
 
@@ -99,34 +189,35 @@ public class AssimpMaterial {
      * @return an explicit opacity in [0,1], or -1 when the material does not define one
      */
     private static float readOpacityProperty(AIMaterial aiMaterial) {
-        float[] value = new float[1];
-        int[] max = new int[1];
-
         // Opacity: 0 = transparent, 1 = opaque
-        if (aiGetMaterialFloatArray(aiMaterial, AI_MATKEY_OPACITY, aiTextureType_NONE, 0, value, max) == aiReturn_SUCCESS) {
-            if (value[0] > 0.01f && value[0] < 0.99f) {
-                return value[0];
-            }
-        }
-
-        // TransparencyFactor: inverted relative to opacity
-        if (aiGetMaterialFloatArray(aiMaterial, AI_MATKEY_TRANSPARENCYFACTOR, aiTextureType_NONE, 0, value, max) == aiReturn_SUCCESS) {
-            if (value[0] > 0.01f && value[0] < 0.99f) {
-                return 1.0f - value[0];
-            }
-        }
+        float opacity = readScalarProperty(aiMaterial, AI_MATKEY_OPACITY);
+        if (Float.isFinite(opacity)) return clampUnit(opacity);
 
         // TransparentColor: white = fully transparent, black = opaque
-        AIColor4D transparent = AIColor4D.create();
-        if (aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_TRANSPARENT, aiTextureType_NONE, 0, transparent) == aiReturn_SUCCESS) {
-            float average = (transparent.r() + transparent.g() + transparent.b()) / 3.0f;
-            if (average > 0.01f) {
-                return 1.0f - average;
-            }
+        // FBX's importer already applies TransparencyFactor to this color.
+        float[] transparent = readColorProperty(aiMaterial, AI_MATKEY_COLOR_TRANSPARENT);
+        if (transparent != null) {
+            float average = (transparent[0] + transparent[1] + transparent[2]) / 3f;
+            if (Float.isFinite(average)) return 1f - clampUnit(average);
         }
 
+        float transparency = readScalarProperty(aiMaterial, AI_MATKEY_TRANSPARENCYFACTOR);
+        if (Float.isFinite(transparency)) return 1f - clampUnit(transparency);
         return -1f;
     }
+
+    private static float readScalarProperty(AIMaterial aiMaterial, String key) {
+        return readScalarProperty(aiMaterial, key, aiTextureType_NONE);
+    }
+
+    private static float readScalarProperty(AIMaterial aiMaterial, String key, int type) {
+        float[] value = new float[1];
+        int[] count = {1};
+        return aiGetMaterialFloatArray(aiMaterial, key, type, 0, value, count) == aiReturn_SUCCESS
+                && count[0] == 1 ? value[0] : Float.NaN;
+    }
+
+    private static float clampUnit(float value) { return Math.max(0f, Math.min(1f, value)); }
 
     // ------------------------------------------------------------------ accessors
 
@@ -162,13 +253,15 @@ public class AssimpMaterial {
         return specularTexture;
     }
 
+    public PbrMaterialInputs getPbrInputs() { return pbrInputs; }
+
     /** @return 1 = opaque, 0 = fully transparent */
     public float getOpacity() {
         return diffuseColor[3];
     }
 
     public boolean isTransparent() {
-        return getOpacity() < 0.99f;
+        return blendAlpha || getOpacity() < 0.99f;
     }
 
     public boolean hasTexture() {
@@ -212,10 +305,9 @@ public class AssimpMaterial {
             return null;
         }
         int dot = diffuseTexture.lastIndexOf('.');
-        if (dot <= 0) {
-            return null;
-        }
-        return diffuseTexture.substring(0, dot) + suffix + diffuseTexture.substring(dot);
+        int slash = Math.max(diffuseTexture.lastIndexOf('/'), diffuseTexture.lastIndexOf('\\'));
+        return dot > slash ? diffuseTexture.substring(0, dot) + suffix + diffuseTexture.substring(dot)
+                : diffuseTexture + suffix;
     }
 
     @Override

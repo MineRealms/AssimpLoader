@@ -9,7 +9,6 @@ import org.joml.Vector3f;
 import org.lwjgl.assimp.AIBone;
 import org.lwjgl.assimp.AIColor4D;
 import org.lwjgl.assimp.AIFace;
-import org.lwjgl.assimp.AIMatrix4x4;
 import org.lwjgl.assimp.AIMesh;
 import org.lwjgl.assimp.AIVector3D;
 
@@ -221,12 +220,9 @@ public class AssimpMesh {
         Map<String, Matrix4f> out = new LinkedHashMap<>(boneCount);
         for (int i = 0; i < boneCount; i++) {
             AIBone aiBone = AIBone.create(aiMesh.mBones().get(i));
-            AIMatrix4x4 m = aiBone.mOffsetMatrix();
-            out.put(aiBone.mName().dataString(), new Matrix4f(
-                    m.a1(), m.a2(), m.a3(), m.a4(),
-                    m.b1(), m.b2(), m.b3(), m.b4(),
-                    m.c1(), m.c2(), m.c3(), m.c4(),
-                    m.d1(), m.d2(), m.d3(), m.d4()));
+            out.put(aiBone.mName().dataString(), CoordinateSystemConverter.convertMatrix(
+                    aiBone.mOffsetMatrix(), sourceCoordinateSystem,
+                    CoordinateSystemConverter.CoordinateSystem.MINECRAFT_LEFT_HANDED));
         }
         return out;
     }

@@ -1,8 +1,8 @@
 package cn.minerealms.assimploader.model;
 
 import org.joml.Matrix4f;
-import org.lwjgl.assimp.AIMatrix4x4;
 import org.lwjgl.assimp.AINode;
+import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,14 +21,14 @@ public class AssimpNode {
     private final List<AssimpNode> children;
 
     public AssimpNode(AINode aiNode) {
+        this(aiNode, CoordinateSystemConverter.CoordinateSystem.OPENGL_RIGHT_HANDED);
+    }
+
+    public AssimpNode(AINode aiNode, CoordinateSystemConverter.CoordinateSystem coordinateSystem) {
         this.name = aiNode.mName().dataString();
 
-        AIMatrix4x4 m = aiNode.mTransformation();
-        this.transformation = new Matrix4f(
-                m.a1(), m.a2(), m.a3(), m.a4(),
-                m.b1(), m.b2(), m.b3(), m.b4(),
-                m.c1(), m.c2(), m.c3(), m.c4(),
-                m.d1(), m.d2(), m.d3(), m.d4());
+        this.transformation = CoordinateSystemConverter.convertMatrix(aiNode.mTransformation(),
+                coordinateSystem, CoordinateSystemConverter.CoordinateSystem.MINECRAFT_LEFT_HANDED);
 
         int numMeshes = aiNode.mNumMeshes();
         this.meshIndices = new int[numMeshes];
@@ -38,7 +38,7 @@ public class AssimpNode {
 
         this.children = new ArrayList<>(aiNode.mNumChildren());
         for (int i = 0; i < aiNode.mNumChildren(); i++) {
-            children.add(new AssimpNode(AINode.create(aiNode.mChildren().get(i))));
+            children.add(new AssimpNode(AINode.create(aiNode.mChildren().get(i)), coordinateSystem));
         }
     }
 

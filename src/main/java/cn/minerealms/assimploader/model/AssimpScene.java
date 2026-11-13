@@ -4,12 +4,16 @@ import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.util.CoordinateSystemConverter;
+import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.assimp.AIAnimation;
 import org.lwjgl.assimp.AIMaterial;
+import org.lwjgl.assimp.AIMetaData;
+import org.lwjgl.assimp.AIMetaDataEntry;
 import org.lwjgl.assimp.AIMesh;
 import org.lwjgl.assimp.AINode;
 import org.lwjgl.assimp.AIScene;
+import org.lwjgl.assimp.AIString;
 import org.lwjgl.assimp.AITexture;
 import org.lwjgl.assimp.Assimp;
 
@@ -32,6 +36,7 @@ import java.util.Map;
 public class AssimpScene {
 
     private final Path sourcePath;
+    private final ResourceLocation sourceResource;
     private final List<AssimpMesh> meshes;
     private final List<AssimpMaterial> materials;
     private final List<AssimpAnimation> animations;
@@ -41,6 +46,9 @@ public class AssimpScene {
     private final ModelImportMode importMode;
     private final Map<Integer, String> meshIndexToNodeName;
     private final boolean skinned;
+    private final Map<String, Integer> embeddedTextureNames;
+    private final String sourceFormat;
+    private final String sourceGenerator;
 
     /**
      * @param aiScene native scene; ownership is transferred and it is released before this
@@ -49,9 +57,18 @@ public class AssimpScene {
     public AssimpScene(AIScene aiScene, @Nullable Path sourcePath,
                        CoordinateSystemConverter.CoordinateSystem coordinateSystem,
                        ModelImportMode importMode) {
+        this(aiScene, sourcePath, null, coordinateSystem, importMode);
+    }
+
+    public AssimpScene(AIScene aiScene, @Nullable Path sourcePath, @Nullable ResourceLocation sourceResource,
+                       CoordinateSystemConverter.CoordinateSystem coordinateSystem,
+                       ModelImportMode importMode) {
         this.sourcePath = sourcePath;
+        this.sourceResource = sourceResource;
         this.sourceCoordinateSystem = coordinateSystem;
         this.importMode = importMode;
+        this.sourceFormat = metadataString(aiScene.mMetaData(), "SourceAsset_Format");
+        this.sourceGenerator = metadataString(aiScene.mMetaData(), "SourceAsset_Generator");
 
         List<AssimpMesh> meshList = new ArrayList<>();
         List<AssimpMaterial> materialList = new ArrayList<>();
@@ -72,7 +89,7 @@ public class AssimpScene {
             if (materialCount > 0) {
                 PointerBuffer buffer = aiScene.mMaterials();
                 for (int i = 0; i < materialCount; i++) {
-                    materialList.add(new AssimpMaterial(AIMaterial.create(buffer.get(i)), i));
+                    materialList.add(new AssimpMaterial(AIMaterial.create(buffer.get(i)), i, sourceFormat, sourceGenerator));
                 }
             }
 
@@ -94,7 +111,7 @@ public class AssimpScene {
 
             AINode aiRoot = aiScene.mRootNode();
             if (aiRoot != null) {
-                root = new AssimpNode(aiRoot);
+                root = new AssimpNode(aiRoot, coordinateSystem);
             }
         } finally {
             // Everything above has been copied into Java objects - the native scene is dead weight.
@@ -105,6 +122,15 @@ public class AssimpScene {
         this.materials = Collections.unmodifiableList(materialList);
         this.animations = Collections.unmodifiableList(animationList);
         this.textures = Collections.unmodifiableList(textureList);
+        Map<String, Integer> textureNames = new HashMap<>();
+        for (AssimpTexture texture : textures) {
+            String name = texture.getFilename().replace('\\', '/');
+            if (name.isBlank()) continue;
+            textureNames.merge(name, texture.getIndex(), (first, second) -> first.equals(second) ? first : -1);
+            String shortName = name.substring(name.lastIndexOf('/') + 1);
+            textureNames.merge(shortName, texture.getIndex(), (first, second) -> first.equals(second) ? first : -1);
+        }
+        this.embeddedTextureNames = Map.copyOf(textureNames);
         this.rootNode = root;
 
         this.meshIndexToNodeName = new HashMap<>();
@@ -134,12 +160,42 @@ public class AssimpScene {
         return materials;
     }
 
+    public String getSourceFormat() { return sourceFormat; }
+    public String getSourceGenerator() { return sourceGenerator; }
+
+    private static String metadataString(@Nullable AIMetaData metadata, String key) {
+        if (metadata == null || metadata.mKeys() == null || metadata.mValues() == null) return "";
+        for (int index = 0; index < metadata.mNumProperties(); index++) {
+            if (!key.equals(metadata.mKeys().get(index).dataString())) continue;
+            AIMetaDataEntry value = metadata.mValues().get(index);
+            return value.mType() == Assimp.AI_AISTRING
+                    ? new AIString(value.mData(AIString.SIZEOF)).dataString() : "";
+        }
+        return "";
+    }
+
     public List<AssimpAnimation> getAnimations() {
         return animations;
     }
 
     public List<AssimpTexture> getTextures() {
         return textures;
+    }
+
+    /** FBX may reference embedded images by filename instead of Assimp's *N syntax. */
+    public int findEmbeddedTextureIndex(String path) {
+        if (path == null || path.isBlank()) return -1;
+        if (path.startsWith("*")) {
+            try {
+                int index = Integer.parseInt(path.substring(1));
+                return index >= 0 && index < textures.size() ? index : -1;
+            } catch (NumberFormatException invalid) {
+                return -1;
+            }
+        }
+        String name = path.replace('\\', '/');
+        Integer exact = embeddedTextureNames.get(name);
+        return exact != null ? exact : embeddedTextureNames.getOrDefault(name.substring(name.lastIndexOf('/') + 1), -1);
     }
 
     @Nullable
@@ -150,6 +206,11 @@ public class AssimpScene {
     @Nullable
     public Path getSourcePath() {
         return sourcePath;
+    }
+
+    @Nullable
+    public ResourceLocation getSourceResource() {
+        return sourceResource;
     }
 
     public CoordinateSystemConverter.CoordinateSystem getSourceCoordinateSystem() {

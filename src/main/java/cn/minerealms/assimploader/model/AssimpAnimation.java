@@ -36,7 +36,7 @@ public class AssimpAnimation {
         return name;
     }
 
-    /** Duration in seconds. */
+    /** Duration in Assimp animation ticks. */
     public double getDuration() {
         return duration;
     }

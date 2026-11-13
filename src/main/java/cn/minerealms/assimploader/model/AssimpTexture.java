@@ -22,6 +22,7 @@ public class AssimpTexture {
 
     private final int index;
     private final String formatHint;
+    private final String filename;
     private final boolean compressed;
     /** Compressed (PNG/JPG/...) payload, or {@code null} for raw textures. */
     private final byte[] encodedBytes;
@@ -33,6 +34,7 @@ public class AssimpTexture {
     public AssimpTexture(AITexture aiTexture, int index) {
         this.index = index;
         this.formatHint = aiTexture.achFormatHintString();
+        this.filename = aiTexture.mFilename().dataString();
         this.compressed = aiTexture.mHeight() == 0;
 
         if (compressed) {
@@ -76,6 +78,8 @@ public class AssimpTexture {
     public String getFormatHint() {
         return formatHint;
     }
+
+    public String getFilename() { return filename; }
 
     public boolean isCompressed() {
         return compressed;
