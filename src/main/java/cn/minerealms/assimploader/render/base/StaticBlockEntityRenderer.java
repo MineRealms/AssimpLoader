@@ -10,10 +10,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
  *
  * Example usage:
  * <pre>
- * public class CCBBlockEntityRenderer extends StaticBlockEntityRenderer<CCBBlockEntity> {
+ * public class DisplayBlockEntityRenderer extends StaticBlockEntityRenderer<DisplayBlockEntity> {
  *     {@literal @}Override
  *     protected String getModelName() {
- *         return "ccb";
+ *         return "display";
  *     }
  * }
  * </pre>
