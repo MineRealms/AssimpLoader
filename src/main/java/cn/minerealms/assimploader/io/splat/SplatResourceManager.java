@@ -1,17 +1,18 @@
 package cn.minerealms.assimploader.io.splat;
 
 import cn.minerealms.assimploader.rendering.splat.data.GaussianSplatData;
+import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * Manages Gaussian splat resource loading and caching.
  *
- * Provides caching and hot-reload detection for splat data.
+ * Bounded cache; its owner calls clearCache on resource reload.
  */
 public class SplatResourceManager {
 
@@ -19,7 +20,7 @@ public class SplatResourceManager {
     private final ResourceManager resourceManager;
 
     public SplatResourceManager(ResourceManager resourceManager) {
-        this.cache = new HashMap<>();
+        this.cache = new LinkedHashMap<>(16, 0.75f, true);
         this.resourceManager = resourceManager;
     }
 
@@ -30,7 +31,7 @@ public class SplatResourceManager {
      * @return Loaded splat data
      * @throws IOException If loading fails
      */
-    public GaussianSplatData load(ResourceLocation location) throws IOException {
+    public synchronized GaussianSplatData load(ResourceLocation location) throws IOException {
         // Check cache
         GaussianSplatData cached = cache.get(location);
         if (cached != null) {
@@ -40,20 +41,24 @@ public class SplatResourceManager {
         // Load from resource
         GaussianSplatData data = SplatLoader.load(location, resourceManager);
         cache.put(location, data);
+        int limit;
+        try { limit = AssimpLoaderConfig.CLIENT.splatCacheSize.get(); }
+        catch (IllegalStateException unloaded) { limit = AssimpLoaderConfig.CLIENT.splatCacheSize.getDefault(); }
+        while (cache.size() > Math.max(1, limit)) cache.remove(cache.keySet().iterator().next());
         return data;
     }
 
     /**
      * Clear cache (for resource pack reload)
      */
-    public void clearCache() {
+    public synchronized void clearCache() {
         cache.clear();
     }
 
     /**
      * Reload a specific resource
      */
-    public void reload(ResourceLocation location) throws IOException {
+    public synchronized void reload(ResourceLocation location) throws IOException {
         cache.remove(location);
         load(location);
     }
@@ -61,14 +66,14 @@ public class SplatResourceManager {
     /**
      * Check if a resource is cached
      */
-    public boolean isCached(ResourceLocation location) {
+    public synchronized boolean isCached(ResourceLocation location) {
         return cache.containsKey(location);
     }
 
     /**
      * Get cache size
      */
-    public int getCacheSize() {
+    public synchronized int getCacheSize() {
         return cache.size();
     }
 }

@@ -2,8 +2,6 @@ package cn.minerealms.assimploader.rendering.splat.data;
 
 import org.joml.Vector3f;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -18,13 +16,14 @@ public class GaussianSplatData {
     private final BoundingBox bounds;
 
     public GaussianSplatData(List<GaussianSplat> splats, int shDegree) {
-        this.splats = new ArrayList<>(splats);
+        if (shDegree < 0 || shDegree > 3) throw new IllegalArgumentException("SH degree must be 0-3");
+        this.splats = List.copyOf(splats);
         this.shDegree = shDegree;
-        this.bounds = computeBounds(splats);
+        this.bounds = computeBounds(this.splats);
     }
 
     public List<GaussianSplat> getSplats() {
-        return Collections.unmodifiableList(splats);
+        return splats;
     }
 
     public int getSplatCount() {
@@ -78,11 +77,14 @@ public class GaussianSplatData {
         }
 
         public Vector3f getCenter() {
-            return new Vector3f(min).add(max).mul(0.5f);
+            return new Vector3f((float) (((double) min.x + max.x) * 0.5),
+                    (float) (((double) min.y + max.y) * 0.5), (float) (((double) min.z + max.z) * 0.5));
         }
 
         public Vector3f getSize() {
-            return new Vector3f(max).sub(min);
+            return new Vector3f((float) Math.min(Float.MAX_VALUE, (double) max.x - min.x),
+                    (float) Math.min(Float.MAX_VALUE, (double) max.y - min.y),
+                    (float) Math.min(Float.MAX_VALUE, (double) max.z - min.z));
         }
     }
 }
