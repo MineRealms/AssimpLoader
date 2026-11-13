@@ -41,7 +41,7 @@ public final class AssimpBootstrap {
         try {
             Class.forName("org.lwjgl.assimp.Assimp");
             return true;
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | LinkageError e) {
             return false;
         }
     }

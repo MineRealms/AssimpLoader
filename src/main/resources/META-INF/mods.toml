@@ -3,9 +3,6 @@ loaderVersion="[47,)"
 license="MIT"
 issueTrackerURL="https://github.com/MineRealms/AssimpLoader/issues"
 
-[[mixins]]
-config="mixins.photon_compat.json"
-
 [[mods]]
 modId="assimploader"
 version="${file.jarVersion}"
@@ -43,3 +40,10 @@ mandatory=true
 versionRange="[1.20.1,1.21)"
 ordering="NONE"
 side="BOTH"
+
+[[dependencies.assimploader]]
+modId="modernui"
+mandatory=true
+versionRange="[3.11.0.1,4)"
+ordering="AFTER"
+side="CLIENT"

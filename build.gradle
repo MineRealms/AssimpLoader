@@ -25,15 +25,31 @@ minecraft {
     runs {
         client {
             workingDirectory project.file('run')
+            if (project.hasProperty('clientSmokeWorld')) {
+                property 'autotest.enabled', 'true'
+                property 'autotest.capture', 'true'
+                property 'autotest.world', project.property('clientSmokeWorld').toString()
+            }
+            if (project.hasProperty('clientStartupSmoke')) {
+                property 'autotest.enabled', 'true'
+                property 'autotest.startupOnly', 'true'
+            }
+            if (project.hasProperty('clientPbrSmoke')) {
+                property 'autotest.enabled', 'true'
+                property 'autotest.pbr', 'true'
+                property 'autotest.world', project.property('clientPbrSmoke').toString()
+                property 'autotest.pbrKeepOpen', project.hasProperty('clientPbrKeepOpen').toString()
+                args '--width', '1280', '--height', '720'
+            }
+            if (project.hasProperty('rosettaRepo')) {
+                property 'rosetta.remote.bind', '127.0.0.1'
+                property 'rosetta.remote.port', project.findProperty('rosettaPort') ?: '48790'
+            }
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             property 'forge.enabledGameTestNamespaces', 'assimploader'
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-
-            lazyToken('minecraft_classpath') {
-                configurations.library.copyRecursive().resolve().collect { it.absolutePath }.join(File.pathSeparator)
-            }
 
             mods {
                 assimploader {
@@ -50,10 +66,6 @@ minecraft {
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
 
-            lazyToken('minecraft_classpath') {
-                configurations.library.copyRecursive().resolve().collect { it.absolutePath }.join(File.pathSeparator)
-            }
-
             mods {
                 assimploader {
                     source sourceSets.main
@@ -69,10 +81,6 @@ minecraft {
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
             args '--all', '--mod', 'assimploader', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
 
-            lazyToken('minecraft_classpath') {
-                configurations.library.copyRecursive().resolve().collect { it.absolutePath }.join(File.pathSeparator)
-            }
-
             mods {
                 assimploader {
                     source sourceSets.main
@@ -85,26 +93,33 @@ minecraft {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 configurations {
-    library
-    implementation.extendsFrom library
-
-    // Only the LWJGL Assimp natives, kept out of runtimeClasspath on purpose: the '-all' jar
-    // has to bundle them, and resolving runtimeClasspath while the task graph is being built
-    // fails on a cold cache (the mapped Forge jar is produced by a ForgeGradle task that has
-    // not run yet). This configuration contains nothing but plain Maven artefacts.
+    // Resolve native packaging separately from the mapped Forge runtimeClasspath, which is
+    // not available while the task graph is being built on a cold cache.
     assimpNatives {
         canBeConsumed = false
         canBeResolved = true
+        transitive = false
     }
 }
+
+// Plain libraries and native resources must also be visible to the game's class loader.
+fg.configureMinecraftLibraryConfiguration(configurations.assimpNatives)
 
 repositories {
     maven { url = 'https://maven.minecraftforge.net/' }
     mavenCentral()
     // ModernUI
     maven { url = 'https://maven.izzel.io/releases/' }
-    // glsl-transformer (optional Iris/Oculus shader injection)
-    maven { url = 'https://jitpack.io' }
+    maven {
+        url = 'https://api.modrinth.com/maven'
+        content { includeGroup 'maven.modrinth' }
+    }
+    if (project.hasProperty('rosettaRepo')) {
+        maven {
+            url = uri(project.property('rosettaRepo'))
+            content { includeGroup 'dev.rosetta' }
+        }
+    }
 }
 
 dependencies {
@@ -114,7 +129,9 @@ dependencies {
 
     // LWJGL Assimp bindings - MUST match Minecraft's LWJGL version (3.3.1)
     implementation(platform("org.lwjgl:lwjgl-bom:3.3.1"))
-    implementation "org.lwjgl:lwjgl-assimp:3.3.1"
+    minecraftLibrary("org.lwjgl:lwjgl-assimp:3.3.1") {
+        transitive = false // Minecraft already supplies the matching LWJGL core.
+    }
 
     // Bundle LWJGL Assimp into the mod
     jarJar(group: 'org.lwjgl', name: 'lwjgl-assimp', version: '[3.3.1,3.3.2)')
@@ -122,46 +139,60 @@ dependencies {
     // Natives are packaged into the '-all' jar by the `jarJar` task below; they must never be
     // on the compile classpath and must never leak into other mods' classpath.
     // runtimeOnly keeps them available to the dev runs; assimpNatives is what gets bundled.
-    for (nativesClassifier in ['windows', 'linux', 'macos']) {
+    for (nativesClassifier in ['windows', 'linux', 'macos', 'windows-arm64', 'linux-arm64', 'macos-arm64']) {
         runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:natives-${nativesClassifier}"
         assimpNatives "org.lwjgl:lwjgl-assimp:3.3.1:natives-${nativesClassifier}"
     }
 
     // ModernUI - hard runtime dependency, served from its own maven.
     implementation fg.deobf("icyllis.modernui:ModernUI-Forge:${modernui_forge_version}")
-    implementation fg.deobf("icyllis.modernui:ModernUI-Core:${modernui_core_version}")
-
-    // Photon + LDLib are compile-time only (the integration is optional at runtime) and are
-    // NOT redistributable, so they are fetched into mods_dev/ by downloadDevDeps instead of
-    // being committed. Run `./gradlew downloadDevDeps` on a fresh clone.
-    def softDeps = fileTree(dir: 'mods_dev', include: [
-            'photon-*.jar',
-            'ldlib-*.jar'
-    ])
-    if (softDeps.isEmpty()) {
-        // Not fatal at configuration time: `downloadDevDeps` has to be able to run first,
-        // and compileJava depends on it.
-        logger.warn("mods_dev/ has no photon/ldlib jars yet - run ./gradlew downloadDevDeps")
+    // Core is a plain Java library. Its POM has packaging=pom, so request the jar explicitly.
+    minecraftLibrary "icyllis.modernui:ModernUI-Core:${modernui_core_version}@jar"
+    minecraftLibrary "icyllis.modernui:ModernUI-Markdown:${modernui_core_version}@jar"
+    // The Maven development adapter omits the libraries bundled by ModernUI's universal jar.
+    minecraftLibrary("com.github.ben-manes.caffeine:caffeine:3.1.7") { transitive = false }
+    minecraftLibrary("com.vladsch.flexmark:flexmark:0.64.8") {
+        exclude group: 'org.jetbrains', module: 'annotations'
     }
-    compileOnly softDeps
-    runtimeOnly softDeps
 
-    // glsl-transformer (AGPLv3) - optional, only used when Iris/Oculus is present
-    compileOnly 'io.github.douira:glsl-transformer:2.0.0-pre13'
-    compileOnly 'org.antlr:antlr4-runtime:4.13.1'
+    // Fixed Modrinth version IDs resolve before compilation on a fresh checkout.
+    // Optional mods are available in dev runs but never bundled by jarJar.
+    def softDeps = [
+            'maven.modrinth:gzevkJbM:a7chTVuf', // Photon 1.1.17
+            'maven.modrinth:B1CBVXHX:yhlCY3k1' // LDLib 1.0.48
+    ]
+    softDeps.each { dep ->
+        def mapped = fg.deobf(dep)
+        compileOnly mapped
+        if (!project.hasProperty('withoutOptionalMods')) runtimeOnly mapped
+    }
+
+    // Explicit developer verification only; never bundled or enabled in normal runs.
+    if (project.hasProperty('withOculus')) {
+        runtimeOnly fg.deobf('maven.modrinth:oculus:iQ1SwGc3') // Oculus 1.8.0 / MC 1.20.1
+        runtimeOnly fg.deobf('maven.modrinth:embeddium:UTbfe5d1') // Embeddium 0.3.31
+    }
+    if (project.hasProperty('rosettaRepo')) {
+        // A Maven coordinate lets ForgeGradle remap the bridge for a development client.
+        runtimeOnly(fg.deobf("dev.rosetta:rosetta-remote-debug-bridge-forge:${project.findProperty('rosettaVersion') ?: '1.0.0'}")) {
+            transitive = false
+        }
+    }
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.3'
 }
 
 jar {
+    from(['LICENSE', 'docs/THIRD_PARTY_NOTICES.md']) { into 'META-INF' }
+    from('licenses') { into 'META-INF/licenses' }
     manifest {
         attributes([
                 "Specification-Title"     : "assimploader",
                 "Specification-Vendor"    : "MineRealms Team",
                 "Specification-Version"   : "1",
                 "Implementation-Title"    : project.name,
-                "Implementation-Version"  : project.jar.archiveVersion,
+                "Implementation-Version"  : project.version.toString(),
                 "Implementation-Vendor"   : "MineRealms Team",
                 "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
                 "MixinConfigs"            : "mixins.photon_compat.json,mixins.iris_compat.json"
@@ -177,6 +208,8 @@ jarJar.enable()
 // (Putting them in the plain jar only would ship a mod that cannot load its native library.)
 tasks.named('jarJar').configure {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(['LICENSE', 'docs/THIRD_PARTY_NOTICES.md']) { into 'META-INF' }
+    from('licenses') { into 'META-INF/licenses' }
 
     from {
         project.configurations.assimpNatives.collect {
@@ -255,10 +288,6 @@ def devOnlyDeps = [
                 sha512: '564f71dccc84854e84fc795d7c2972b785498de198bafdae22e46e7b6fd257e6b4cd0b24396eae7caaec16f090500069f06e6b43ad50130a9d50ee9923850c59'
         ]
 ]
-
-tasks.named('compileJava').configure {
-    dependsOn 'downloadDevDeps'
-}
 
 tasks.register('downloadDevDeps') {
     group = 'deployment'
