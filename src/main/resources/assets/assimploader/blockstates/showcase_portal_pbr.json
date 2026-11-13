@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "assimploader:showcase/portal_pbr" }
+  }
+}
