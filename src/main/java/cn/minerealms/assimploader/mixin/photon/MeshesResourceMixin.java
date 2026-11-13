@@ -11,6 +11,7 @@ import com.lowdragmc.lowdraglib.gui.widget.DialogWidget;
 import com.lowdragmc.photon.client.gameobject.emitter.data.shape.MeshData;
 import com.lowdragmc.photon.gui.editor.MeshesResource;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -24,7 +25,8 @@ import java.util.Map;
 /**
  * 扩展 Photon 的 MeshesResource，添加 FBX 网格导入功能
  */
-@Mixin(value = MeshesResource.class, remap = false)
+@Pseudo
+@Mixin(targets = "com.lowdragmc.photon.gui.editor.MeshesResource", remap = false)
 public class MeshesResourceMixin {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("MeshesResourceMixin");

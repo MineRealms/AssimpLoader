@@ -14,6 +14,7 @@ import com.lowdragmc.lowdraglib.gui.widget.DialogWidget;
 import com.lowdragmc.photon.client.gameobject.emitter.data.material.IMaterial;
 import com.lowdragmc.photon.gui.editor.MaterialsResource;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -28,7 +29,8 @@ import java.util.Set;
 /**
  * 扩展 Photon 的 MaterialsResource，添加 FBX 材质导入功能
  */
-@Mixin(value = MaterialsResource.class, remap = false)
+@Pseudo
+@Mixin(targets = "com.lowdragmc.photon.gui.editor.MaterialsResource", remap = false)
 public class MaterialsResourceMixin {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("MaterialsResourceMixin");

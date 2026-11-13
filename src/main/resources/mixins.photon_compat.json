@@ -2,6 +2,7 @@
   "required": false,
   "minVersion": "0.8",
   "package": "cn.minerealms.assimploader.mixin.photon",
+  "plugin": "cn.minerealms.assimploader.mixin.photon.PhotonMixinPlugin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "assimploader.refmap.json",
   "client": [

@@ -1,13 +1,13 @@
 package cn.minerealms.assimploader.compat.photon;
 
+import cn.minerealms.assimploader.compat.OptionalIntegrationGuards;
 import net.minecraftforge.fml.ModList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.spongepowered.asm.mixin.Mixins;
 
 /**
  * Photon 兼容层入口
- * 负责检测 Photon 是否存在并加载相应的 Mixin
+ * 检测 Photon 粒子编辑器；可选 Mixin 由 PhotonMixinPlugin 在早期检查。
  *
  * 设计原则：
  * - AssimpLoader 主动兼容 Photon
@@ -29,32 +29,24 @@ public class PhotonCompat {
             return;
         }
 
+        ModList mods = ModList.get();
+        if (mods == null) return;
         INITIALIZED = true;
 
         // 检测 Photon 是否加载
-        if (!ModList.get().isLoaded("photon")) {
-            LOGGER.info("Photon not detected, skipping integration");
+        if (!OptionalIntegrationGuards.requiredPhotonMods(mods::isLoaded)) {
+            LOGGER.info("Photon/LDLib editor dependencies not detected, skipping optional import menus");
             return;
         }
 
         try {
-            // 验证关键类是否存在
-            Class.forName("com.lowdragmc.photon.client.fx.FX");
-            Class.forName("com.lowdragmc.photon.gui.editor.MeshesResource");
-            Class.forName("com.lowdragmc.photon.client.gameobject.emitter.data.shape.MeshData");
-
-            LOGGER.info("Photon detected, enabling integration");
-
-            // 加载 Photon 兼容 Mixin
-            Mixins.addConfiguration("mixins.photon_compat.json");
-
-            PHOTON_LOADED = true;
-            LOGGER.info("Photon integration enabled successfully");
-
-        } catch (ClassNotFoundException e) {
-            LOGGER.warn("Photon mod found but required classes not available: {}", e.getMessage());
-            PHOTON_LOADED = false;
-        } catch (Exception e) {
+            // Check resources without initializing third-party client/editor classes during common setup.
+            PHOTON_LOADED = OptionalIntegrationGuards.photonEditorAvailable(name ->
+                    OptionalIntegrationGuards.classResourcePresent(PhotonCompat.class.getClassLoader(), name));
+            if (PHOTON_LOADED) LOGGER.info("Photon particle editor detected; optional Assimp import menus are available");
+            else LOGGER.warn("Photon/LDLib found but editor classes are incompatible; optional import menus disabled");
+            // The manifest registers the config exactly once; PhotonMixinPlugin owns early target guards.
+        } catch (RuntimeException | LinkageError e) {
             LOGGER.error("Failed to initialize Photon integration", e);
             PHOTON_LOADED = false;
         }
