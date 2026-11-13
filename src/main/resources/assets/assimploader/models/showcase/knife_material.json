@@ -1,0 +1,5 @@
+{
+  "loader": "assimploader:assimp",
+  "model": "assimploader:models/showcase/knife_material.fbx",
+  "mode": "static"
+}
