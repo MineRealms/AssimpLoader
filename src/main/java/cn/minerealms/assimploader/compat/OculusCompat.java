@@ -1,183 +1,168 @@
 package cn.minerealms.assimploader.compat;
 
-import cn.minerealms.assimploader.debug.DebugManager;
-import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
+import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import net.minecraftforge.fml.ModList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Soft dependency compatibility layer for Oculus (Iris Shaders for Forge).
- *
- * This class provides safe runtime detection and API access for Oculus integration.
- * All methods gracefully degrade when Oculus is not loaded or shaders are disabled.
- *
- * Usage:
- * <pre>
- * if (OculusCompat.isShadersActive()) {
- *     // Use shader-enhanced rendering
- * } else {
- *     // Use vanilla rendering
- * }
- * </pre>
- */
-public class OculusCompat {
+import java.lang.reflect.Method;
 
-    private static Boolean OCULUS_LOADED = null;
-    private static Object irisApi = null;
-    private static boolean apiInitFailed = false;
+/** Optional Oculus access. Reflection handles are resolved once, never looked up in draw loops. */
+public final class OculusCompat {
+    private static final Logger LOGGER = LoggerFactory.getLogger(OculusCompat.class);
+    private static volatile Boolean loaded;
+    private static volatile Api api;
+    private static volatile PipelineApi pipelineApi;
+    private static volatile boolean apiFailed;
+    private static volatile boolean pipelineFailed;
+    private static long frame;
+    private static long checkedFrame = Long.MIN_VALUE;
+    private static boolean shadersActive;
 
-    /**
-     * Check if Oculus mod is loaded at runtime.
-     * Result is cached after first call.
-     *
-     * @return true if Oculus is present in the mod list
-     */
+    private OculusCompat() {}
+
     public static boolean isOculusLoaded() {
-        if (OCULUS_LOADED == null) {
-            OCULUS_LOADED = ModList.get().isLoaded("oculus");
-            if (OCULUS_LOADED) {
-                DebugManager.info(DebugCategory.CORE, "Oculus detected - shader support enabled");
-            } else {
-                DebugManager.debug(DebugCategory.CORE, "Oculus not found - using vanilla rendering");
-            }
-        }
-        return OCULUS_LOADED;
+        Boolean known = loaded;
+        if (known != null) return known;
+        ModList mods = ModList.get();
+        if (mods == null) return false;
+        loaded = mods.isLoaded("oculus");
+        return loaded;
     }
 
-    /**
-     * Check if a shader pack is currently active.
-     *
-     * @return true if Oculus is loaded and a shader pack is in use
-     */
+    public static boolean isIntegrationEnabled() {
+        return AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.oculusEnabled::get, true)
+                && AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.shaderMode::get,
+                AssimpLoaderConfig.ShaderMode.DUAL) != AssimpLoaderConfig.ShaderMode.VANILLA;
+    }
+
+    /** Actual shader state stays observable even when integration is disabled, so custom GPU programs can yield safely. */
     public static boolean isShadersActive() {
-        if (!isOculusLoaded() || apiInitFailed) {
-            return false;
-        }
-
+        if (!isOculusLoaded() || apiFailed) return false;
+        if (checkedFrame == frame) return shadersActive;
+        checkedFrame = frame;
         try {
-            // Lazy initialization of IrisApi
-            if (irisApi == null) {
-                Class<?> irisApiClass = Class.forName("net.irisshaders.iris.api.v0.IrisApi");
-                java.lang.reflect.Method getInstance = irisApiClass.getMethod("getInstance");
-                irisApi = getInstance.invoke(null);
-                DebugManager.info(DebugCategory.CORE, "IrisApi initialized successfully");
-            }
-
-            // Call isShaderPackInUse()
-            java.lang.reflect.Method isShaderPackInUse = irisApi.getClass()
-                .getMethod("isShaderPackInUse");
-            return (Boolean) isShaderPackInUse.invoke(irisApi);
-
-        } catch (ClassNotFoundException e) {
-            DebugManager.warn(DebugCategory.CORE, "Oculus API not found - disabling shader support");
-            apiInitFailed = true;
-            return false;
-        } catch (Exception e) {
-            DebugManager.error(DebugCategory.CORE, "Failed to check shader status: {}", e.getMessage());
-            return false;
+            Api bridge = api();
+            shadersActive = bridge != null && Boolean.TRUE.equals(bridge.isShaderPackInUse.invoke(bridge.instance));
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            failApi(exception);
         }
+        return shadersActive;
     }
 
-    /**
-     * Check if currently rendering the shadow pass.
-     * Used to optimize rendering during shadow map generation.
-     *
-     * @return true if rendering shadows, false otherwise
-     */
     public static boolean isRenderingShadowPass() {
-        if (!isShadersActive() || apiInitFailed) {
-            return false;
-        }
-
+        if (!isIntegrationEnabled() || !isShadersActive()) return false;
         try {
-            // Call isRenderingShadowPass()
-            java.lang.reflect.Method isRenderingShadowPass = irisApi.getClass()
-                .getMethod("isRenderingShadowPass");
-            return (Boolean) isRenderingShadowPass.invoke(irisApi);
-
-        } catch (Exception e) {
-            DebugManager.debug(DebugCategory.CORE, "Failed to check shadow pass status: {}", e.getMessage());
+            Api bridge = api;
+            return bridge != null && Boolean.TRUE.equals(bridge.isRenderingShadowPass.invoke(bridge.instance));
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            failApi(exception);
             return false;
         }
     }
 
-    /**
-     * Get the current rendering phase from Oculus pipeline.
-     * Useful for phase-specific optimizations.
-     *
-     * @return phase name as string, or "NONE" if unavailable
-     */
+    /** Unknown optional API state must not allow this mod to override a possibly active third-party shader. */
+    public static boolean shouldAvoidCustomShaders() {
+        if (!isOculusLoaded()) return false;
+        boolean active = isShadersActive();
+        return active || apiFailed;
+    }
+
     public static String getCurrentPhase() {
-        if (!isShadersActive() || apiInitFailed) {
-            return "NONE";
-        }
-
+        if (!isIntegrationEnabled() || !isShadersActive()) return "NONE";
         try {
-            // Access Iris.getPipelineManager().getPipelineNullable()
-            Class<?> irisClass = Class.forName("net.irisshaders.iris.Iris");
-            java.lang.reflect.Method getPipelineManager = irisClass.getMethod("getPipelineManager");
-            Object pipelineManager = getPipelineManager.invoke(null);
-
-            java.lang.reflect.Method getPipelineNullable = pipelineManager.getClass()
-                .getMethod("getPipelineNullable");
-            Object pipeline = getPipelineNullable.invoke(pipelineManager);
-
-            if (pipeline == null) {
-                return "NONE";
-            }
-
-            // Get current phase
-            java.lang.reflect.Method getPhase = pipeline.getClass().getMethod("getPhase");
-            Object phase = getPhase.invoke(pipeline);
-
-            return phase != null ? phase.toString() : "NONE";
-
-        } catch (Exception e) {
-            DebugManager.debug(DebugCategory.CORE, "Failed to get rendering phase: {}", e.getMessage());
+            PipelineApi bridge = pipelineApi();
+            Object pipeline = bridge == null ? null : bridge.pipeline();
+            Object phase = pipeline == null ? null : bridge.getPhase.invoke(pipeline);
+            return phase == null ? "NONE" : phase.toString();
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            failPipeline(exception);
             return "NONE";
         }
     }
 
-    /**
-     * Check if PBR (Physically Based Rendering) is supported by current shader pack.
-     *
-     * @return true if PBR samplers are available
-     */
+    /** Pipeline binding diagnostic only: positive IDs may refer to Oculus defaults, not authored material images. */
     public static boolean isPBRSupported() {
-        if (!isShadersActive() || apiInitFailed) {
-            return false;
-        }
-
+        if (!isIntegrationEnabled() || !pbrConfigured() || !isShadersActive()) return false;
         try {
-            // Access pipeline and check for PBR samplers
-            Class<?> irisClass = Class.forName("net.irisshaders.iris.Iris");
-            java.lang.reflect.Method getPipelineManager = irisClass.getMethod("getPipelineManager");
-            Object pipelineManager = getPipelineManager.invoke(null);
-
-            java.lang.reflect.Method getPipelineNullable = pipelineManager.getClass()
-                .getMethod("getPipelineNullable");
-            Object pipeline = getPipelineNullable.invoke(pipelineManager);
-
-            if (pipeline == null) {
-                return false;
-            }
-
-            // Check if pipeline has PBR support
-            // This is a heuristic - actual implementation may vary
-            return true; // Assume PBR support if shaders are active
-
-        } catch (Exception e) {
-            DebugManager.debug(DebugCategory.CORE, "Failed to check PBR support: {}", e.getMessage());
+            PipelineApi bridge = pipelineApi();
+            Object pipeline = bridge == null ? null : bridge.pipeline();
+            return pipeline != null && hasPbrBindings((Integer) bridge.getNormal.invoke(pipeline),
+                    (Integer) bridge.getSpecular.invoke(pipeline));
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            failPipeline(exception);
             return false;
         }
     }
 
-    /**
-     * Reset cached state. Used for testing or when mods are reloaded.
-     */
-    public static void reset() {
-        OCULUS_LOADED = null;
-        irisApi = null;
-        apiInitFailed = false;
-        DebugManager.debug(DebugCategory.CORE, "OculusCompat state reset");
+    static boolean pbrConfigured() {
+        return AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.pbrEnabled::get, true)
+                && AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.oculusPbrSupportEnabled::get, true);
+    }
+
+    static boolean hasPbrBindings(int normal, int specular) { return normal > 0 && specular > 0; }
+
+    static void beginFrame() { frame++; }
+
+    private static Api api() throws ReflectiveOperationException {
+        Api known = api;
+        if (known != null || apiFailed) return known;
+        synchronized (OculusCompat.class) {
+            if (api == null && !apiFailed) {
+                Class<?> type = Class.forName("net.irisshaders.iris.api.v0.IrisApi", false, OculusCompat.class.getClassLoader());
+                api = new Api(type.getMethod("getInstance").invoke(null), type.getMethod("isShaderPackInUse"),
+                        type.getMethod("isRenderingShadowPass"));
+            }
+            return api;
+        }
+    }
+
+    private static PipelineApi pipelineApi() throws ReflectiveOperationException {
+        PipelineApi known = pipelineApi;
+        if (known != null || pipelineFailed) return known;
+        synchronized (OculusCompat.class) {
+            if (pipelineApi == null && !pipelineFailed) {
+                ClassLoader loader = OculusCompat.class.getClassLoader();
+                Class<?> iris = Class.forName("net.irisshaders.iris.Iris", false, loader);
+                Method manager = iris.getMethod("getPipelineManager");
+                Method pipeline = manager.getReturnType().getMethod("getPipelineNullable");
+                Class<?> type = Class.forName("net.irisshaders.iris.pipeline.WorldRenderingPipeline", false, loader);
+                pipelineApi = new PipelineApi(manager, pipeline, type.getMethod("getPhase"),
+                        type.getMethod("getCurrentNormalTexture"), type.getMethod("getCurrentSpecularTexture"));
+            }
+            return pipelineApi;
+        }
+    }
+
+    private static void failApi(Throwable exception) {
+        if (!apiFailed) LOGGER.warn("Oculus shader status API is unavailable; optional integration disabled until reload", exception);
+        apiFailed = true;
+        api = null;
+        shadersActive = false;
+    }
+
+    private static void failPipeline(Throwable exception) {
+        if (!pipelineFailed) LOGGER.warn("Oculus pipeline metadata is unavailable; PBR/phase detection disabled until reload", exception);
+        pipelineFailed = true;
+        pipelineApi = null;
+    }
+
+    public static synchronized void reset() {
+        loaded = null;
+        api = null;
+        pipelineApi = null;
+        apiFailed = false;
+        pipelineFailed = false;
+        shadersActive = false;
+        checkedFrame = Long.MIN_VALUE;
+        OculusPBRSupport.reset();
+    }
+
+    private record Api(Object instance, Method isShaderPackInUse, Method isRenderingShadowPass) {}
+    private record PipelineApi(Method getManager, Method getPipeline, Method getPhase, Method getNormal, Method getSpecular) {
+        private Object pipeline() throws ReflectiveOperationException {
+            Object manager = getManager.invoke(null);
+            return manager == null ? null : getPipeline.invoke(manager);
+        }
     }
 }

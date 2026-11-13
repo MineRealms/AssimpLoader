@@ -1,196 +1,180 @@
 package cn.minerealms.assimploader.compat;
 
-import cn.minerealms.assimploader.debug.DebugManager;
-import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.model.AssimpMaterial;
+import cn.minerealms.assimploader.render.AssimpPbrTexture;
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.AbstractTexture;
+import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * PBR (Physically Based Rendering) texture support for Oculus shaders.
- *
- * This class provides integration with Oculus PBR texture system, allowing FBX models
- * to use normal maps, specular maps, and other PBR textures when shader packs support them.
- *
- * PBR Texture Conventions:
- * - Normal map: texture_n.png (tangent-space normal map)
- * - Specular map: texture_s.png (specular/metallic/roughness)
- * - Emissive map: texture_e.png (self-illumination)
- *
- * All methods gracefully degrade when Oculus is not loaded or PBR is not supported.
- */
-public class OculusPBRSupport {
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.Map;
+import java.util.WeakHashMap;
 
-    private static Object pbrTextureManager = null;
-    private static boolean pbrInitFailed = false;
+/** Optional bridge to Oculus 1.8's public implementation interfaces, with no shader injection. */
+public final class OculusPBRSupport {
+    private static final Logger LOGGER = LoggerFactory.getLogger(OculusPBRSupport.class);
+    private static final Map<AbstractTexture, Boolean> PREPARED = new WeakHashMap<>();
+    private static Bridge bridge;
+    private static boolean failed;
 
-    /**
-     * Check if PBR textures are supported by the current shader pack.
-     *
-     * @return true if Oculus is loaded, shaders are active, and PBR is supported
-     */
+    private OculusPBRSupport() {}
+
     public static boolean isPBRAvailable() {
-        if (!OculusCompat.isShadersActive() || pbrInitFailed) {
-            return false;
-        }
+        return RenderSystem.isOnRenderThread() && enabled() && OculusCompat.isShadersActive()
+                && ensureLoaderRegistered();
+    }
 
+    /** Registration precedes albedo allocation/binding, including when shaders are temporarily disabled. */
+    public static boolean ensureLoaderRegistered() {
+        if (!RenderSystem.isOnRenderThread() || !OculusCompat.isOculusLoaded() || failed) return false;
+        if (bridge != null) return true;
         try {
-            // Try to access PBRTextureManager
-            if (pbrTextureManager == null) {
-                Class<?> pbrManagerClass = Class.forName("net.irisshaders.iris.pbr.PBRTextureManager");
-                java.lang.reflect.Field instanceField = pbrManagerClass.getField("INSTANCE");
-                pbrTextureManager = instanceField.get(null);
-
-                if (pbrTextureManager != null) {
-                    DebugManager.info(DebugCategory.CORE, "PBR texture system initialized successfully");
+            ClassLoader loader = OculusPBRSupport.class.getClassLoader();
+            Class<?> registryType = Class.forName("net.irisshaders.iris.texture.pbr.loader.PBRTextureLoaderRegistry", false, loader);
+            Class<?> loaderType = Class.forName("net.irisshaders.iris.texture.pbr.loader.PBRTextureLoader", false, loader);
+            Class<?> consumerType = Class.forName("net.irisshaders.iris.texture.pbr.loader.PBRTextureLoader$PBRTextureConsumer", false, loader);
+            Class<?> managerType = Class.forName("net.irisshaders.iris.texture.pbr.PBRTextureManager", false, loader);
+            Object registry = registryType.getField("INSTANCE").get(null);
+            Object manager = managerType.getField("INSTANCE").get(null);
+            Method normal = consumerType.getMethod("acceptNormalTexture", AbstractTexture.class);
+            Method specular = consumerType.getMethod("acceptSpecularTexture", AbstractTexture.class);
+            Object proxy = Proxy.newProxyInstance(loaderType.getClassLoader(), new Class<?>[]{loaderType}, (self, method, args) -> {
+                if (method.getName().equals("load") && args != null && args.length == 3) {
+                    load((AssimpPbrTexture) args[0], args[2], normal, specular);
+                    return null;
                 }
-            }
-
-            return pbrTextureManager != null;
-
-        } catch (ClassNotFoundException e) {
-            DebugManager.debug(DebugCategory.CORE, "PBR texture system not available (Oculus version may not support it)");
-            pbrInitFailed = true;
+                return switch (method.getName()) {
+                    case "toString" -> "AssimpLoader PBR texture loader";
+                    case "hashCode" -> System.identityHashCode(self);
+                    case "equals" -> args != null && args.length == 1 && self == args[0];
+                    default -> throw new UnsupportedOperationException(method.toString());
+                };
+            });
+            registryType.getMethod("register", Class.class, loaderType).invoke(registry, AssimpPbrTexture.class, proxy);
+            bridge = new Bridge(manager, managerType.getMethod("getOrLoadHolder", int.class),
+                    managerType.getMethod("onDeleteTexture", int.class), proxy);
+            LOGGER.info("Registered Oculus PBR loader for AssimpLoader material textures");
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            fail(exception);
             return false;
-        } catch (Exception e) {
-            DebugManager.warn(DebugCategory.CORE, "Failed to initialize PBR texture system: {}", e.getMessage());
-            pbrInitFailed = true;
+        }
+    }
+
+    private static boolean enabled() {
+        return OculusCompat.isIntegrationEnabled() && OculusCompat.pbrConfigured() && !failed;
+    }
+
+    private static void load(AssimpPbrTexture base, Object consumer, Method acceptNormal, Method acceptSpecular) {
+        if (!enabled() || !base.isReady() || base.maps() == null) return;
+        DynamicTexture normal = null;
+        DynamicTexture specular = null;
+        boolean normalAccepted = false;
+        boolean specularAccepted = false;
+        try {
+            // Allocate both before transfer. After accept, only Oculus may close that texture.
+            if (base.maps().normal() != null) normal = child(base.maps().normal());
+            if (base.maps().specular() != null) specular = child(base.maps().specular());
+            if (normal != null) {
+                acceptNormal.invoke(consumer, normal);
+                normalAccepted = true;
+            }
+            if (specular != null) {
+                acceptSpecular.invoke(consumer, specular);
+                specularAccepted = true;
+            }
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            // Return a partial holder if a preceding accept succeeded; throwing would leak its ownership.
+            fail(exception);
+        } finally {
+            base.recordBindings(normalAccepted ? normal.getId() : 0, specularAccepted ? specular.getId() : 0);
+            if (normal != null && !normalAccepted) close(normal);
+            if (specular != null && !specularAccepted) close(specular);
+        }
+    }
+
+    private static DynamicTexture child(cn.minerealms.assimploader.material.LabPbrPacker.Image source) {
+        var image = AssimpPbrTexture.nativeImage(source);
+        DynamicTexture texture = null;
+        try {
+            texture = new DynamicTexture(image);
+            image = null;
+            texture.setFilter(false, false);
+            return texture;
+        } catch (RuntimeException | Error exception) {
+            if (texture != null) close(texture);
+            else if (image != null) image.close();
+            throw exception;
+        }
+    }
+
+    private static void close(AbstractTexture texture) {
+        texture.close();
+        texture.releaseId();
+    }
+
+    public static void registerPBRTextures(ResourceLocation albedo, AssimpMaterial material) {
+        prepareTexture(albedo);
+    }
+
+    /** True only for actual AssimpLoader image channels handed to Oculus; defaults are not successes. */
+    public static boolean prepareTexture(ResourceLocation albedo) {
+        if (albedo == null || !RenderSystem.isOnRenderThread() || !OculusCompat.isOculusLoaded()) return false;
+        AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(albedo);
+        if (!(texture instanceof AssimpPbrTexture base)) return false;
+        if (base.updateConfiguration(enabled())) invalidateTexture(base);
+        if (!base.isReady() || !isPBRAvailable()) return false;
+        Boolean known = PREPARED.get(base);
+        if (known != null) return known;
+        try {
+            bridge.getHolder.invoke(bridge.manager, base.getId());
+            boolean prepared = base.normalTextureId() > 0 || base.specularTextureId() > 0;
+            PREPARED.put(base, prepared);
+            return prepared;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            fail(exception);
             return false;
         }
     }
 
-    /**
-     * Register PBR textures for a given albedo texture.
-     * This tells Oculus to look for corresponding normal/specular maps.
-     *
-     * @param albedoTexture The base texture ResourceLocation
-     * @param material The material containing PBR texture paths
-     */
-    public static void registerPBRTextures(ResourceLocation albedoTexture, AssimpMaterial material) {
-        if (!isPBRAvailable() || material == null) {
-            return;
-        }
-
+    /** Clears a cached default holder after asynchronous image preparation or a material change. */
+    public static void invalidateTexture(AssimpPbrTexture texture) {
+        PREPARED.remove(texture);
+        texture.recordBindings(0, 0);
+        if (bridge == null) return;
         try {
-            // Get normal map path from material
-            String normalMapPath = material.getNormalMapPath();
-            if (normalMapPath != null && !normalMapPath.isEmpty()) {
-                ResourceLocation normalMap = new ResourceLocation(normalMapPath);
-                bindNormalMap(albedoTexture, normalMap);
-            }
-
-            // Get specular map path from material
-            String specularMapPath = material.getSpecularMapPath();
-            if (specularMapPath != null && !specularMapPath.isEmpty()) {
-                ResourceLocation specularMap = new ResourceLocation(specularMapPath);
-                bindSpecularMap(albedoTexture, specularMap);
-            }
-
-        } catch (Exception e) {
-            DebugManager.debug(DebugCategory.CORE, "Failed to register PBR textures for {}: {}",
-                albedoTexture, e.getMessage());
+            bridge.deleteHolder.invoke(bridge.manager, texture.getId());
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            fail(exception);
         }
     }
 
-    /**
-     * Bind a normal map to an albedo texture.
-     *
-     * @param albedoTexture The base texture
-     * @param normalMap The normal map texture
-     */
-    private static void bindNormalMap(ResourceLocation albedoTexture, ResourceLocation normalMap) {
-        if (pbrTextureManager == null) {
-            return;
-        }
-
-        try {
-            // Call PBRTextureManager.setNormalTexture(albedo, normal)
-            java.lang.reflect.Method setNormalTexture = pbrTextureManager.getClass()
-                .getMethod("setNormalTexture", ResourceLocation.class, ResourceLocation.class);
-            setNormalTexture.invoke(pbrTextureManager, albedoTexture, normalMap);
-
-            DebugManager.debug(DebugCategory.CORE, "Bound normal map {} to {}", normalMap, albedoTexture);
-
-        } catch (NoSuchMethodException e) {
-            // Method signature might be different in this Oculus version
-            DebugManager.debug(DebugCategory.CORE, "PBR normal map binding not supported in this Oculus version");
-        } catch (Exception e) {
-            DebugManager.debug(DebugCategory.CORE, "Failed to bind normal map: {}", e.getMessage());
-        }
+    private static void fail(Throwable exception) {
+        if (!failed) LOGGER.warn("Oculus PBR bridge unavailable; keeping base-color rendering until reload", exception);
+        failed = true;
+        PREPARED.clear();
     }
 
-    /**
-     * Bind a specular map to an albedo texture.
-     *
-     * @param albedoTexture The base texture
-     * @param specularMap The specular map texture
-     */
-    private static void bindSpecularMap(ResourceLocation albedoTexture, ResourceLocation specularMap) {
-        if (pbrTextureManager == null) {
-            return;
-        }
+    public static String getNormalMapPath(String texturePath) { return appendSuffix(texturePath, "_n"); }
+    public static String getSpecularMapPath(String texturePath) { return appendSuffix(texturePath, "_s"); }
 
-        try {
-            // Call PBRTextureManager.setSpecularTexture(albedo, specular)
-            java.lang.reflect.Method setSpecularTexture = pbrTextureManager.getClass()
-                .getMethod("setSpecularTexture", ResourceLocation.class, ResourceLocation.class);
-            setSpecularTexture.invoke(pbrTextureManager, albedoTexture, specularMap);
-
-            DebugManager.debug(DebugCategory.CORE, "Bound specular map {} to {}", specularMap, albedoTexture);
-
-        } catch (NoSuchMethodException e) {
-            // Method signature might be different in this Oculus version
-            DebugManager.debug(DebugCategory.CORE, "PBR specular map binding not supported in this Oculus version");
-        } catch (Exception e) {
-            DebugManager.debug(DebugCategory.CORE, "Failed to bind specular map: {}", e.getMessage());
-        }
+    private static String appendSuffix(String path, String suffix) {
+        if (path == null || path.isBlank() || path.startsWith("*")) return null;
+        int dot = path.lastIndexOf('.');
+        int slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+        return dot > slash ? path.substring(0, dot) + suffix + path.substring(dot) : path + suffix;
     }
 
-    /**
-     * Get the expected normal map path for a given texture.
-     * Convention: texture.png -> texture_n.png
-     *
-     * @param texturePath The base texture path
-     * @return The expected normal map path, or null if invalid
-     */
-    public static String getNormalMapPath(String texturePath) {
-        if (texturePath == null || texturePath.isEmpty()) {
-            return null;
-        }
-
-        int dotIndex = texturePath.lastIndexOf('.');
-        if (dotIndex > 0) {
-            return texturePath.substring(0, dotIndex) + "_n" + texturePath.substring(dotIndex);
-        }
-
-        return texturePath + "_n";
-    }
-
-    /**
-     * Get the expected specular map path for a given texture.
-     * Convention: texture.png -> texture_s.png
-     *
-     * @param texturePath The base texture path
-     * @return The expected specular map path, or null if invalid
-     */
-    public static String getSpecularMapPath(String texturePath) {
-        if (texturePath == null || texturePath.isEmpty()) {
-            return null;
-        }
-
-        int dotIndex = texturePath.lastIndexOf('.');
-        if (dotIndex > 0) {
-            return texturePath.substring(0, dotIndex) + "_s" + texturePath.substring(dotIndex);
-        }
-
-        return texturePath + "_s";
-    }
-
-    /**
-     * Reset cached state. Used for testing or when mods are reloaded.
-     */
     public static void reset() {
-        pbrTextureManager = null;
-        pbrInitFailed = false;
-        DebugManager.debug(DebugCategory.CORE, "OculusPBRSupport state reset");
+        failed = false;
+        PREPARED.clear();
+        // Registry entries survive resource reload; keep the strongly-held proxy and resolved interface methods.
     }
+
+    private record Bridge(Object manager, Method getHolder, Method deleteHolder, Object loaderProxy) {}
 }
