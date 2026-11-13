@@ -1,0 +1,5 @@
+{
+  "loader": "assimploader:assimp",
+  "model": "assimploader:models/showcase/ciws_material.fbx",
+  "mode": "dynamic"
+}

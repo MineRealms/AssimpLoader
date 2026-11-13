@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "assimploader:showcase/ciws_material"
+    }
+  }
+}
