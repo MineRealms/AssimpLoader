@@ -1,0 +1,5 @@
+{
+  "loader": "assimploader:assimp",
+  "model": "assimploader:models/entity/armored_car/armored_car.fbx",
+  "mode": "dynamic"
+}
