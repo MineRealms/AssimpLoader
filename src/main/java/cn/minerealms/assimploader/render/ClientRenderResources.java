@@ -5,6 +5,7 @@ import cn.minerealms.assimploader.animation.ClientAnimationManager;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.rendering.CachedMeshRenderer;
 import cn.minerealms.assimploader.rendering.CpuSkinning;
+import cn.minerealms.assimploader.rendering.OculusEntityBufferCache;
 import cn.minerealms.assimploader.rendering.SkinnedMeshRenderer;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
@@ -63,6 +64,7 @@ public final class ClientRenderResources {
         }
         generation = AssimpModelLoader.getCacheGeneration();
         CachedMeshRenderer.clear();
+        OculusEntityBufferCache.clear();
         if (skinnedRenderer != null) skinnedRenderer.cleanup();
         skinnedRenderer = null;
         skinningFailed = false;

@@ -148,6 +148,7 @@ public final class OculusCompat {
     }
 
     public static synchronized void reset() {
+        OculusEntityDrawBridge.reset();
         loaded = null;
         api = null;
         pipelineApi = null;
