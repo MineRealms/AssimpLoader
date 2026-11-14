@@ -1,0 +1,19 @@
+{
+  "gas": {"exit_pressure_pa": 250000, "exit_temperature_k": 2100, "exit_mach": 2.1, "gamma": 1.2, "specific_gas_constant": 300},
+  "appearance": {
+    "length_blocks": 9, "expansion": 0.16, "axial_decay": 0.17,
+    "density": 1.4, "absorption": 0.4, "scattering": 0.5, "emission": 10,
+    "color": {"r": 1, "g": 0.72, "b": 0.32},
+    "smoke_density": 0.85, "turbulence": 0.9, "light_intensity": 12,
+    "light_radius_blocks": 16, "heat_distortion": 0.007
+  },
+  "flow": {
+    "wall_areal_heat_capacity_j_per_m2_k": 24000,
+    "wall_heat_transfer_w_per_m2_k": 500,
+    "mixing_coefficient": 0.16,
+    "soot_fraction": 0.035,
+    "water_fraction": 0.15,
+    "wind_x_mps": 0.8,
+    "wind_z_mps": 0.25
+  }
+}
