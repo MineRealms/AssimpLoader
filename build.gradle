@@ -25,6 +25,14 @@ minecraft {
     runs {
         client {
             workingDirectory project.file('run')
+            if (project.hasProperty('clientRocketSmoke')) {
+                if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke', 'clientVehicleSmoke'].any { project.hasProperty(it) }) {
+                    throw new GradleException('clientRocketSmoke must run independently of the other client smoke tests')
+                }
+                property 'rockettest.enabled', 'true'
+                property 'rockettest.world', project.property('clientRocketSmoke').toString()
+                args '--width', '1280', '--height', '720'
+            }
             if (project.hasProperty('clientSmokeWorld')) {
                 property 'autotest.enabled', 'true'
                 property 'autotest.capture', 'true'
