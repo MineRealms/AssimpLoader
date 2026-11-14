@@ -23,7 +23,10 @@
   "block.assimploader.showcase_probe_textured": "Axis Probe - Embedded Texture",
   "block.assimploader.showcase_pbr_probe": "PBR Probe - Matte, Polished, Metal",
   "block.assimploader.showcase_portal_pbr": "Sci-fi Portal - PBR Metal and Glass",
+  "block.assimploader.showcase_rocket_engine": "Rocket Engine - PBR Exhaust Demo",
   "commands.assimploader.demo.blocked": "Showcase cancelled: %s is outside the loaded build area or is occupied. Choose a clear 17 x 6 x 17 area.",
   "commands.assimploader.demo.placed": "Placed %s AssimpLoader FBX exhibits at %s.",
+  "commands.assimploader.demo.rocket_placed": "Placed the rocket test stand. Nozzle anchor: %s.",
+  "commands.assimploader.demo.rocket_blocked": "Rocket stand cancelled: %s is occupied or outside the loaded build area. Choose a clear 11 x 20 x 11 volume.",
   "block.assimploader.circle": "Circle (Animated)"
 }

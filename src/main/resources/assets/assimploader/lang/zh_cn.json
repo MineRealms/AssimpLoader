@@ -23,7 +23,10 @@
   "block.assimploader.showcase_probe_textured": "坐标测试件 - 嵌入贴图",
   "block.assimploader.showcase_pbr_probe": "PBR 测试件 - 哑光、抛光与金属",
   "block.assimploader.showcase_portal_pbr": "科幻传送门 - PBR 金属与玻璃",
+  "block.assimploader.showcase_rocket_engine": "火箭发动机 - PBR 尾焰演示",
   "commands.assimploader.demo.blocked": "展示已取消：%s 超出已加载的可建造区域或已有方块。请选择 17 x 6 x 17 的空地。",
   "commands.assimploader.demo.placed": "已放置 %s 个 AssimpLoader FBX 展示模型，起点为 %s。",
+  "commands.assimploader.demo.rocket_placed": "已放置火箭试车台，喷口锚点：%s。",
+  "commands.assimploader.demo.rocket_blocked": "火箭试车台已取消：%s 已有方块或超出已加载的可建造区域。请选择 11 x 20 x 11 的空闲空间。",
   "block.assimploader.circle": "圆环（带动画）"
 }
