@@ -1,5 +1,7 @@
 package cn.minerealms.assimploader.showcase;
 
+import cn.minerealms.assimploader.core.AssimpModelLoader;
+import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -16,6 +18,13 @@ public class ShowcaseBlockEntity extends BlockEntity {
 
     @Override
     public AABB getRenderBoundingBox() {
-        return new AABB(worldPosition).inflate(3.0);
+        return ShowcaseVisibility.renderBounds(getModelBounds(), worldPosition,
+                AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.frustumCullingEnabled::get, true),
+                AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.alwaysRenderLargeModels::get, false),
+                AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.largeModelThreshold::get, 16.0));
+    }
+
+    public AABB getModelBounds() {
+        return ShowcaseVisibility.modelBounds(AssimpModelLoader.getCachedModel(getModel().modelName()));
     }
 }

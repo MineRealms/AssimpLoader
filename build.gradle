@@ -41,6 +41,23 @@ minecraft {
                 property 'autotest.pbrKeepOpen', project.hasProperty('clientPbrKeepOpen').toString()
                 args '--width', '1280', '--height', '720'
             }
+            if (project.hasProperty('clientAssetSmoke')) {
+                if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke'].any { project.hasProperty(it) }) {
+                    throw new GradleException('clientAssetSmoke must run independently of the other client smoke tests')
+                }
+                property 'assettest.enabled', 'true'
+                property 'assettest.world', project.property('clientAssetSmoke').toString()
+                property 'assettest.model', project.findProperty('clientAssetModel') ?: 'PROBE_TEXTURED'
+                args '--width', '1280', '--height', '720'
+            }
+            if (project.hasProperty('clientVehicleSmoke')) {
+                if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke'].any { project.hasProperty(it) }) {
+                    throw new GradleException('clientVehicleSmoke must run independently of the other client smoke tests')
+                }
+                property 'vehicletest.enabled', 'true'
+                property 'vehicletest.world', project.property('clientVehicleSmoke').toString()
+                args '--width', '1280', '--height', '720'
+            }
             if (project.hasProperty('rosettaRepo')) {
                 property 'rosetta.remote.bind', '127.0.0.1'
                 property 'rosetta.remote.port', project.findProperty('rosettaPort') ?: '48790'
@@ -195,7 +212,7 @@ jar {
                 "Implementation-Version"  : project.version.toString(),
                 "Implementation-Vendor"   : "MineRealms Team",
                 "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                "MixinConfigs"            : "mixins.photon_compat.json,mixins.iris_compat.json"
+                "MixinConfigs"            : "mixins.photon_compat.json,mixins.iris_compat.json,mixins.assimploader.json"
         ])
     }
 
@@ -226,6 +243,7 @@ mixin {
     add sourceSets.main, "assimploader.refmap.json"
     config "mixins.photon_compat.json"
     config "mixins.iris_compat.json"
+    config "mixins.assimploader.json"
 }
 
 jar.finalizedBy('reobfJar')

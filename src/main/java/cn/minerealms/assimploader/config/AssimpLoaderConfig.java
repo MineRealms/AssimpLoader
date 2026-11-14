@@ -84,6 +84,9 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.BooleanValue gpuSkinningEnabled;
         public final ForgeConfigSpec.ConfigValue<String> externalModelDirectory;
         public final ForgeConfigSpec.BooleanValue frustumCullingEnabled;
+        public final ForgeConfigSpec.BooleanValue alwaysRenderLargeModels;
+        public final ForgeConfigSpec.DoubleValue largeModelThreshold;
+        public final ForgeConfigSpec.IntValue modelViewDistance;
         public final ForgeConfigSpec.EnumValue<ShaderMode> shaderMode;
 
         // Oculus/Iris
@@ -174,6 +177,19 @@ public class AssimpLoaderConfig {
             frustumCullingEnabled = builder
                 .comment("Enable frustum culling optimization")
                 .define("frustumCullingEnabled", true);
+
+            alwaysRenderLargeModels = builder
+                .comment("Bypass frustum and distance culling for showcase models at least largeModelThreshold blocks across.",
+                        "The anchor chunk must still be loaded. Rendering distant large models increases GPU work.")
+                .define("alwaysRenderLargeModels", false);
+
+            largeModelThreshold = builder
+                .comment("Largest model dimension in blocks that qualifies for alwaysRenderLargeModels")
+                .defineInRange("largeModelThreshold", 16.0, 1.0, 4096.0);
+
+            modelViewDistance = builder
+                .comment("Showcase model view distance in blocks, measured from the closest point of its bounds")
+                .defineInRange("modelViewDistance", 128, 16, 4096);
 
             shaderMode = builder
                 .comment("Custom shader mode: VANILLA, OCULUS, DUAL")

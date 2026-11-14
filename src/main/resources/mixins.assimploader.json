@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "cn.minerealms.assimploader.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "assimploader.refmap.json",
+  "mixins": [
+    "vehicle.VehicleServerMovementGuard"
+  ],
+  "client": [
+    "visibility.ShowcaseFrustumMixin",
+    "visibility.ShowcaseViewportMixin",
+    "vehicle.ArmoredCarCameraMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
