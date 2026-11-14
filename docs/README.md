@@ -1,6 +1,6 @@
 # 文档索引
 
-最后整理：2026-11-13。项目说明、使用指南、资产规范、验收记录和历史报告统一位于 `docs/`。仓库根目录仅保留简短 README 导航与 LICENSE；工具要求的 `.claude/skills/mc-debug.md` 保持原位。
+最后整理：2026-11-14。项目说明、使用指南、资产规范、验收记录和历史报告统一位于 `docs/`。仓库根目录仅保留简短 README 导航与 LICENSE；工具要求的 `.claude/skills/mc-debug.md` 保持原位。
 
 ## 当前入口
 
@@ -12,6 +12,9 @@
 | [修复与验收](FIXES_2026-11-13.md) | 首轮审计后的当前处理状态、统一 BUILD、实际截图和资源重载 |
 | [LookDev 预览](LOOKDEV_PREVIEW.md) | 当前已加载模型列表与 GPU 预览操作 |
 | [FBX 世界展示](MODEL_SHOWCASE.md) | CIWS、刀及有/无贴图测试件的 `/assimpdemo` 放置说明 |
+| [火箭发动机展示](ROCKET_ENGINE_SHOWCASE.md) | 独立试车台、喷口坐标、原版示例和本地 PBR 发动机资源包 |
+| [火箭尾焰](ROCKET_EXHAUST.md)、[光影源码接入](ROCKET_SHADER_RESEARCH.md)、[实机验收](ROCKET_VALIDATION_2026-11-14.md) | GPU 体积通道、物理输入与视觉近似、配置、Oculus 桥接与截图 |
+| [质量流量模型](ROCKET_FLOW_MODEL.md)、[体积历史与 LOD](ROCKET_TEMPORAL.md) | 静止试车台的 kg/s 输入、喷口状态、壁温、烟气输运、半分辨率积分与历史拒绝 |
 | [测试资产说明](TEST_ASSETS.md) | `model-tests/` 中的 Blender 源文件、FBX/GLB、图片、尺寸和枢轴 |
 | [大型模型与巨物显示](LARGE_MODELS.md)、[客户端资产验收](TESTING.md) | 真实包围盒、可选强制显示、整组/部件交付和本地资源包截图 |
 | [装甲车实体](VEHICLES.md) | 可驾驶实体、加减速、轮轴动画、第三人称相机和本地 PBR 车模接入 |
