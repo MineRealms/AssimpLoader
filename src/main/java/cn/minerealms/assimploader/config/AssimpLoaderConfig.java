@@ -88,6 +88,8 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.DoubleValue largeModelThreshold;
         public final ForgeConfigSpec.IntValue modelViewDistance;
         public final ForgeConfigSpec.EnumValue<ShaderMode> shaderMode;
+        public final ForgeConfigSpec.BooleanValue rocketExhaustEnabled;
+        public final ForgeConfigSpec.BooleanValue rocketShaderBridgeEnabled;
 
         // Oculus/Iris
         public final ForgeConfigSpec.BooleanValue oculusEnabled;
@@ -132,6 +134,13 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.BooleanValue devLookdevEnabled;
 
         public ClientConfig(ForgeConfigSpec.Builder builder) {
+            builder.comment("Rocket exhaust rendering").push("rocketExhaust");
+            rocketExhaustEnabled = builder.comment("Render the data-driven GPU volumetric rocket demo")
+                    .define("enabled", true);
+            rocketShaderBridgeEnabled = builder.comment("Oculus 1.8.0 only: upload exhaust uniforms to explicitly compatible shader packs")
+                    .define("shaderPackBridge", true);
+            builder.pop();
+
             // Debug Configuration
             builder.comment("Debug Configuration").push("debug");
 

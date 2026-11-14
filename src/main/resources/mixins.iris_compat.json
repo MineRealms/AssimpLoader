@@ -2,9 +2,11 @@
   "required": false,
   "minVersion": "0.8",
   "package": "cn.minerealms.assimploader.mixin.iris",
+  "plugin": "cn.minerealms.assimploader.mixin.iris.RocketMixinPlugin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "assimploader.refmap.json",
   "client": [
+    "RocketProgramMixin"
   ],
   "injectors": {
     "defaultRequire": 1
