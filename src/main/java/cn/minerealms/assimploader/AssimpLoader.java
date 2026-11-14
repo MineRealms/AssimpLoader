@@ -8,6 +8,8 @@ import cn.minerealms.assimploader.render.AssimpGeometryLoader;
 import cn.minerealms.assimploader.render.GLCapabilityDetector;
 import cn.minerealms.assimploader.util.DebugLogger;
 import cn.minerealms.assimploader.util.AssimpLoaderPaths;
+import cn.minerealms.assimploader.vehicle.VehicleNetworking;
+import cn.minerealms.assimploader.vehicle.VehicleRegistry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ModelEvent;
@@ -84,11 +86,14 @@ public class AssimpLoader {
 
         // Register setup events
         modEventBus.addListener(this::commonSetup);
+        VehicleRegistry.register(modEventBus);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(this::clientSetup);
             modEventBus.addListener(this::registerModelLoaders);
             modEventBus.addListener(cn.minerealms.assimploader.lookdev.LookDevKeybind::registerKeyMappings);
+            modEventBus.addListener(cn.minerealms.assimploader.vehicle.VehicleClientInput::registerKeyMappings);
+            MinecraftForge.EVENT_BUS.register(cn.minerealms.assimploader.vehicle.VehicleClientInput.class);
         }
 
         // Register examples
@@ -110,6 +115,8 @@ public class AssimpLoader {
         DebugLogger.debug("Common setup phase starting");
 
         event.enqueueWork(() -> {
+            VehicleNetworking.register();
+
             // Cache manager is now a singleton
             LOGGER.info("Model cache manager ready");
             DebugLogger.debug("Model cache manager initialized");

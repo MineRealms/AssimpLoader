@@ -1,6 +1,8 @@
 {
   "key.assimploader.lookdev": "LookDev Models",
+  "entity.assimploader.armored_car": "Armored Car",
   "key.categories.assimploader": "AssimpLoader",
+  "key.assimploader.vehicle_handbrake": "Vehicle Handbrake",
   "screen.assimploader.preview": "Preview",
   "screen.assimploader.nodes": "Nodes",
   "screen.assimploader.filter": "Filter",

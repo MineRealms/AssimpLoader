@@ -1,6 +1,8 @@
 {
   "key.assimploader.lookdev": "LookDev 模型预览",
+  "entity.assimploader.armored_car": "装甲车",
   "key.categories.assimploader": "AssimpLoader",
+  "key.assimploader.vehicle_handbrake": "载具手刹",
   "screen.assimploader.preview": "预览",
   "screen.assimploader.nodes": "节点",
   "screen.assimploader.filter": "筛选",
