@@ -65,6 +65,10 @@ Blender 可编辑文件、GLB 对照文件、图集及导出约定见 [资产说
 
 ## 验证边界
 
+火箭发动机使用独立的 `/assimpdemo rocket [pos]` 试车台，不占用上述紧凑画廊。
+其喷口原点、默认尺寸、本地第三方 PBR 模型接入和许可边界见
+[火箭发动机展示](ROCKET_ENGINE_SHOWCASE.md)。
+
 `ShowcaseAssetsTest` 检查全部展示资源链、真实 FBX 内存导入、嵌入纹理有无、无 UV 测试件、CIWS 三个关节节点及有限坐标。`PortalAssetTest` 另外检查 FBX/GLB 的部件、三角面、PBR 图像、玻璃透明度和世界尺寸。主线统一执行 Gradle。
 
 游戏内应检查八座模型的方向、完整面、材质/图集、物品 GUI/手持比例和 F3+T 重载。数据测试不证明画面和驱动行为；本次已完成的 PBR 世界画面、光影开关及重载检查见[实机验收](PBR_VALIDATION_2026-11-13.md)。
