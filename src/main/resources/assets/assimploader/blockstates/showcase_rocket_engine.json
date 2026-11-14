@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "assimploader:showcase/rocket_engine" }
+  }
+}

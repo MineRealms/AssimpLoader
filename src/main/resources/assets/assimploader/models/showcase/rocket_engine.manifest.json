@@ -1,0 +1,36 @@
+{
+  "kind": "authored_fallback",
+  "scale": 1.0,
+  "source_nozzle_center_blender": [
+    0,
+    0,
+    0
+  ],
+  "source_license": "Project-authored fallback; same license as AssimpLoader.",
+  "triangles": 4976,
+  "mesh_parts": 12,
+  "model_name": "rocket_engine",
+  "nozzle_center_y_up": [
+    0,
+    0,
+    0
+  ],
+  "exhaust_direction_y_up": [
+    0,
+    -1,
+    0
+  ],
+  "nozzle_inner_radius": 1.03425,
+  "bounds_blender": {
+    "min": [
+      -1.0742499828338623,
+      -1.0742499828338623,
+      0.0
+    ],
+    "max": [
+      1.0742499828338623,
+      1.0742499828338623,
+      4.599999904632568
+    ]
+  }
+}
