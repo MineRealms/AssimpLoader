@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.rendering;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.shaders.ProgramManager;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
@@ -58,7 +59,10 @@ final class GpuDrawState implements AutoCloseable {
         GL30.glBindVertexArray(vao);
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, arrayBuffer);
         GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, textureBuffer);
+        // Oculus caches _glUseProgram separately. Raw restoration alone makes its next bind a false cache hit.
+        // Keep the raw bind for custom shaders that also bypass that cache, then synchronize Oculus' cache.
         GL20.glUseProgram(program);
+        ProgramManager.glUseProgram(program);
         RenderSystem.setShaderTexture(1, overlay);
         RenderSystem.setShaderTexture(2, lightmap);
         for (int unit = 0; unit < textures.length; unit++) {
