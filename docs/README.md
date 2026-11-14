@@ -13,6 +13,8 @@
 | [LookDev 预览](LOOKDEV_PREVIEW.md) | 当前已加载模型列表与 GPU 预览操作 |
 | [FBX 世界展示](MODEL_SHOWCASE.md) | CIWS、刀及有/无贴图测试件的 `/assimpdemo` 放置说明 |
 | [测试资产说明](TEST_ASSETS.md) | `model-tests/` 中的 Blender 源文件、FBX/GLB、图片、尺寸和枢轴 |
+| [大型模型与巨物显示](LARGE_MODELS.md)、[客户端资产验收](TESTING.md) | 真实包围盒、可选强制显示、整组/部件交付和本地资源包截图 |
+| [装甲车实体](VEHICLES.md) | 可驾驶实体、加减速、轮轴动画、第三人称相机和本地 PBR 车模接入 |
 | [PBR 资产与 FBX 接入规范](PBR_ASSET_SPEC.md) | 美术必读：材质连接、图片命名/通道、玻璃、UV0、单位、层级与枢轴 |
 | [Oculus PBR 使用](OCULUS_PBR_USAGE.md)、[PBR 实机验收](PBR_VALIDATION_2026-11-13.md) | 当前动态贴图 loader、Blender 材质约定、光影设置与实际截图 |
 | [Blender/FBX PBR 源码调查](OCULUS_PBR_RESEARCH_2026-11-13.md)、[FBX 材质映射](FBX_PBR_PIPELINE_RESEARCH.md) | Oculus 动态 loader 扩展、Blender/Assimp 实际槽位、LabPBR 交付约定及前次 API 判断更正 |
