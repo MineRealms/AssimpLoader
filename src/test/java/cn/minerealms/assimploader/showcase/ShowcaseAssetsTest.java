@@ -64,6 +64,23 @@ class ShowcaseAssetsTest {
         }
     }
 
+    @Test
+    void bundledRocketFallbackHasANozzleAtTheWorldAnchor() throws Exception {
+        try (var stream = getClass().getResourceAsStream("/assets/assimploader/models/showcase/rocket_engine.fbx")) {
+            assertNotNull(stream);
+            var scene = new AssimpModelLoader().loadModelFromMemory("rocket_engine.fbx", stream.readAllBytes(),
+                    ModelImportMode.STATIC);
+            assertNotNull(scene);
+            var bounds = ShowcaseVisibility.modelBounds(scene);
+            assertEquals(0, bounds.minY, 0.01);
+            assertEquals(4.6, bounds.maxY, 0.01);
+            assertEquals(2.1485, bounds.getXsize(), 0.01);
+            assertEquals(2.1485, bounds.getZsize(), 0.01);
+            assertEquals(4976, scene.getMeshes().stream().mapToInt(mesh -> mesh.getIndices().length / 3).sum());
+            assertFalse(ShowcaseModel.ROCKET_ENGINE.isGalleryExhibit());
+        }
+    }
+
     private JsonObject json(String path) throws Exception {
         try (var stream = getClass().getResourceAsStream("/assets/assimploader/" + path)) {
             assertNotNull(stream, path);
