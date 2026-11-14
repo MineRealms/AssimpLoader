@@ -141,8 +141,37 @@ Control rendering pipeline features and quality.
 ### `rendering.frustumCullingEnabled`
 - **Type**: Boolean
 - **Default**: `true`
-- **Description**: Skip rendering models outside camera view
-- **Performance**: Essential optimization, keep enabled
+- **Description**: Skip rendering models outside camera view. Showcase blocks use the actual imported scene bounds, including parent transforms, instead of a fixed block-sized box.
+- **Performance**: Normally keep enabled. The large-model override below can bypass this only for models above its threshold.
+
+### Large showcase model visibility
+
+These settings apply to the registered showcase blocks, including locally overridden showcase assets. They do not automatically configure renderers supplied by other mods.
+
+| Setting | Default | Range / behavior |
+| --- | --- | --- |
+| `rendering.modelViewDistance` | `128` | Integer, 16-4096 blocks. Distance is measured to the nearest point of the model's world bounds, so a distant anchor does not hide a nearby end of a large model. |
+| `rendering.alwaysRenderLargeModels` | `false` | When true, qualifying models bypass both frustum and distance culling. |
+| `rendering.largeModelThreshold` | `16.0` | Number, 1.0-4096.0 blocks. A model qualifies when its largest actual dimension is at least this value. |
+
+Example for large scaffolding or buildings:
+
+```toml
+[rendering]
+    frustumCullingEnabled = true
+    modelViewDistance = 256
+    alwaysRenderLargeModels = true
+    largeModelThreshold = 16.0
+```
+
+Merge these keys into the existing `[rendering]` section rather than adding a second section. Normal models still use culling. The override uses finite, real bounds; it does not insert arbitrary infinite boxes. The anchor chunk must remain loaded: the setting cannot render an unloaded block entity or extend Minecraft's chunk loading. Opting into always rendering distant or off-screen large assets increases CPU/GPU work, especially with multiple copies or shader packs. For ordinary use, leave the override off and adjust view distance as needed.
+
+Showcase block entities use the renderer's global collection, so visibility of the
+anchor's 16-block section cannot hide geometry extending into the camera view.
+This collection choice is stable even if a resource reload replaces a small model
+with a large one. Normal rendering still tests the real world bounds against the
+camera frustum, in both Forge and Embeddium. The override and visibility settings
+are evaluated each frame; changing them does not require rebuilding terrain sections.
 
 ### `rendering.meshBatchingEnabled`
 - **Type**: Boolean
