@@ -4,6 +4,7 @@ import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpScene;
+import cn.minerealms.assimploader.config.RuntimePerformancePolicy;
 import net.minecraft.client.Minecraft;
 
 import java.lang.ref.ReferenceQueue;
@@ -26,6 +27,14 @@ public class ClientAnimationManager {
     private final ReferenceQueue<Object> collectedOwners = new ReferenceQueue<>();
     private final Function<ResourceLocation, Optional<ModelInstanceDefinition>> definitions;
     private final Set<AssimpScene> invalidDefinitions = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Map<AnimationState, AnimationCadence> cadences = new IdentityHashMap<>();
+    private long tick;
+    private int nextPhase, evaluated, skipped, paused;
+    private long totalEvaluated, totalSkipped;
+    private RuntimePerformancePolicy.Mode mode = RuntimePerformancePolicy.current().mode();
+
+    public record PerformanceStatistics(RuntimePerformancePolicy.Mode mode, int instances,
+            int evaluated, int skipped, int paused, long totalEvaluated, long totalSkipped) {}
 
     private static final class OwnerReference extends WeakReference<Object> {
         private final int hash;
@@ -76,12 +85,12 @@ public class ClientAnimationManager {
         Objects.requireNonNull(name, "Model name");
         AnimationState existing = states.get(name);
         if (scene == null || !scene.isDynamic()) {
-            if (existing != null) existing.close();
+            if (existing != null) closeState(existing);
             states.remove(name);
             return null;
         }
         if (existing != null && !existing.isClosed() && existing.getScene() == scene) return existing;
-        if (existing != null) existing.close();
+        if (existing != null) closeState(existing);
         Optional<ModelInstanceDefinition> definition = Optional.empty();
         AnimationState state = null;
         if (!invalidDefinitions.contains(scene)) {
@@ -103,13 +112,44 @@ public class ClientAnimationManager {
             state.initialize();
         }
         states.put(name, state);
+        cadences.put(state, new AnimationCadence(nextPhase++));
         return state;
     }
 
     /** Called once at client tick END; paused single-player worlds do not advance animation. */
     public void tick() {
         drainCollectedOwners();
-        if (!Minecraft.getInstance().isPaused()) update(0.05f);
+        if (!Minecraft.getInstance().isPaused()) updateManagedTick();
+    }
+
+    /** Reports visibility only; multiple render passes never advance playback. Distance is squared blocks. */
+    public void markRendered(AnimationState state, double distanceSquared) {
+        AnimationCadence cadence = cadences.get(state);
+        if (cadence != null) cadence.rendered(tick, distanceSquared);
+    }
+
+    public void updateManagedTick() { updateManagedTick(RuntimePerformancePolicy.current()); }
+
+    void updateManagedTick(RuntimePerformancePolicy policy) {
+        drainCollectedOwners();
+        tick++;
+        mode = policy.mode();
+        evaluated = skipped = paused = 0;
+        for (var entry : cadences.entrySet()) {
+            AnimationState state = entry.getKey();
+            if (!state.isInitialized()) continue;
+            int assetInterval = state.getPerformanceSettings().updateIntervalTicks();
+            float seconds = entry.getValue().step(tick, .05f, policy, assetInterval, state.isPaused());
+            if (state.isPaused()) { paused++; continue; }
+            if (seconds == 0) { skipped++; totalSkipped++; continue; }
+            state.update(seconds);
+            evaluated++;
+            totalEvaluated++;
+        }
+    }
+
+    public PerformanceStatistics getPerformanceStatistics() {
+        return new PerformanceStatistics(mode, cadences.size(), evaluated, skipped, paused, totalEvaluated, totalSkipped);
     }
 
     /** Deterministic simulation step in seconds, independent of rendering and wall-clock stalls. */
@@ -122,8 +162,10 @@ public class ClientAnimationManager {
         for (Map<String, AnimationState> states : instances.values()) updateStates(states, deltaTime);
     }
 
-    private static void updateStates(Map<String, AnimationState> states, float deltaTime) {
+    private void updateStates(Map<String, AnimationState> states, float deltaTime) {
         for (AnimationState state : states.values()) {
+            AnimationCadence cadence = cadences.get(state);
+            if (cadence != null) cadence.resetTime();
             if (state.isInitialized()) state.update(deltaTime);
         }
     }
@@ -132,25 +174,30 @@ public class ClientAnimationManager {
         drainCollectedOwners();
         if (owner == null) return;
         Map<String, AnimationState> removed = instances.remove(new OwnerReference(owner, null));
-        if (removed != null) removed.values().forEach(AnimationState::close);
+        if (removed != null) removed.values().forEach(this::closeState);
     }
 
     private void drainCollectedOwners() {
         OwnerReference owner;
         while ((owner = (OwnerReference) collectedOwners.poll()) != null) {
             Map<String, AnimationState> removed = instances.remove(owner);
-            if (removed != null) removed.values().forEach(AnimationState::close);
+            if (removed != null) removed.values().forEach(this::closeState);
         }
     }
 
     public void clear() {
         drainCollectedOwners();
-        animationStates.values().forEach(AnimationState::close);
-        instances.values().forEach(states -> states.values().forEach(AnimationState::close));
+        animationStates.values().forEach(this::closeState);
+        instances.values().forEach(states -> states.values().forEach(this::closeState));
         animationStates.clear();
         instances.clear();
         invalidDefinitions.clear();
+        cadences.clear();
+        tick = nextPhase = evaluated = skipped = paused = 0;
+        totalEvaluated = totalSkipped = 0;
     }
+
+    private void closeState(AnimationState state) { cadences.remove(state); state.close(); }
 
     public static void clearCache() { INSTANCE.clear(); }
     public AnimationState getAnimationState(String modelName) { return animationStates.get(modelName); }

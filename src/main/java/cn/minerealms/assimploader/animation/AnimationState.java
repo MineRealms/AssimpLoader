@@ -5,6 +5,7 @@ import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpNode;
 import cn.minerealms.assimploader.model.AssimpScene;
+import cn.minerealms.assimploader.config.RuntimePerformancePolicy;
 import org.joml.Matrix4f;
 
 import java.util.Collections;
@@ -29,6 +30,7 @@ public class AnimationState implements AutoCloseable {
     private double simulationTime;
     private boolean stopped;
     private ModelInstance modelInstance;
+    private InstancePerformanceSettings performance = InstancePerformanceSettings.DEFAULT;
     private AnimationPlayer currentAnimation;
     private AnimationPlayer transitionSource;
     private Map<String, Matrix4f> transitionSourcePose;
@@ -207,7 +209,16 @@ public class AnimationState implements AutoCloseable {
         evaluatedBasePose = copyTransforms(locals);
         if (!stopped) {
             layers.values().forEach(layer -> layer.apply(locals, bindTransforms));
-            modifiers.values().forEach(modifier -> modifier.apply(scene, locals, deltaSeconds));
+            var policy = RuntimePerformancePolicy.current();
+            for (PoseModifier modifier : modifiers.values()) {
+                boolean enabled = switch (modifier.category()) {
+                    case GENERAL -> true;
+                    case IK -> policy.ikEnabled() && performance.ik();
+                    case SPRING -> policy.springBonesEnabled() && performance.springBones();
+                };
+                if (enabled) modifier.apply(scene, locals, deltaSeconds);
+                else modifier.reset();
+            }
         }
         Map<AssimpMesh, float[]> sampledMorphs = sampleMorphs(currentAnimation);
         if (isTransitioning()) {
@@ -275,6 +286,14 @@ public class AnimationState implements AutoCloseable {
     public AnimationStateMachine getStateMachine() { return stateMachine; }
     public PoseModifier getModifier(String id) { return modifiers.get(id); }
     public ModelInstance getModelInstance() { return modelInstance; }
+    public InstancePerformanceSettings getPerformanceSettings() { return performance; }
+    public void setPerformanceSettings(InstancePerformanceSettings settings) {
+        requireOpen();
+        performance = java.util.Objects.requireNonNull(settings);
+        modifiers.values().forEach(PoseModifier::reset);
+        if (modelInstance != null) modelInstance.resetEffects();
+        publishPose();
+    }
     void setModelInstance(ModelInstance instance) { modelInstance = instance; }
     public double getSimulationTime() { return simulationTime; }
 

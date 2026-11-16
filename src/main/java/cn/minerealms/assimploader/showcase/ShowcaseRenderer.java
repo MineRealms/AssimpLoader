@@ -22,6 +22,8 @@ public class ShowcaseRenderer extends BaseAssimpRenderer implements BlockEntityR
         if (scene == null) return;
         ClientRenderResources.checkGeneration();
         var state=ClientAnimationManager.getInstance().getOrCreateAnimationState(entity,entity.getModel().modelName(),scene);
+        var camera=net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        ClientAnimationManager.getInstance().markRendered(state, ShowcaseVisibility.distanceSquared(entity.getRenderBoundingBox(),camera));
         if (state!=null && state.getPoseSnapshot()!=null) entity.setVisualBounds(scene,state.getPoseSnapshot().getBounds());
         if(state!=null && state.getModelInstance()!=null) cn.minerealms.assimploader.client.MinecraftAttachmentParticles.bind(
                 state.getModelInstance(),entity.getLevel(),new Vec3(entity.getBlockPos().getX()+.5,entity.getBlockPos().getY(),entity.getBlockPos().getZ()+.5),new org.joml.Matrix4f());

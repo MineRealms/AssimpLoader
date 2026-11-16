@@ -12,6 +12,7 @@ import java.util.Optional;
 
 /** Tick-only world ground sampling with explicit model/world conversion and bounded reach. */
 public final class FootPlacementModifier implements PoseModifier {
+    @Override public Category category() { return Category.IK; }
     @FunctionalInterface public interface GroundSampler { Optional<Vector3f> ground(Vector3f origin, float downDistance); }
     private final List<String> chain;
     private final GroundSampler sampler;

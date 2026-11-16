@@ -11,6 +11,7 @@ import java.util.Map;
 
 /** Axis-independent aiming in model space, applied after clip blending. */
 public final class LookAtModifier implements PoseModifier {
+    @Override public Category category() { return Category.IK; }
     private final String node;
     private final Vector3f forward;
     private final Vector3f target = new Vector3f();

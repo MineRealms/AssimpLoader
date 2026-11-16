@@ -91,3 +91,39 @@ resources from Forge's config watcher thread.
 Validation includes preset cadence and budget boundaries, disabled/oversized GPU
 Morph admission, finite values and direct-constructor rejection. Live configuration
 and runtime integration results are recorded by the implementation report.
+
+## Instance Scheduling
+
+Managed item, block and entity instances report their nearest rendered distance.
+After the visibility grace period, previously rendered instances use the hidden
+interval. Instances which have never rendered retain the nearby interval because
+absence of a render observation does not prove that they are invisible. Instance
+phases distribute evaluations across ticks. Skipped time accumulates and advances
+playback at the next evaluation; pausing discards pending time. Multiple render
+passes only report visibility and never advance playback.
+
+Optional sidecar settings constrain one asset further:
+
+```json
+"performance": {
+  "updateIntervalTicks": 1,
+  "ik": true,
+  "springBones": true,
+  "particles": true,
+  "trails": true,
+  "maxParticleEmissions": 4,
+  "maxTrailSamples": 32
+}
+```
+
+The effective interval is the larger of the asset and global intervals. Feature
+flags require both levels to permit the feature. Emissions share one instance
+budget across all emitters in definition order; a saturated earlier emitter can
+consume that update's budget. Excess emissions are dropped, avoiding catch-up
+bursts. Disabling a feature resets its simulation/history. Spring substeps remain
+bounded by each spring's configuration when a distant instance catches up.
+
+`/assimploader performance` prints the active policy and managed-instance
+evaluation/skip counters. This is a client command. Direct `update(seconds)` calls
+remain deterministic and bypass the managed cadence. Pose interpolation is not
+implemented, so distant animation may visibly step at its selected cadence.

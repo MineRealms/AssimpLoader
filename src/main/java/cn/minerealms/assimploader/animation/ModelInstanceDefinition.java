@@ -22,14 +22,16 @@ import java.util.Set;
 public final class ModelInstanceDefinition {
     private final JsonObject root;
     private final String model;
+    private final InstancePerformanceSettings performance;
 
     public ModelInstanceDefinition(JsonObject root) {
         this.root = root.deepCopy();
         keys(this.root, "version", "model", "initial", "states", "transitions", "layers", "attachments",
-                "lookAt", "ik", "morphs", "springs", "colliders", "materials", "trails", "hitboxes", "particles");
+                "lookAt", "ik", "morphs", "springs", "colliders", "materials", "trails", "hitboxes", "particles", "performance");
         if (number(this.root, "version", 0) != 1) throw new IllegalArgumentException("Instance version must be 1");
         model = text(this.root, "model", null);
         if (model == null || model.isBlank()) throw new IllegalArgumentException("Instance model is required");
+        performance = InstancePerformanceSettings.read(object(this.root, "performance"));
     }
 
     public static ModelInstanceDefinition read(Reader reader) {
@@ -42,6 +44,7 @@ public final class ModelInstanceDefinition {
         AnimationState state = new AnimationState(model, java.util.Objects.requireNonNull(scene));
         try {
             if (!scene.isDynamic()) throw new IllegalArgumentException("Configured instances require a dynamic scene import");
+            state.setPerformanceSettings(performance);
             state.initialize();
             configure(state);
             return new ModelInstance(state, attachments(scene), root);

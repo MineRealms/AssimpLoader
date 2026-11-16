@@ -30,6 +30,8 @@ public abstract class ConfiguredEntityRenderer<T extends Entity> extends EntityR
         var scene=AssimpModelLoader.getCachedModel(name);
         if (scene==null) return;
         var state=ClientAnimationManager.getInstance().getOrCreateAnimationState(entity,name,scene);
+        ClientAnimationManager.getInstance().markRendered(state,
+                entity.position().distanceToSqr(net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()));
         stack.pushPose();
         try {
             var transform=modelTransform(entity,yaw,partialTick);

@@ -5,6 +5,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import cn.minerealms.assimploader.collision.BoneCollisionProxy;
 import cn.minerealms.assimploader.collision.ModelCollision;
+import cn.minerealms.assimploader.config.RuntimePerformancePolicy;
 
 import java.util.Map;
 import java.util.function.Consumer;
@@ -78,6 +79,8 @@ public final class ModelInstance implements AutoCloseable {
     private static float number(JsonObject object, String name, float fallback) { return ModelInstanceDefinition.number(object,name,fallback); }
 
     public AnimationState animation() { return animation; }
+    public InstancePerformanceSettings performance() { return animation.getPerformanceSettings(); }
+    public boolean trailsEnabled() { return performance().trails() && RuntimePerformancePolicy.current().trailsEnabled(); }
     public ModelCollision collision() { return collision; }
     public void setParticleSink(AttachmentParticleEmitter.Sink sink) { particleSink=sink; }
     public boolean requestState(String state) { return animation.getStateMachine().request(state); }
@@ -96,12 +99,21 @@ public final class ModelInstance implements AutoCloseable {
     }
 
     void afterPose() {
-        trails.values().forEach(trail -> trail.sample(animation.getSimulationTime(),
-                attachmentTransform(trail.startAttachment(), new Matrix4f()).getTranslation(new Vector3f()),
-                attachmentTransform(trail.endAttachment(), new Matrix4f()).getTranslation(new Vector3f())));
+        var policy=RuntimePerformancePolicy.current();
+        var settings=performance();
+        if (trailsEnabled()) {
+            for (AttachmentTrail trail : trails.values()) trail.sample(animation.getSimulationTime(),
+                    attachmentTransform(trail.startAttachment(), new Matrix4f()).getTranslation(new Vector3f()),
+                    attachmentTransform(trail.endAttachment(), new Matrix4f()).getTranslation(new Vector3f()),
+                    Math.min(settings.maxTrailSamples(),policy.maxTrailSamples()));
+        } else trails.values().forEach(AttachmentTrail::reset);
         double time=animation.getSimulationTime();
         double delta=Math.max(0,time-effectTime); effectTime=time;
-        particles.forEach(emitter -> emitter.update(delta,attachmentTransform(emitter.attachment(),new Matrix4f()).getTranslation(new Vector3f()),particleSink));
+        int budget=settings.particles() && policy.particlesEnabled() ? Math.min(settings.maxParticleEmissions(),policy.maxParticleEmissions()) : 0;
+        for (AttachmentParticleEmitter emitter : particles) {
+            if (budget==0 || particleSink==null) { emitter.reset(); continue; }
+            budget-=emitter.update(delta,attachmentTransform(emitter.attachment(),new Matrix4f()).getTranslation(new Vector3f()),particleSink,budget);
+        }
     }
     public void resetEffects() { trails.values().forEach(AttachmentTrail::reset); particles.forEach(AttachmentParticleEmitter::reset); effectTime=animation.getSimulationTime(); }
 

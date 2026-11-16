@@ -37,6 +37,7 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
         if (scene == null && model != null) scene = model.getScene();
         if (scene == null) return;
         AnimationState animation = ClientAnimationManager.getInstance().getOrCreateAnimationState(stack, key, scene);
+        ClientAnimationManager.getInstance().markRendered(animation, 0);
         poses.pushPose();
         try {
             // ItemRenderer applies JSON display transforms before entering BEWLR.

@@ -14,6 +14,7 @@ import java.util.Map;
 
 /** Bounded CCD adapter operating directly on the instance pose with arbitrary bone axes. */
 public final class ChainIkModifier implements PoseModifier {
+    @Override public Category category() { return Category.IK; }
     private final List<String> chain;
     private final Vector3f target = new Vector3f();
     private final float weight;

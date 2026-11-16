@@ -33,11 +33,15 @@ public final class AttachmentTrail {
     public List<Sample> samples() { return List.copyOf(samples); }
 
     public void sample(double time, Vector3f start, Vector3f end) {
+        sample(time,start,end,capacity);
+    }
+    public void sample(double time, Vector3f start, Vector3f end,int maximumSamples) {
+        if(maximumSamples<2 || maximumSamples>4096) throw new IllegalArgumentException("Invalid trail budget");
         if (!Double.isFinite(time) || time < 0 || !start.isFinite() || !end.isFinite()) throw new IllegalArgumentException("Invalid trail sample");
         if (time < lastTime) reset();
         if (time == lastTime) return;
         lastTime = time;
-        while (!samples.isEmpty() && (samples.size() >= capacity || time - samples.peekFirst().time() > lifetime)) samples.removeFirst();
+        while (!samples.isEmpty() && (samples.size() >= Math.min(capacity,maximumSamples) || time - samples.peekFirst().time() > lifetime)) samples.removeFirst();
         samples.addLast(new Sample(time, start, end));
     }
     public void reset() { samples.clear(); lastTime = -1; }

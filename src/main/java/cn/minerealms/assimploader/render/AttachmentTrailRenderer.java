@@ -13,6 +13,7 @@ import org.joml.Vector3f;
 public final class AttachmentTrailRenderer {
     private AttachmentTrailRenderer() {}
     public static void render(ModelInstance instance, PoseStack stack, MultiBufferSource buffers, int light) {
+        if (!instance.trailsEnabled()) return;
         for (AttachmentTrail trail : instance.trails().values()) {
             var samples = trail.samples();
             if (samples.size() < 2) continue;

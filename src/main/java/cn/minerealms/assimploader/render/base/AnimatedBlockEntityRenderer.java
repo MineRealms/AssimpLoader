@@ -19,6 +19,9 @@ public abstract class AnimatedBlockEntityRenderer<T extends BlockEntity> extends
         if (scene == null) return;
         checkHotReload(scene, getModelName());
         AnimationState state = getAnimationState(entity);
+        cn.minerealms.assimploader.animation.ClientAnimationManager.getInstance().markRendered(state,
+                cn.minerealms.assimploader.showcase.ShowcaseVisibility.distanceSquared(getBoundingBox(entity),
+                        net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()));
         poses.pushPose();
         try {
             applyTransformations(poses, entity, partialTick);

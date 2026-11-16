@@ -14,6 +14,10 @@ import org.joml.Matrix4f;
 public final class MinecraftAttachmentParticles {
     private MinecraftAttachmentParticles() {}
     public static void bind(ModelInstance instance,Level level,Vec3 worldOrigin,Matrix4f modelRotationScale) {
+        if (!instance.performance().particles() || !cn.minerealms.assimploader.config.RuntimePerformancePolicy.current().particlesEnabled()) {
+            instance.setParticleSink(null);
+            return;
+        }
         Matrix4f transform=new Matrix4f(modelRotationScale);
         long anchorTime=level==null?0:level.getGameTime();
         instance.setParticleSink((name,position,velocity) -> {

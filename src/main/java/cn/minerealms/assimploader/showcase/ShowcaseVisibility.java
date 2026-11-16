@@ -44,10 +44,14 @@ public final class ShowcaseVisibility {
     }
 
     public static boolean withinDistance(AABB bounds, Vec3 camera, double distance) {
+        return distanceSquared(bounds,camera) <= distance * distance;
+    }
+
+    public static double distanceSquared(AABB bounds, Vec3 camera) {
         double dx = Math.max(Math.max(bounds.minX - camera.x, camera.x - bounds.maxX), 0);
         double dy = Math.max(Math.max(bounds.minY - camera.y, camera.y - bounds.maxY), 0);
         double dz = Math.max(Math.max(bounds.minZ - camera.z, camera.z - bounds.maxZ), 0);
-        return dx * dx + dy * dy + dz * dz <= distance * distance;
+        return dx * dx + dy * dy + dz * dz;
     }
 
     private static final class RenderBounds extends AABB {
