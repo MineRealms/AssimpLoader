@@ -57,6 +57,7 @@ final class CharacterPhysicsClientBinding {
                     new Vec3((float)box.world.getXsize()*.5f,(float)box.world.getYsize()*.5f,(float)box.world.getZsize()*.5f),Rotation.IDENTITY,4,65535));
         }
         physics.setWorldBoxes(boxes);
-        physics.setRagdollEnabled(!player.isAlive() && AssimpLoaderConfig.getOrDefault(config.ragdollOnDeath::get,true));
+        Boolean override=LocalPlayerCharacter.ragdollOverride();
+        physics.setRagdollEnabled(override!=null?override:!player.isAlive() && AssimpLoaderConfig.getOrDefault(config.ragdollOnDeath::get,true));
     }
 }

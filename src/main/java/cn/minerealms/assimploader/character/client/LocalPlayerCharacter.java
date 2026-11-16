@@ -20,6 +20,8 @@ import cn.minerealms.assimploader.render.ClientRenderResources;
 import cn.minerealms.assimploader.render.base.BaseAssimpRenderer;
 import cn.minerealms.assimploader.rendering.OculusEntityBufferCache;
 import com.mojang.math.Axis;
+import com.mojang.brigadier.arguments.FloatArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
@@ -64,6 +66,7 @@ public final class LocalPlayerCharacter {
     private static String failure = "";
     private static long request, loadingStarted, renderedPasses, fallbacks;
     private static boolean worldRender;
+    private static Boolean ragdollOverride;
     private static final BaseAssimpRenderer RENDERER = new BaseAssimpRenderer() {
         @Override protected String getModelName() { return "local-player-character"; }
     };
@@ -135,6 +138,13 @@ public final class LocalPlayerCharacter {
     public static BulletCharacterPhysics currentPhysics() { return active == null ? null : active.physics; }
     public static CharacterRigDefinition.Installed currentRig() { return active == null ? null : active.rig; }
     public static Settings settings() { return settings; }
+    public static void configure(Settings value) {
+        java.util.Objects.requireNonNull(value);
+        new ResourceLocation(value.profile());
+        settings=value;
+    }
+    public static void setRagdollOverride(Boolean value) { ragdollOverride=value; }
+    static Boolean ragdollOverride() { return ragdollOverride; }
 
     public static Diagnostics diagnostics() {
         var selection = active == null ? null : active.controller.lastSelection();
@@ -163,6 +173,7 @@ public final class LocalPlayerCharacter {
     private static void retire() {
         if (active != null) active.close();
         active = null;
+        ragdollOverride=null;
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -313,13 +324,38 @@ public final class LocalPlayerCharacter {
         event.getDispatcher().register(Commands.literal("assimploader").then(Commands.literal("character")
                 .executes(context -> {
                     context.getSource().sendSuccess(() -> Component.literal(diagnostics().toString()), false);
+                    if(currentPhysics()!=null)context.getSource().sendSuccess(()->Component.literal(currentPhysics().statistics().toString()),false);
                     return 1;
-                }).then(Commands.literal("reload").executes(context -> {
+                }).then(Commands.literal("enable").executes(context -> {setPersistentEnabled(true);return 1;}))
+                .then(Commands.literal("disable").executes(context -> {setPersistentEnabled(false);return 1;}))
+                .then(Commands.literal("profile").then(Commands.argument("resource",net.minecraft.commands.arguments.ResourceLocationArgument.id()).executes(context->{
+                    var config=AssimpLoaderConfig.CLIENT.character.profile;
+                    config.set(net.minecraft.commands.arguments.ResourceLocationArgument.getId(context,"resource").toString());config.save();
+                    refreshConfiguration();reload();return 1;
+                })))
+                .then(Commands.literal("ragdoll")
+                    .then(Commands.literal("on").executes(context->{setRagdollOverride(true);return 1;}))
+                    .then(Commands.literal("off").executes(context->{setRagdollOverride(false);return 1;}))
+                    .then(Commands.literal("auto").executes(context->{setRagdollOverride(null);return 1;})))
+                .then(Commands.literal("morph").then(Commands.argument("name",StringArgumentType.string())
+                    .suggests((context,builder)->net.minecraft.commands.SharedSuggestionProvider.suggest(currentRig()==null?java.util.Set.of():currentRig().morphs().names(),builder))
+                    .then(Commands.argument("weight",FloatArgumentType.floatArg(-4,4)).executes(context->{
+                        if(currentRig()==null)return 0;
+                        String name=StringArgumentType.getString(context,"name");
+                        if(!currentRig().morphs().names().contains(name)) {context.getSource().sendFailure(Component.literal("Unknown character morph: "+name));return 0;}
+                        currentRig().morphs().setWeight(name,FloatArgumentType.getFloat(context,"weight"));return 1;
+                    }))))
+                .then(Commands.literal("reload").executes(context -> {
                     refreshConfiguration();
                     reload();
                     context.getSource().sendSuccess(() -> Component.literal("Character resources will reload on the next client tick"), false);
                     return 1;
                 }))));
+    }
+
+    private static void setPersistentEnabled(boolean enabled) {
+        var config=AssimpLoaderConfig.CLIENT.character.enabled;config.set(enabled);config.save();
+        refreshConfiguration();reload();
     }
 
     @Mod.EventBusSubscriber(modid = AssimpLoader.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)

@@ -25,6 +25,13 @@ minecraft {
     runs {
         client {
             workingDirectory project.file('run')
+            if(project.hasProperty('clientCharacterSmoke')) {
+                if(['clientBatchSmoke','clientRuntimeSmoke','clientComputeSmoke','clientHighBoneSmoke','clientDeerSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke','clientKubeJsSmoke'].any { project.hasProperty(it) })
+                    throw new GradleException('clientCharacterSmoke must run independently')
+                property 'charactertest.enabled','true'
+                property 'charactertest.world',project.property('clientCharacterSmoke').toString()
+                args '--width','1280','--height','900'
+            }
             if (project.hasProperty('clientBatchSmoke')) {
                 if (['clientRuntimeSmoke','clientComputeSmoke','clientHighBoneSmoke','clientDeerSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke','clientKubeJsSmoke'].any { project.hasProperty(it) }) {
                     throw new GradleException('clientBatchSmoke must run independently')
@@ -193,11 +200,6 @@ if (project.hasProperty('clientKubeJsSmoke') || project.hasProperty('clientKubeJ
 }
 
 configurations {
-    physicsSources {
-        canBeConsumed = false
-        canBeResolved = true
-        transitive = false
-    }
     // Resolve native packaging separately from the mapped Forge runtimeClasspath, which is
     // not available while the task graph is being built on a cold cache.
     assimpNatives {
@@ -211,6 +213,13 @@ configurations {
 fg.configureMinecraftLibraryConfiguration(configurations.assimpNatives)
 
 repositories {
+    exclusiveContent {
+        forRepository { mavenCentral() }
+        filter {
+            includeGroup 'com.github.stephengold'
+            includeGroup 'javax.vecmath'
+        }
+    }
     maven { url = 'https://maven.minecraftforge.net/' }
     mavenCentral()
     maven {
@@ -236,7 +245,6 @@ repositories {
 }
 
 dependencies {
-    physicsSources 'javax.vecmath:vecmath:1.5.2:sources'
     minecraft "net.minecraftforge:forge:1.20.1-${forge_version}"
 
     // Bullet rigid bodies/constraints, isolated behind the character physics service.
@@ -245,7 +253,11 @@ dependencies {
             [group: 'com.github.stephengold', name: 'stack-alloc', version: '1.0.2', range: '[1.0.2,1.0.3)'],
             [group: 'javax.vecmath', name: 'vecmath', version: '1.5.2', range: '[1.5.2,1.5.3)']]) {
         minecraftLibrary("${physicsLibrary.group}:${physicsLibrary.name}:${physicsLibrary.version}") { transitive = false }
-        jarJar(group: physicsLibrary.group, name: physicsLibrary.name, version: physicsLibrary.range) { transitive = false }
+        jarJar(group: physicsLibrary.group, name: physicsLibrary.name, version: physicsLibrary.range) {
+            transitive = false
+            // Resolve a fixed binary while retaining a compatible Jar-in-Jar selection interval.
+            jarJar.pin(it, physicsLibrary.version)
+        }
     }
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
@@ -319,7 +331,7 @@ dependencies {
 jar {
     from(['LICENSE', 'docs/THIRD_PARTY_NOTICES.md']) { into 'META-INF' }
     from('licenses') { into 'META-INF/licenses' }
-    from(configurations.physicsSources) { into 'META-INF/third-party-sources' }
+    from('third_party_sources') { into 'META-INF/third-party-sources' }
     manifest {
         attributes([
                 "Specification-Title"     : "assimploader",
@@ -344,6 +356,7 @@ tasks.named('jarJar').configure {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(['LICENSE', 'docs/THIRD_PARTY_NOTICES.md']) { into 'META-INF' }
     from('licenses') { into 'META-INF/licenses' }
+    from('third_party_sources') { into 'META-INF/third-party-sources' }
 
     from {
         project.configurations.assimpNatives.collect {

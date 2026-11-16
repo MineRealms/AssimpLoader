@@ -26,15 +26,16 @@ palette = [
 
 
 def texture(name, values, color_space):
-    image = bpy.data.images.new(name, width=64, height=64, alpha=True)
+    image = bpy.data.images.get(name) or bpy.data.images.new(name, width=64, height=64, alpha=True)
+    image.colorspace_settings.name = color_space
     pixels = []
     for y in range(64):
         for x in range(64):
             color = values[min(7, x // 8)]
             noise = ((x * 13 + y * 7) % 9 - 4) / 255 if name.endswith("albedo") else 0
             pixels.extend([max(0, min(1, c + noise)) for c in color] + [1])
-    image.pixels = pixels
-    image.colorspace_settings.name = color_space
+    image.pixels.foreach_set(pixels)
+    image.update()
     image.filepath_raw = str(ASSET / (name + ".png"))
     image.file_format = "PNG"
     image.save()
@@ -50,7 +51,7 @@ material = bpy.data.materials.new("BlockPlayer_PBR")
 material.use_nodes = True
 nodes = material.node_tree.nodes
 links = material.node_tree.links
-bsdf = nodes.get("Principled BSDF")
+bsdf = next(node for node in nodes if node.type == "BSDF_PRINCIPLED")
 for image, socket in [(albedo, "Base Color"), (roughness, "Roughness"), (metallic, "Metallic")]:
     node = nodes.new("ShaderNodeTexImage")
     node.image = image
