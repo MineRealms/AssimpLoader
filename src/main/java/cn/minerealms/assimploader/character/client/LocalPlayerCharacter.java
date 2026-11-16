@@ -89,6 +89,7 @@ public final class LocalPlayerCharacter {
         final CharacterPhysicsClientBinding physicsBinding;
         final CharacterRigDefinition.Installed rig;
         final CharacterEquipmentDefinition equipment;
+        final CharacterScriptRuntime.Session scripts;
         final MinecraftPlayerInputSampler inputs = new MinecraftPlayerInputSampler();
 
         Binding(LocalPlayer player, CharacterProfile profile, AssimpScene scene) {
@@ -129,6 +130,7 @@ public final class LocalPlayerCharacter {
                             value -> rotationScale(value.yBodyRot, profile),
                             value -> settings.groundPlacement(), value -> settings.effects());
                 }
+                scripts=new CharacterScriptRuntime.Session(animation,rig);
                 controller.update(inputs.sample(player));
             } catch (IOException | RuntimeException exception) {
                 ClientAnimationManager.getInstance().release(animationOwner);
@@ -137,6 +139,7 @@ public final class LocalPlayerCharacter {
         }
 
         @Override public void close() {
+            scripts.close();
             controller.close();
             ClientAnimationManager.getInstance().release(animationOwner);
         }
@@ -210,8 +213,9 @@ public final class LocalPlayerCharacter {
         }
         if (active == null || minecraft.isPaused()) return;
         try {
+            var input=active.inputs.sample(active.player);
+            if(!active.scripts.run(active.player,active.profile,active.controller,input))active.controller.update(input);
             if(active.physicsBinding!=null)active.physicsBinding.update(active.player,active.profile.modelYawDegrees());
-            active.controller.update(active.inputs.sample(active.player));
             // The existing NORMAL-priority ClientAnimationManager tick advances simulation exactly once.
             ClientAnimationManager.getInstance().markRendered(active.animation, 0);
         } catch (RuntimeException exception) {

@@ -8,6 +8,8 @@ import dev.latvian.mods.kubejs.script.ScriptType;
 public final class AssimpKubeJSPlugin extends KubeJSPlugin {
     @Override public void registerBindings(BindingsEvent event) {
         if(event.getType()==ScriptType.CLIENT) {
+            // Bindings are rebuilt before each CLIENT script load, including /kubejs reload client_scripts.
+            cn.minerealms.assimploader.character.client.CharacterScriptRuntime.clear();
             event.add("Assimp",new AssimpScriptApi());
             if(Boolean.getBoolean("assimp.kubejsSmoke")) event.add("AssimpAcceptance",new KubeJSSmokeTest.ProbeApi());
         }
