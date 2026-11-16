@@ -24,16 +24,16 @@ final class GpuDrawState implements AutoCloseable {
     private final int depthFunction = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
     private final int overlay = RenderSystem.getShaderTexture(1);
     private final int lightmap = RenderSystem.getShaderTexture(2);
-    private final int[] textures = new int[4];
-    private final int boneTexture;
+    private final int[] textures = new int[5];
+    private final int[] bufferTextures = new int[5];
 
     GpuDrawState() {
         try {
             for (int unit = 0; unit < textures.length; unit++) {
                 RenderSystem.activeTexture(GL13.GL_TEXTURE0 + unit);
                 textures[unit] = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+                bufferTextures[unit] = GL11.glGetInteger(GL31.GL_TEXTURE_BINDING_BUFFER);
             }
-            boneTexture = GL11.glGetInteger(GL31.GL_TEXTURE_BINDING_BUFFER);
         } finally {
             RenderSystem.activeTexture(activeTexture);
         }
@@ -68,8 +68,8 @@ final class GpuDrawState implements AutoCloseable {
         for (int unit = 0; unit < textures.length; unit++) {
             RenderSystem.activeTexture(GL13.GL_TEXTURE0 + unit);
             RenderSystem.bindTexture(textures[unit]);
+            GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER,bufferTextures[unit]);
         }
-        GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, boneTexture);
         RenderSystem.activeTexture(activeTexture);
         if (blend) RenderSystem.enableBlend(); else RenderSystem.disableBlend();
         if (cull) RenderSystem.enableCull(); else RenderSystem.disableCull();

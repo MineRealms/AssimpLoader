@@ -8,6 +8,10 @@ uniform mat4 u_ModelViewProjection;
 uniform mat4 u_ModelView;
 uniform mat4 u_BoneMatrices[64];
 uniform int u_BoneCount;
+uniform samplerBuffer u_MorphDeltas;
+uniform float u_MorphWeights[32];
+uniform int u_MorphCount;
+uniform int u_MorphVertices;
 out vec3 v_Position;
 out vec3 v_Normal;
 out vec2 v_TexCoord;
@@ -24,10 +28,22 @@ void main() {
         }
     }
     skin = total > 0.000001 ? skin / total : mat4(1.0);
-    vec4 position = skin * vec4(a_Position, 1.0);
+    vec3 morphedPosition=a_Position;
+    vec3 morphedNormal=a_Normal;
+    bool morphActive=false;
+    for(int target=0;target<u_MorphCount;target++) {
+        float weight=u_MorphWeights[target];
+        if(weight==0.0) continue;
+        int offset=(target*u_MorphVertices+gl_VertexID)*2;
+        morphedPosition+=texelFetch(u_MorphDeltas,offset).xyz*weight;
+        morphedNormal+=texelFetch(u_MorphDeltas,offset+1).xyz*weight;
+        morphActive=true;
+    }
+    if(morphActive) morphedNormal=length(morphedNormal)>0.00000001?normalize(morphedNormal):vec3(0.0,1.0,0.0);
+    vec4 position = skin * vec4(morphedPosition, 1.0);
     mat3 normalMatrix = mat3(u_ModelView * skin);
     vec3 normal = abs(determinant(normalMatrix)) > 0.000001
-            ? transpose(inverse(normalMatrix)) * a_Normal : a_Normal;
+            ? transpose(inverse(normalMatrix)) * morphedNormal : morphedNormal;
     v_Normal = length(normal) > 0.000001 ? normalize(normal) : vec3(0.0, 1.0, 0.0);
     v_Position = (u_ModelView * position).xyz;
     v_TexCoord = a_TexCoord;

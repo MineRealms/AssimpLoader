@@ -89,14 +89,16 @@ public abstract class BaseAssimpRenderer {
                 // receive their scene-node transform a second time.
                 for (SceneTransforms.Instance instance : instances) {
                     Matrix4f[] palette = snapshot.getBoneTransforms(instance.mesh());
-                    if (instance.mesh().hasBones() && palette != null && !snapshot.hasActiveMorphs(instance.mesh())
+                    if (instance.mesh().hasBones() && palette != null
+                            && (!snapshot.hasActiveMorphs(instance.mesh()) || skinned.supportsMorph(instance.mesh()))
                             && skinned.isInitialized() && skinned.supports(palette.length)) {
                         var material = ModelTextureCache.material(scene, instance.mesh());
                         try {
                             skinned.renderWithPose(instance.mesh(), palette, stack, buffers,
                                     ModelTextureCache.getTexture(scene, instance.mesh()),
                                     Minecraft.getInstance().getTextureManager(), light, overlay,
-                                    material == null ? new float[]{1,1,1,1} : material.getDiffuseColor());
+                                    material == null ? new float[]{1,1,1,1} : material.getDiffuseColor(),
+                                    snapshot.hasActiveMorphs(instance.mesh())?snapshot.getMorphWeights(instance.mesh()):null);
                         } catch (RuntimeException failure) {
                             ClientRenderResources.disableGpuSkinning(failure);
                             renderInstance(scene, snapshot, instance, stack, buffers, light, overlay);

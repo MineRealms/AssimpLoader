@@ -45,6 +45,7 @@ public class SkinnedMeshShader {
     private int u_BoneCount;
     private int u_Lightmap, u_Overlay, u_LightUV, u_OverlayUV, u_ColorModulator;
     private int u_FogStart, u_FogEnd, u_FogColor, u_FogShape;
+    private int u_MorphDeltas,u_MorphWeights,u_MorphCount,u_MorphVertices;
 
     private boolean compiled = false;
 
@@ -114,6 +115,10 @@ public class SkinnedMeshShader {
         u_FogEnd = GL20.glGetUniformLocation(programId, "u_FogEnd");
         u_FogColor = GL20.glGetUniformLocation(programId, "u_FogColor");
         u_FogShape = GL20.glGetUniformLocation(programId, "u_FogShape");
+        u_MorphDeltas=GL20.glGetUniformLocation(programId,"u_MorphDeltas");
+        u_MorphWeights=GL20.glGetUniformLocation(programId,"u_MorphWeights");
+        u_MorphCount=GL20.glGetUniformLocation(programId,"u_MorphCount");
+        u_MorphVertices=GL20.glGetUniformLocation(programId,"u_MorphVertices");
 
         compiled = true;
     }
@@ -229,6 +234,13 @@ public class SkinnedMeshShader {
 
     public void setBoneCount(int count) {
         GL20.glUniform1i(u_BoneCount, count);
+    }
+
+    public void setMorphWeights(int vertices,float[] weights) {
+        GL20.glUniform1i(u_MorphDeltas,4);
+        GL20.glUniform1i(u_MorphVertices,vertices);
+        GL20.glUniform1i(u_MorphCount,weights==null?0:weights.length);
+        if(weights!=null && weights.length>0) GL20.glUniform1fv(u_MorphWeights,weights);
     }
 
     public void setMinecraftLighting(int light, int overlay) {

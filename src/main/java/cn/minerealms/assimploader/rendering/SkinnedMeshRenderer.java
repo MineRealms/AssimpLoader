@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.rendering;
 
 import cn.minerealms.assimploader.animation.BoneHierarchyBuilder;
 import cn.minerealms.assimploader.animation.SkinnedMeshProcessor;
+import cn.minerealms.assimploader.animation.MorphDeformation;
 import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
@@ -37,6 +38,8 @@ public class SkinnedMeshRenderer {
     private final SkinnedMeshShader shader;
     private final Map<AssimpMesh, SkinnedMeshVBO> vboCache;
     private final BoneMatrixTBO boneMatrixTBO;
+    private final Map<AssimpMesh,MorphTargetTBO> morphCache=new HashMap<>();
+    private int maximumMorphTexels;
     private boolean initialized = false;
     private boolean useTBO = false;
     private int maxBones = 64;
@@ -57,6 +60,7 @@ public class SkinnedMeshRenderer {
 
         useTBO = tboRequested() && GLCapabilityDetector.isTBOSupported();
         maxBones = useTBO ? GL11.glGetInteger(GL31.GL_MAX_TEXTURE_BUFFER_SIZE) / 4 : 64;
+        maximumMorphTexels=GLCapabilityDetector.isTBOSupported()?GL11.glGetInteger(GL31.GL_MAX_TEXTURE_BUFFER_SIZE):0;
         try {
             shader.compile(useTBO);
         } catch (IOException | RuntimeException e) {
@@ -103,6 +107,12 @@ public class SkinnedMeshRenderer {
     public void renderWithPose(AssimpMesh mesh, Matrix4f[] boneMatrices,
                                PoseStack poseStack, MultiBufferSource bufferSource,
                                ResourceLocation texture, TextureManager textureManager, int light, int overlay, float[] tint) {
+        renderWithPose(mesh,boneMatrices,poseStack,bufferSource,texture,textureManager,light,overlay,tint,null);
+    }
+
+    public void renderWithPose(AssimpMesh mesh, Matrix4f[] boneMatrices,
+                               PoseStack poseStack, MultiBufferSource bufferSource,
+                               ResourceLocation texture, TextureManager textureManager, int light, int overlay, float[] tint,float[] morphWeights) {
         if (bufferSource instanceof MultiBufferSource.BufferSource source) {
             source.endBatch();
         }
@@ -111,7 +121,7 @@ public class SkinnedMeshRenderer {
         Matrix4f modelViewProjection = createModelViewProjection(RenderSystem.getProjectionMatrix(), modelView);
         try (GpuDrawState drawState = new GpuDrawState()) {
             drawState.prepare();
-            renderPacked(mesh, boneMatrices, modelViewProjection, modelView, texture, textureManager, light, overlay, tint);
+            renderPacked(mesh, boneMatrices, modelViewProjection, modelView, texture, textureManager, light, overlay, tint,morphWeights);
         }
     }
 
@@ -167,6 +177,12 @@ public class SkinnedMeshRenderer {
     private void renderPacked(AssimpMesh mesh, Matrix4f[] boneMatrices,
                        Matrix4f modelViewProjection, Matrix4f modelView,
                        ResourceLocation texture, TextureManager textureManager, int light, int overlay, float[] tint) {
+        renderPacked(mesh,boneMatrices,modelViewProjection,modelView,texture,textureManager,light,overlay,tint,null);
+    }
+
+    private void renderPacked(AssimpMesh mesh, Matrix4f[] boneMatrices,
+                       Matrix4f modelViewProjection, Matrix4f modelView,
+                       ResourceLocation texture, TextureManager textureManager, int light, int overlay, float[] tint,float[] morphWeights) {
 
         if (!initialized) {
             throw new IllegalStateException("Renderer not initialized");
@@ -179,6 +195,7 @@ public class SkinnedMeshRenderer {
         if (boneMatrices == null || !supports(boneMatrices.length)) {
             throw new IllegalArgumentException("Bone palette exceeds the selected GPU rendering limits");
         }
+        if(morphWeights!=null && !supportsMorph(mesh)) throw new IllegalArgumentException("Morph data exceeds GPU capacity");
 
         // Performance profiling
         if (DebugManager.isProfilingEnabled()) {
@@ -198,6 +215,11 @@ public class SkinnedMeshRenderer {
         // Both sampler uniforms remain active even when the uniform-bone branch is selected.
         shader.setBoneMatricesTBO(3);
         shader.setMinecraftLighting(light, overlay);
+        if(morphWeights!=null) {
+            float[] effective=MorphDeformation.effectiveWeights(mesh,morphWeights);
+            morphCache.computeIfAbsent(mesh,MorphTargetTBO::new).bind();
+            shader.setMorphWeights(mesh.getVertexCount(),effective);
+        } else shader.setMorphWeights(0,null);
 
         // Set matrices
         shader.setModelViewProjection(modelViewProjection);
@@ -293,6 +315,8 @@ public class SkinnedMeshRenderer {
             vbo.delete();
         }
         vboCache.clear();
+        morphCache.values().forEach(MorphTargetTBO::delete);
+        morphCache.clear();
         DebugManager.debug(DebugCategory.RENDER, "Cleared VBO cache");
     }
 
@@ -322,6 +346,10 @@ public class SkinnedMeshRenderer {
         int capacity = useTBO && tboRequested()
                 ? Math.min(maxBones, AssimpLoaderConfig.getIntOrDefault(AssimpLoaderConfig.CLIENT.maxTBOBones, 1024)) : 64;
         return boneCount > 0 && boneCount <= capacity;
+    }
+
+    public boolean supportsMorph(AssimpMesh mesh) {
+        return initialized && MorphTargetTBO.fits(mesh,maximumMorphTexels);
     }
 
     static float[] packPalette(Matrix4f[] palette) {
