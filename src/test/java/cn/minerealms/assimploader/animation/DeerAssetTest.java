@@ -31,6 +31,11 @@ class DeerAssetTest {
         }
     }
 
+    private static AssimpScene fbx() throws Exception {
+        return new AssimpModelLoader().loadModelFromMemory("deer_showcase.fbx",
+                Files.readAllBytes(Path.of("model-tests/deer/deer_showcase.fbx")), ModelImportMode.DYNAMIC);
+    }
+
     @Test void exportedAssetHasOneSkinnedPrimitiveAndElevenClips() throws Exception {
         var scene = scene();
         assertTrue(scene.hasSkeleton());
@@ -39,15 +44,21 @@ class DeerAssetTest {
         assertEquals(Set.of("idle", "walk", "gallop", "graze", "bugle", "antler_sweep", "rear_up", "jump", "hit", "death", "ik_probe"),
                 scene.getAnimations().stream().map(a -> a.getName()).collect(java.util.stream.Collectors.toSet()));
         for (String leg : List.of("FL", "FR", "BL", "BR")) assertNotNull(scene.findNodeByName("hoof" + leg));
-        var fbx = new AssimpModelLoader().loadModelFromMemory("deer_showcase.fbx",
-                Files.readAllBytes(Path.of("model-tests/deer/deer_showcase.fbx")), ModelImportMode.DYNAMIC);
+        var fbx = fbx();
         assertTrue(fbx.hasSkeleton());
         assertEquals(1, fbx.getMeshes().size());
         assertEquals(11, fbx.getAnimations().size());
     }
 
     @Test void importedSamplesMatchBlenderAcrossEveryBakedClip() throws Exception {
-        var scene = scene();
+        verifyReferences(scene());
+    }
+
+    @Test void fbxSamplesMatchBlenderAcrossEveryBakedClip() throws Exception {
+        verifyReferences(fbx());
+    }
+
+    private void verifyReferences(AssimpScene scene) throws Exception {
         try (var input = getClass().getResourceAsStream("/fixtures/deer_reference.json")) {
             assertNotNull(input);
             var samples = JsonParser.parseReader(new InputStreamReader(input, StandardCharsets.UTF_8))
@@ -56,7 +67,10 @@ class DeerAssetTest {
                 var sample = element.getAsJsonObject();
                 try (var state = new AnimationState("deer", scene)) {
                     state.initialize();
-                    assertTrue(state.transitionTo(sample.get("clip").getAsString(), 0));
+                    String requested = sample.get("clip").getAsString();
+                    String clip = java.util.Arrays.stream(state.getAvailableAnimations())
+                            .filter(name -> name.equals(requested) || name.endsWith("|" + requested)).findFirst().orElseThrow();
+                    assertTrue(state.transitionTo(clip, 0));
                     state.update(sample.get("seconds").getAsFloat());
                     var pose = state.getPoseSnapshot();
                     sample.getAsJsonObject("nodes").entrySet().forEach(entry -> assertVector(vector(entry.getValue().getAsJsonArray()),

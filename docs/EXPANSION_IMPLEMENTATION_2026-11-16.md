@@ -179,6 +179,18 @@ Minecraft 1.20.1 / Forge 47.1.3 / Java 17.0.18，RTX 4060 / OpenGL 4.6 / NVIDIA 
 
 完整 CustomSteve、玩家模型替换、PMX/VMD 运行时、Motion Matching、动作数据库、展示摄像机/BGM 和通用节点编辑器继续在本目标之外。新增 Native 或 SIMD 应针对已测得的批量计算成本，并保留同输入 Java 参考与回退；不引入逐顶点/逐骨 JNI 调用。
 
+## 后续增量：性能策略与鹿资产
+
+新增 [运行时性能模式](RUNTIME_PERFORMANCE_MODES.md)：`QUALITY/BALANCED/PERFORMANCE/CUSTOM`、远距离/历史不可见实例分频、错峰求值、累计播放时间、资产级开关、实例粒子总预算和拖尾容量限制。`/assimploader performance` 提供只读计数。当前没有渲染插值，分频可能产生可见步进；从未收到绘制观察的实例保守保持近距离频率。
+
+新增 [鹿展示](DEER_SHOWCASE.md) 和用户 Blender 工程的转换产物：174 部件合成一个蒙皮网格、35 骨、原有 10 动作加 `ik_probe`，含四腿目标/极向控制、独立可编辑预览和无约束的导出骨架。GLB 内嵌贴图，另提供烘焙 FBX。运行时 JSON 定义 6 处 Spring、躯干碰撞体、14 个骨骼命中代理及挂点；并注册独立 `assimploader:deer_showcase` 生物。
+
+数值验证包含 GLB/FBX 各 33 组 Blender 参考姿态，覆盖全部 11 个动作的节点位置及变形几何范围，误差阈值 0.3 毫米；真实鹿模型运行时 IK 抬蹄、骨骼/网格射线查询、Spring 有限值和独立状态均有测试。鹿原始动作转换最大矩阵误差约 `7.2e-7`，Blender IK 最大目标误差约 `0.058 mm`，IK 烘焙矩阵误差约 `1.2e-6`。这不代表任意模型或复杂地面足部解算已经验收。
+
+客户端鹿验证运行 `1794828136485` 完成 7 阶段、14 对 CPU/GPU 轮廓比较，全部像素错配为 0；世界运行 `1794828136511` 完成独立生物的 idle/walk/gallop/ik_probe 和资源重载共 5 张截图，每阶段至少等待 10 秒。已人工查看待机、奔跑和 IK 图像。日志 `build/deer-validation.log` 以 `BUILD SUCCESSFUL` 结束。运行使用 `-PwithoutOptionalMods`，不包含 Oculus 动画验收。
+
+此用户提供资产未附作者/再分发许可；本地验证结果不构成公开发布授权。脚贴地与世界粒子仍需单独场景验收，鹿骨骼命中代理尚未接管服务器伤害逻辑。未新增 Native/Compute：此鹿合批后的几何规模和 35 骨尚不构成引入额外后端的证据。
+
 ## 代码入口
 
 - [实例与配置](../src/main/java/cn/minerealms/assimploader/animation/ModelInstance.java)、[定义解析](../src/main/java/cn/minerealms/assimploader/animation/ModelInstanceDefinition.java)、[资源继承](../src/main/java/cn/minerealms/assimploader/animation/InstanceDefinitionResources.java)

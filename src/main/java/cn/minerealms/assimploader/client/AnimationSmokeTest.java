@@ -110,7 +110,7 @@ public final class AnimationSmokeTest {
     private static void advance(Minecraft mc) {
         if (++stage == STAGES.length) {
             done = true;
-            AssimpLoader.LOGGER.info("[AnimationSmoke] SUCCESS: independent FBX instances, crossfade, interruption, bind stop, attachments, CPU/GPU masks and reload; run={}", RUN);
+            AssimpLoader.LOGGER.info("[AnimationSmoke] SUCCESS: {} independent instances, CPU/GPU masks and resource recreation; run={}", DEER ? "deer baked/runtime IK and springs," : "FBX crossfade, interruption, bind stop, attachments,", RUN);
             screen.release();
             if (DEER) mc.setScreen(new TitleScreen());
             else mc.stop();
@@ -326,7 +326,7 @@ public final class AnimationSmokeTest {
                     graphics.drawCenteredString(font, (i < 2 ? "A" : "B") + ((i & 1) == 0 ? " / CPU" : fallback?" / fallback":" / GPU"), x + side / 2, y + side + 4, 0xffeeeeee);
                     graphics.flush();
                 }
-                graphics.drawCenteredString(font, (stage>=8?"GLB":"FBX")+" / " + STAGES[stage], width / 2, 10, 0xffeeeeee);
+                graphics.drawCenteredString(font, (DEER || stage>=8?"GLB":"FBX")+" / " + STAGES[stage], width / 2, 10, 0xffeeeeee);
                 rendered = true;
             } catch (Exception | LinkageError failure) { fail(Minecraft.getInstance(), failure); }
         }

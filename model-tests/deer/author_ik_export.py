@@ -124,6 +124,7 @@ bpy.ops.export_scene.gltf(filepath=str(ASSETS / 'deer_showcase.glb'), export_for
                           export_frame_range=False, export_skins=True, export_yup=True, export_def_bones=False,
                           export_anim_slide_to_zero=True)
 bpy.ops.export_scene.fbx(filepath=str(BASE / 'deer_showcase.fbx'), use_selection=True, object_types={'ARMATURE', 'MESH'},
+                         axis_forward='Z', axis_up='Y', apply_scale_options='FBX_SCALE_ALL',
                          add_leaf_bones=False, bake_anim=True, bake_anim_use_all_actions=False,
                          bake_anim_use_nla_strips=True, bake_anim_simplify_factor=0, path_mode='COPY', embed_textures=True)
 for track in rig.animation_data.nla_tracks:

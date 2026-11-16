@@ -75,6 +75,15 @@ are evaluated by AssimpLoader, not Blender physics. Movement uses the registered
 entity's simple server bounding box; bone/mesh queries do not automatically apply
 damage or provide server-authoritative projectile collision.
 
+To reproduce, open `deer_source.blend` first, then run `prepare_deer.py`,
+`author_ik_export.py` and `finalize_deer.py` in order in Blender. The scripts use
+the current workspace path. The final step writes runtime JSON and numerical
+references as well as both exports. glTF animation tracks start at zero; the
+reference conversion includes AssimpLoader's Z reflection for glTF. FBX is
+exported with forward `Z`, up `Y` and `FBX_SCALE_ALL` because AssimpLoader's FBX
+basis reflects X; the resulting runtime coordinates match the GLB. Blender-only controls
+and the preview mesh are excluded from the selected runtime export.
+
 The model was supplied in the user's open Blender session. Its original author
 and redistribution license were not supplied; do not treat this local validation
 asset as cleared for publication.
@@ -87,3 +96,28 @@ The opt-in smoke first compares frozen CPU/GPU poses, then opens the specified
 local test world, creates a raised test platform and a persistent deer, captures
 idle/walk/gallop/baked IK and reload views, and exits. Each capture waits at least
 ten seconds. It changes the test world's terrain and player location/mode.
+
+## Verified 2026-11-16
+
+Run `1794828136485`: seven frozen stages (idle, walk, gallop, baked IK, resource
+recreation, runtime IK and springs), fourteen CPU/GPU silhouette pairs with zero
+pixel mismatch, seven delayed captures. This run required the GPU path in the
+accelerated column and checked for GL errors. Runtime hoof target tolerance was
+3 mm. The GLB and FBX references each cover all eleven clips at three sampled times,
+comparing named node positions and deformed bounds to Blender within 0.3 mm.
+
+World run `1794828136511` in `Scaffold_PBR_Test`: a registered deer rendered with
+its embedded texture, idle/walk/gallop/ik_probe selected through synchronized entity
+data, then a fifth idle view after resource recreation. All five captures waited
+at least ten seconds. Inspected images include idle, gallop and baked IK; the
+whole deer and texture are visible. Logs: `build/deer-validation.log`, ending in
+`BUILD SUCCESSFUL`; images: `run/screenshots/assimp-deer-1794828136511-*.png`.
+
+Final `test build` after FBX axis normalization: 260 tests, 259 passed, one
+opt-in benchmark skipped, zero failures/errors. The five actual deer asset tests
+include both format references. Build log: `build/deer-final-build.log`.
+
+This run excluded optional shader mods. AI navigation/facing, world reopening,
+terrain FootPlacement, projectile damage and an Oculus animation scene remain
+separate validation work. The world test checks state synchronization and resource
+recreation; it does not prove those additional paths.
