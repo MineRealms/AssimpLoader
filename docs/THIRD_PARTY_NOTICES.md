@@ -2,6 +2,24 @@
 
 Source and license paths below are relative to the repository root. This document is packaged as `META-INF/THIRD_PARTY_NOTICES.md` in the release jar; license texts remain under `META-INF/licenses/`.
 
+## Character Physics Libraries
+
+The all jar bundles unmodified Maven artifacts `com.github.stephengold:jbullet:1.0.3`,
+`com.github.stephengold:stack-alloc:1.0.2` and `javax.vecmath:vecmath:1.5.2`.
+JBullet and stack-alloc are by Martin Dvorak; Bullet is by Erwin Coumans.
+Their zlib notices are retained in `licenses/JBullet-Zlib.txt` and
+`licenses/StackAlloc-Zlib.txt`. Sources: [JBullet](https://github.com/stephengold/jbullet)
+and [stack-alloc](https://github.com/stephengold/stack-alloc).
+
+Vecmath is by Sun Microsystems and contributors. It is GPL version 2 with the
+Classpath exception; the license and copyright notices are retained in
+`licenses/Vecmath-GPL2-Classpath.txt` and `licenses/Vecmath-Copyright.txt`.
+Its exact Maven 1.5.2 source archive accompanies the binary inside the all jar
+at `META-INF/third-party-sources/vecmath-1.5.2-sources.jar` and is also available
+from [Maven Central](https://repo.maven.apache.org/maven2/javax/vecmath/vecmath/1.5.2/vecmath-1.5.2-sources.jar).
+License text source: [vecmath repository](https://github.com/hharrison/vecmath).
+AssimpLoader's adapters and generated block-player assets are independently authored.
+
 ## Caliko
 
 The vendored `src/main/java/au/edu/federation/caliko/` and

@@ -193,6 +193,11 @@ if (project.hasProperty('clientKubeJsSmoke') || project.hasProperty('clientKubeJ
 }
 
 configurations {
+    physicsSources {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+    }
     // Resolve native packaging separately from the mapped Forge runtimeClasspath, which is
     // not available while the task graph is being built on a cold cache.
     assimpNatives {
@@ -231,6 +236,7 @@ repositories {
 }
 
 dependencies {
+    physicsSources 'javax.vecmath:vecmath:1.5.2:sources'
     minecraft "net.minecraftforge:forge:1.20.1-${forge_version}"
 
     // Bullet rigid bodies/constraints, isolated behind the character physics service.
@@ -313,6 +319,7 @@ dependencies {
 jar {
     from(['LICENSE', 'docs/THIRD_PARTY_NOTICES.md']) { into 'META-INF' }
     from('licenses') { into 'META-INF/licenses' }
+    from(configurations.physicsSources) { into 'META-INF/third-party-sources' }
     manifest {
         attributes([
                 "Specification-Title"     : "assimploader",
