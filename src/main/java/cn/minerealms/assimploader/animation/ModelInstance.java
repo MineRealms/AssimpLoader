@@ -83,7 +83,7 @@ public final class ModelInstance implements AutoCloseable {
         if(footDefinitions.size()>16) throw new IllegalArgumentException("At most 16 grounded feet per instance");
         footDefinitions.entrySet().forEach(entry -> {
             JsonObject value=entry.getValue().getAsJsonObject();
-            ModelInstanceDefinition.keys(value,"chain","rise","drop","sole","weight","states");
+            ModelInstanceDefinition.keys(value,"chain","rise","drop","sole","weight","states","pole","preserveOrientation");
             var chain=new java.util.ArrayList<String>();
             for(var element:ModelInstanceDefinition.array(value,"chain")) {
                 String node=element.getAsString(); ModelInstanceDefinition.requireNode(animation.getScene(),node); chain.add(node);
@@ -92,7 +92,9 @@ public final class ModelInstance implements AutoCloseable {
             for(int index=1;index<chain.size();index++) if(!graph.isAncestor(chain.get(index-1),chain.get(index)))
                 throw new IllegalArgumentException("Ground IK nodes must form an ordered chain");
             var foot=new cn.minerealms.assimploader.animation.ik.FootPlacementModifier(chain,null,
-                    number(value,"rise",.3f),number(value,"drop",.5f),number(value,"sole",.005f),number(value,"weight",1));
+                    number(value,"rise",.3f),number(value,"drop",.5f),number(value,"sole",.005f),number(value,"weight",1),
+                    value.has("pole")?ModelInstanceDefinition.vector(value,"pole",new Vector3f()):null,
+                    ModelInstanceDefinition.bool(value,"preserveOrientation",value.has("pole")));
             feet.put(entry.getKey(),foot);
             var states=new java.util.LinkedHashSet<String>();
             for(var element:ModelInstanceDefinition.array(value,"states")) {
