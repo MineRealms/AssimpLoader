@@ -17,5 +17,11 @@ class TerrainBudgetTest {
         var body=new GroundBodyModifier("hip",List.of("foot"),32,32,64,0);
         assertThrows(IllegalArgumentException.class,()->body.bind(new Matrix4f().scale(0),null));
         assertDoesNotThrow(()->body.bind(new Matrix4f(),null));
+        assertThrows(IllegalArgumentException.class,()->new GroundBodyModifier("hip",List.of("foot"),1,1,1,0,
+                java.util.Map.of("absent",List.of(new org.joml.Vector3f()))));
+        assertThrows(IllegalArgumentException.class,()->new GroundBodyModifier("hip",List.of("foot"),1,1,1,0,
+                java.util.Map.of("foot",java.util.Collections.nCopies(9,new org.joml.Vector3f()))));
+        assertThrows(IllegalArgumentException.class,()->new GroundBodyModifier("hip",List.of("foot"),1,1,1,0,
+                java.util.Map.of("foot",List.of(new org.joml.Vector3f(Float.NaN)))));
     }
 }

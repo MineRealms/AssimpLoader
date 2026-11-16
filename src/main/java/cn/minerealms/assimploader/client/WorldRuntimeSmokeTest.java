@@ -168,6 +168,10 @@ public final class WorldRuntimeSmokeTest {
         }
         var pose=instance.animation().getPoseSnapshot();
         var visual=instance.animation().getRenderPose(.375f);
+        if((stage==2 || stage==3) && "walk".equals(instance.animation().getStateMachine().getCurrentStateName())) {
+            verifySoleContact(deer,pose,.02f);
+            verifySoleContact(deer,visual,.03f);
+        }
         if(instance.animation().getPerformanceSettings().renderInterpolation()) {
             double clock=instance.animation().getSimulationTime();
             long emissions=instance.emittedParticles();
@@ -267,6 +271,31 @@ public final class WorldRuntimeSmokeTest {
         return true;
     }
 
+    private static void verifySoleContact(DeerShowcaseEntity deer,cn.minerealms.assimploader.animation.PoseSnapshot pose,float tolerance) {
+        var world=new Matrix4f().translation((float)deer.getX(),(float)deer.getY(),(float)deer.getZ())
+                .rotateY((float)Math.toRadians(-deer.getYRot()));
+        var sampler=new MinecraftGroundSampler(deer.level());
+        float support=Float.POSITIVE_INFINITY;
+        for(String leg:List.of("FL","FR","BL","BR")) {
+            var lowest=new Vector3f(0,Float.POSITIVE_INFINITY,0);
+            for(var mesh:pose.getScene().getMeshes()) {
+                var positions=CpuSkinning.geometry(pose,mesh).positions();var skin=mesh.getSkinnedData();
+                var indices=skin.getBoneIndices();var weights=skin.getBoneWeights();var names=mesh.getBoneNames();
+                int stride=weights.length/mesh.getVertexCount();
+                for(int vertex=0;vertex<mesh.getVertexCount();vertex++) if(weights[vertex*stride]>.99f
+                        && names.get(indices[vertex*stride]).equals("leg"+leg+"2")) {
+                    var point=world.transformPosition(new Vector3f(positions[vertex*3],positions[vertex*3+1],positions[vertex*3+2]));
+                    if(point.y<lowest.y) lowest.set(point);
+                }
+            }
+            var ground=sampler.ground(new Vector3f(lowest).add(0,1,0),2).orElseThrow();
+            support=Math.min(support,lowest.y-ground.y);
+        }
+        if(!Float.isFinite(support) || Math.abs(support-.005f)>tolerance)
+            throw new IllegalStateException("Actual walking mesh support clearance="+support+" frame="+pose.getFrameId());
+        AssimpLoader.LOGGER.info("[WorldRuntime] Actual mesh sole support clearance={}m frame={}",support,pose.getFrameId());
+    }
+
     private static void prepare(Minecraft mc) {
         oldGui=mc.options.hideGui;oldPause=mc.options.pauseOnLostFocus;oldFov=mc.options.fov().get();
         var config=cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT;
@@ -323,7 +352,7 @@ public final class WorldRuntimeSmokeTest {
                 var player=server.getPlayerList().getPlayer(playerId);var level=player.serverLevel();
                 var deer=(DeerShowcaseEntity)level.getEntity(deerId);
                 if(stage==1) deer.setGroundIkEnabled(true);
-                if(stage==2) {deer.setEffectsEnabled(true);deer.setShowcaseState("walk");}
+                if(stage==2) {deer.setNoGravity(false);deer.setEffectsEnabled(true);deer.setShowcaseState("walk");}
                 if(stage==3) {movementStartX=deer.getX();deer.setDeltaMovement(0,0,0);}
                 if(stage==4) {
                     deer.setDeltaMovement(0,0,0);deer.teleportTo(deer.getX()+7,deer.getY(),deer.getZ());

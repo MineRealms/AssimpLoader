@@ -158,6 +158,40 @@ class DeerAssetTest {
         }
     }
 
+    @Test void walkingSupportContactsKeepActualSolesAtGroundWithoutPinningGallop() throws Exception {
+        var scene=scene();
+        try(var input=getClass().getResourceAsStream(RESOURCE.replace(".glb",".instance.json"))) {
+            var definition=ModelInstanceDefinition.read(new InputStreamReader(input,StandardCharsets.UTF_8));
+            for(String clip:List.of("idle","walk","gallop")) try(var instance=definition.instantiate(scene)) {
+                instance.requestState(clip);
+                instance.setWorldContext(new org.joml.Matrix4f().translation(0,.12f,0),
+                        (origin,distance)->java.util.Optional.of(new Vector3f(origin.x,0,origin.z)));
+                float minimum=Float.POSITIVE_INFINITY,maximum=Float.NEGATIVE_INFINITY;
+                for(int frame=0;frame<120;frame++) {
+                    instance.animation().advanceRenderTick();
+                    instance.animation().update(.05f);
+                    var pose=instance.animation().getPoseSnapshot();
+                    float lowest=Float.POSITIVE_INFINITY;
+                    for(var mesh:scene.getMeshes()) {
+                        var positions=CpuSkinning.geometry(pose,mesh).positions();
+                        var skin=mesh.getSkinnedData();var indices=skin.getBoneIndices();var weights=skin.getBoneWeights();
+                        int stride=weights.length/mesh.getVertexCount();
+                        for(int vertex=0;vertex<mesh.getVertexCount();vertex++) {
+                            int slot=vertex*stride;
+                            if(weights[slot]>.99f && mesh.getBoneNames().get(indices[slot]).matches("leg(F|B)(L|R)2"))
+                                lowest=Math.min(lowest,positions[vertex*3+1]+.12f);
+                        }
+                    }
+                    minimum=Math.min(minimum,lowest);maximum=Math.max(maximum,lowest);
+                    if(clip.equals("walk") && frame>10) assertEquals(.005,lowest,.001,"Walking mesh sole must meet the actual surface");
+                }
+                System.out.println("SOLE VALIDATION "+clip+" support clearance meters="+minimum+".."+maximum);
+                assertTrue(Float.isFinite(minimum));
+                if(clip.equals("gallop")) assertTrue(maximum>.1,"Authored aerial phases must remain uncorrected");
+            }
+        }
+    }
+
     private static Vector3f vector(JsonArray values) {
         return new Vector3f(values.get(0).getAsFloat(), values.get(1).getAsFloat(), values.get(2).getAsFloat());
     }

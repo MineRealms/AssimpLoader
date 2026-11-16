@@ -30,6 +30,10 @@ definition['footPlacement'] = {leg: {'chain': ['leg'+leg+'0','leg'+leg+'1','leg'
                                for leg in ('FL','FR','BL','BR')}
 definition['groundBody'] = {'node':'hips','feet':['hoof'+leg for leg in ('FL','FR','BL','BR')],
                             'rise':.3,'drop':.4,'maxOffset':.2,'sole':.005,'states':['idle']}
+# Convex hull of the six sole corners in exported hoof-local coordinates.
+sole_points = [[-.075,-.075,0],[-.075,.075,0],[.075,-.075,0],[.075,.075,0],[-.06375,-.1125,0],[.06375,-.1125,0]]
+definition['groundBody']['supportStates'] = ['walk']
+definition['groundBody']['contacts'] = {'hoof'+leg: sole_points for leg in ('FL','FR','BL','BR')}
 definition['attachments']['antlerL'] = {'node': 'antlerL', 'translation': [0,.6,0]}
 definition['attachments']['antlerR'] = {'node': 'antlerR', 'translation': [0,.6,0]}
 definition['trails'] = {'antlers': {'start':'antlerL','end':'antlerR','capacity':32,'lifetime':.65,'color':[.3,.85,1,.45]}}

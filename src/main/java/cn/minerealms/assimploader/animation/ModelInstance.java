@@ -35,13 +35,14 @@ public final class ModelInstance implements AutoCloseable {
     private final Map<String,java.util.Set<String>> footStates=new java.util.LinkedHashMap<>();
     private cn.minerealms.assimploader.animation.ik.GroundBodyModifier groundBody;
     private java.util.Set<String> groundBodyStates=java.util.Set.of();
+    private java.util.Set<String> groundSupportStates=java.util.Set.of();
 
     ModelInstance(AnimationState animation, Map<String, Attachment> attachments, JsonObject definition) {
         this.animation = animation;
         this.attachments = Map.copyOf(attachments);
         JsonObject body=ModelInstanceDefinition.object(definition,"groundBody");
         if(!body.entrySet().isEmpty()) {
-            ModelInstanceDefinition.keys(body,"node","feet","rise","drop","maxOffset","sole","states");
+            ModelInstanceDefinition.keys(body,"node","feet","rise","drop","maxOffset","sole","states","supportStates","contacts");
             String node=ModelInstanceDefinition.text(body,"node","");
             ModelInstanceDefinition.requireNode(animation.getScene(),node);
             var ends=new java.util.ArrayList<String>();
@@ -57,8 +58,25 @@ public final class ModelInstance implements AutoCloseable {
                 states.add(name);
             }
             groundBodyStates=java.util.Set.copyOf(states);
+            var supportStates=new java.util.LinkedHashSet<String>();
+            for(var element:ModelInstanceDefinition.array(body,"supportStates")) {
+                String name=element.getAsString();
+                if(!animation.getStateMachine().getBindings().containsKey(name)) throw new IllegalArgumentException("Unknown ground support state: "+name);
+                supportStates.add(name);
+            }
+            groundSupportStates=java.util.Set.copyOf(supportStates);
+            var contacts=new java.util.LinkedHashMap<String,java.util.List<Vector3f>>();
+            ModelInstanceDefinition.object(body,"contacts").entrySet().forEach(entry->{
+                var points=new java.util.ArrayList<Vector3f>();
+                for(var value:entry.getValue().getAsJsonArray()) {
+                    var point=value.getAsJsonArray();
+                    if(point.size()!=3) throw new IllegalArgumentException("Ground contact requires three coordinates");
+                    points.add(new Vector3f(point.get(0).getAsFloat(),point.get(1).getAsFloat(),point.get(2).getAsFloat()));
+                }
+                contacts.put(entry.getKey(),points);
+            });
             groundBody=new cn.minerealms.assimploader.animation.ik.GroundBodyModifier(node,ends,number(body,"rise",.3f),
-                    number(body,"drop",.5f),number(body,"maxOffset",.2f),number(body,"sole",.005f));
+                    number(body,"drop",.5f),number(body,"maxOffset",.2f),number(body,"sole",.005f),contacts);
             animation.addModifier("groundBody",groundBody);
         }
         var footDefinitions=ModelInstanceDefinition.object(definition,"footPlacement");
@@ -158,8 +176,9 @@ public final class ModelInstance implements AutoCloseable {
         boolean discontinuity=!worldBound || worldTransform.getTranslation(new Vector3f()).distanceSquared(transform.getTranslation(new Vector3f()))>16;
         worldBound=true; worldTransform.set(transform);
         String currentState=animation.getStateMachine().getCurrentStateName();
+        boolean support=currentState!=null && groundSupportStates.contains(currentState);
         if(groundBody!=null) groundBody.bind(transform,groundPlacementEnabled && (groundBodyStates.isEmpty()
-                || currentState!=null && groundBodyStates.contains(currentState))?sampler:null);
+                || currentState!=null && groundBodyStates.contains(currentState) || support)?sampler:null,support);
         feet.forEach((name,foot)->{
             var states=footStates.get(name);
             String current=animation.getStateMachine().getCurrentStateName();

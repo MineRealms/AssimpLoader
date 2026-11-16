@@ -44,6 +44,33 @@ terrain or advance dynamics. The global/asset IK performance switches gate both
 ground stages. This is visual pose correction, not server movement physics,
 foot rotation from a surface normal, or a gait contact planner.
 
+### Walking Support Contacts
+
+`groundBody.supportStates` enables an additional state allow-list for support
+alignment. In these states, the body uses the smallest sole-to-surface gap
+across the feet, preserving swing-leg motion while one supporting sole meets
+the ground. It does not run the stationary all-feet CCD solver unless the
+state is also included in `footPlacement.states`.
+
+`groundBody.contacts` maps a configured foot node to 1-8 local-space points on
+its sole. These should be the convex hull of the real rigid sole geometry.
+The lowest transformed point selects each foot's ground trace. Unlisted feet
+use the node origin. The existing limits of 16 feet, one trace per foot,
+`rise`/`drop`, and `maxOffset` still apply; no mesh skinning or GPU readback is
+performed by this modifier. Points must be finite and within 64 local meters.
+
+The deer sidecar enables support alignment for `walk`, with six measured sole
+corners per hoof. `idle` retains its four-foot terrain IK. `gallop`, `jump` and
+other authored airborne states are not force-planted. This does not provide
+stance locking in world X/Z, slope-normal alignment or authoritative physics.
+
+The old world regression deliberately spawned a gravity-disabled deer 0.12 m
+above its base to exercise idle terrain correction. Switching to walk left that
+height in place while its idle-only IK stopped. The regression now restores
+gravity before locomotion, and asserts the actual skinned sole-to-block gap for
+both simulation and interpolated render snapshots. Bone-to-target distance alone
+is not accepted as evidence that a mesh touches the surface.
+
 Each terrain trace is capped at 64 meters (`rise + drop`). Sole offsets and body
 offset limits are finite and capped as well. The Minecraft sampler validates its
 public input before traversing block shapes, so a malformed large value cannot
