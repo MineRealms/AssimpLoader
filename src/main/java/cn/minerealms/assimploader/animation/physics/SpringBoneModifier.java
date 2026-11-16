@@ -16,6 +16,7 @@ import java.util.Objects;
 /** Model-space secondary motion. Work per update is capped; excess hitch time is discarded. */
 public final class SpringBoneModifier implements PoseModifier {
     @Override public Category category() { return Category.SPRING; }
+    @Override public java.util.Set<String> controlledBones() { return java.util.Set.of(settings.node()); }
     public record Settings(String node, Vector3f tail, float stiffness, float damping, Vector3f gravity,
                            float radius, double fixedStep, int maxSubsteps, float teleportDistance) {
         public Settings {
