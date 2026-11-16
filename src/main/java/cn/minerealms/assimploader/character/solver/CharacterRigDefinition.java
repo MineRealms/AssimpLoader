@@ -13,11 +13,11 @@ import java.util.*;
 public final class CharacterRigDefinition {
     private final JsonObject root;
     private CharacterRigDefinition(JsonObject root) {
-        this.root=root.deepCopy();keys(root,"version","append","ik","boneMorphs","groups","defaults");
+        this.root=root.deepCopy();keys(root,"version","append","ik","boneMorphs","groups","defaults","motions");
         if(number(root,"version",0)!=1)throw new IllegalArgumentException("Character rig version must be 1");
     }
     public static CharacterRigDefinition read(Reader reader){return new CharacterRigDefinition(JsonParser.parseReader(reader).getAsJsonObject());}
-    public record Installed(CharacterMorphModifier morphs,Map<String,LimitedIkModifier> ik) {}
+    public record Installed(CharacterMorphModifier morphs,Map<String,LimitedIkModifier> ik,CharacterMotionPlayer motions) {}
     public Installed install(AnimationState state) {
         AssimpScene scene=state.getScene();
         var grants=new ArrayList<AppendTransformModifier.Grant>();
@@ -67,11 +67,15 @@ public final class CharacterRigDefinition {
             }
             ik.setEnabled(bool(value,"enabled",true));chains.put(entry.getKey(),ik);
         });
+        var motions=new LinkedHashMap<String,CharacterMotion>();
+        object(root,"motions").entrySet().forEach(entry->motions.put(entry.getKey(),CharacterMotion.parse(entry.getValue().getAsJsonObject())));
+        var motionPlayer=new CharacterMotionPlayer(scene,motions,morph,chains);
+        state.addModifier("character:motion",motionPlayer);
         state.addModifier("character:morph",morph);
         state.addModifier("character:append",pre);
         chains.forEach((name,ik)->state.addModifier("character:ik/"+name,ik));
         state.addModifier("character:post-append",post);
-        return new Installed(morph,Map.copyOf(chains));
+        return new Installed(morph,Map.copyOf(chains),motionPlayer);
     }
     private static void keys(JsonObject object,String... allowed) {
         var names=Set.of(allowed);for(var key:object.keySet())if(!names.contains(key))throw new IllegalArgumentException("Unknown character rig field: "+key);

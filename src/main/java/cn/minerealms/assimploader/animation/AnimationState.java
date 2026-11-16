@@ -214,7 +214,7 @@ public class AnimationState implements AutoCloseable {
             for (PoseModifier.Category category:PoseModifier.Category.values()) for (PoseModifier modifier : modifiers.values()) {
                 if(modifier.category()!=category) continue;
                 boolean enabled = switch (modifier.category()) {
-                    case BONE_MORPH, GENERAL, PHYSICS, POST_PHYSICS -> true;
+                    case MOTION, BONE_MORPH, GENERAL, PHYSICS, POST_PHYSICS -> true;
                     case GROUND, IK -> policy.ikEnabled() && performance.ik();
                     case SPRING -> policy.springBonesEnabled() && performance.springBones();
                 };

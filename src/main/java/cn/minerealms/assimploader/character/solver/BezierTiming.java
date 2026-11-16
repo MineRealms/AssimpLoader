@@ -11,6 +11,7 @@ public record BezierTiming(double x1, double y1, double x2, double y2) {
         if (!Double.isFinite(time)) throw new IllegalArgumentException("Non-finite curve time");
         if (time <= 0) return 0;
         if (time >= 1) return 1;
+        if (x1 == y1 && x2 == y2) return time;
         double low=0, high=1;
         // Bisection handles stationary endpoint derivatives without Newton divergence.
         for (int i=0;i<40;i++) {

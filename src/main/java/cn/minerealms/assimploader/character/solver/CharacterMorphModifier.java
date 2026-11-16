@@ -28,6 +28,7 @@ public final class CharacterMorphModifier implements PoseModifier {
     private final Map<String,Float> defaults;
     private final Set<String> known;
     private final Map<String,Float> inputs=new LinkedHashMap<>();
+    private Map<String,Float> motionInputs=Map.of();
     private Map<String,Float> expanded=Map.of();
     public CharacterMorphModifier(AssimpScene scene,Map<String,List<Bone>> bones,Map<String,Map<String,Float>> groups) {
         this(scene,bones,groups,Map.of());
@@ -56,6 +57,7 @@ public final class CharacterMorphModifier implements PoseModifier {
         if(weight==0)inputs.remove(name);else inputs.put(name,weight);
     }
     public Map<String,Float> expandedWeights(){return Map.copyOf(expanded);}
+    void setMotionWeights(Map<String,Float> weights){motionInputs=Map.copyOf(weights);}
     private Map<String,Float> flatten(String name,Set<String> stack) {
         if(leaves.containsKey(name))return leaves.get(name);
         if(!stack.add(name))throw new IllegalArgumentException("Cyclic group morph: "+name);
@@ -71,7 +73,8 @@ public final class CharacterMorphModifier implements PoseModifier {
     @Override public Category category(){return Category.BONE_MORPH;}
     @Override public void apply(AssimpScene scene,Map<String,Matrix4f> locals,double dt) {
         var values=new LinkedHashMap<String,Float>();
-        inputs.forEach((name,w)->leaves.getOrDefault(name,Map.of(name,1f)).forEach((leaf,coefficient)->values.merge(leaf,w*coefficient,Float::sum)));
+        var combined=new LinkedHashMap<>(motionInputs);combined.putAll(inputs);
+        combined.forEach((name,w)->leaves.getOrDefault(name,Map.of(name,1f)).forEach((leaf,coefficient)->values.merge(leaf,w*coefficient,Float::sum)));
         values.replaceAll((name,w)->Math.max(-4,Math.min(4,w)));expanded=Map.copyOf(values);
         var graph=new PoseGraph(scene.getRootNode(),locals);
         values.forEach((name,weight)->{
@@ -97,5 +100,5 @@ public final class CharacterMorphModifier implements PoseModifier {
             weights.put(mesh,values);
         }
     }
-    @Override public void reset(){inputs.clear();expanded=Map.of();}
+    @Override public void reset(){inputs.clear();motionInputs=Map.of();expanded=Map.of();}
 }
