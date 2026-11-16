@@ -4,7 +4,9 @@ import cn.minerealms.assimploader.animation.*;
 import cn.minerealms.assimploader.character.solver.*;
 import cn.minerealms.assimploader.core.*;
 import com.google.gson.JsonParser;
-import org.joml.*;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 import java.io.StringReader;

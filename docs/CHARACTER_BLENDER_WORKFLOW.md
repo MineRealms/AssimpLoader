@@ -44,6 +44,7 @@ All paths below are under
 | `block_player.fbx` / `.glb` | Geometry, skin, imported actions, vertex morphs and PBR materials |
 | `block_player.instance.json` | Existing AssimpLoader states, interpolation, foot placement and Spring Bones |
 | `rig.json` | Append transforms, constrained IK, bone/group morphs and explicit morph defaults |
+| `equipment.json` | Physical hand sockets, metre offsets and vanilla held-item orientation |
 | `physics.json` | Body shapes, bone feedback modes, collision masks, joints, springs and fixed-step budget |
 
 Resource packs override these assets through normal Minecraft resource lookup.
@@ -79,11 +80,17 @@ default profile is the included block player. Related commands:
 
 ```text
 /assimploader character
+/assimploader character menu
 /assimploader character profile assimploader:models/character/block_player/profile.json
 /assimploader character reload
 /assimploader character morph Expression 1
 /assimploader character ragdoll on
 /assimploader character ragdoll auto
+/assimploader character motion play solver_probe false
+/assimploader character motion pause
+/assimploader character motion seek 1
+/assimploader character motion resume
+/assimploader character motion stop
 /assimploader character disable
 ```
 
@@ -94,6 +101,9 @@ sets fixedStep, maxSubsteps, solverIterations and maxWorldBoxes. A dropped-time
 counter reports overload; raising substeps increases CPU work.
 
 The replacement currently targets the local player's third-person world render.
+The profile menu lists `models/**/profile.json` resources and accepts an explicit
+resource ID. Apply saves the selected profile, then the existing async loader
+initializes it. The menu reports loading/failure status without pausing physics.
 First-person arms, inventory preview and remote-player selection are separate
 render integration work. A bad profile/model falls back to the vanilla player.
 Resource reload, world switch and logout release the former animation/physics owner.
@@ -110,6 +120,10 @@ name. It creates a platform in that world and moves the player there. Do not
 point it at a world you want to preserve. Each stage settles for at least 10.5
 seconds before assertions and capture. The progress ledger records the actual
 test run and screenshots; launching the command alone is not acceptance.
+
+See [semantic motion](CHARACTER_MOTION.md) for destination-key XYZ/rotation
+Bezier curves, linear Morph tracks and stepped IK switches, and
+[held equipment](CHARACTER_EQUIPMENT.md) for physical-hand mapping.
 
 PMX/VMD parsing, SDEF/QDEF, UV/material/flip/impulse morph semantics and arbitrary
 cross-rig retargeting are not implied by this Blender workflow. LBS, imported

@@ -11,6 +11,10 @@ import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -25,7 +29,8 @@ import java.nio.file.Files;
 public final class CharacterSmokeTest {
     private static final boolean ENABLED=Boolean.getBoolean("charactertest.enabled");
     private static final String RUN=Long.toString(System.currentTimeMillis());
-    private static final String[] STAGES={"idle","ik","expression","ragdoll","restored","reloaded","fallback"};
+    private static final String[] STAGES={"idle","ik","expression","ragdoll","restored","reloaded",
+            "equipment_right","equipment_left","motion","menu","fallback"};
     private static int stage=-2;
     private static long changed=System.currentTimeMillis(),passes;
     private static boolean pending,prepared;
@@ -36,6 +41,8 @@ public final class CharacterSmokeTest {
     private static boolean oldPause,oldGui;
     private static double physicalWidth,physicalHeight;
     private static Vector3f standingHead;
+    private static ItemStack oldMain,oldOff;
+    private static HumanoidArm oldArm;
     private CharacterSmokeTest(){}
 
     @SubscribeEvent public static void tick(TickEvent.ClientTickEvent event) {
@@ -47,11 +54,11 @@ public final class CharacterSmokeTest {
                 if(mc.screen instanceof TitleScreen){stage=-1;changed=System.currentTimeMillis();mc.createWorldOpenFlows().loadLevel(new TitleScreen(),System.getProperty("charactertest.world"));}
                 return;
             }
-            if(mc.player==null || mc.level==null || mc.screen!=null || mc.getOverlay()!=null)return;
+            if(mc.player==null || mc.level==null || mc.screen!=null && !(stage==9 && mc.screen instanceof CharacterSelectionScreen) || mc.getOverlay()!=null)return;
             if(stage==-1) {if(!pending)prepare(mc);return;}
             if(stage<0 || pending)return;
             var diagnostics=LocalPlayerCharacter.diagnostics();
-            if(stage==6) {
+            if(stage==STAGES.length-1) {
                 require(diagnostics.status()==LocalPlayerCharacter.Status.FAILED,"Missing profile must fail and restore vanilla");
                 require(previous.isClosed() && previousPhysics.statistics().closed(),"Old character not released on failure");
             } else {
@@ -106,8 +113,28 @@ public final class CharacterSmokeTest {
         }
         if(stage==1)LocalPlayerCharacter.currentRig().ik().get("left_leg_probe").setEnabled(true);
         if(stage==2) {LocalPlayerCharacter.currentRig().ik().get("left_leg_probe").setEnabled(false);LocalPlayerCharacter.currentRig().morphs().setWeight("Expression",1);}
-        if(stage==3) {LocalPlayerCharacter.currentRig().morphs().reset();LocalPlayerCharacter.setRagdollOverride(true);}
+        if(stage==3) {
+            var mc=Minecraft.getInstance();oldMain=mc.player.getMainHandItem().copy();oldOff=mc.player.getOffhandItem().copy();oldArm=mc.player.getMainArm();
+            equip(mc,new ItemStack(Items.DIAMOND_SWORD),new ItemStack(Items.SHIELD));
+            mc.player.setMainArm(HumanoidArm.RIGHT);
+            LocalPlayerCharacter.currentRig().morphs().reset();LocalPlayerCharacter.setRagdollOverride(true);
+        }
         if(stage==4)LocalPlayerCharacter.setRagdollOverride(false);
+        if(stage==6) {
+            Minecraft.getInstance().player.setMainArm(HumanoidArm.RIGHT);
+            equip(Minecraft.getInstance(),new ItemStack(Items.DIAMOND_SWORD),new ItemStack(Items.SHIELD));
+        }
+        if(stage==7) {
+            Minecraft.getInstance().player.setMainArm(HumanoidArm.LEFT);
+            equip(Minecraft.getInstance(),new ItemStack(Items.STONE),new ItemStack(Items.SHIELD));
+        }
+        if(stage==8) {
+            var motion=LocalPlayerCharacter.currentRig().motions();motion.play("solver_probe",false);motion.seek(1);motion.pause();
+        }
+        if(stage==9) {
+            LocalPlayerCharacter.currentRig().motions().reset();
+            Minecraft.getInstance().setScreen(new CharacterSelectionScreen(null));
+        }
     }
     private static void verify(Minecraft mc) {
         var state=LocalPlayerCharacter.currentAnimation();var physics=LocalPlayerCharacter.currentPhysics();var pose=state.getPoseSnapshot();
@@ -127,23 +154,43 @@ public final class CharacterSmokeTest {
         if(stage==3)require(physics.statistics().ragdoll() && pose.getNodeTransform("Head").m31()<standingHead.y-.3,"Ragdoll did not fall");
         if(stage==4)require(!physics.statistics().ragdoll() && Math.abs(pose.getNodeTransform("Hips").m31()-.85)<.08,"Animation restore failed");
         if(stage==5)require(previous.isClosed() && previousPhysics.statistics().closed(),"Reload leaked former character");
+        if(stage==6)require(mc.player.getMainArm()==HumanoidArm.RIGHT && mc.player.getMainHandItem().is(Items.DIAMOND_SWORD),"Right-hand equipment fixture");
+        if(stage==7)require(mc.player.getMainArm()==HumanoidArm.LEFT && mc.player.getMainHandItem().is(Items.STONE),"Left-hand equipment fixture");
+        if(stage==8) {
+            require(LocalPlayerCharacter.currentRig().motions().isPaused() && Math.abs(LocalPlayerCharacter.currentRig().motions().time()-1)<1e-6,"Motion seek/pause");
+            require(Math.abs(LocalPlayerCharacter.currentRig().morphs().expandedWeights().get("Smile")-.8)<1e-5,"Motion Morph publication");
+            require(LocalPlayerCharacter.currentRig().ik().get("left_leg_probe").isEnabled() && LocalPlayerCharacter.currentRig().ik().get("left_leg_probe").lastError()<.015,"Motion IK switch");
+        }
+        if(stage==9)require(mc.screen instanceof CharacterSelectionScreen,"Character menu did not open");
         AssimpLoader.LOGGER.info("[CharacterSmoke] PASS run={} stage={} pose={} physics={} player={}",RUN,STAGES[stage],pose.getFrameId(),physics.statistics(),LocalPlayerCharacter.diagnostics());
     }
     private static void advance(Minecraft mc) {
         pending=false;prepared=false;
-        if(stage==4 || stage==5){previous=LocalPlayerCharacter.currentAnimation();previousPhysics=LocalPlayerCharacter.currentPhysics();}
+        if(stage==4 || stage==9){previous=LocalPlayerCharacter.currentAnimation();previousPhysics=LocalPlayerCharacter.currentPhysics();}
         stage++;changed=System.currentTimeMillis();
         if(stage==5)LocalPlayerCharacter.reload();
-        if(stage==6)LocalPlayerCharacter.configure(new LocalPlayerCharacter.Settings(true,"assimploader:missing-character-profile.json",true,false));
+        if(stage==STAGES.length-1) {
+            mc.setScreen(null);
+            LocalPlayerCharacter.configure(new LocalPlayerCharacter.Settings(true,"assimploader:missing-character-profile.json",true,false));
+        }
         if(stage==STAGES.length) {
-            restore(mc);stage=99;AssimpLoader.LOGGER.info("[CharacterSmoke] SUCCESS run={} seven actual-player stages with 10.5s settling",RUN);mc.stop();
+            restore(mc);stage=99;AssimpLoader.LOGGER.info("[CharacterSmoke] SUCCESS run={} {} actual-player stages with 10.5s settling",RUN,STAGES.length);mc.stop();
         }
     }
     private static void restore(Minecraft mc) {
+        if(oldMain!=null && mc.player!=null) {equip(mc,oldMain,oldOff);mc.player.setMainArm(oldArm);}
         if(oldSettings!=null)LocalPlayerCharacter.configure(oldSettings);
         LocalPlayerCharacter.reload();
         if(oldCamera!=null)mc.options.setCameraType(oldCamera);
         mc.options.pauseOnLostFocus=oldPause;mc.options.hideGui=oldGui;
+    }
+    private static void equip(Minecraft mc,ItemStack main,ItemStack off) {
+        var id=mc.player.getUUID();var server=mc.getSingleplayerServer();
+        mc.player.setItemSlot(EquipmentSlot.MAINHAND,main.copy());mc.player.setItemSlot(EquipmentSlot.OFFHAND,off.copy());
+        if(server!=null)server.execute(()->{
+            var player=server.getPlayerList().getPlayer(id);
+            if(player!=null) {player.setItemSlot(EquipmentSlot.MAINHAND,main.copy());player.setItemSlot(EquipmentSlot.OFFHAND,off.copy());}
+        });
     }
     private static void fail(Minecraft mc,Throwable failure) {stage=99;AssimpLoader.LOGGER.error("[CharacterSmoke] FAILED run="+RUN,failure);restore(mc);mc.stop();}
     private static void require(boolean condition,String message){if(!condition)throw new IllegalStateException(message);}

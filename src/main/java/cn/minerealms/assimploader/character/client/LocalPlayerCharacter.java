@@ -339,7 +339,11 @@ public final class LocalPlayerCharacter {
                     context.getSource().sendSuccess(() -> Component.literal(diagnostics().toString()), false);
                     if(currentPhysics()!=null)context.getSource().sendSuccess(()->Component.literal(currentPhysics().statistics().toString()),false);
                     return 1;
-                }).then(Commands.literal("enable").executes(context -> {setPersistentEnabled(true);return 1;}))
+                }).then(Commands.literal("menu").executes(context -> {
+                    Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(new CharacterSelectionScreen(null)));
+                    return 1;
+                })).then(Commands.literal("enable").executes(context -> {setPersistentEnabled(true);return 1;}))
+                .then(motionCommands())
                 .then(Commands.literal("disable").executes(context -> {setPersistentEnabled(false);return 1;}))
                 .then(Commands.literal("profile").then(Commands.argument("resource",net.minecraft.commands.arguments.ResourceLocationArgument.id()).executes(context->{
                     var config=AssimpLoaderConfig.CLIENT.character.profile;
@@ -369,6 +373,33 @@ public final class LocalPlayerCharacter {
     private static void setPersistentEnabled(boolean enabled) {
         var config=AssimpLoaderConfig.CLIENT.character.enabled;config.set(enabled);config.save();
         refreshConfiguration();reload();
+    }
+
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<net.minecraft.commands.CommandSourceStack> motionCommands() {
+        return Commands.literal("motion")
+                .then(Commands.literal("play").then(Commands.argument("name",StringArgumentType.string())
+                    .suggests((context,builder)->net.minecraft.commands.SharedSuggestionProvider.suggest(currentRig()==null?java.util.Set.of():currentRig().motions().names(),builder))
+                    .executes(context->playMotion(context,false))
+                    .then(Commands.argument("loop",com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                        .executes(context->playMotion(context,com.mojang.brigadier.arguments.BoolArgumentType.getBool(context,"loop"))))))
+                .then(Commands.literal("stop").executes(context->{if(currentRig()==null)return 0;currentRig().motions().reset();return 1;}))
+                .then(Commands.literal("pause").executes(context->{if(currentRig()==null)return 0;currentRig().motions().pause();return 1;}))
+                .then(Commands.literal("resume").executes(context->{if(currentRig()==null)return 0;currentRig().motions().resume();return 1;}))
+                .then(Commands.literal("seek").then(Commands.argument("seconds",com.mojang.brigadier.arguments.DoubleArgumentType.doubleArg(0,86400))
+                    .executes(context->{
+                        if(currentRig()==null || currentRig().motions().currentName()==null) {
+                            context.getSource().sendFailure(Component.literal("No active character motion"));return 0;
+                        }
+                        currentRig().motions().seek(com.mojang.brigadier.arguments.DoubleArgumentType.getDouble(context,"seconds"));return 1;
+                    })));
+    }
+
+    private static int playMotion(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> context,boolean loop) {
+        String name=StringArgumentType.getString(context,"name");
+        if(currentRig()==null || !currentRig().motions().names().contains(name)) {
+            context.getSource().sendFailure(Component.literal("Unknown character motion: "+name));return 0;
+        }
+        currentRig().motions().play(name,loop);return 1;
     }
 
     @Mod.EventBusSubscriber(modid = AssimpLoader.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
