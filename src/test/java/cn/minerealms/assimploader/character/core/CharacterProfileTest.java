@@ -62,5 +62,25 @@ class CharacterProfileTest {
         assertThrows(IllegalArgumentException.class, () -> read("[]"));
     }
 
+    @Test void timingDefaultsAndStrictOverridesAndSwingObservationsAreValidated() {
+        var minimal = read("{\"version\":1,\"model\":\"example:avatar.glb\"}");
+        assertEquals(CharacterProfile.Timing.DEFAULT,minimal.timing());
+        var custom = read("""
+                {"version":1,"model":"example:avatar.glb","timing":{
+                 "swingSync":false,"movementSync":false,"walkStride":2,"runStride":4,
+                 "crouchStride":1,"minRate":0.5,"maxRate":8}}
+                """);
+        assertFalse(custom.timing().swingSync());assertFalse(custom.timing().movementSync());
+        assertEquals(4,custom.timing().runStride());assertEquals(8,custom.timing().maxRate());
+        for (String bad : new String[]{"\"swingSync\":1","\"movementSync\":\"true\"","\"walkStride\":0",
+                "\"runStride\":33","\"crouchStride\":-1","\"minRate\":0","\"maxRate\":65",
+                "\"minRate\":3,\"maxRate\":1","\"typo\":1"})
+            assertThrows(RuntimeException.class,()->read("{\"version\":1,\"model\":\"example:avatar.glb\",\"timing\":{"+bad+"}}"),bad);
+        assertThrows(IllegalArgumentException.class,()->new PlayerVisualInput.SwingAction(-1,true,0));
+        assertThrows(IllegalArgumentException.class,()->new PlayerVisualInput.SwingAction(0,true,Float.NaN));
+        assertThrows(IllegalArgumentException.class,()->new PlayerVisualInput.SwingAction(0,true,1.1f));
+        assertNull(PlayerVisualInput.builder(0,0).build().swingAction());
+    }
+
     private static CharacterProfile read(String value) { return CharacterProfile.read(new StringReader(value)); }
 }

@@ -37,6 +37,7 @@ public class AnimationPlayer {
     private boolean playing = false;
     private boolean looping = true;
     private float speed = 1.0f;
+    private boolean synchronizedPhase;
 
     // IK integration (Phase 3)
     private Skeleton skeleton;
@@ -68,18 +69,20 @@ public class AnimationPlayer {
             return;
         }
 
-        currentTime += deltaTime * speed * animation.getTicksPerSecond();
+        if (!synchronizedPhase) {
+            currentTime += deltaTime * speed * animation.getTicksPerSecond();
 
-        double duration = animation.getDuration();
-        if (!Double.isFinite(duration) || duration <= 0) {
-            currentTime = 0;
-            if (!looping) playing = false;
-        } else if (currentTime >= duration || currentTime < 0) {
-            if (looping) {
-                currentTime = ((currentTime % duration) + duration) % duration;
-            } else {
-                currentTime = Math.max(0, Math.min(duration, currentTime));
-                playing = false;
+            double duration = animation.getDuration();
+            if (!Double.isFinite(duration) || duration <= 0) {
+                currentTime = 0;
+                if (!looping) playing = false;
+            } else if (currentTime >= duration || currentTime < 0) {
+                if (looping) {
+                    currentTime = ((currentTime % duration) + duration) % duration;
+                } else {
+                    currentTime = Math.max(0, Math.min(duration, currentTime));
+                    playing = false;
+                }
             }
         }
 
@@ -143,6 +146,7 @@ public class AnimationPlayer {
 
     public void stop() {
         playing = false;
+        synchronizedPhase = false;
         currentTime = 0.0;
         updateBoneTransforms();
     }
@@ -155,6 +159,21 @@ public class AnimationPlayer {
         if (!Float.isFinite(speed)) throw new IllegalArgumentException("Animation speed must be finite");
         this.speed = speed;
     }
+
+    public float getSpeed() { return speed; }
+
+    /** Samples an externally owned action clock without advancing simulation time or changing playback speed. */
+    public void synchronizePhase(double progress) {
+        if (!Double.isFinite(progress) || progress < 0 || progress > 1)
+            throw new IllegalArgumentException("Synchronized animation progress must be in [0,1]");
+        double duration = animation.getDuration();
+        currentTime = Double.isFinite(duration) && duration > 0 ? duration * progress : 0;
+        synchronizedPhase = true;
+        updateBoneTransforms();
+    }
+
+    public void releaseSynchronizedPhase() { synchronizedPhase = false; }
+    public boolean hasSynchronizedPhase() { return synchronizedPhase; }
 
     public double getCurrentTime() {
         return currentTime;

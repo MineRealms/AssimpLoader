@@ -17,7 +17,7 @@ import java.util.Set;
 public record CharacterProfile(String model, double scale, Map<String, HumanoidBone> humanoid,
                                Map<String, String> animations, String physicsDefinition,
                                double blendSeconds, double movementThreshold, HeadLook headLook,
-                               String solverDefinition, float modelYawDegrees, String equipmentDefinition) {
+                               String solverDefinition, float modelYawDegrees, String equipmentDefinition, Timing timing) {
     private static final Set<String> ANIMATIONS = Set.of("idle", "walk", "run", "walk_backward", "strafe_left", "strafe_right",
             "crouch", "crouch_walk", "jump", "fall", "swim", "fly", "elytra", "ride", "sleep", "dead", "use_item", "swing");
 
@@ -55,6 +55,19 @@ public record CharacterProfile(String model, double scale, Map<String, HumanoidB
         public static HeadLook defaults() { return new HeadLook(true, new Direction(0, 0, -1), 75, 60); }
     }
 
+    /** Stride is metres per full authored cycle; playback limits do not limit synchronized swing phase. */
+    public record Timing(boolean swingSync, boolean movementSync, double walkStride, double runStride,
+                         double crouchStride, float minRate, float maxRate) {
+        public static final Timing DEFAULT = new Timing(true,true,2.4,3.2,1.4,.25f,12);
+        public Timing {
+            if (!Double.isFinite(walkStride) || walkStride < .01 || walkStride > 32
+                    || !Double.isFinite(runStride) || runStride < .01 || runStride > 32
+                    || !Double.isFinite(crouchStride) || crouchStride < .01 || crouchStride > 32
+                    || !Float.isFinite(minRate) || !Float.isFinite(maxRate) || minRate < .01f || maxRate > 64 || minRate > maxRate)
+                throw new IllegalArgumentException("Invalid character action timing");
+        }
+    }
+
     public CharacterProfile {
         resource(model, "model");
         if (!Double.isFinite(scale) || scale < .001 || scale > 100)
@@ -63,7 +76,7 @@ public record CharacterProfile(String model, double scale, Map<String, HumanoidB
             throw new IllegalArgumentException("Character blendSeconds must be in [0,10]");
         if (!Double.isFinite(movementThreshold) || movementThreshold < 0 || movementThreshold > 10)
             throw new IllegalArgumentException("Character movementThreshold must be in [0,10]");
-        Objects.requireNonNull(humanoid); Objects.requireNonNull(animations); Objects.requireNonNull(headLook);
+        Objects.requireNonNull(humanoid); Objects.requireNonNull(animations); Objects.requireNonNull(headLook); Objects.requireNonNull(timing);
         if (humanoid.size() > 64) throw new IllegalArgumentException("At most 64 humanoid roles");
         humanoid.forEach((role, bone) -> {
             if (role == null || !role.matches("[a-z][a-z0-9_]{0,63}")) throw new IllegalArgumentException("Invalid humanoid role: " + role);
@@ -83,14 +96,22 @@ public record CharacterProfile(String model, double scale, Map<String, HumanoidB
     public CharacterProfile(String model, double scale, Map<String, HumanoidBone> humanoid,
                             Map<String, String> animations, String physicsDefinition,
                             double blendSeconds, double movementThreshold, HeadLook headLook) {
-        this(model,scale,humanoid,animations,physicsDefinition,blendSeconds,movementThreshold,headLook,null,180,null);
+        this(model,scale,humanoid,animations,physicsDefinition,blendSeconds,movementThreshold,headLook,null,180,null,Timing.DEFAULT);
     }
 
     public CharacterProfile(String model, double scale, Map<String, HumanoidBone> humanoid,
                             Map<String, String> animations, String physicsDefinition,
                             double blendSeconds, double movementThreshold, HeadLook headLook,
                             String solverDefinition, float modelYawDegrees) {
-        this(model,scale,humanoid,animations,physicsDefinition,blendSeconds,movementThreshold,headLook,solverDefinition,modelYawDegrees,null);
+        this(model,scale,humanoid,animations,physicsDefinition,blendSeconds,movementThreshold,headLook,solverDefinition,modelYawDegrees,null,Timing.DEFAULT);
+    }
+
+    public CharacterProfile(String model, double scale, Map<String, HumanoidBone> humanoid,
+                            Map<String, String> animations, String physicsDefinition,
+                            double blendSeconds, double movementThreshold, HeadLook headLook,
+                            String solverDefinition, float modelYawDegrees, String equipmentDefinition) {
+        this(model,scale,humanoid,animations,physicsDefinition,blendSeconds,movementThreshold,headLook,
+                solverDefinition,modelYawDegrees,equipmentDefinition,Timing.DEFAULT);
     }
 
     public String animation(String intent) { return animations.getOrDefault(intent, intent); }
@@ -105,7 +126,7 @@ public record CharacterProfile(String model, double scale, Map<String, HumanoidB
 
     public static CharacterProfile parse(JsonObject root) {
         Objects.requireNonNull(root, "Character profile");
-        keys(root, "version", "model", "scale", "humanoid", "animations", "physicsDefinition", "blendSeconds", "movementThreshold", "headLook", "solverDefinition", "modelYawDegrees", "equipmentDefinition");
+        keys(root, "version", "model", "scale", "humanoid", "animations", "physicsDefinition", "blendSeconds", "movementThreshold", "headLook", "solverDefinition", "modelYawDegrees", "equipmentDefinition", "timing");
         if (number(root, "version", 0) != 1) throw new IllegalArgumentException("Character profile version must be 1");
         Map<String, HumanoidBone> humanoid = new LinkedHashMap<>();
         object(root, "humanoid").entrySet().forEach(entry -> {
@@ -131,10 +152,17 @@ public record CharacterProfile(String model, double scale, Map<String, HumanoidB
             JsonArray values = array(look, "forward", 3);
             forward = new Direction(finite(values.get(0)), finite(values.get(1)), finite(values.get(2)));
         }
+        JsonObject timing = object(root,"timing");
+        keys(timing,"swingSync","movementSync","walkStride","runStride","crouchStride","minRate","maxRate");
+        Timing defaults = Timing.DEFAULT;
         return new CharacterProfile(text(root, "model", null), number(root, "scale", 1), humanoid, animations,
                 text(root, "physicsDefinition", null), number(root, "blendSeconds", .15), number(root, "movementThreshold", .02),
                 new HeadLook(bool(look, "enabled", true), forward, (float)number(look, "maxYaw", 75), (float)number(look, "maxPitch", 60)),
-                text(root,"solverDefinition",null),(float)number(root,"modelYawDegrees",180),text(root,"equipmentDefinition",null));
+                text(root,"solverDefinition",null),(float)number(root,"modelYawDegrees",180),text(root,"equipmentDefinition",null),
+                new Timing(bool(timing,"swingSync",defaults.swingSync()),bool(timing,"movementSync",defaults.movementSync()),
+                        number(timing,"walkStride",defaults.walkStride()),number(timing,"runStride",defaults.runStride()),
+                        number(timing,"crouchStride",defaults.crouchStride()),(float)number(timing,"minRate",defaults.minRate()),
+                        (float)number(timing,"maxRate",defaults.maxRate())));
     }
 
     private static void resource(String value, String field) {

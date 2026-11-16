@@ -51,6 +51,9 @@ public final class PlayerAnimationController implements AutoCloseable {
     private double lastTime = -1;
     private boolean previousJump, previousSwing, closed;
     private AnimationPlayer activeSwing;
+    private AnimationPlayer synchronizedSwing, cadencePlayer;
+    private float cadenceOriginalSpeed;
+    private long swingGeneration = -1;
     private Selection selection;
 
     public PlayerAnimationController(CharacterProfile profile, ModelInstance instance) {
@@ -88,16 +91,25 @@ public final class PlayerAnimationController implements AutoCloseable {
     /** Call once per new client tick before the animation manager evaluates its next pose. */
     public Selection update(PlayerVisualInput input) {
         requireOpen(); Objects.requireNonNull(input, "Player visual input");
-        if (input.sequence() <= lastSequence || input.timeSeconds() < lastTime) {
+        boolean observedSwing = input.swingAction() != null;
+        boolean nativeSwing = profile.timing().swingSync() && observedSwing;
+        if (input.sequence() <= lastSequence || input.timeSeconds() < lastTime
+                || observedSwing && input.swingAction().generation() < swingGeneration) {
             return selection == null ? new Selection(false, null, null, null, false, false, false)
                     : new Selection(false, selection.requested, selection.selected, selection.animation, selection.stateBinding, false, selection.headLook);
         }
         boolean jumpEdge = input.jumping() && !previousJump;
-        boolean swingEdge = input.swinging() && !previousSwing;
+        boolean swingEdge = observedSwing
+                ? input.swingAction().active() && input.swingAction().generation() != swingGeneration
+                : input.swinging() && !previousSwing;
+        if (observedSwing) swingGeneration = input.swingAction().generation();
         previousJump = input.jumping(); previousSwing = input.swinging();
         lastSequence = input.sequence(); lastTime = input.timeSeconds();
         Intent desired = select(input, jumpEdge, swingEdge);
         Resolved resolved = resolve(desired);
+        boolean syncAction = nativeSwing && desired == Intent.SWING && resolved != null && resolved.intent == Intent.SWING;
+        boolean leavingSync = synchronizedSwing != null && !syncAction;
+        if (leavingSync) releaseSwingClock();
         boolean headEnabled = updateHead(input, desired);
         boolean changed = false;
         if (resolved != null) {
@@ -108,17 +120,29 @@ public final class PlayerAnimationController implements AutoCloseable {
                     || (desired == Intent.JUMP && jumpEdge && resolved.intent == Intent.JUMP);
             changed = current == null || !current.getAnimation().getName().equals(expectedClip)
                     || resolved.stateBinding && !resolved.name.equals(animation.getStateMachine().getCurrentStateName());
-            if (resolved.stateBinding) animation.getStateMachine().request(resolved.name);
-            else animation.transitionTo(resolved.name, profile.blendSeconds());
+            if (syncAction && (changed || restart || synchronizedSwing != current)) {
+                if (resolved.stateBinding) animation.getStateMachine().transitionTo(resolved.name, 0);
+                // Immediate publication also clears an interrupted blend when this is already the current clip.
+                animation.playAnimation(expectedClip);
+                changed = true;
+            } else if (resolved.stateBinding) {
+                if (leavingSync) animation.getStateMachine().transitionTo(resolved.name, 0);
+                else animation.getStateMachine().request(resolved.name);
+            } else animation.transitionTo(resolved.name, leavingSync ? 0 : profile.blendSeconds());
             current = animation.getCurrentAnimation();
             if (current != null) {
-                if (restart && !changed) { current.stop(); current.play(); changed = true; }
+                if (!syncAction && restart && !changed) { current.stop(); current.play(); changed = true; }
                 if (!resolved.stateBinding || resolved.intent == Intent.SWING || resolved.intent == Intent.JUMP)
                     current.setLooping(resolved.intent != Intent.SWING && resolved.intent != Intent.JUMP && resolved.intent != Intent.DEAD);
                 if (resolved.intent == Intent.SWING && desired == Intent.SWING) activeSwing = current;
                 else activeSwing = null;
+                updateCadence(current, resolved, desired, input);
+                if (syncAction) {
+                    synchronizedSwing = current;
+                    current.synchronizePhase(input.swingAction().progress());
+                }
             }
-        } else activeSwing = null;
+        } else { activeSwing = null; releaseCadence(); }
         selection = new Selection(true, desired, resolved == null ? null : resolved.intent,
                 resolved == null ? null : resolved.name, resolved != null && resolved.stateBinding, changed, headEnabled);
         return selection;
@@ -132,7 +156,9 @@ public final class PlayerAnimationController implements AutoCloseable {
         if (input.swimming()) return Intent.SWIM;
         if (input.flying()) return Intent.FLY;
         if (input.usingItem()) return Intent.USE_ITEM;
-        if (swingEdge || activeSwing != null && activeSwing == animation.getCurrentAnimation() && activeSwing.isPlaying()) return Intent.SWING;
+        if (profile.timing().swingSync() && input.swingAction() != null) {
+            if (input.swingAction().active()) return Intent.SWING;
+        } else if (swingEdge || activeSwing != null && activeSwing == animation.getCurrentAnimation() && activeSwing.isPlaying()) return Intent.SWING;
         if (input.falling() || !input.onGround() && input.verticalVelocity() < -.01) return Intent.FALL;
         if (jumpEdge && (input.onGround() || input.verticalVelocity() > .01)
                 || !input.onGround() && input.verticalVelocity() > .01) return Intent.JUMP;
@@ -165,6 +191,39 @@ public final class PlayerAnimationController implements AutoCloseable {
         return clips.contains(name) ? new Resolved(intent, name, false) : null;
     }
 
+    private void updateCadence(AnimationPlayer player, Resolved resolved, Intent desired, PlayerVisualInput input) {
+        boolean locomotion = switch (resolved.intent) {
+            case WALK, RUN, WALK_BACKWARD, STRAFE_LEFT, STRAFE_RIGHT, CROUCH_WALK -> true;
+            default -> false;
+        };
+        if (cadencePlayer != null && (cadencePlayer != player || !locomotion || !profile.timing().movementSync())) releaseCadence();
+        if (!locomotion || !profile.timing().movementSync()) {
+            player.setSpeed(resolved.stateBinding ? animation.getStateMachine().getBindings().get(resolved.name).speed() : 1);
+            return;
+        }
+        if (cadencePlayer == null) { cadencePlayer = player; cadenceOriginalSpeed = player.getSpeed(); }
+        double stride = switch (desired) {
+            case RUN -> profile.timing().runStride();
+            case CROUCH_WALK -> profile.timing().crouchStride();
+            default -> profile.timing().walkStride();
+        };
+        double duration = player.getAnimation().getDuration() / player.getAnimation().getTicksPerSecond();
+        if (Double.isFinite(duration) && duration > 0) {
+            double rate = duration * input.horizontalSpeed() / stride;
+            player.setSpeed((float)Math.max(profile.timing().minRate(), Math.min(profile.timing().maxRate(), rate)));
+        }
+    }
+
+    private void releaseCadence() {
+        if (cadencePlayer != null) cadencePlayer.setSpeed(cadenceOriginalSpeed);
+        cadencePlayer = null;
+    }
+
+    private void releaseSwingClock() {
+        if (synchronizedSwing != null) synchronizedSwing.releaseSynchronizedPhase();
+        synchronizedSwing = null;
+    }
+
     private boolean updateHead(PlayerVisualInput input, Intent intent) {
         if (headAim == null) return false;
         headAim.enabled = intent != Intent.DEAD && intent != Intent.SLEEP && intent != Intent.ELYTRA;
@@ -191,6 +250,7 @@ public final class PlayerAnimationController implements AutoCloseable {
     /** The owning client resets its input sequence when changing players/worlds; existing animation time is preserved. */
     public void reset() {
         requireOpen(); lastSequence = -1; lastTime = -1; previousJump = previousSwing = false;
+        swingGeneration = -1; releaseSwingClock(); releaseCadence();
         activeSwing = null; selection = null; if (headAim != null) headAim.enabled = false;
     }
 
@@ -199,7 +259,7 @@ public final class PlayerAnimationController implements AutoCloseable {
     }
     @Override public void close() {
         if (closed) return;
-        closed = true; activeSwing = null;
+        closed = true; activeSwing = null; releaseSwingClock(); releaseCadence();
         if (!animation.isClosed() && headAim != null && animation.getModifier(HEAD_MODIFIER) == headAim)
             animation.removeModifier(HEAD_MODIFIER);
     }

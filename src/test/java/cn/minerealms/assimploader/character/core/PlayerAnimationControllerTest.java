@@ -19,6 +19,112 @@ import static cn.minerealms.assimploader.character.core.PlayerAnimationControlle
 import static org.junit.jupiter.api.Assertions.*;
 
 class PlayerAnimationControllerTest {
+    @Test void nativeSwingUsesObservedPhaseAndConsecutiveGenerationsWithoutQueueOrBlend() {
+        try (var instance = instance(); var controller = new PlayerAnimationController(profile(false), instance)) {
+            var state = instance.animation();
+            controller.update(input(0).build());
+            assertTrue(controller.update(input(1).swingAction(1,true,.2f).build()).changed());
+            var player = state.getCurrentAnimation();
+            double duration = player.getAnimation().getDuration();
+            assertTrue(player.hasSynchronizedPhase());
+            assertFalse(state.isTransitioning());
+            assertEquals(duration*.2,player.getCurrentTime(),1e-6);
+            assertEquals(0,state.getSimulationTime());
+            state.update(.2f);
+            assertEquals(duration*.2,player.getCurrentTime(),1e-6);
+            assertFalse(controller.update(input(2).swingAction(1,true,.8f).build()).changed());
+            assertEquals(duration*.8,player.getCurrentTime(),1e-6);
+            assertTrue(controller.update(input(3).swingAction(2,true,0).build()).changed());
+            assertEquals(0,player.getCurrentTime());
+            assertTrue(controller.update(input(4).swingAction(3,true,.1f).build()).changed());
+            assertEquals(duration*.1,player.getCurrentTime(),1e-6);
+            assertEquals(WALK,controller.update(input(5).motion(2,0,0).swingAction(3,false,0).build()).selected());
+            assertFalse(player.hasSynchronizedPhase());
+            assertFalse(state.isTransitioning());
+            assertEquals(IDLE,controller.update(input(6).swingAction(3,false,0).build()).selected());
+        }
+    }
+
+    @Test void nativeSwingRejectsStaleTicksTimesAndGenerationsAndReleasesClockOnPriorityInterrupt() {
+        try (var instance = instance(); var controller = new PlayerAnimationController(profile(false), instance)) {
+            controller.update(input(2).swingAction(7,true,.6f).build());
+            var player = instance.animation().getCurrentAnimation();
+            double time = player.getCurrentTime();
+            assertFalse(controller.update(input(1).swingAction(8,true,0).build()).accepted());
+            assertFalse(controller.update(PlayerVisualInput.builder(3,0).swingAction(8,true,0).build()).accepted());
+            assertFalse(controller.update(input(3).swingAction(6,true,0).build()).accepted());
+            assertEquals(time,player.getCurrentTime());
+            assertEquals(DEAD,controller.update(input(4).dead(true).swingAction(8,true,.2f).build()).requested());
+            assertFalse(player.hasSynchronizedPhase());
+            controller.update(input(5).swingAction(9,true,.3f).build());
+            controller.reset();
+            assertFalse(player.hasSynchronizedPhase());
+        }
+    }
+
+    @Test void movementCadenceTracksSpeedClampsAndRestoresBindingPlaybackRate() {
+        try (var instance = instance(); var controller = new PlayerAnimationController(profile(false), instance)) {
+            var state = instance.animation();
+            state.getStateMachine().addState("walk","Walk",true,1.7f,0);
+            controller.update(input(0).motion(2.4,0,0).build());
+            var walking = state.getCurrentAnimation();
+            assertEquals(1,walking.getSpeed(),1e-6);
+            controller.update(input(1).motion(4.8,0,0).build());
+            assertEquals(2,walking.getSpeed(),1e-6);
+            controller.update(input(2).motion(200,0,0).build());
+            assertEquals(12,walking.getSpeed(),1e-6);
+            controller.update(input(3).motion(.03,0,0).build());
+            assertEquals(.25,walking.getSpeed(),1e-6);
+            controller.update(input(4).build());
+            assertEquals(1.7,walking.getSpeed(),1e-6);
+            assertEquals(1,state.getCurrentAnimation().getSpeed(),1e-6);
+            controller.update(input(5).motion(-2.4,0,0).build());
+            assertEquals(1,state.getCurrentAnimation().getSpeed(),1e-6);
+            controller.update(input(6).motion(0,2.4,0).build());
+            assertEquals(1,state.getCurrentAnimation().getSpeed(),1e-6);
+        }
+    }
+
+    @Test void timingOptOutPreservesLegacyClipCompletionAndBindingSpeed() {
+        var profile = CharacterProfile.read(new StringReader("""
+                {"version":1,"model":"example:avatar.glb","timing":{"swingSync":false,"movementSync":false}}
+                """));
+        try (var instance = instance(); var controller = new PlayerAnimationController(profile,instance)) {
+            var state = instance.animation();
+            state.getStateMachine().addState("walk","Walk",true,1.7f,0);
+            controller.update(input(0).motion(20,0,0).build());
+            assertEquals(1.7,state.getCurrentAnimation().getSpeed(),1e-6);
+            controller.update(input(1).swingAction(1,true,.7f).build());
+            assertFalse(state.getCurrentAnimation().hasSynchronizedPhase());
+            assertEquals(0,state.getCurrentAnimation().getCurrentTime());
+            state.update(.1f);
+            assertEquals(SWING,controller.update(input(2).swingAction(1,false,0).build()).selected());
+            assertTrue(controller.update(input(3).swingAction(2,true,0).build()).changed());
+            assertEquals(0,state.getCurrentAnimation().getCurrentTime());
+        }
+    }
+
+    @Test void synchronizedPhaseMapsDifferentClipLengthsAndReleasesToExistingSpeed() {
+        try (var stack = org.lwjgl.system.MemoryStack.stackPush()) {
+            for (double duration : new double[]{0,6,30,120}) {
+                var clip = new cn.minerealms.assimploader.model.AssimpAnimation(
+                        org.lwjgl.assimp.AIAnimation.calloc(stack).mDuration(duration).mTicksPerSecond(30),0,
+                        cn.minerealms.assimploader.util.CoordinateSystemConverter.CoordinateSystem.MINECRAFT_LEFT_HANDED);
+                var player = new cn.minerealms.assimploader.animation.AnimationPlayer(clip);
+                player.setLooping(false);player.setSpeed(2);player.play();
+                player.synchronizePhase(.4);player.update(5);
+                assertEquals(duration*.4,player.getCurrentTime(),1e-6);
+                assertTrue(player.isPlaying());assertEquals(2,player.getSpeed());
+                player.synchronizePhase(1);player.update(5);assertEquals(duration,player.getCurrentTime(),1e-6);
+                player.synchronizePhase(.1);player.releaseSynchronizedPhase();player.update(.01);
+                assertEquals(Math.min(duration,duration*.1+.6),player.getCurrentTime(),1e-6);
+                player.synchronizePhase(.5);player.stop();assertFalse(player.hasSynchronizedPhase());
+                assertThrows(IllegalArgumentException.class,()->player.synchronizePhase(Double.NaN));
+                assertThrows(IllegalArgumentException.class,()->player.synchronizePhase(1.1));
+            }
+        }
+    }
+
     @Test void priorityAndDirectionalFallbackDriveExistingStateBindingsWithoutAdvancingTime() {
         try (var instance = instance(); var controller = new PlayerAnimationController(profile(false), instance)) {
             var state = instance.animation();

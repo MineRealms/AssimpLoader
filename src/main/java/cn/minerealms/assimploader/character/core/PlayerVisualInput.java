@@ -7,13 +7,32 @@ public record PlayerVisualInput(long sequence, double timeSeconds,
                                 boolean onGround, boolean crouching, boolean sprinting,
                                 boolean jumping, boolean falling, boolean swimming, boolean flying,
                                 boolean elytra, boolean riding, boolean sleeping, boolean dead,
-                                boolean usingItem, boolean swinging) {
+                                boolean usingItem, boolean swinging, SwingAction swingAction) {
+    /** Accepted game swing, not raw mouse clicks. Generation identifies retriggers while still active. */
+    public record SwingAction(long generation, boolean active, float progress) {
+        public SwingAction {
+            if (generation < 0 || !Float.isFinite(progress) || progress < 0 || progress > 1)
+                throw new IllegalArgumentException("Swing action requires a non-negative generation and progress in [0,1]");
+        }
+    }
+
     public PlayerVisualInput {
         if (sequence < 0 || !Double.isFinite(timeSeconds) || timeSeconds < 0
                 || !Double.isFinite(forwardVelocity) || !Double.isFinite(strafeVelocity)
                 || !Double.isFinite(verticalVelocity) || !Double.isFinite(Math.hypot(forwardVelocity, strafeVelocity))
                 || !Float.isFinite(bodyYawDegrees) || !Float.isFinite(headYawDegrees) || !Float.isFinite(headPitchDegrees))
             throw new IllegalArgumentException("Player visual input requires a non-negative sequence/time and finite motion/angles");
+    }
+
+    public PlayerVisualInput(long sequence, double timeSeconds,
+                             double forwardVelocity, double strafeVelocity, double verticalVelocity,
+                             float bodyYawDegrees, float headYawDegrees, float headPitchDegrees,
+                             boolean onGround, boolean crouching, boolean sprinting,
+                             boolean jumping, boolean falling, boolean swimming, boolean flying,
+                             boolean elytra, boolean riding, boolean sleeping, boolean dead,
+                             boolean usingItem, boolean swinging) {
+        this(sequence,timeSeconds,forwardVelocity,strafeVelocity,verticalVelocity,bodyYawDegrees,headYawDegrees,headPitchDegrees,
+                onGround,crouching,sprinting,jumping,falling,swimming,flying,elytra,riding,sleeping,dead,usingItem,swinging,null);
     }
 
     public double horizontalSpeed() { return Math.hypot(forwardVelocity, strafeVelocity); }
@@ -26,6 +45,7 @@ public record PlayerVisualInput(long sequence, double timeSeconds,
         private float bodyYaw, headYaw, headPitch;
         private boolean onGround = true, crouching, sprinting, jumping, falling, swimming, flying,
                 elytra, riding, sleeping, dead, usingItem, swinging;
+        private SwingAction swingAction;
 
         private Builder(long sequence, double time) { this.sequence = sequence; this.time = time; }
         public Builder motion(double forward, double strafe, double vertical) {
@@ -47,10 +67,13 @@ public record PlayerVisualInput(long sequence, double timeSeconds,
         public Builder dead(boolean value) { dead = value; return this; }
         public Builder usingItem(boolean value) { usingItem = value; return this; }
         public Builder swinging(boolean value) { swinging = value; return this; }
+        public Builder swingAction(long generation, boolean active, float progress) {
+            swingAction = new SwingAction(generation,active,progress); return this;
+        }
         public PlayerVisualInput build() {
             return new PlayerVisualInput(sequence, time, forward, strafe, vertical, bodyYaw, headYaw, headPitch,
                     onGround, crouching, sprinting, jumping, falling, swimming, flying, elytra, riding,
-                    sleeping, dead, usingItem, swinging);
+                    sleeping, dead, usingItem, swinging, swingAction);
         }
     }
 }
