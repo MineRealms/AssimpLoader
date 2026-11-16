@@ -26,7 +26,7 @@ public final class ModelInstanceDefinition {
     public ModelInstanceDefinition(JsonObject root) {
         this.root = root.deepCopy();
         keys(this.root, "version", "model", "initial", "states", "transitions", "layers", "attachments",
-                "lookAt", "ik", "morphs", "springs", "colliders", "materials", "trails");
+                "lookAt", "ik", "morphs", "springs", "colliders", "materials", "trails", "hitboxes", "particles");
         if (number(this.root, "version", 0) != 1) throw new IllegalArgumentException("Instance version must be 1");
         model = text(this.root, "model", null);
         if (model == null || model.isBlank()) throw new IllegalArgumentException("Instance model is required");
@@ -41,6 +41,7 @@ public final class ModelInstanceDefinition {
     public ModelInstance instantiate(AssimpScene scene) {
         AnimationState state = new AnimationState(model, java.util.Objects.requireNonNull(scene));
         try {
+            if (!scene.isDynamic()) throw new IllegalArgumentException("Configured instances require a dynamic scene import");
             state.initialize();
             configure(state);
             return new ModelInstance(state, attachments(scene), root);
@@ -70,7 +71,8 @@ public final class ModelInstanceDefinition {
             keys(value, "clip", "weight", "additive", "mask", "loop", "speed");
             Map<String, Float> mask = new LinkedHashMap<>();
             object(value, "mask").entrySet().forEach(maskEntry -> {
-                requireNode(state.getScene(), maskEntry.getKey());
+                if (state.getScene().getMeshes().stream().noneMatch(mesh -> mesh.getName().equals(maskEntry.getKey())))
+                    requireNode(state.getScene(), maskEntry.getKey());
                 mask.put(maskEntry.getKey(), finite(maskEntry.getValue()));
             });
             AnimationPoseLayer layer = state.setLayer(entry.getKey(), clip(state, text(value, "clip", entry.getKey())),

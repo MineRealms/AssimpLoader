@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "model": "assimploader:models/validation/animation_probe_morph.glb",
+  "initial": "idle",
+  "states": {
+    "idle": { "clip": "Idle", "loop": true, "transition": 0.3 },
+    "reach": { "clip": "Reach", "loop": false, "transition": 0.4 },
+    "pulse": { "clip": "MorphPulse", "loop": false, "transition": 0.2 }
+  },
+  "attachments": {
+    "tool": { "node": "ToolSocket", "translation": [0.15, 0, 0] },
+    "bladeRoot": { "node": "ToolSocket", "translation": [0, 0, 0] },
+    "bladeTip": { "node": "ToolSocket", "translation": [0.7, 0, 0] }
+  },
+  "trails": {
+    "blade": { "start": "bladeRoot", "end": "bladeTip", "capacity": 24, "lifetime": 0.8, "color": [0.1, 0.9, 0.75, 0.55] }
+  },
+  "hitboxes": {
+    "upperArm": { "node": "Shoulder", "start": [0, 0, 0], "end": [0, 1.2, 0], "radius": 0.2 },
+    "forearm": { "node": "Elbow", "start": [0, 0, 0], "end": [0, 1.2, 0], "radius": 0.18 }
+  }
+}

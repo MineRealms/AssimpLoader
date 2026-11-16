@@ -1,6 +1,7 @@
 """Rebuild the original AssimpLoader skeletal acceptance fixture with Blender."""
 import json
 import math
+import sys
 from pathlib import Path
 
 import bpy
@@ -14,6 +15,85 @@ PREVIEW = ROOT / 'model-tests' / 'animation_probe.png'
 MANIFEST = ROOT / 'model-tests' / 'animation_probe.json'
 REFERENCE = ROOT / 'src/test/resources/fixtures/animation_probe_reference.json'
 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+
+
+def export_morph_fixture():
+    """Extend the saved original rig without rewriting the FBX acceptance asset."""
+    bpy.ops.wm.open_mainfile(filepath=str(SOURCE))
+    rig = bpy.data.objects['AnimationProbeRig']
+    bridge = bpy.data.objects['BlendBridge']
+    bridge.shape_key_add(name='Basis')
+    stretch = bridge.shape_key_add(name='Stretch')
+    for vertex in stretch.data:
+        vertical = max(0, min(1, (vertex.co.z - 1.3) / .4))
+        vertex.co.x += .9 * vertical
+        vertex.co.y += .12 * vertical
+    keys = bridge.data.shape_keys
+    keys.animation_data_create()
+    for frame, weight in ((1, 0), (25, 1), (49, 0)):
+        stretch.value = weight
+        stretch.keyframe_insert(data_path='value', frame=frame)
+    keys.animation_data.action.name = 'MorphPulse'
+    keys.animation_data.action.use_fake_user = True
+    # This authored pulse deliberately uses linear interpolation, which survives
+    # Assimp's weight-only morph channel API without needing curve metadata.
+    for slot in keys.animation_data.action.slots:
+        for layer in keys.animation_data.action.layers:
+            for strip in layer.strips:
+                bag = strip.channelbag(slot)
+                if bag:
+                    for curve in bag.fcurves:
+                        for point in curve.keyframe_points:
+                            point.interpolation = 'LINEAR'
+    rig.animation_data.action = bpy.data.actions['Idle']
+    bpy.context.scene.frame_set(1)
+    output = OUTPUT.with_name('animation_probe_morph.glb')
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in bpy.context.scene.objects:
+        obj.select_set(obj.type in {'MESH', 'ARMATURE'})
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.export_scene.gltf(
+        filepath=str(output), export_format='GLB', use_selection=True,
+        export_animations=True, export_animation_mode='ACTIONS',
+        export_anim_slide_to_zero=True,
+        export_morph=True, export_morph_normal=True, export_morph_animation=True,
+        export_skins=True, export_materials='EXPORT', export_image_format='AUTO',
+        export_apply=False, export_cameras=False, export_lights=False,
+        export_optimize_animation_size=False)
+    source = SOURCE.with_name('animation_probe_morph.blend')
+    bpy.context.preferences.filepaths.save_version = 0
+    bpy.ops.wm.save_as_mainfile(filepath=str(source))
+    # Preview shows the pulse at its maximum with the existing authored camera.
+    bpy.context.scene.frame_set(25)
+    preview = SOURCE.with_name('animation_probe_morph.png')
+    bpy.context.scene.render.filepath = str(preview)
+    bpy.ops.render.render(write_still=True)
+    manifest = {
+        'origin': 'Original AssimpLoader Blender fixture; no third-party assets.',
+        'blender': bpy.app.version_string,
+        'source': str(source.relative_to(ROOT)),
+        'gltf': str(output.relative_to(ROOT)),
+        'preview': str(preview.relative_to(ROOT)),
+        'command': 'blender --background --factory-startup --python model-tests/create_animation_probe.py -- --morph-only',
+        'base_fixture': str(SOURCE.relative_to(ROOT)),
+        'preserved_fbx': str(OUTPUT.relative_to(ROOT)),
+        'texture': 'Embedded original 64x64 checker',
+        'deform_bones': ['Shoulder', 'Elbow'],
+        'attachment_node': 'ToolSocket',
+        'rig_clips': ['Idle', 'Reach', 'Fold'],
+        'animation_time_origin': 'Each exported action slides its first keyed frame to zero seconds',
+        'morph': {'mesh': 'BlendBridge', 'target': 'Stretch', 'clip': 'MorphPulse',
+                  'frames': [1, 25, 49], 'seconds': [0, 1, 2], 'weights': [0, 1, 0],
+                  'maximum_delta_blender': [.9, .12, 0]},
+    }
+    SOURCE.with_name('animation_probe_morph.json').write_text(
+        json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+    print('MORPH_PROBE_EXPORTED', output, 'bytes', output.stat().st_size)
+
+
+if '--morph-only' in sys.argv:
+    export_morph_fixture()
+    sys.exit(0)
 
 # This script runs in a factory-startup background process, not the user's live scene.
 bpy.ops.object.select_all(action='SELECT')

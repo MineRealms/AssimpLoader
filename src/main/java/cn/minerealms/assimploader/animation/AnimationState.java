@@ -223,6 +223,22 @@ public class AnimationState implements AutoCloseable {
             }
         }
         evaluatedBaseMorphs = copyWeights(sampledMorphs);
+        if (!stopped) for (AnimationPoseLayer layer : layers.values()) {
+            Map<AssimpMesh, float[]> layerMorphs=sampleMorphs(layer.getPlayer());
+            layerMorphs.forEach((mesh,values) -> {
+                float mask=layer.getMask().isEmpty()?1:layer.getMask().getOrDefault(mesh.getName(),0f);
+                if (!layer.getMask().isEmpty()) for (var channel:layer.getPlayer().getAnimation().getMorphChannels()) {
+                    if (nodeOwnsMesh(scene.getRootNode(),channel.getMeshName(),scene.getMeshes().indexOf(mesh)))
+                        mask=Math.max(mask,layer.getMask().getOrDefault(channel.getMeshName(),0f));
+                }
+                float weight=layer.getWeight()*mask;
+                if(weight==0) return;
+                float[] defaults=mesh.getDefaultMorphWeights();
+                float[] base=sampledMorphs.getOrDefault(mesh,defaults).clone();
+                for(int i=0;i<base.length;i++) base[i]=layer.isAdditive()?base[i]+(values[i]-defaults[i])*weight:base[i]+(values[i]-base[i])*weight;
+                sampledMorphs.put(mesh,base);
+            });
+        }
         sampledMorphs.putAll(morphWeights);
         poseSnapshot = PoseSnapshot.capture(++frameId, scene, locals, sampledMorphs);
         if (modelInstance != null && !stopped) modelInstance.afterPose();
@@ -257,6 +273,7 @@ public class AnimationState implements AutoCloseable {
     }
 
     public AnimationStateMachine getStateMachine() { return stateMachine; }
+    public PoseModifier getModifier(String id) { return modifiers.get(id); }
     public ModelInstance getModelInstance() { return modelInstance; }
     void setModelInstance(ModelInstance instance) { modelInstance = instance; }
     public double getSimulationTime() { return simulationTime; }
@@ -394,6 +411,7 @@ public class AnimationState implements AutoCloseable {
         modifiers.clear();
         layers.clear();
         morphWeights.clear();
+        if (modelInstance != null) modelInstance.release();
         modelInstance = null;
         poseSnapshot = null;
         cachedBoneTransforms.clear();

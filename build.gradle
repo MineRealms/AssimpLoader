@@ -269,6 +269,9 @@ tasks.withType(JavaCompile) {
 
 tasks.withType(Test) {
     useJUnitPlatform()
+    if (project.hasProperty('runtimeBenchmark')) {
+        systemProperty 'assimp.runtimeBenchmark', 'true'
+    }
 }
 
 // ==================== Deployment ====================

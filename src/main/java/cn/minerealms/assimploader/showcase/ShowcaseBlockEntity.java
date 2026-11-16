@@ -12,6 +12,8 @@ import net.minecraft.resources.ResourceLocation;
 import cn.minerealms.assimploader.rocket.common.RocketEngineState;
 
 public class ShowcaseBlockEntity extends BlockEntity {
+    private transient cn.minerealms.assimploader.model.AssimpScene visualScene;
+    private transient AABB visualBounds;
     private boolean rocketBurning = true;
     private ResourceLocation exhaustProfile = new ResourceLocation("assimploader", "kerolox");
     private double targetMassFlowKgS = -1;
@@ -77,6 +79,12 @@ public class ShowcaseBlockEntity extends BlockEntity {
     }
 
     public AABB getModelBounds() {
-        return ShowcaseVisibility.modelBounds(AssimpModelLoader.getCachedModel(getModel().modelName()));
+        var scene=AssimpModelLoader.getCachedModel(getModel().modelName());
+        return scene==visualScene && visualBounds!=null ? visualBounds : ShowcaseVisibility.modelBounds(scene);
+    }
+
+    public void setVisualBounds(cn.minerealms.assimploader.model.AssimpScene scene,AABB bounds) {
+        visualScene=scene;
+        visualBounds=bounds;
     }
 }

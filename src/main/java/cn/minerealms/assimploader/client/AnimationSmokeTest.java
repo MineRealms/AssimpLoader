@@ -4,6 +4,10 @@ import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.animation.ClientAnimationManager;
 import cn.minerealms.assimploader.animation.PoseSnapshot;
+import cn.minerealms.assimploader.animation.MaterialAnimation;
+import cn.minerealms.assimploader.animation.ik.LookAtModifier;
+import cn.minerealms.assimploader.animation.physics.SpringBoneModifier;
+import cn.minerealms.assimploader.render.AttachmentTrailRenderer;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpMesh;
@@ -33,6 +37,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
+import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryUtil;
@@ -48,7 +53,9 @@ import java.util.Map;
 public final class AnimationSmokeTest {
     private static final boolean ENABLED = Boolean.getBoolean("animationtest.enabled");
     private static final ResourceLocation MODEL = new ResourceLocation("assimploader", "models/validation/animation_probe.fbx");
-    private static final String[] STAGES = {"independent", "crossfade", "interrupted", "stopped", "reloaded"};
+    private static final ResourceLocation MORPH_MODEL = new ResourceLocation("assimploader", "models/validation/animation_probe_morph.glb");
+    private static final String[] STAGES = {"independent", "crossfade", "interrupted", "stopped", "reloaded",
+            "masked-layer", "look-at", "spring", "morph-zero", "morph-one", "morph-restored", "trail", "morph-reloaded"};
     private static final String RUN = Long.toString(System.currentTimeMillis());
     private static final long SETTLE_MS = 10_000;
     private static final int SIZE = 384;
@@ -100,7 +107,7 @@ public final class AnimationSmokeTest {
             AssimpLoader.LOGGER.info("[AnimationSmoke] SUCCESS: independent FBX instances, crossfade, interruption, bind stop, attachments, CPU/GPU masks and reload; run={}", RUN);
             screen.release();
             mc.stop();
-        } else if (stage == 4) {
+        } else if (stage == 4 || stage == 12) {
             AnimationState oldA = screen.a, oldB = screen.b;
             PoseSnapshot oldPose = oldA.getPoseSnapshot();
             Matrix4f oldSocket = oldPose.getNodeTransform("ToolSocket");
@@ -147,18 +154,21 @@ public final class AnimationSmokeTest {
         private SkinnedMeshRenderer gpu;
         private Matrix4f projection, view;
         private boolean rendered;
+        private boolean[] morphZeroMask;
 
         SmokeScreen() { super(Component.literal("AssimpLoader Animation Validation")); }
 
         void load() throws Exception {
             rendered = false;
-            scene = new AssimpModelLoader().loadModelFromResources(Minecraft.getInstance().getResourceManager(), MODEL, ModelImportMode.DYNAMIC);
+            ResourceLocation resource = stage >= 8 ? MORPH_MODEL : MODEL;
+            scene = new AssimpModelLoader().loadModelFromResources(Minecraft.getInstance().getResourceManager(), resource, ModelImportMode.DYNAMIC);
             require(scene.hasSkeleton() && scene.getAnimations().size() >= 3, "FBX must contain a skeleton and three clips");
             ClientRenderResources.checkGeneration();
             var manager = ClientAnimationManager.getInstance();
-            a = manager.getOrCreateAnimationState(OWNER_A, MODEL.toString(), scene);
-            b = manager.getOrCreateAnimationState(OWNER_B, MODEL.toString(), scene);
+            a = manager.getOrCreateAnimationState(OWNER_A, resource.toString(), scene);
+            b = manager.getOrCreateAnimationState(OWNER_B, resource.toString(), scene);
             require(a != null && b != null && a != b, "independent instances unavailable");
+            require(a.getModelInstance() != null && b.getModelInstance() != null, "JSON instance sidecar was not loaded");
             require(a.getPoseSnapshot().getNodeTransform("ToolSocket") != null, "missing ToolSocket");
             AssimpLoader.LOGGER.info("[AnimationSmoke] Imported clips={}, meshes={}, bounds={}",
                     Arrays.toString(a.getAvailableAnimations()), scene.getMeshCount(), a.getPoseSnapshot().getBounds());
@@ -180,8 +190,13 @@ public final class AnimationSmokeTest {
 
         void prepare(int currentStage) {
             rendered = false;
+            if (currentStage == 8) {
+                ClientAnimationManager.getInstance().release(OWNER_A);
+                ClientAnimationManager.getInstance().release(OWNER_B);
+                try { load(); } catch (Exception failure) { throw new IllegalStateException("Morph GLB load failed",failure); }
+            }
             a.resume();
-            if (currentStage == 0 || currentStage == 4) {
+            if (currentStage == 0 || currentStage == 4 || currentStage == 8 || currentStage == 12) {
                 b.resume();
                 require(a.transitionTo(clip("Idle"), 0), "Idle unavailable");
                 a.update(.25f);
@@ -204,6 +219,31 @@ public final class AnimationSmokeTest {
                 PoseSnapshot bind = PoseSnapshot.capture(0, scene, Map.of());
                 require(a.getCurrentAnimation() == null && !a.isTransitioning(), "stop retained playback");
                 require(bind.getNodeTransform("ToolSocket").equals(a.getPoseSnapshot().getNodeTransform("ToolSocket"), 1e-4f), "stop did not restore bind pose");
+            } else if (currentStage == 5) {
+                Matrix4f before=a.getPoseSnapshot().getNodeTransform("Elbow");
+                a.setLayerWeight("upper",.85f);
+                a.update(.25f);
+                require(!before.equals(a.getPoseSnapshot().getNodeTransform("Elbow"),1e-4f),"layer did not change pose");
+            } else if (currentStage == 6) {
+                a.removeLayer("upper");
+                a.addModifier("aim",new LookAtModifier("Elbow",new Vector3f(0,1,0),new Vector3f(1,2,1),.8f,1.5f));
+                a.update(.05f);
+            } else if (currentStage == 7) {
+                a.removeModifier("aim");
+                SpringBoneModifier spring=new SpringBoneModifier(new SpringBoneModifier.Settings("Elbow",new Vector3f(0,1.2f,0),
+                        15,3,new Vector3f(4,-9.81f,0),.03f,1.0/120,8,4));
+                a.addModifier("spring",spring);
+                for(int i=0;i<30;i++) a.update(.05f);
+                require(spring.getTailPosition()!=null && spring.getTailPosition().isFinite(),"spring did not integrate");
+            } else if (currentStage == 9 || currentStage == 10) {
+                AssimpMesh morph=scene.getMeshes().stream().filter(AssimpMesh::hasMorphTargets).findFirst().orElseThrow();
+                a.setMorphWeights(morph,new float[]{currentStage==9 ? 1 : 0});
+                require(a.getPoseSnapshot().hasActiveMorphs(morph)==(currentStage==9),"morph weight publication failed");
+            } else if (currentStage == 11) {
+                require(a.getModelInstance().requestState("reach"),"JSON state request failed");
+                for(int i=0;i<15;i++) a.update(.05f);
+                require(a.getModelInstance().trails().get("blade").samples().size()>2,"trail did not sample ticks");
+                a.getModelInstance().setMaterialAnimation("*",new MaterialAnimation(.3f,.1f,.7f,1,.9f,.85f,1,.25f));
             }
             a.pause();
             require(b.getPoseSnapshot() == unchangedB, "changing A advanced B");
@@ -224,7 +264,7 @@ public final class AnimationSmokeTest {
             if (done) return;
             try {
                 graphics.fill(0, 0, width, height, 0xff23282c);
-                if (waiting && stage == 4) return;
+                if (waiting && (stage == 4 || stage == 12)) return;
                 graphics.flush();
                 int side = Math.min((width - 48) / 2, (height - 82) / 2);
                 int left = (width - side * 2 - 16) / 2;
@@ -271,17 +311,19 @@ public final class AnimationSmokeTest {
                 PoseSnapshot snapshot = state.getPoseSnapshot();
                 List<SceneTransforms.Instance> instances = snapshot.copyMeshInstances().stream()
                         .map(instance -> new SceneTransforms.Instance(instance.mesh(), instance.transform())).toList();
-                if (accelerated) {
+                if (state.getModelInstance().hasMaterialAnimation()) cpu.renderScene(scene,state,poses,buffers,0x00f000f0,OverlayTexture.NO_OVERLAY);
+                else if (accelerated) {
                     for (SceneTransforms.Instance instance : instances) {
                         AssimpMesh mesh = instance.mesh();
-                        if (!mesh.hasBones()) continue;
+                        if (!mesh.hasBones() || snapshot.hasActiveMorphs(mesh)) continue;
                         var material = ModelTextureCache.material(scene, mesh);
                         gpu.renderWithPose(mesh, snapshot.getBoneTransforms(mesh), poses, buffers, ModelTextureCache.getTexture(scene, mesh),
                                 mc.getTextureManager(), 0x00f000f0, OverlayTexture.NO_OVERLAY,
                                 material == null ? new float[]{1, 1, 1, 1} : material.getDiffuseColor());
                     }
-                    cpu.draw(scene, state, instances.stream().filter(instance -> !instance.mesh().hasBones()).toList(), poses, buffers);
+                    cpu.draw(scene, state, instances.stream().filter(instance -> !instance.mesh().hasBones() || snapshot.hasActiveMorphs(instance.mesh())).toList(), poses, buffers);
                 } else cpu.draw(scene, state, instances, poses, buffers);
+                if (stage == 11) AttachmentTrailRenderer.render(state.getModelInstance(),poses,buffers,0x00f000f0);
                 buffers.endBatch();
             } finally {
                 modelView.popPose();
@@ -308,6 +350,16 @@ public final class AnimationSmokeTest {
                 require(mismatch <= .02, "CPU/GPU silhouette mismatch " + mismatch + " for row " + row);
                 AssimpLoader.LOGGER.info("[AnimationSmoke] {} row {} CPU pixels={} GPU pixels={} silhouette mismatch={}", STAGES[stage], row, cpuPixels, gpuPixels, mismatch);
             }
+            if (a.getPoseSnapshot().hasActiveMorphs()) AssimpLoader.LOGGER.info("[AnimationSmoke] Active Morph uses explicit CPU deformation fallback; GPU Morph is not asserted");
+            if (stage==8) morphZeroMask=mask(targets[0]);
+            if (stage==9) {
+                boolean[] deformed=mask(targets[0]); int changed=0;
+                for(int i=0;i<deformed.length;i++) if(deformed[i]!=morphZeroMask[i]) changed++;
+                require(changed>20,"Morph did not visibly change silhouette");
+                AssimpLoader.LOGGER.info("[AnimationSmoke] Morph changed {} silhouette pixels",changed);
+            }
+            if (stage==10) require(Arrays.equals(morphZeroMask,mask(targets[0])),"Morph zero did not restore original silhouette");
+            if (stage==11) AssimpLoader.LOGGER.info("[AnimationSmoke] Material UV/tint uses parameterized vanilla CPU submission; accelerated column explicitly uses same fallback");
         }
 
         void release() {

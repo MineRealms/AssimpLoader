@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.render.base;
 
 import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
+import cn.minerealms.assimploader.render.AttachmentTrailRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -22,8 +23,15 @@ public abstract class AnimatedBlockEntityRenderer<T extends BlockEntity> extends
         try {
             applyTransformations(poses, entity, partialTick);
             renderScene(scene, state, poses, buffers, light, overlay);
+            if (state != null && state.getModelInstance() != null) AttachmentTrailRenderer.render(state.getModelInstance(),poses,buffers,light);
         } finally {
             poses.popPose();
         }
+    }
+
+    @Override protected net.minecraft.world.phys.AABB getBoundingBox(T entity) {
+        AnimationState state=getAnimationState(entity);
+        if (state != null && state.getPoseSnapshot()!=null) return state.getPoseSnapshot().getBounds().move(entity.getBlockPos());
+        return super.getBoundingBox(entity);
     }
 }
