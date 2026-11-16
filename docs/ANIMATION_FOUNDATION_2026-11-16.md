@@ -1,5 +1,9 @@
 # Animation foundation: first increment
 
+This is the historical first-increment record. Current layered animation, IK,
+Morph, physics, integration and GPU results are tracked in the
+[expansion implementation report](EXPANSION_IMPLEMENTATION_2026-11-16.md).
+
 This implements the first bounded increment from
 [the expansion assessment](EXPANSION_ARCHITECTURE_ASSESSMENT_2026-11-16.md).
 

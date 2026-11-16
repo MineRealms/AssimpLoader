@@ -1,6 +1,6 @@
 # 文档索引
 
-最后整理：2026-11-14。项目说明、使用指南、资产规范、验收记录和历史报告统一位于 `docs/`。仓库根目录仅保留简短 README 导航与 LICENSE；工具要求的 `.claude/skills/mc-debug.md` 保持原位。
+最后整理：2026-11-16。项目说明、使用指南、资产规范、验收记录和历史报告统一位于 `docs/`。仓库根目录仅保留简短 README 导航与 LICENSE；工具要求的 `.claude/skills/mc-debug.md` 保持原位。
 
 ## 当前入口
 
@@ -8,6 +8,7 @@
 | --- | --- |
 | [项目说明](PROJECT_OVERVIEW.md) | 依赖、构建和当前模块状态 |
 | [快速开始](QUICK_START.md) | 构建、安装与示例检查 |
+| [模型扩展实施报告](EXPANSION_IMPLEMENTATION_2026-11-16.md)、[架构评估](EXPANSION_ARCHITECTURE_ASSESSMENT_2026-11-16.md) | 实例、分层/IK、Morph、Spring、碰撞、挂点特效、CPU 基准和 GPU 验证边界 |
 | [审计报告](AUDIT_2026-11-13.md) | 本次发现、修复、剩余问题、测试与运行边界 |
 | [修复与验收](FIXES_2026-11-13.md) | 首轮审计后的当前处理状态、统一 BUILD、实际截图和资源重载 |
 | [LookDev 预览](LOOKDEV_PREVIEW.md) | 当前已加载模型列表与 GPU 预览操作 |
@@ -38,7 +39,7 @@
 | Photon | [用户资料](archive/PHOTON_USER_GUIDE.md)、[网格桥接](archive/PHOTON_MESH_INTEGRATION_GUIDE.md) | 当前依赖是 Photon 1.1.17/LDLib，不能据历史文档认定路径追踪已实现 |
 | Oculus | [当前使用](OCULUS_PBR_USAGE.md)、[实机验收](PBR_VALIDATION_2026-11-13.md)、[源码调查](OCULUS_PBR_RESEARCH_2026-11-13.md) | 自有动态 loader 已接入；资源、磁盘和嵌入贴图可用，已检查光影开关和资源重载 |
 | Gaussian | [当前修复](GAUSSIAN_FIXES_2026-11-13.md)、[历史报告](archive/GAUSSIAN_SPLATTING_REPORT.md) | 布局/排序/LOD/TBO 已修；没有方块/实体入口 |
-| 性能 | [优化索引](OPTIMIZATION_INDEX.md)、[分析器](archive/PERFORMANCE_PROFILER_GUIDE.md) | 未附可复现性能基准，比例数字不作为承诺 |
+| 性能 | [扩展运行时 CPU 探针](EXPANSION_IMPLEMENTATION_2026-11-16.md)、[优化索引](OPTIMIZATION_INDEX.md)、[分析器](archive/PERFORMANCE_PROFILER_GUIDE.md) | 已有 64/256 骨、1/10/50 实例合成 CPU 基准；未覆盖实际世界帧率或 GPU 加速比，旧比例数字不作为承诺 |
 
 ## 历史记录
 

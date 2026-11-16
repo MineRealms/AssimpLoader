@@ -1,6 +1,6 @@
 # AssimpLoader 扩展架构评估
 
-后续实施记录：[第一阶段动画基础与验证](ANIMATION_FOUNDATION_2026-11-16.md)。本评估正文保留实施前的架构基线。
+后续实施记录：[扩展实施与验证报告](EXPANSION_IMPLEMENTATION_2026-11-16.md)、[第一阶段动画基础与验证](ANIMATION_FOUNDATION_2026-11-16.md)。本评估正文保留实施前的架构基线。
 
 日期：2026-11-16。范围：在现有 AssimpLoader 基础上评估模型实例、动画、IK/次级物理、Morph、模型碰撞、特效和渲染扩展。参考 CustomSteve cleanroom 文档中的公开架构建议；不移植其实现，不把自定义 Steve、本地玩家替换、PMX/VMD、动作数据库、展示摄像机/BGM 或通用光影兼容纳入本项目范围。本报告是静态代码和文档分析，没有在本轮运行游戏或构建。
 

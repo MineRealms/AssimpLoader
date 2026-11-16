@@ -75,6 +75,14 @@ structure over deformed vertices, or a bone proxy; querying the static BVH does 
 claim precise animated surface intersection. World-space callers must transform
 their ray and range into the model coordinate system, and transform the hit back.
 
+`ModelInstance.collision()` supplies the integrated `ModelCollision` query API.
+`BOUNDS` tests the snapshot AABB; `BONE` tests configured bone capsules without
+discarding proxies outside the visual AABB; `MESH` broad-phases against the snapshot
+and builds a BVH over that pose's CPU-deformed vertices. Static geometry is shared,
+and repeated queries reuse a snapshot's structure. Changing poses can incur CPU
+deformation and BVH rebuild costs. These explicit instantaneous queries do not
+replace Minecraft entity physics, server authority or continuous collision detection.
+
 ## Verification
 
 Focused tests cover frame partition invariance, bone length, rotated parents,
@@ -82,5 +90,7 @@ bounded hitches, teleport/reset, zero-time republication, particle contacts, sna
 proxies, slab parallelism, inside rays, tangent/edge boundaries, scaled OBB distances
 and normals, nearest BVH hits across branches, defensive copies and invalid input.
 
-These are math and imported-scene tests. Visual verification in the Minecraft
-client remains a separate integration check.
+The tests above cover math and imported scenes. The controlled client preview
+also exercises a Spring-modified Blender FBX with CPU/GPU silhouette comparison;
+world collision and character locomotion are separate integration checks. See the
+[implementation report](EXPANSION_IMPLEMENTATION_2026-11-16.md) for run IDs and scope.
