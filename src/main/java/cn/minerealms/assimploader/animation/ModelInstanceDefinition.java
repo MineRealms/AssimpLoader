@@ -27,7 +27,7 @@ public final class ModelInstanceDefinition {
     public ModelInstanceDefinition(JsonObject root) {
         this.root = root.deepCopy();
         keys(this.root, "version", "model", "initial", "states", "transitions", "layers", "attachments",
-                "lookAt", "ik", "morphs", "springs", "colliders", "materials", "trails", "hitboxes", "particles", "performance");
+                "lookAt", "ik", "footPlacement", "groundBody", "morphs", "springs", "colliders", "materials", "trails", "hitboxes", "particles", "performance");
         if (number(this.root, "version", 0) != 1) throw new IllegalArgumentException("Instance version must be 1");
         model = text(this.root, "model", null);
         if (model == null || model.isBlank()) throw new IllegalArgumentException("Instance model is required");

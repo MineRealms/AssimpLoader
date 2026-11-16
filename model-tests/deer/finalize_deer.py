@@ -25,6 +25,15 @@ definition = {'version': 1, 'model': 'assimploader:models/validation/deer_showca
               'attachments': {name: {'node': node} for name, node in {'saddle': 'seat', 'head': 'head', 'tail': 'tail1',
                                  'hoofFL': 'hoofFL', 'hoofFR': 'hoofFR', 'hoofBL': 'hoofBL', 'hoofBR': 'hoofBR'}.items()},
               'colliders': {}, 'springs': {}, 'hitboxes': {}}
+definition['footPlacement'] = {leg: {'chain': ['leg'+leg+'0','leg'+leg+'1','leg'+leg+'2','hoof'+leg],
+                                    'rise': .3, 'drop': .4, 'sole': .005, 'weight': 1, 'states': ['idle']}
+                               for leg in ('FL','FR','BL','BR')}
+definition['groundBody'] = {'node':'hips','feet':['hoof'+leg for leg in ('FL','FR','BL','BR')],
+                            'rise':.3,'drop':.4,'maxOffset':.2,'sole':.005,'states':['idle']}
+definition['attachments']['antlerL'] = {'node': 'antlerL', 'translation': [0,.6,0]}
+definition['attachments']['antlerR'] = {'node': 'antlerR', 'translation': [0,.6,0]}
+definition['trails'] = {'antlers': {'start':'antlerL','end':'antlerR','capacity':32,'lifetime':.65,'color':[.3,.85,1,.45]}}
+definition['particles'] = {'breath': {'attachment':'head','particle':'minecraft:cloud','rate':4,'velocity':[0,.08,.1]}}
 def local(node, point):
     value = rig.data.bones[node].matrix_local.inverted() @ Vector(point)
     return [round(value.x, 7), round(value.y, 7), round(-value.z, 7)]

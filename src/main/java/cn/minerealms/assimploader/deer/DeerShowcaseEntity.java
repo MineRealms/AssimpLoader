@@ -20,6 +20,8 @@ public final class DeerShowcaseEntity extends PathfinderMob {
     public static final String ID = "deer_showcase";
     private static final EntityDataAccessor<String> SHOWCASE_STATE =
             SynchedEntityData.defineId(DeerShowcaseEntity.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<Boolean> GROUND_IK = SynchedEntityData.defineId(DeerShowcaseEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> EFFECTS = SynchedEntityData.defineId(DeerShowcaseEntity.class, EntityDataSerializers.BOOLEAN);
 
     public DeerShowcaseEntity(EntityType<? extends DeerShowcaseEntity> type, Level level) {
         super(type, level);
@@ -34,6 +36,7 @@ public final class DeerShowcaseEntity extends PathfinderMob {
     @Override protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(SHOWCASE_STATE, "auto");
+        entityData.define(GROUND_IK,true); entityData.define(EFFECTS,false);
     }
 
     @Override protected void registerGoals() {
@@ -44,6 +47,10 @@ public final class DeerShowcaseEntity extends PathfinderMob {
     }
 
     public String getShowcaseState() { return entityData.get(SHOWCASE_STATE); }
+    public boolean groundIkEnabled() { return entityData.get(GROUND_IK); }
+    public void setGroundIkEnabled(boolean value) { entityData.set(GROUND_IK,value); }
+    public boolean effectsEnabled() { return entityData.get(EFFECTS); }
+    public void setEffectsEnabled(boolean value) { entityData.set(EFFECTS,value); }
 
     public void setShowcaseState(String state) {
         if (!validState(state)) throw new IllegalArgumentException("Invalid deer showcase state");
@@ -57,11 +64,14 @@ public final class DeerShowcaseEntity extends PathfinderMob {
     @Override public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putString("ShowcaseState", getShowcaseState());
+        tag.putBoolean("GroundIK",groundIkEnabled()); tag.putBoolean("ShowcaseEffects",effectsEnabled());
     }
 
     @Override public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         String state = tag.getString("ShowcaseState");
         setShowcaseState(validState(state) ? state : "auto");
+        setGroundIkEnabled(!tag.contains("GroundIK") || tag.getBoolean("GroundIK"));
+        setEffectsEnabled(tag.getBoolean("ShowcaseEffects"));
     }
 }

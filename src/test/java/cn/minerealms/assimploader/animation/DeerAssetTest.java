@@ -126,6 +126,38 @@ class DeerAssetTest {
         }
     }
 
+    @Test void terrainBodyAndFourFeetRespectGroundAndAllDeformedVerticesRemainBounded() throws Exception {
+        var scene=scene();
+        try(var input=getClass().getResourceAsStream(RESOURCE.replace(".glb",".instance.json"))) {
+            var definition=ModelInstanceDefinition.read(new InputStreamReader(input,StandardCharsets.UTF_8));
+            try(var instance=definition.instantiate(scene)) {
+                instance.setWorldContext(new org.joml.Matrix4f().translation(100,20.12f,-30),(origin,distance)->
+                        java.util.Optional.of(new Vector3f(origin.x,origin.x<100?20:20.25f,origin.z)));
+                float maximum=0;
+                for(int frame=0;frame<60;frame++) {
+                    instance.animation().update(.05f);
+                    var pose=instance.animation().getPoseSnapshot();
+                    for(var entry:instance.feet().entrySet()) {
+                        var target=entry.getValue().getLastTarget();assertNotNull(target);
+                        float error=pose.getNodeTransform("hoof"+entry.getKey()).getTranslation(new Vector3f()).distance(target);
+                        maximum=Math.max(maximum,error);
+                        assertTrue(error<.025f,()->entry.getKey()+" foot error="+error+" body="+instance.groundBodyOffset());
+                    }
+                    var box=pose.getBounds();
+                    for(var mesh:scene.getMeshes()) {
+                        var positions=CpuSkinning.geometry(pose,mesh).positions();
+                        for(int i=0;i<positions.length;i+=3) {
+                            assertTrue(positions[i]>=box.minX-1e-5&&positions[i]<=box.maxX+1e-5);
+                            assertTrue(positions[i+1]>=box.minY-1e-5&&positions[i+1]<=box.maxY+1e-5);
+                            assertTrue(positions[i+2]>=box.minZ-1e-5&&positions[i+2]<=box.maxZ+1e-5);
+                        }
+                    }
+                }
+                System.out.println("Deer 60-frame terrain maximum foot error meters="+maximum);
+            }
+        }
+    }
+
     private static Vector3f vector(JsonArray values) {
         return new Vector3f(values.get(0).getAsFloat(), values.get(1).getAsFloat(), values.get(2).getAsFloat());
     }

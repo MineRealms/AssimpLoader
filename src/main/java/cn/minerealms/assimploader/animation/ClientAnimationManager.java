@@ -138,6 +138,7 @@ public class ClientAnimationManager {
         for (var entry : cadences.entrySet()) {
             AnimationState state = entry.getKey();
             if (!state.isInitialized()) continue;
+            if(state.getModelInstance()!=null) state.getModelInstance().prepareTick();
             int assetInterval = state.getPerformanceSettings().updateIntervalTicks();
             float seconds = entry.getValue().step(tick, .05f, policy, assetInterval, state.isPaused());
             if (state.isPaused()) { paused++; continue; }

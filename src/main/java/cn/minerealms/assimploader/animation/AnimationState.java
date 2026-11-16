@@ -210,10 +210,11 @@ public class AnimationState implements AutoCloseable {
         if (!stopped) {
             layers.values().forEach(layer -> layer.apply(locals, bindTransforms));
             var policy = RuntimePerformancePolicy.current();
-            for (PoseModifier modifier : modifiers.values()) {
+            for (PoseModifier.Category category:PoseModifier.Category.values()) for (PoseModifier modifier : modifiers.values()) {
+                if(modifier.category()!=category) continue;
                 boolean enabled = switch (modifier.category()) {
                     case GENERAL -> true;
-                    case IK -> policy.ikEnabled() && performance.ik();
+                    case GROUND, IK -> policy.ikEnabled() && performance.ik();
                     case SPRING -> policy.springBonesEnabled() && performance.springBones();
                 };
                 if (enabled) modifier.apply(scene, locals, deltaSeconds);

@@ -41,6 +41,12 @@ public final class DeerShowcaseCommands {
                             return builder.buildFuture();
                         }).executes(context -> state(context.getSource(), EntityArgument.getEntities(context, "targets"),
                                 StringArgumentType.getString(context, "state"))))))
+                .then(Commands.literal("ground").then(Commands.argument("targets", EntityArgument.entities())
+                        .then(Commands.argument("enabled", BoolArgumentType.bool()).executes(context -> option(context.getSource(),
+                                EntityArgument.getEntities(context,"targets"),BoolArgumentType.getBool(context,"enabled"),true)))))
+                .then(Commands.literal("effects").then(Commands.argument("targets", EntityArgument.entities())
+                        .then(Commands.argument("enabled", BoolArgumentType.bool()).executes(context -> option(context.getSource(),
+                                EntityArgument.getEntities(context,"targets"),BoolArgumentType.getBool(context,"enabled"),false)))))
                 .then(Commands.literal("ai").then(Commands.argument("targets", EntityArgument.entities())
                         .then(Commands.argument("enabled", BoolArgumentType.bool()).executes(context -> ai(context.getSource(),
                                 EntityArgument.getEntities(context, "targets"), BoolArgumentType.getBool(context, "enabled")))))));
@@ -51,6 +57,17 @@ public final class DeerShowcaseCommands {
     }
 
     private static Vec3 nearby(CommandSourceStack source) { return source.getPosition().add(3, 0, 3); }
+    private static int option(CommandSourceStack source,Collection<? extends Entity> targets,boolean enabled,boolean ground) throws CommandSyntaxException {
+        int count=0;
+        for(Entity target:targets) if(target instanceof DeerShowcaseEntity deer) {
+            if(ground) deer.setGroundIkEnabled(enabled); else deer.setEffectsEnabled(enabled);
+            count++;
+        }
+        if(count==0) throw NO_DEER.create();
+        int changed=count;
+        source.sendSuccess(()->Component.literal((ground?"Ground IK":"World effects")+" "+enabled+" for "+changed+" deer"),true);
+        return count;
+    }
 
     private static int spawn(CommandSourceStack source, Vec3 position) throws CommandSyntaxException {
         var level = source.getLevel();

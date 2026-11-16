@@ -2,6 +2,15 @@
   "version": 1,
   "model": "assimploader:models/validation/deer_showcase.glb",
   "initial": "idle",
+  "groundBody": {
+    "node": "hips",
+    "feet": ["hoofFL", "hoofFR", "hoofBL", "hoofBR"],
+    "rise": 0.3,
+    "drop": 0.4,
+    "maxOffset": 0.2,
+    "sole": 0.005,
+    "states": ["idle"]
+  },
   "performance": {
     "updateIntervalTicks": 1,
     "ik": true,
@@ -89,6 +98,22 @@
     },
     "hoofBR": {
       "node": "hoofBR"
+    },
+    "antlerL": {
+      "node": "antlerL",
+      "translation": [
+        0,
+        0.6,
+        0
+      ]
+    },
+    "antlerR": {
+      "node": "antlerR",
+      "translation": [
+        0,
+        0.6,
+        0
+      ]
     }
   },
   "colliders": {
@@ -420,6 +445,94 @@
         0
       ],
       "radius": 0.065
+    }
+  },
+  "footPlacement": {
+    "FL": {
+      "chain": [
+        "legFL0",
+        "legFL1",
+        "legFL2",
+        "hoofFL"
+      ],
+      "rise": 0.3,
+      "drop": 0.4,
+      "sole": 0.005,
+      "weight": 1,
+      "states": [
+        "idle"
+      ]
+    },
+    "FR": {
+      "chain": [
+        "legFR0",
+        "legFR1",
+        "legFR2",
+        "hoofFR"
+      ],
+      "rise": 0.3,
+      "drop": 0.4,
+      "sole": 0.005,
+      "weight": 1,
+      "states": [
+        "idle"
+      ]
+    },
+    "BL": {
+      "chain": [
+        "legBL0",
+        "legBL1",
+        "legBL2",
+        "hoofBL"
+      ],
+      "rise": 0.3,
+      "drop": 0.4,
+      "sole": 0.005,
+      "weight": 1,
+      "states": [
+        "idle"
+      ]
+    },
+    "BR": {
+      "chain": [
+        "legBR0",
+        "legBR1",
+        "legBR2",
+        "hoofBR"
+      ],
+      "rise": 0.3,
+      "drop": 0.4,
+      "sole": 0.005,
+      "weight": 1,
+      "states": [
+        "idle"
+      ]
+    }
+  },
+  "trails": {
+    "antlers": {
+      "start": "antlerL",
+      "end": "antlerR",
+      "capacity": 32,
+      "lifetime": 0.65,
+      "color": [
+        0.3,
+        0.85,
+        1,
+        0.45
+      ]
+    }
+  },
+  "particles": {
+    "breath": {
+      "attachment": "head",
+      "particle": "minecraft:cloud",
+      "rate": 4,
+      "velocity": [
+        0,
+        0.08,
+        0.1
+      ]
     }
   }
 }

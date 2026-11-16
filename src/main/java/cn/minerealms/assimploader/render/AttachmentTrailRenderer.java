@@ -13,7 +13,13 @@ import org.joml.Vector3f;
 public final class AttachmentTrailRenderer {
     private AttachmentTrailRenderer() {}
     public static void render(ModelInstance instance, PoseStack stack, MultiBufferSource buffers, int light) {
+        render(instance,stack,buffers,light,instance.worldTransform());
+    }
+    public static void render(ModelInstance instance, PoseStack stack, MultiBufferSource buffers, int light,org.joml.Matrix4f renderedModelToWorld) {
         if (!instance.trailsEnabled()) return;
+        stack.pushPose();
+        try {
+        if(instance.trailsInWorldSpace()) SceneTransforms.apply(stack,new org.joml.Matrix4f(renderedModelToWorld).invert());
         for (AttachmentTrail trail : instance.trails().values()) {
             var samples = trail.samples();
             if (samples.size() < 2) continue;
@@ -29,6 +35,7 @@ public final class AttachmentTrailRenderer {
                 vertex(consumer,stack,current.start(),0,1,color,b,light);
             }
         }
+        } finally { stack.popPose(); }
     }
     private static void vertex(VertexConsumer out,PoseStack stack,Vector3f point,float u,float v,float[] color,float fade,int light) {
         out.vertex(stack.last().pose(),point.x,point.y,point.z).color(color[0],color[1],color[2],color[3]*fade)

@@ -10,10 +10,12 @@ import cn.minerealms.assimploader.rendering.OculusEntityBufferCache;
 import cn.minerealms.assimploader.rendering.SkinnedMeshRenderer;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.event.GameShuttingDownEvent;
+import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -79,6 +81,11 @@ public final class ClientRenderResources {
 
     @SubscribeEvent public static void logout(ClientPlayerNetworkEvent.LoggingOut event) { clear(); }
     @SubscribeEvent public static void shutdown(GameShuttingDownEvent event) { clear(); }
+    @SubscribeEvent public static void entityLeft(EntityLeaveLevelEvent event) {
+        if (event.getLevel().isClientSide()) {
+            Minecraft.getInstance().execute(() -> ClientAnimationManager.getInstance().release(event.getEntity()));
+        }
+    }
 
     @Mod.EventBusSubscriber(modid = AssimpLoader.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
     public static final class ReloadRegistration {

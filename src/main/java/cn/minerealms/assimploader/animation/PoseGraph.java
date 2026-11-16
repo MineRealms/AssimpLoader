@@ -62,6 +62,14 @@ public final class PoseGraph {
         globals.clear();
     }
 
+    public void setGlobal(String name,Matrix4f matrix) {
+        AssimpNode parent=parents.get(requireNode(name));
+        if(parent==null) { setLocal(name,matrix);return; }
+        Matrix4f transform=global(parent);
+        if(Math.abs(transform.determinant())<1e-10f) throw new IllegalArgumentException("Singular parent transform: "+name);
+        setLocal(name,new Matrix4f(transform).invert().mul(matrix));
+    }
+
     /** Rotate about a joint's model-space origin, preserving its translation and scale. */
     public void rotateModel(String name, Quaternionf rotation) {
         AssimpNode node = requireNode(name);

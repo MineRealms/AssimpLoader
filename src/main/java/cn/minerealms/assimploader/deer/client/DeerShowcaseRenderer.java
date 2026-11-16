@@ -25,6 +25,8 @@ public final class DeerShowcaseRenderer extends ConfiguredEntityRenderer<DeerSho
     }
 
     @Override protected String modelName(DeerShowcaseEntity entity) { return MODEL_ID; }
+    @Override protected boolean groundPlacementEnabled(DeerShowcaseEntity entity) { return entity.groundIkEnabled(); }
+    @Override protected boolean worldEffectsEnabled(DeerShowcaseEntity entity) { return entity.effectsEnabled(); }
 
     @Override protected Matrix4f modelTransform(DeerShowcaseEntity entity, float yaw, float partialTick) {
         return new Matrix4f().rotateY((float) Math.toRadians(-Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot())));
