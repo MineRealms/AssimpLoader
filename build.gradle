@@ -25,6 +25,14 @@ minecraft {
     runs {
         client {
             workingDirectory project.file('run')
+            if (project.hasProperty('clientDeerSmoke')) {
+                if (['clientAnimationSmoke', 'clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke', 'clientVehicleSmoke', 'clientRocketSmoke'].any { project.hasProperty(it) }) {
+                    throw new GradleException('clientDeerSmoke must run independently of the other client smoke tests')
+                }
+                property 'deertest.enabled', 'true'
+                property 'deertest.world', project.property('clientDeerSmoke').toString()
+                args '--width', '1280', '--height', '900'
+            }
             if (project.hasProperty('clientAnimationSmoke')) {
                 if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke', 'clientVehicleSmoke', 'clientRocketSmoke'].any { project.hasProperty(it) }) {
                     throw new GradleException('clientAnimationSmoke must run independently of the other client smoke tests')

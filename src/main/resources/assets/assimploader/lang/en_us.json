@@ -28,5 +28,6 @@
   "commands.assimploader.demo.placed": "Placed %s AssimpLoader FBX exhibits at %s.",
   "commands.assimploader.demo.rocket_placed": "Placed the rocket test stand. Nozzle anchor: %s.",
   "commands.assimploader.demo.rocket_blocked": "Rocket stand cancelled: %s is occupied or outside the loaded build area. Choose a clear 11 x 20 x 11 volume.",
-  "block.assimploader.circle": "Circle (Animated)"
+  "block.assimploader.circle": "Circle (Animated)",
+  "entity.assimploader.deer_showcase": "Deer Showcase"
 }

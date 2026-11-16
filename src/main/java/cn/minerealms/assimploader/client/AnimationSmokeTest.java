@@ -53,10 +53,12 @@ import java.util.Map;
 /** Opt-in FBX validation only. Frozen simulation samples permit delayed texture capture. */
 @Mod.EventBusSubscriber(modid = AssimpLoader.MODID, value = Dist.CLIENT)
 public final class AnimationSmokeTest {
-    private static final boolean ENABLED = Boolean.getBoolean("animationtest.enabled");
-    private static final ResourceLocation MODEL = new ResourceLocation("assimploader", "models/validation/animation_probe.fbx");
+    private static final boolean DEER = Boolean.getBoolean("deertest.enabled");
+    private static final boolean ENABLED = Boolean.getBoolean("animationtest.enabled") || DEER;
+    private static final String SOCKET = DEER ? "head" : "ToolSocket";
+    private static final ResourceLocation MODEL = new ResourceLocation("assimploader", DEER ? "models/validation/deer_showcase.glb" : "models/validation/animation_probe.fbx");
     private static final ResourceLocation MORPH_MODEL = new ResourceLocation("assimploader", "models/validation/animation_probe_morph.glb");
-    private static final String[] STAGES = {"independent", "crossfade", "interrupted", "stopped", "reloaded",
+    private static final String[] STAGES = DEER ? new String[]{"deer-idle", "deer-walk", "deer-gallop", "deer-baked-ik", "deer-reloaded", "deer-runtime-ik", "deer-spring"} : new String[]{"independent", "crossfade", "interrupted", "stopped", "reloaded",
             "masked-layer", "look-at", "spring", "morph-zero", "morph-one", "morph-restored", "trail", "morph-reloaded", "morph-active-reloaded"};
     private static final String RUN = Long.toString(System.currentTimeMillis());
     private static final long SETTLE_MS = 10_000;
@@ -68,6 +70,8 @@ public final class AnimationSmokeTest {
     private static SmokeScreen screen;
 
     private AnimationSmokeTest() {}
+
+    public static boolean deerComplete() { return DEER && done && stage == STAGES.length; }
 
     @SubscribeEvent
     public static void tick(TickEvent.ClientTickEvent event) {
@@ -108,18 +112,19 @@ public final class AnimationSmokeTest {
             done = true;
             AssimpLoader.LOGGER.info("[AnimationSmoke] SUCCESS: independent FBX instances, crossfade, interruption, bind stop, attachments, CPU/GPU masks and reload; run={}", RUN);
             screen.release();
-            mc.stop();
+            if (DEER) mc.setScreen(new TitleScreen());
+            else mc.stop();
         } else if (stage == 4 || stage == 12) {
             AnimationState oldA = screen.a, oldB = screen.b;
             PoseSnapshot oldPose = oldA.getPoseSnapshot();
-            Matrix4f oldSocket = oldPose.getNodeTransform("ToolSocket");
+            Matrix4f oldSocket = oldPose.getNodeTransform(SOCKET);
             AssimpScene oldScene = screen.scene;
             changedAt = System.currentTimeMillis();
             mc.reloadResourcePacks().whenComplete((ignored, failure) -> mc.execute(() -> {
                 try {
                     if (failure != null) throw new IllegalStateException("resource reload failed", failure);
                     require(oldA.isClosed() && oldB.isClosed(), "reload did not close managed instances");
-                    require(oldSocket.equals(oldPose.getNodeTransform("ToolSocket"), 1e-5f), "reload mutated retained snapshot");
+                    require(oldSocket.equals(oldPose.getNodeTransform(SOCKET), 1e-5f), "reload mutated retained snapshot");
                     screen.load();
                     require(screen.scene != oldScene, "reload reused previous scene");
                     screen.prepare(stage);
@@ -172,7 +177,7 @@ public final class AnimationSmokeTest {
             b = manager.getOrCreateAnimationState(OWNER_B, resource.toString(), scene);
             require(a != null && b != null && a != b, "independent instances unavailable");
             require(a.getModelInstance() != null && b.getModelInstance() != null, "JSON instance sidecar was not loaded");
-            require(a.getPoseSnapshot().getNodeTransform("ToolSocket") != null, "missing ToolSocket");
+            require(a.getPoseSnapshot().getNodeTransform(SOCKET) != null, "missing attachment node");
             AssimpLoader.LOGGER.info("[AnimationSmoke] Imported clips={}, meshes={}, bounds={}",
                     Arrays.toString(a.getAvailableAnimations()), scene.getMeshCount(), a.getPoseSnapshot().getBounds());
             gpu = ClientRenderResources.getSkinnedRenderer();
@@ -193,6 +198,7 @@ public final class AnimationSmokeTest {
 
         void prepare(int currentStage) {
             rendered = false;
+            if (DEER) { prepareDeer(currentStage); return; }
             if (currentStage == 8) {
                 ClientAnimationManager.getInstance().release(OWNER_A);
                 ClientAnimationManager.getInstance().release(OWNER_B);
@@ -264,6 +270,38 @@ public final class AnimationSmokeTest {
             AssimpLoader.LOGGER.info("[AnimationSmoke] Prepared stage {}; capture waits at least {} ms", STAGES[currentStage], SETTLE_MS);
         }
 
+        private void prepareDeer(int currentStage) {
+            a.resume();
+            if (currentStage == 0 || currentStage == 4) {
+                b.resume();
+                require(b.transitionTo("idle", 0), "deer idle missing");
+                b.update(.25f);
+                b.pause();
+                unchangedB = b.getPoseSnapshot();
+            }
+            a.removeModifier("deer-ik");
+            String clip = switch (currentStage) { case 1 -> "walk"; case 2 -> "gallop"; case 3 -> "ik_probe"; default -> "idle"; };
+            require(a.transitionTo(clip, 0), "deer clip missing: " + clip);
+            a.update(currentStage == 3 ? .5f : .35f);
+            if (currentStage == 5) {
+                var target = a.getPoseSnapshot().getNodeTransform("hoofFL").getTranslation(new Vector3f()).add(0, .15f, .04f);
+                a.addModifier("deer-ik", new cn.minerealms.assimploader.animation.ik.ChainIkModifier(
+                        List.of("legFL0", "legFL1", "legFL2", "hoofFL"), target, 1, 32, .0001f));
+                a.update(.05f);
+                require(a.getPoseSnapshot().getNodeTransform("hoofFL").getTranslation(new Vector3f()).distance(target) < .003f,
+                        "deer runtime IK missed target");
+            }
+            if (currentStage == 6) for (int i = 0; i < 30; i++) a.update(.05f);
+            a.pause();
+            require(b.getPoseSnapshot() == unchangedB, "deer state leaked into B");
+            var box = a.getPoseSnapshot().getBounds().minmax(b.getPoseSnapshot().getBounds());
+            float radius = 1.8f;
+            projection = new Matrix4f().ortho(-radius, radius, -radius, radius, -16, 16);
+            view = new Matrix4f().rotateX(.18f).rotateY(-.6f).translate((float) -(box.minX + box.maxX) / 2,
+                    (float) -(box.minY + box.maxY) / 2, (float) -(box.minZ + box.maxZ) / 2);
+            AssimpLoader.LOGGER.info("[AnimationSmoke] Prepared {}; capture waits {} ms", STAGES[currentStage], SETTLE_MS);
+        }
+
         @Override public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
             if (done) return;
             try {
@@ -277,7 +315,7 @@ public final class AnimationSmokeTest {
                     int x = left + (i & 1) * (side + 16), y = 32 + (i / 2) * (side + 24);
                     blit(graphics, targets[i].getColorTextureId(), x, y, side);
                     Vector4f point = new Vector4f(0, 0, 0, 1);
-                    (i < 2 ? a : b).getPoseSnapshot().getAttachmentTransform("ToolSocket", new Matrix4f().translation(.15f, 0, 0)).transform(point);
+                    (i < 2 ? a : b).getPoseSnapshot().getAttachmentTransform(SOCKET, new Matrix4f().translation(.15f, 0, 0)).transform(point);
                     view.transform(point);
                     projection.transform(point);
                     int px = x + Math.round((point.x / point.w + 1) * side / 2);

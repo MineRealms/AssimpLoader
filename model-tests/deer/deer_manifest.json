@@ -1,0 +1,52 @@
+{
+  "source": "User-opened FBX; original license/provenance not supplied",
+  "sourceNodes": 31,
+  "sourceMeshes": 174,
+  "exportMeshes": 1,
+  "bones": 35,
+  "vertices": 1392,
+  "clips": {
+    "antler_sweep": 43,
+    "bugle": 79,
+    "death": 91,
+    "gallop": 25,
+    "graze": 91,
+    "hit": 25,
+    "idle": 121,
+    "jump": 49,
+    "rear_up": 73,
+    "walk": 55
+  },
+  "fps": 30,
+  "bakeMatrixMaximumError": 7.152557373046875e-07,
+  "units": "meters",
+  "forward": "+Z after AssimpLoader coordinate conversion",
+  "ikTargets": [
+    "IK_hoof_FL",
+    "IK_hoof_FR",
+    "IK_hoof_BL",
+    "IK_hoof_BR"
+  ],
+  "ikPoles": [
+    "IK_pole_FL",
+    "IK_pole_FR",
+    "IK_pole_BL",
+    "IK_pole_BR"
+  ],
+  "ikChainLength": 3,
+  "ikTargetMaximumErrorMeters": 5.767603536490484e-05,
+  "ikBakeMaximumMatrixError": 1.1324882507324219e-06,
+  "exportClips": [
+    "idle",
+    "walk",
+    "gallop",
+    "graze",
+    "bugle",
+    "antler_sweep",
+    "rear_up",
+    "jump",
+    "hit",
+    "death",
+    "ik_probe"
+  ]
+}

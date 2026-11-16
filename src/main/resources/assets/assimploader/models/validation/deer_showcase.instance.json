@@ -1,0 +1,425 @@
+{
+  "version": 1,
+  "model": "assimploader:models/validation/deer_showcase.glb",
+  "initial": "idle",
+  "performance": {
+    "updateIntervalTicks": 1,
+    "ik": true,
+    "springBones": true,
+    "particles": true,
+    "trails": true,
+    "maxParticleEmissions": 4,
+    "maxTrailSamples": 32
+  },
+  "states": {
+    "idle": {
+      "clip": "idle",
+      "loop": true,
+      "transition": 0.2
+    },
+    "walk": {
+      "clip": "walk",
+      "loop": true,
+      "transition": 0.2
+    },
+    "gallop": {
+      "clip": "gallop",
+      "loop": true,
+      "transition": 0.2
+    },
+    "graze": {
+      "clip": "graze",
+      "loop": true,
+      "transition": 0.2
+    },
+    "bugle": {
+      "clip": "bugle",
+      "loop": true,
+      "transition": 0.2
+    },
+    "antler_sweep": {
+      "clip": "antler_sweep",
+      "loop": true,
+      "transition": 0.2
+    },
+    "rear_up": {
+      "clip": "rear_up",
+      "loop": true,
+      "transition": 0.2
+    },
+    "jump": {
+      "clip": "jump",
+      "loop": false,
+      "transition": 0.2
+    },
+    "hit": {
+      "clip": "hit",
+      "loop": false,
+      "transition": 0.2
+    },
+    "death": {
+      "clip": "death",
+      "loop": false,
+      "transition": 0.2
+    },
+    "ik_probe": {
+      "clip": "ik_probe",
+      "loop": true,
+      "transition": 0.2
+    }
+  },
+  "attachments": {
+    "saddle": {
+      "node": "seat"
+    },
+    "head": {
+      "node": "head"
+    },
+    "tail": {
+      "node": "tail1"
+    },
+    "hoofFL": {
+      "node": "hoofFL"
+    },
+    "hoofFR": {
+      "node": "hoofFR"
+    },
+    "hoofBL": {
+      "node": "hoofBL"
+    },
+    "hoofBR": {
+      "node": "hoofBR"
+    }
+  },
+  "colliders": {
+    "torso": {
+      "node": "hips",
+      "type": "capsule",
+      "start": [
+        0.159111,
+        -0.2494477,
+        -0.0511444
+      ],
+      "end": [
+        -0.1936433,
+        0.3384764,
+        0.0899573
+      ],
+      "radius": 0.25
+    }
+  },
+  "springs": {
+    "earL": {
+      "node": "earL",
+      "tail": [
+        0,
+        0.12000001966953278,
+        0
+      ],
+      "stiffness": 70,
+      "damping": 8,
+      "gravity": [
+        0,
+        -2,
+        0
+      ],
+      "radius": 0.012,
+      "fixedStep": 0.008333333333333333,
+      "maxSubsteps": 8,
+      "teleportDistance": 2
+    },
+    "earR": {
+      "node": "earR",
+      "tail": [
+        0,
+        0.12000001221895218,
+        0
+      ],
+      "stiffness": 70,
+      "damping": 8,
+      "gravity": [
+        0,
+        -2,
+        0
+      ],
+      "radius": 0.012,
+      "fixedStep": 0.008333333333333333,
+      "maxSubsteps": 8,
+      "teleportDistance": 2
+    },
+    "tail0": {
+      "node": "tail0",
+      "tail": [
+        0,
+        0.0976281613111496,
+        0
+      ],
+      "stiffness": 35,
+      "damping": 6,
+      "gravity": [
+        0,
+        -2,
+        0
+      ],
+      "radius": 0.012,
+      "fixedStep": 0.008333333333333333,
+      "maxSubsteps": 8,
+      "teleportDistance": 2
+    },
+    "tail1": {
+      "node": "tail1",
+      "tail": [
+        0,
+        0.11999998241662979,
+        0
+      ],
+      "stiffness": 28,
+      "damping": 5,
+      "gravity": [
+        0,
+        -2,
+        0
+      ],
+      "radius": 0.012,
+      "fixedStep": 0.008333333333333333,
+      "maxSubsteps": 8,
+      "teleportDistance": 2
+    },
+    "stirrupL": {
+      "node": "stirrupL",
+      "tail": [
+        -0.0,
+        -0.22,
+        -1e-07
+      ],
+      "stiffness": 45,
+      "damping": 7,
+      "gravity": [
+        0,
+        -2,
+        0
+      ],
+      "radius": 0.012,
+      "fixedStep": 0.008333333333333333,
+      "maxSubsteps": 8,
+      "teleportDistance": 2
+    },
+    "stirrupR": {
+      "node": "stirrupR",
+      "tail": [
+        -0.0,
+        -0.22,
+        -1e-07
+      ],
+      "stiffness": 45,
+      "damping": 7,
+      "gravity": [
+        0,
+        -2,
+        0
+      ],
+      "radius": 0.012,
+      "fixedStep": 0.008333333333333333,
+      "maxSubsteps": 8,
+      "teleportDistance": 2
+    }
+  },
+  "hitboxes": {
+    "torso": {
+      "node": "hips",
+      "start": [
+        0.159111,
+        -0.2494477,
+        -0.0511444
+      ],
+      "end": [
+        -0.1936433,
+        0.3384764,
+        0.0899573
+      ],
+      "radius": 0.25
+    },
+    "head": {
+      "node": "head",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.18,
+        0
+      ],
+      "radius": 0.15
+    },
+    "legFL0": {
+      "node": "legFL0",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.4754811227321625,
+        0
+      ],
+      "radius": 0.065
+    },
+    "legFL1": {
+      "node": "legFL1",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.30142587423324585,
+        0
+      ],
+      "radius": 0.065
+    },
+    "legFL2": {
+      "node": "legFL2",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.21799154579639435,
+        0
+      ],
+      "radius": 0.065
+    },
+    "legFR0": {
+      "node": "legFR0",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.4754811227321625,
+        0
+      ],
+      "radius": 0.065
+    },
+    "legFR1": {
+      "node": "legFR1",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.30142587423324585,
+        0
+      ],
+      "radius": 0.065
+    },
+    "legFR2": {
+      "node": "legFR2",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.21799154579639435,
+        0
+      ],
+      "radius": 0.065
+    },
+    "legBL0": {
+      "node": "legBL0",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.5097374320030212,
+        0
+      ],
+      "radius": 0.065
+    },
+    "legBL1": {
+      "node": "legBL1",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.39656510949134827,
+        0
+      ],
+      "radius": 0.065
+    },
+    "legBL2": {
+      "node": "legBL2",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.22971783578395844,
+        0
+      ],
+      "radius": 0.065
+    },
+    "legBR0": {
+      "node": "legBR0",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.5097374320030212,
+        0
+      ],
+      "radius": 0.065
+    },
+    "legBR1": {
+      "node": "legBR1",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.39656513929367065,
+        0
+      ],
+      "radius": 0.065
+    },
+    "legBR2": {
+      "node": "legBR2",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "end": [
+        0,
+        0.22971788048744202,
+        0
+      ],
+      "radius": 0.065
+    }
+  }
+}

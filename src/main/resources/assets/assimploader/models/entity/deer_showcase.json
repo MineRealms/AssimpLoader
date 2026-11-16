@@ -1,0 +1,5 @@
+{
+  "loader": "assimploader:assimp",
+  "model": "assimploader:models/validation/deer_showcase.glb",
+  "mode": "dynamic"
+}

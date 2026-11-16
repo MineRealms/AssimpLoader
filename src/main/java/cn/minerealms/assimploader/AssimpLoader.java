@@ -87,6 +87,7 @@ public class AssimpLoader {
         // Register setup events
         modEventBus.addListener(this::commonSetup);
         VehicleRegistry.register(modEventBus);
+        cn.minerealms.assimploader.deer.DeerShowcaseRegistry.register(modEventBus);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(this::clientSetup);
