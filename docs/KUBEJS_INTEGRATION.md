@@ -135,6 +135,10 @@ ordinary world smoke, use a disposable local test world: it places terrain and
 test entities and saves that world. Both script harnesses remove only their own
 unchanged generated file and refuse to replace a different existing file.
 Final test results and runtime limits are recorded in the implementation report.
+Real Rhino client scripts and an integrated server's `EntityEvents.spawned`
+have been exercised. The combined world regression completed all 11 stages
+including resource reload, NBT recreation and disk reopen. A standalone
+dedicated server has not been launched for this integration.
 
 Primary integration sources:
 [KubeJSPlugin](https://github.com/KubeJS-Mods/KubeJS/blob/2001/common/src/main/java/dev/latvian/mods/kubejs/KubeJSPlugin.java),

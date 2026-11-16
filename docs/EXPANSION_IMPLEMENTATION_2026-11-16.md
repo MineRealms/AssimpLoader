@@ -217,6 +217,42 @@ Minecraft 1.20.1 / Forge 47.1.3 / Java 17.0.18，RTX 4060 / OpenGL 4.6 / NVIDIA 
 
 此前“未实现插值/Compute”的段落是历史批次记录，以本节为准。剩余主要目标仍为：可比较的多实例压力与更多光影覆盖、服务器权威命中/投射物、成熟引擎的 Ragdoll/布料接入、MDI/Hi-Z，以及自有完整后处理通道；不能据此宣称对比图全部完成。
 
+## 后续增量：KubeJS 与蹄底支撑
+
+`c215d3e` 新增 [KubeJS 集成](KUBEJS_INTEGRATION.md)。依赖为可选安装，未打包
+KubeJS/Rhino/Architectury。客户端 `Assimp` 支持复用实际 owner 的状态、动画混合、
+层、Morph、已有 IK/LookAt 目标、性能参数、挂点和模型空间射线查询；服务端
+`AssimpServer` 操作展示鹿现有的同步状态、贴地和特效字段。模型别名复用同一播放实例，
+句柄弱引用且重载后失效。附客户端手持物 Morph 和服务端实体事件示例。
+
+真实 Rhino `client_scripts` 断言通过，日志 `build/kubejs-client-validation.log`。
+真实 `EntityEvents.spawned` 的状态/贴地/特效断言通过。没有宣称任意生物替换、
+服务器端网格伤害或服务器动画模拟已经接入。
+
+`21f41c2` 修复 [行走蹄底支撑](WORLD_INSTANCE_RUNTIME.md)：原世界测试将禁重力鹿
+抬高 0.12 m，切换到未启用待机 IK 的行走状态后仍保留高度。现在进入行走时恢复重力，
+并以 JSON 的 `groundBody.supportStates` 和 `contacts` 支撑点修正视觉身体高度。
+鹿每 tick 变换 24 个蹄底局部点，进行四次地面采样；运行时不扫描蒙皮顶点或回读 GPU。
+待机保留原四腿 CCD，奔跑和跳跃保留原动作的腾空阶段。这不是完整步态规划器。
+
+120 帧真实资产离线测量：旧行走最低蹄底间隙约 0.04964–0.14912 m；修正后为
+0.004999735–0.005000301 m，对应配置的 5 mm 余量。世界模拟快照为 4.990 mm，
+两次插值快照为 4.608/4.379 mm。Rosetta 通过可选 Maven 坐标重映射启动后，在客户端线程
+只读采样得到支撑蹄 5.005 mm；另外三蹄处于抬腿阶段，间隙约 20–46 mm。
+探针为 `tools/verification/deer-ground-contact.java`，数值结果在
+`logs/rosetta-deer-ground-contact-20261116.json`。以真实蹄底到方块碰撞面的距离验收，
+不再仅依赖蹄骨到 IK 目标的距离。诊断脚本中选取旧实体和覆盖最低坐标的问题已经修正，
+较早未保存的探针输出不作为结论。
+
+本批完整 `test build` 为 291 项：290 通过、1 项可选基准跳过、零失败/错误。
+世界运行 `1794840112096` 在 KubeJS 与 Rosetta 同时安装时通过全部 11 阶段、10 张延迟截图，
+包括地形、特效、移动、传送、重载、NBT、AI、磁盘重开、缓存预算和移除释放；日志
+`build/deer-contact-world-validation.log`。已查看行走支撑截图
+`run/screenshots/assimp-world-runtime-1794840112096-2-world-effects.png`。
+本次地面修正验收使用普通渲染路径，没有将它称为新增 Oculus 光影兼容验收。
+不安装 KubeJS/Rosetta 的 `clientStartupSmoke` 也通过，日志
+`build/kubejs-optional-absence-validation.log` 含启动与初始资源烘焙 SUCCESS，构建成功。
+
 ## 代码入口
 
 - [实例与配置](../src/main/java/cn/minerealms/assimploader/animation/ModelInstance.java)、[定义解析](../src/main/java/cn/minerealms/assimploader/animation/ModelInstanceDefinition.java)、[资源继承](../src/main/java/cn/minerealms/assimploader/animation/InstanceDefinitionResources.java)
