@@ -22,24 +22,28 @@ class ShowcaseAssetsTest {
             assertEquals(reference, item.get("parent").getAsString());
             JsonObject geometry = json("models/showcase/" + model.modelName() + ".json");
             assertEquals("assimploader:assimp", geometry.get("loader").getAsString());
-            assertEquals("assimploader:models/showcase/" + model.modelName() + ".fbx", geometry.get("model").getAsString());
-            assertEquals(model.modelName().startsWith("ciws") ? "dynamic" : "static", geometry.get("mode").getAsString());
+            assertEquals(model==ShowcaseModel.HIGHBONE_PROBE?"assimploader:models/validation/highbone_probe.glb":
+                    "assimploader:models/showcase/" + model.modelName() + ".fbx", geometry.get("model").getAsString());
+            assertEquals(model.modelName().startsWith("ciws") || model==ShowcaseModel.HIGHBONE_PROBE ? "dynamic" : "static", geometry.get("mode").getAsString());
         }
     }
 
     @Test
-    void allFbxAssetsImportWithTheirIntendedTextureAndPivotContracts() throws Exception {
+    void allAssetsImportWithTheirIntendedTextureAndPivotContracts() throws Exception {
         AssimpModelLoader loader = new AssimpModelLoader();
         for (ShowcaseModel model : ShowcaseModel.values()) {
-            try (var stream = getClass().getResourceAsStream("/assets/assimploader/models/showcase/" + model.modelName() + ".fbx")) {
+            var geometry=json("models/showcase/"+model.modelName()+".json");
+            String resource=geometry.get("model").getAsString();
+            String path="/assets/"+resource.replace(':','/');
+            try (var stream = getClass().getResourceAsStream(path)) {
                 assertNotNull(stream, model.modelName());
                 boolean ciws = model.modelName().startsWith("ciws");
-                var scene = loader.loadModelFromMemory(model.modelName() + ".fbx", stream.readAllBytes(),
-                        ciws ? ModelImportMode.DYNAMIC : ModelImportMode.STATIC);
+                var scene = loader.loadModelFromMemory(resource, stream.readAllBytes(),
+                        geometry.get("mode").getAsString().equals("dynamic") ? ModelImportMode.DYNAMIC : ModelImportMode.STATIC);
                 assertNotNull(scene, model.modelName());
                 assertFalse(scene.getMeshes().isEmpty(), model.modelName());
                 assertEquals(model.modelName().endsWith("textured") || model == ShowcaseModel.PBR_PROBE
-                                || model == ShowcaseModel.PORTAL_PBR,
+                                || model == ShowcaseModel.PORTAL_PBR || model==ShowcaseModel.HIGHBONE_PROBE,
                         scene.hasEmbeddedTextures(), model.modelName());
                 if (scene.hasEmbeddedTextures()) {
                     for (var mesh : scene.getMeshes()) {

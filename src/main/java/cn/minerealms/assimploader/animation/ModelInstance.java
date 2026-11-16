@@ -29,6 +29,7 @@ public final class ModelInstance implements AutoCloseable {
     private boolean worldBound;
     private Consumer<ModelInstance> worldBinding;
     private long emittedParticles;
+    private long mainRenderPasses,shadowRenderPasses;
     private boolean worldEffectsEnabled=true;
     private boolean groundPlacementEnabled=true;
     private final Map<String,java.util.Set<String>> footStates=new java.util.LinkedHashMap<>();
@@ -140,6 +141,9 @@ public final class ModelInstance implements AutoCloseable {
     public ModelCollision collision() { return collision; }
     public void setParticleSink(AttachmentParticleEmitter.Sink sink) { particleSink=sink; }
     public long emittedParticles() { return emittedParticles; }
+    public record RenderStatistics(long mainPasses,long shadowPasses) {}
+    public RenderStatistics renderStatistics() { return new RenderStatistics(mainRenderPasses,shadowRenderPasses); }
+    public void noteRenderPass(boolean shadow) { if(shadow) shadowRenderPasses++;else mainRenderPasses++; }
     public void setWorldEffectsEnabled(boolean enabled) { if(worldEffectsEnabled!=enabled) { worldEffectsEnabled=enabled; resetEffects(); } }
     public void setGroundPlacementEnabled(boolean enabled) { groundPlacementEnabled=enabled; }
     public Map<String,cn.minerealms.assimploader.animation.ik.FootPlacementModifier> feet() { return java.util.Collections.unmodifiableMap(feet); }

@@ -67,6 +67,7 @@ public abstract class BaseAssimpRenderer {
                 : snapshot.copyMeshInstances().stream()
                 .map(instance -> new SceneTransforms.Instance(instance.mesh(), instance.transform())).toList();
         ModelInstance configured = state == null ? null : state.getModelInstance();
+        if(configured!=null) configured.noteRenderPass(OculusCompat.isRenderingShadowPass());
         if (configured != null && configured.hasMaterialAnimation()) {
             for (int pass = 0; pass < 2; pass++) for (SceneTransforms.Instance instance : instances) {
                 AssimpMaterial material = ModelTextureCache.material(scene, instance.mesh());

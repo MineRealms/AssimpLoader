@@ -20,12 +20,17 @@ public final class GroundBodyModifier implements PoseModifier {
 
     public GroundBodyModifier(String node,List<String> feet,float rise,float drop,float maximumOffset,float sole) {
         if(node==null || node.isBlank() || feet.isEmpty() || feet.size()>16 || !Float.isFinite(rise) || rise<0
-                || !Float.isFinite(drop) || drop<=0 || !Float.isFinite(maximumOffset) || maximumOffset<=0 || !Float.isFinite(sole)) throw new IllegalArgumentException("Invalid ground body settings");
+                || !Float.isFinite(drop) || drop<=0 || rise+drop>FootPlacementModifier.MAX_GROUND_TRACE
+                || !Float.isFinite(maximumOffset) || maximumOffset<=0 || maximumOffset>FootPlacementModifier.MAX_GROUND_TRACE
+                || !Float.isFinite(sole) || Math.abs(sole)>FootPlacementModifier.MAX_GROUND_TRACE) throw new IllegalArgumentException("Invalid ground body settings");
         this.node=node;this.feet=List.copyOf(feet);this.rise=rise;this.drop=drop;this.maximumOffset=maximumOffset;this.sole=sole;
     }
     @Override public Category category() { return Category.GROUND; }
     public float lastOffset() { return lastOffset; }
-    public void bind(Matrix4f transform,FootPlacementModifier.GroundSampler sampler) { modelToWorld.set(transform);this.sampler=sampler; }
+    public void bind(Matrix4f transform,FootPlacementModifier.GroundSampler sampler) {
+        if(!transform.isFinite() || Math.abs(transform.determinant())<1e-10f) throw new IllegalArgumentException("Invalid ground body anchor");
+        modelToWorld.set(transform);this.sampler=sampler;
+    }
     @Override public void apply(AssimpScene scene,Map<String,Matrix4f> locals,double seconds) {
         if(seconds==0) return;
         lastOffset=0;

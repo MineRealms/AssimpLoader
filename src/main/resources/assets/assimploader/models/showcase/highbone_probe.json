@@ -1,0 +1,5 @@
+{
+  "loader": "assimploader:assimp",
+  "model": "assimploader:models/validation/highbone_probe.glb",
+  "mode": "dynamic"
+}

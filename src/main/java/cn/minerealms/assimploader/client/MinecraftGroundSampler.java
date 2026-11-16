@@ -16,6 +16,8 @@ public final class MinecraftGroundSampler implements FootPlacementModifier.Groun
     public MinecraftGroundSampler(Level level) { this.level=java.util.Objects.requireNonNull(level); }
     @Override public Optional<Vector3f> ground(Vector3f origin,float downDistance) {
         if (!Minecraft.getInstance().isSameThread()) throw new IllegalStateException("Ground sampling requires client thread");
+        if(!origin.isFinite() || !Float.isFinite(downDistance) || downDistance<=0 || downDistance>FootPlacementModifier.MAX_GROUND_TRACE)
+            throw new IllegalArgumentException("Ground trace must be finite and in (0,64] meters");
         Vec3 start = new Vec3(origin.x,origin.y,origin.z);
         if (!level.hasChunkAt(net.minecraft.core.BlockPos.containing(start))) return Optional.empty();
         var hit = level.clip(new ClipContext(start,start.add(0,-downDistance,0),ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,null));

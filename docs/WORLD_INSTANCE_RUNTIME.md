@@ -44,6 +44,11 @@ terrain or advance dynamics. The global/asset IK performance switches gate both
 ground stages. This is visual pose correction, not server movement physics,
 foot rotation from a surface normal, or a gait contact planner.
 
+Each terrain trace is capped at 64 meters (`rise + drop`). Sole offsets and body
+offset limits are finite and capped as well. The Minecraft sampler validates its
+public input before traversing block shapes, so a malformed large value cannot
+turn one update into an unbounded world trace.
+
 For explicit hosts, call `setWorldContext(modelToWorld, sampler)` on the client
 thread before updating playback. Call `clearWorldContext()` when detaching.
 `ConfiguredEntityRenderer` provides the Minecraft adapter automatically and
@@ -107,7 +112,7 @@ resource reload, NBT entity recreation, navigation and entity removal. Every
 image waits at least 10.5 seconds and for material textures. Each sampled pose
 checks actual deformed extrema and vertex containment; stage assertions also
 check hoof errors, emission counts, world trail positions and old-state closure.
-NBT recreation is not a full disk save/reopen test. A completed run requires the
+The final stages now also save and fully reopen the world from disk. A completed run requires the
 `[WorldRuntime] SUCCESS` log marker, not just Gradle's build result.
 
 Do not run another Gradle build while a development client is using this
@@ -130,3 +135,8 @@ The full `test build` in that run reported 274 tests, 273 passed, one optional
 benchmark skipped, zero failures/errors. Log: `build/world-runtime-validation.log`;
 screenshots: `run/screenshots/assimp-world-runtime-1794831654168-*.png`.
 This run excluded optional shader mods and did not reopen the world from disk.
+
+Expanded Oculus run `1794832541673` subsequently passed ten stages including
+actual disk save/reopen and nine delayed images. It additionally verified the
+256-bone Showcase's Morph 0/1/0 in main and shadow passes. See the separate
+[Oculus validation and JFR report](OCULUS_ANIMATION_VALIDATION_2026-11-16.md).

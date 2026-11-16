@@ -12,6 +12,7 @@ import java.util.Optional;
 
 /** Tick-only world ground sampling with explicit model/world conversion and bounded reach. */
 public final class FootPlacementModifier implements PoseModifier {
+    public static final float MAX_GROUND_TRACE=64;
     @Override public Category category() { return Category.IK; }
     @FunctionalInterface public interface GroundSampler { Optional<Vector3f> ground(Vector3f origin, float downDistance); }
     private final List<String> chain;
@@ -23,7 +24,8 @@ public final class FootPlacementModifier implements PoseModifier {
 
     public FootPlacementModifier(List<String> chain, GroundSampler sampler, float rise, float drop, float sole, float weight) {
         if (chain.size()<2 || chain.size()>16 || !Float.isFinite(rise) || rise<0 || !Float.isFinite(drop) || drop<=0
-                || !Float.isFinite(sole) || !Float.isFinite(weight) || weight<0 || weight>1) throw new IllegalArgumentException("Invalid foot placement");
+                || rise+drop>MAX_GROUND_TRACE || !Float.isFinite(sole) || Math.abs(sole)>MAX_GROUND_TRACE
+                || !Float.isFinite(weight) || weight<0 || weight>1) throw new IllegalArgumentException("Invalid foot placement");
         this.chain=List.copyOf(chain); this.sampler=sampler;
         this.rise=rise; this.drop=drop; this.sole=sole; this.weight=weight;
         solver=new ChainIkModifier(chain,new Vector3f(),weight,24,.0005f);

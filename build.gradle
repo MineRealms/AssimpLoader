@@ -40,6 +40,7 @@ minecraft {
                     throw new GradleException('clientRuntimeSmoke must run independently')
                 }
                 property 'worldruntimetest.enabled','true'
+                if (project.hasProperty('withOculus')) property 'worldruntimetest.shaders','true'
                 property 'worldruntimetest.world',project.property('clientRuntimeSmoke').toString()
                 args '--width','1280','--height','900'
             }

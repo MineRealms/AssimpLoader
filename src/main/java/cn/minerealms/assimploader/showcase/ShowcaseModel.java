@@ -9,7 +9,8 @@ public enum ShowcaseModel {
     PROBE_TEXTURED("probe_textured", "Axis probe", "Embedded texture"),
     PBR_PROBE("pbr_probe", "PBR materials", "Matte / polished / metal"),
     PORTAL_PBR("portal_pbr", "Sci-fi portal", "Metal / glass / normal maps"),
-    ROCKET_ENGINE("rocket_engine", "Rocket engine", "PBR / volumetric exhaust");
+    ROCKET_ENGINE("rocket_engine", "Rocket engine", "PBR / volumetric exhaust"),
+    HIGHBONE_PROBE("highbone_probe", "256-bone probe", "Skinned animation / Morph");
 
     private final String modelName;
     private final String title;
@@ -25,5 +26,5 @@ public enum ShowcaseModel {
     public String registryName() { return "showcase_" + modelName; }
     public String title() { return title; }
     public String subtitle() { return subtitle; }
-    public boolean isGalleryExhibit() { return this != ROCKET_ENGINE; }
+    public boolean isGalleryExhibit() { return this != ROCKET_ENGINE && this != HIGHBONE_PROBE; }
 }
