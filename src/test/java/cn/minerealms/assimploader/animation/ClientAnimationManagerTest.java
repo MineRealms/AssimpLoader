@@ -11,6 +11,17 @@ import java.io.StringReader;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ClientAnimationManagerTest {
+    @Test void aliasesForTheSameOwnerSceneReusePlaybackWithoutDoubleUpdates() {
+        var manager=new ClientAnimationManager();
+        var scene=AnimationTestScenes.create();var owner=new Object();
+        var state=manager.getOrCreateAnimationState(owner,"short_name",scene);
+        assertSame(state,manager.getOrCreateAnimationState(owner,"example:models/short_name.glb",scene));
+        state.playAnimation("A");manager.update(.5f);
+        assertEquals(.5,state.getSimulationTime(),1e-6);
+        assertNotSame(state,manager.getOrCreateAnimationState(new Object(),"short_name",scene));
+        manager.release(owner);assertTrue(state.isClosed());manager.clear();
+    }
+
     @Test
     void invalidResourceAndAssetBindingFallBackOnceUntilReload() {
         var badClip = ModelInstanceDefinition.read(new StringReader("""

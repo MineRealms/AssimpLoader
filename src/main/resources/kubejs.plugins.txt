@@ -1,0 +1,2 @@
+cn.minerealms.assimploader.compat.kubejs.AssimpKubeJSCommonPlugin
+cn.minerealms.assimploader.compat.kubejs.AssimpKubeJSPlugin client

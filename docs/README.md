@@ -10,6 +10,7 @@
 | [快速开始](QUICK_START.md) | 构建、安装与示例检查 |
 | [模型扩展实施报告](EXPANSION_IMPLEMENTATION_2026-11-16.md)、[架构评估](EXPANSION_ARCHITECTURE_ASSESSMENT_2026-11-16.md) | 实例、分层/IK、Morph、Spring、碰撞、挂点特效、CPU 基准和 GPU 验证边界 |
 | [运行时性能模式](RUNTIME_PERFORMANCE_MODES.md)、[鹿展示与 Blender 工程](DEER_SHOWCASE.md) | 全局/资产预算、距离更新频率、四腿 IK 烘焙、Spring 和碰撞代理 |
+| [KubeJS 集成](KUBEJS_INTEGRATION.md) | 可选客户端模型控制、性能参数、挂点/命中查询，以及服务端鹿状态同步；附脚本示例 |
 | [审计报告](AUDIT_2026-11-13.md) | 本次发现、修复、剩余问题、测试与运行边界 |
 | [修复与验收](FIXES_2026-11-13.md) | 首轮审计后的当前处理状态、统一 BUILD、实际截图和资源重载 |
 | [LookDev 预览](LOOKDEV_PREVIEW.md) | 当前已加载模型列表与 GPU 预览操作 |

@@ -25,6 +25,16 @@ minecraft {
     runs {
         client {
             workingDirectory project.file('run')
+            if (project.hasProperty('clientKubeJsWorldSmoke')) {
+                if (!project.hasProperty('clientRuntimeSmoke')) throw new GradleException('clientKubeJsWorldSmoke requires clientRuntimeSmoke=<world>')
+                property 'worldruntimetest.kubejs','true'
+            }
+            if (project.hasProperty('clientKubeJsSmoke')) {
+                if (['clientRuntimeSmoke','clientComputeSmoke','clientHighBoneSmoke','clientDeerSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke'].any { project.hasProperty(it) }) {
+                    throw new GradleException('clientKubeJsSmoke must run independently')
+                }
+                property 'assimp.kubejsSmoke','true'
+            }
             if (project.hasProperty('clientJfr')) {
                 jvmArgs '-XX:StartFlightRecording=filename=' + project.file('build/reports/assimp-client.jfr').absolutePath + ',settings=profile,dumponexit=true'
             }
@@ -152,6 +162,27 @@ minecraft {
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
+if (project.hasProperty('clientKubeJsSmoke') || project.hasProperty('clientKubeJsWorldSmoke')) {
+    def serverSmoke = project.hasProperty('clientKubeJsWorldSmoke')
+    def smokeSource = file(serverSmoke ? 'model-tests/kubejs/assimploader_server_acceptance.js' : 'model-tests/kubejs/assimploader_acceptance.js')
+    def smokeTarget = file(serverSmoke ? 'run/kubejs/server_scripts/assimploader_acceptance.generated.js' : 'run/kubejs/client_scripts/assimploader_acceptance.generated.js')
+    def prepareScript = tasks.register('prepareKubeJsSmoke') {
+        doLast {
+            if (smokeTarget.exists() && !Arrays.equals(smokeTarget.bytes, smokeSource.bytes)) {
+                throw new GradleException('Refusing to replace an existing KubeJS acceptance script')
+            }
+            smokeTarget.parentFile.mkdirs()
+            project.copy { from smokeSource; into smokeTarget.parentFile; rename { smokeTarget.name } }
+        }
+    }
+    def cleanScript = tasks.register('cleanKubeJsSmoke') {
+        doLast {
+            if (smokeTarget.isFile() && Arrays.equals(smokeTarget.bytes, smokeSource.bytes)) smokeTarget.delete()
+        }
+    }
+    tasks.matching { it.name == 'runClient' }.configureEach { dependsOn prepareScript; finalizedBy cleanScript }
+}
+
 configurations {
     // Resolve native packaging separately from the mapped Forge runtimeClasspath, which is
     // not available while the task graph is being built on a cold cache.
@@ -168,6 +199,14 @@ fg.configureMinecraftLibraryConfiguration(configurations.assimpNatives)
 repositories {
     maven { url = 'https://maven.minecraftforge.net/' }
     mavenCentral()
+    maven {
+        url = 'https://maven.latvian.dev/releases'
+        content { includeGroup 'dev.latvian.mods' }
+    }
+    maven {
+        url = 'https://maven.architectury.dev/'
+        content { includeGroup 'dev.architectury' }
+    }
     // ModernUI
     maven { url = 'https://maven.izzel.io/releases/' }
     maven {
@@ -186,6 +225,16 @@ dependencies {
     minecraft "net.minecraftforge:forge:1.20.1-${forge_version}"
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    for (coordinate in ['dev.latvian.mods:kubejs-forge:2001.6.5-build.26',
+                        'dev.latvian.mods:rhino-forge:2001.2.2-build.17',
+                        'dev.architectury:architectury-forge:9.1.12']) {
+        def kubeDependency = fg.deobf(coordinate)
+        compileOnly(kubeDependency) { transitive = false }
+        if (project.hasProperty('withKubeJS') || project.hasProperty('clientKubeJsSmoke') || project.hasProperty('clientKubeJsWorldSmoke')) {
+            runtimeOnly(kubeDependency) { transitive = false }
+        }
+    }
 
     // LWJGL Assimp bindings - MUST match Minecraft's LWJGL version (3.3.1)
     implementation(platform("org.lwjgl:lwjgl-bom:3.3.1"))

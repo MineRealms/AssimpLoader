@@ -77,8 +77,12 @@ public class ClientAnimationManager {
     public AnimationState getOrCreateAnimationState(Object owner, String modelName, AssimpScene scene) {
         Objects.requireNonNull(owner, "Animation owner");
         drainCollectedOwners();
-        return resolve(instances.computeIfAbsent(new OwnerReference(owner, collectedOwners), ignored -> new HashMap<>()),
-                modelName, scene);
+        var states=instances.computeIfAbsent(new OwnerReference(owner, collectedOwners), ignored -> new HashMap<>());
+        // Resource aliases must address the renderer's existing owner instance.
+        if(scene!=null && !states.containsKey(modelName)) {
+            for(var state:states.values()) if(!state.isClosed() && state.getScene()==scene) return state;
+        }
+        return resolve(states,modelName,scene);
     }
 
     private AnimationState resolve(Map<String, AnimationState> states, String name, AssimpScene scene) {

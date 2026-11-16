@@ -35,3 +35,7 @@ are optional separate mods and are downloaded for development only; they are
 not bundled in the release jar. Minecraft and Forge are supplied by the game
 installation. The dormant node-editor facade no longer links glsl-transformer
 or ANTLR at compile time or runtime.
+
+KubeJS, Rhino and Architectury are separate optional mods for scripting
+integration. They are compile-only dependencies and are added to development
+runs only when explicitly requested; their binaries and sources are not bundled.

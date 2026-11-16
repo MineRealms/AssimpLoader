@@ -21,7 +21,7 @@ public record InstancePerformanceSettings(int updateIntervalTicks, boolean ik, b
         }
     }
 
-    static InstancePerformanceSettings read(JsonObject value) {
+    public static InstancePerformanceSettings read(JsonObject value) {
         ModelInstanceDefinition.keys(value, "updateIntervalTicks", "ik", "springBones", "particles",
                 "trails", "maxParticleEmissions", "maxTrailSamples", "renderInterpolation");
         if (value.has("renderInterpolation") && (!value.get("renderInterpolation").isJsonPrimitive()

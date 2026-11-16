@@ -289,7 +289,11 @@ public final class WorldRuntimeSmokeTest {
                 var deer=DeerShowcaseRegistry.DEER.get().create(level);
                 deer.moveTo(base.getX()+.98,base.getY()+.12,base.getZ()+.5,0,0);
                 deer.setNoAi(true);deer.setNoGravity(true);deer.setPersistenceRequired();deer.setShowcaseState("idle");deer.setGroundIkEnabled(false);
-                level.addFreshEntity(deer);level.setDayTime(6000);level.setWeatherParameters(12000,0,false,false);
+                if(Boolean.getBoolean("worldruntimetest.kubejs")) deer.addTag("assimp_kubejs_acceptance");
+                if(!level.addFreshEntity(deer)) throw new IllegalStateException("Showcase deer spawn failed");
+                if(Boolean.getBoolean("worldruntimetest.kubejs") && !deer.getTags().contains("assimp_kubejs_verified"))
+                    throw new IllegalStateException("KubeJS server entity event did not complete its assertions");
+                level.setDayTime(6000);level.setWeatherParameters(12000,0,false,false);
                 player.setGameMode(net.minecraft.world.level.GameType.SPECTATOR);player.stopRiding();
                 player.teleportTo(level,deer.getX()+4,deer.getY()+.2,deer.getZ()+5,141.34f,5);
                 mc.execute(()->{probePosition=probe;deerId=deer.getUUID();stage=0;pending=false;changed=System.currentTimeMillis();});
