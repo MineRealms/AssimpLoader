@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -93,6 +94,48 @@ public final class PoseSnapshot {
 
     public long getFrameId() { return frameId; }
     public AssimpScene getScene() { return scene; }
+
+    /** Rebuild globals, palettes and conservative bounds from interpolated local TRS and Morph. */
+    static PoseSnapshot interpolate(long frameId, PoseSnapshot from, PoseSnapshot to, float alpha) {
+        if (from.scene != to.scene) throw new IllegalArgumentException("Cannot interpolate different scenes");
+        if (!Float.isFinite(alpha) || alpha < 0 || alpha > 1) throw new IllegalArgumentException("Invalid interpolation weight");
+        if (alpha == 0) return from;
+        if (alpha == 1) return to;
+        Map<String, Matrix4f> locals = new LinkedHashMap<>();
+        var names = new LinkedHashSet<>(from.localOverrides.keySet());
+        names.addAll(to.localOverrides.keySet());
+        for (String name : names) {
+            Matrix4f a = from.localTransforms.get(name);
+            Matrix4f b = to.localTransforms.get(name);
+            if (a == null) a = new Matrix4f();
+            if (b == null) b = new Matrix4f();
+            // Static shear and duplicate bind nodes retain their original representation.
+            locals.put(name, a.equals(b) ? new Matrix4f(a)
+                    : interpolatable(a) && interpolatable(b) ? AnimationBlender.blendTransforms(a, b, alpha)
+                    : new Matrix4f(b));
+        }
+        Map<AssimpMesh, float[]> morphs = new IdentityHashMap<>();
+        to.morphWeights.forEach((mesh, weights) -> {
+            float[] source = from.morphWeights.get(mesh);
+            float[] mixed = new float[weights.length];
+            for (int i = 0; i < mixed.length; i++) mixed[i] = source[i] * (1 - alpha) + weights[i] * alpha;
+            morphs.put(mesh, mixed);
+        });
+        return capture(frameId, to.scene, locals, morphs);
+    }
+
+    private static boolean interpolatable(Matrix4f matrix) {
+        if (!matrix.isFinite() || matrix.m03() != 0 || matrix.m13() != 0 || matrix.m23() != 0 || matrix.m33() != 1)
+            return false;
+        Vector3f x = matrix.getColumn(0, new Vector3f());
+        Vector3f y = matrix.getColumn(1, new Vector3f());
+        Vector3f z = matrix.getColumn(2, new Vector3f());
+        float xx = x.lengthSquared(), yy = y.lengthSquared(), zz = z.lengthSquared();
+        if (!Float.isFinite(xx) || !Float.isFinite(yy) || !Float.isFinite(zz)
+                || xx < 1e-12f || yy < 1e-12f || zz < 1e-12f) return false;
+        x.normalize(); y.normalize(); z.normalize();
+        return Math.abs(x.dot(y)) < 1e-4f && Math.abs(x.dot(z)) < 1e-4f && Math.abs(y.dot(z)) < 1e-4f;
+    }
 
     public Map<String, Matrix4f> copyLocalTransforms() {
         return Collections.unmodifiableMap(copyMatrices(localTransforms));

@@ -42,6 +42,7 @@ public class AnimationState implements AutoCloseable {
     private long hierarchyFrame = -1;
     private long paletteFrame = -1;
     private volatile PoseSnapshot poseSnapshot;
+    private final RenderPoseInterpolator renderPoses = new RenderPoseInterpolator();
     private boolean initialized;
     private boolean paused;
     private boolean closed;
@@ -154,7 +155,7 @@ public class AnimationState implements AutoCloseable {
     public boolean isTransitioning() { return transitionSourcePose != null; }
     public float getTransitionWeight() { return isTransitioning() ? (float) (transitionTime / transitionDuration) : 1; }
     public boolean isPaused() { return paused; }
-    public void pause() { requireOpen(); paused = true; }
+    public void pause() { requireOpen(); paused = true; renderPoses.reset(poseSnapshot); }
     public void resume() { requireOpen(); paused = false; stopped = false; }
 
     /** Stops all clips and publishes the bind pose, including nodes absent from the last clip. */
@@ -253,6 +254,9 @@ public class AnimationState implements AutoCloseable {
         }
         sampledMorphs.putAll(morphWeights);
         poseSnapshot = PoseSnapshot.capture(++frameId, scene, locals, sampledMorphs);
+        if (performance.renderInterpolation() && RuntimePerformancePolicy.current().mode() != RuntimePerformancePolicy.Mode.PERFORMANCE)
+            renderPoses.publish(poseSnapshot, deltaSeconds);
+        else renderPoses.reset(poseSnapshot);
         if (modelInstance != null && !stopped) modelInstance.afterPose();
     }
 
@@ -364,6 +368,23 @@ public class AnimationState implements AutoCloseable {
 
     public PoseSnapshot getPoseSnapshot() { return poseSnapshot; }
 
+    /** Called once per managed client tick, including ticks whose evaluation is skipped. */
+    public void advanceRenderTick() { renderPoses.advanceTick(); }
+
+    /** Interpolated visual pose; never advances simulation, modifiers, attachments or effects. */
+    public PoseSnapshot getRenderPose(float partialTick) {
+        return getRenderPose(partialTick, RuntimePerformancePolicy.current());
+    }
+
+    public PoseSnapshot getRenderPose(float partialTick, RuntimePerformancePolicy policy) {
+        if (!Float.isFinite(partialTick)) throw new IllegalArgumentException("Partial tick must be finite");
+        if (!performance.renderInterpolation() || paused || stopped || policy.mode() == RuntimePerformancePolicy.Mode.PERFORMANCE) {
+            renderPoses.reset(poseSnapshot);
+            return poseSnapshot;
+        }
+        return renderPoses.sample(partialTick);
+    }
+
     /** Compatibility view; new consumers should use getPoseSnapshot() instead. */
     public BoneHierarchyBuilder getBoneHierarchy(AssimpMesh mesh) {
         ensureCompatibilityHierarchies();
@@ -434,6 +455,7 @@ public class AnimationState implements AutoCloseable {
         if (modelInstance != null) modelInstance.release();
         modelInstance = null;
         poseSnapshot = null;
+        renderPoses.reset(null);
         cachedBoneTransforms.clear();
         boneHierarchies.clear();
         closed = true;
