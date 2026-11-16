@@ -4,10 +4,44 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.ref.WeakReference;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.io.StringReader;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ClientAnimationManagerTest {
+    @Test
+    void invalidResourceAndAssetBindingFallBackOnceUntilReload() {
+        var badClip = ModelInstanceDefinition.read(new StringReader("""
+                {"version":1,"model":"test:model","states":{"idle":{"clip":"absent"}}}
+                """));
+        for (boolean parseFailure : new boolean[]{true, false}) {
+            AtomicInteger reads = new AtomicInteger();
+            var manager = new ClientAnimationManager(resource -> {
+                reads.incrementAndGet();
+                if (parseFailure) throw new IllegalArgumentException("malformed resource");
+                return Optional.of(badClip);
+            });
+            var scene = AnimationTestScenes.create();
+            Object ownerA = new Object(), ownerB = new Object();
+            var first = manager.getOrCreateAnimationState(ownerA,"same",scene);
+            var second = manager.getOrCreateAnimationState(ownerB,"same",scene);
+            assertTrue(first.isInitialized());
+            assertTrue(second.isInitialized());
+            assertNotSame(first,second);
+            assertEquals(1,reads.get());
+            first.playAnimation("A");
+            manager.update(.5f);
+            assertEquals(.5,first.getPoseSnapshot().getNodeTransform("Joint").m30(),1e-4);
+            manager.clear();
+            assertTrue(first.isClosed());
+            manager.getOrCreateAnimationState(ownerA,"same",scene);
+            assertEquals(2,reads.get());
+            manager.clear();
+        }
+    }
+
     @Test
     void equalOwnersKeepIndependentPlaybackAndRelease() {
         var manager = new ClientAnimationManager();

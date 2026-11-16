@@ -1,5 +1,6 @@
 package cn.minerealms.assimploader.animation;
 
+import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpScene;
@@ -10,6 +11,12 @@ import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.IdentityHashMap;
+import java.util.Collections;
+import java.util.function.Function;
+import net.minecraft.resources.ResourceLocation;
 
 /** Client-thread playback owners. Imported scenes remain shared, playback does not. */
 public class ClientAnimationManager {
@@ -17,6 +24,8 @@ public class ClientAnimationManager {
     private final Map<String, AnimationState> animationStates = new HashMap<>();
     private final Map<OwnerReference, Map<String, AnimationState>> instances = new HashMap<>();
     private final ReferenceQueue<Object> collectedOwners = new ReferenceQueue<>();
+    private final Function<ResourceLocation, Optional<ModelInstanceDefinition>> definitions;
+    private final Set<AssimpScene> invalidDefinitions = Collections.newSetFromMap(new IdentityHashMap<>());
 
     private static final class OwnerReference extends WeakReference<Object> {
         private final int hash;
@@ -35,7 +44,11 @@ public class ClientAnimationManager {
         }
     }
 
-    ClientAnimationManager() {}
+    ClientAnimationManager() { this(InstanceDefinitionResources::forModel); }
+
+    ClientAnimationManager(Function<ResourceLocation, Optional<ModelInstanceDefinition>> definitions) {
+        this.definitions = Objects.requireNonNull(definitions);
+    }
 
     public static ClientAnimationManager getInstance() { return INSTANCE; }
 
@@ -69,15 +82,23 @@ public class ClientAnimationManager {
         }
         if (existing != null && !existing.isClosed() && existing.getScene() == scene) return existing;
         if (existing != null) existing.close();
-        var definition = InstanceDefinitionResources.forModel(scene.getSourceResource());
+        Optional<ModelInstanceDefinition> definition = Optional.empty();
+        AnimationState state = null;
+        if (!invalidDefinitions.contains(scene)) {
+            try {
+                definition = definitions.apply(scene.getSourceResource());
+                if (definition.isPresent()) state = definition.get().instantiate(scene).animation();
+            } catch (RuntimeException failure) {
+                invalidDefinitions.add(scene);
+                AssimpLoader.LOGGER.error("Ignoring invalid instance definition for {}; using base playback until reload", name, failure);
+            }
+        }
         if (definition.isEmpty() && !scene.hasAnimations() && !scene.hasSkeleton()
                 && scene.getMeshes().stream().noneMatch(mesh -> mesh.hasMorphTargets())) {
             states.remove(name);
             return null;
         }
-        AnimationState state;
-        if (definition.isPresent()) state = definition.get().instantiate(scene).animation();
-        else {
+        if (state == null) {
             state = new AnimationState(name, scene);
             state.initialize();
         }
@@ -128,6 +149,7 @@ public class ClientAnimationManager {
         instances.values().forEach(states -> states.values().forEach(AnimationState::close));
         animationStates.clear();
         instances.clear();
+        invalidDefinitions.clear();
     }
 
     public static void clearCache() { INSTANCE.clear(); }
