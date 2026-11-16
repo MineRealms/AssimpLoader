@@ -13,7 +13,10 @@ import java.util.Optional;
 /** Reads Level collision only on the client thread; native/background solvers never receive Level. */
 public final class MinecraftGroundSampler implements FootPlacementModifier.GroundSampler {
     private final Level level;
-    public MinecraftGroundSampler(Level level) { this.level=java.util.Objects.requireNonNull(level); }
+    public MinecraftGroundSampler(Level level) {
+        this.level=java.util.Objects.requireNonNull(level);
+        if(!level.isClientSide) throw new IllegalArgumentException("Visual ground sampling requires a client level");
+    }
     @Override public Optional<Vector3f> ground(Vector3f origin,float downDistance) {
         if (!Minecraft.getInstance().isSameThread()) throw new IllegalStateException("Ground sampling requires client thread");
         if(!origin.isFinite() || !Float.isFinite(downDistance) || downDistance<=0 || downDistance>FootPlacementModifier.MAX_GROUND_TRACE)

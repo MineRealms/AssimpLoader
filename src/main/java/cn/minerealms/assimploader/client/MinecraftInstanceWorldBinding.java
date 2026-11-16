@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.client;
 
 import cn.minerealms.assimploader.animation.ModelInstance;
+import cn.minerealms.assimploader.config.ClientVisualPolicy;
 import net.minecraft.world.entity.Entity;
 import org.joml.Matrix4f;
 
@@ -20,12 +21,16 @@ public final class MinecraftInstanceWorldBinding {
             T current=owner.get();
             if(current==null || current.isRemoved() || !current.level().isClientSide) { value.clearWorldContext(); return; }
             Matrix4f rotation=rotationScale.apply(current);
-            value.setGroundPlacementEnabled(ground.test(current)); value.setWorldEffectsEnabled(effects.test(current));
+            var policy=ClientVisualPolicy.current();
+            value.setGroundPlacementEnabled(policy.mode()==ClientVisualPolicy.Mode.CLIENT_LOCAL?policy.localGroundPlacement():ground.test(current));
+            value.setWorldEffectsEnabled(policy.mode()==ClientVisualPolicy.Mode.CLIENT_LOCAL?policy.localEffects():effects.test(current));
             value.setWorldContext(new Matrix4f().translation((float)current.getX(),(float)current.getY(),(float)current.getZ()).mul(rotation),sampler);
             MinecraftAttachmentParticles.bind(value,current.level(),current.position(),rotation);
         });
         Matrix4f rotation=rotationScale.apply(entity);
-        instance.setGroundPlacementEnabled(ground.test(entity)); instance.setWorldEffectsEnabled(effects.test(entity));
+        var policy=ClientVisualPolicy.current();
+        instance.setGroundPlacementEnabled(policy.mode()==ClientVisualPolicy.Mode.CLIENT_LOCAL?policy.localGroundPlacement():ground.test(entity));
+        instance.setWorldEffectsEnabled(policy.mode()==ClientVisualPolicy.Mode.CLIENT_LOCAL?policy.localEffects():effects.test(entity));
         instance.setWorldContext(new Matrix4f().translation((float)entity.getX(),(float)entity.getY(),(float)entity.getZ()).mul(rotation),sampler);
     }
 }

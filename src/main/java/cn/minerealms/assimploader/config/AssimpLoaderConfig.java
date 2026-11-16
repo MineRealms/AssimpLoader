@@ -82,6 +82,9 @@ public class AssimpLoaderConfig {
         // Rendering
         public final ForgeConfigSpec.BooleanValue pbrEnabled;
         public final ForgeConfigSpec.BooleanValue gpuSkinningEnabled;
+        public final ForgeConfigSpec.EnumValue<ClientVisualPolicy.Mode> visualMode;
+        public final ForgeConfigSpec.BooleanValue localGroundPlacement;
+        public final ForgeConfigSpec.BooleanValue localEffects;
         public final ForgeConfigSpec.ConfigValue<String> externalModelDirectory;
         public final ForgeConfigSpec.BooleanValue frustumCullingEnabled;
         public final ForgeConfigSpec.BooleanValue alwaysRenderLargeModels;
@@ -142,6 +145,13 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.BooleanValue devLookdevEnabled;
 
         public ClientConfig(ForgeConfigSpec.Builder builder) {
+            builder.comment("Client visual inputs; never changes server collision or hit authority").push("visual");
+            visualMode=builder.defineEnum("mode",ClientVisualPolicy.Mode.HOST_CONTROLLED);
+            localGroundPlacement=builder.comment("CLIENT_LOCAL: align poses using loaded client block collision shapes")
+                    .define("groundPlacement",true);
+            localEffects=builder.comment("CLIENT_LOCAL: enable configured attachment particles and trails")
+                    .define("effects",false);
+            builder.pop();
             builder.comment("Rocket exhaust rendering").push("rocketExhaust");
             rocketExhaustEnabled = builder.comment("Render the data-driven GPU volumetric rocket demo")
                     .define("enabled", true);
@@ -403,7 +413,7 @@ public class AssimpLoaderConfig {
                     .push("batch");
             mode = builder.comment("OFF, INSTANCED or MDI; requires compatible OpenGL and no active shader pack")
                     .defineEnum("mode", GpuBatchPolicy.Mode.OFF);
-            maxInstances = builder.comment("Maximum submitted mesh instances per frame")
+            maxInstances = builder.comment("Maximum queued mesh instances per batch; mixed render paths may split a frame")
                     .defineInRange("maxInstances", 4096, 1, 16384);
             geometryMiB = builder.comment("Maximum shared geometry storage in MiB")
                     .defineInRange("geometryMiB", 128, 1, 256);
@@ -412,7 +422,7 @@ public class AssimpLoaderConfig {
             hiZEnabled = builder.comment("MDI only: conservative occlusion using this frame's opaque client depth")
                     .define("hiZEnabled", false);
             hiZMaxResolution = builder.comment("Maximum dimension of the Hi-Z depth pyramid")
-                    .defineInRange("hiZMaxResolution", 1024, 64, 2048);
+                    .defineInRange("hiZMaxResolution", 1024, 64, 1024);
             hiZBias = builder.comment("Additional depth tolerance; larger values cull less aggressively")
                     .defineInRange("hiZBias", .0005, 0.0, .05);
             builder.pop();

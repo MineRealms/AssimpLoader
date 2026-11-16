@@ -39,7 +39,7 @@ public final class DeerShowcaseRenderer extends ConfiguredEntityRenderer<DeerSho
         if (scene != null) {
             var state = ClientAnimationManager.getInstance().getOrCreateAnimationState(entity, MODEL_ID, scene);
             if (state != null && state.getModelInstance() != null) {
-                String requested = entity.getShowcaseState();
+                String requested = cn.minerealms.assimploader.config.ClientVisualPolicy.current().animation(entity.getShowcaseState(),"auto");
                 if (requested.equals("auto")) {
                     double dx = entity.getX() - entity.xo, dz = entity.getZ() - entity.zo;
                     requested = dx * dx + dz * dz > 1e-5 ? "walk" : "idle";
