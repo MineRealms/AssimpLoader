@@ -379,8 +379,9 @@ public class AnimationState implements AutoCloseable {
     public PoseSnapshot getRenderPose(float partialTick, RuntimePerformancePolicy policy) {
         if (!Float.isFinite(partialTick)) throw new IllegalArgumentException("Partial tick must be finite");
         if (!performance.renderInterpolation() || paused || stopped || policy.mode() == RuntimePerformancePolicy.Mode.PERFORMANCE) {
-            renderPoses.reset(poseSnapshot);
-            return poseSnapshot;
+            PoseSnapshot authoritative = getPoseSnapshot();
+            renderPoses.reset(authoritative);
+            return authoritative;
         }
         return renderPoses.sample(partialTick);
     }

@@ -24,15 +24,16 @@ public class ShowcaseRenderer extends BaseAssimpRenderer implements BlockEntityR
         var state=ClientAnimationManager.getInstance().getOrCreateAnimationState(entity,entity.getModel().modelName(),scene);
         var camera=net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
         ClientAnimationManager.getInstance().markRendered(state, ShowcaseVisibility.distanceSquared(entity.getRenderBoundingBox(),camera));
-        if (state!=null && state.getPoseSnapshot()!=null) entity.setVisualBounds(scene,state.getPoseSnapshot().getBounds());
+        var visual=state==null?null:state.getRenderPose(partialTick);
+        if (visual!=null) entity.setVisualBounds(scene,visual.getBounds().minmax(state.getPoseSnapshot().getBounds()));
         if(state!=null && state.getModelInstance()!=null) cn.minerealms.assimploader.client.MinecraftAttachmentParticles.bind(
                 state.getModelInstance(),entity.getLevel(),new Vec3(entity.getBlockPos().getX()+.5,entity.getBlockPos().getY(),entity.getBlockPos().getZ()+.5),new org.joml.Matrix4f());
         poses.pushPose();
         try {
             poses.translate(0.5, 0, 0.5);
-            if (state!=null ? !OculusEntityBufferCache.renderPosed(state,poses,light,overlay,true)
+            if (state!=null ? !OculusEntityBufferCache.renderPosed(state,visual,poses,light,overlay,true)
                     : !OculusEntityBufferCache.render(scene, poses, light, overlay))
-                renderScene(scene, state, poses, buffers, light, overlay);
+                renderScene(scene, state, poses, buffers, light, overlay,partialTick);
             if (state!=null && state.getModelInstance()!=null) AttachmentTrailRenderer.render(state.getModelInstance(),poses,buffers,light);
         } finally {
             poses.popPose();

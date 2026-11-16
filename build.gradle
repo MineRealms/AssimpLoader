@@ -28,15 +28,16 @@ minecraft {
             if (project.hasProperty('clientJfr')) {
                 jvmArgs '-XX:StartFlightRecording=filename=' + project.file('build/reports/assimp-client.jfr').absolutePath + ',settings=profile,dumponexit=true'
             }
-            if (project.hasProperty('clientHighBoneSmoke')) {
+            if (project.hasProperty('clientHighBoneSmoke') || project.hasProperty('clientComputeSmoke')) {
                 if (['clientRuntimeSmoke','clientDeerSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke'].any { project.hasProperty(it) }) {
                     throw new GradleException('clientHighBoneSmoke must run independently')
                 }
                 property 'highbonetest.enabled','true'
+                if (project.hasProperty('clientComputeSmoke')) property 'highbonetest.compute','true'
                 args '--width','1280','--height','900'
             }
             if (project.hasProperty('clientRuntimeSmoke')) {
-                if (['clientDeerSmoke','clientHighBoneSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke'].any { project.hasProperty(it) }) {
+                if (['clientDeerSmoke','clientHighBoneSmoke','clientComputeSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke'].any { project.hasProperty(it) }) {
                     throw new GradleException('clientRuntimeSmoke must run independently')
                 }
                 property 'worldruntimetest.enabled','true'

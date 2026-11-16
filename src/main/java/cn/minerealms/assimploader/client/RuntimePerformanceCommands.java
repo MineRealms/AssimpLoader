@@ -28,6 +28,8 @@ public final class RuntimePerformanceCommands {
                     + ", total evaluated/skipped=" + stats.totalEvaluated() + "/" + stats.totalSkipped()), false);
             context.getSource().sendSuccess(() -> Component.literal("Oculus poses: "
                     + cn.minerealms.assimploader.rendering.OculusEntityBufferCache.poseStatistics()),false);
+            context.getSource().sendSuccess(() -> Component.literal("Compute skinning: "
+                    + cn.minerealms.assimploader.render.ClientRenderResources.computeStatistics()),false);
             return 1;
         })));
     }

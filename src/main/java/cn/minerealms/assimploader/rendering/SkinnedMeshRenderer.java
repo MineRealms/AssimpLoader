@@ -3,6 +3,8 @@ package cn.minerealms.assimploader.rendering;
 import cn.minerealms.assimploader.animation.BoneHierarchyBuilder;
 import cn.minerealms.assimploader.animation.SkinnedMeshProcessor;
 import cn.minerealms.assimploader.animation.MorphDeformation;
+import cn.minerealms.assimploader.animation.AnimationState;
+import cn.minerealms.assimploader.animation.PoseSnapshot;
 import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import cn.minerealms.assimploader.config.RuntimePerformancePolicy;
 import cn.minerealms.assimploader.debug.DebugManager;
@@ -44,6 +46,97 @@ public class SkinnedMeshRenderer {
     private boolean initialized = false;
     private boolean useTBO = false;
     private int maxBones = 64;
+    private final Map<AnimationState,Map<AssimpMesh,ComputeSkinning>> computeOwners=new java.util.LinkedHashMap<>(16,.75f,true);
+    private long computeBytes;
+    private boolean computeFailed;
+
+    public record ComputeStatistics(int owners,long bytes,long dispatches,long hits,boolean failed) {}
+    public ComputeStatistics computeStatistics() {
+        long dispatches=0,hits=0;
+        for(var meshes:computeOwners.values()) for(var output:meshes.values()) {dispatches+=output.dispatches();hits+=output.hits();}
+        return new ComputeStatistics(computeOwners.size(),computeBytes,dispatches,hits,computeFailed);
+    }
+
+    public CpuSkinning.Geometry readComputeOutput(AnimationState owner,AssimpMesh mesh) {
+        var entries=computeOwners.get(owner);
+        return entries==null || entries.get(mesh)==null?null:entries.get(mesh).readback();
+    }
+
+    public void pruneCompute() {
+        boolean disabled=!AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.computeSkinningEnabled::get,false)
+                || cn.minerealms.assimploader.compat.OculusCompat.shouldAvoidCustomShaders()
+                || AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.optimizationLevel::get,
+                    AssimpLoaderConfig.OptimizationLevel.AUTO)==AssimpLoaderConfig.OptimizationLevel.FALLBACK;
+        long budget=(long)AssimpLoaderConfig.getIntOrDefault(AssimpLoaderConfig.CLIENT.computeSkinningMiB,128)*1024*1024;
+        int capacity=AssimpLoaderConfig.getIntOrDefault(AssimpLoaderConfig.CLIENT.computeSkinningOwners,128);
+        trimCompute(disabled?0:budget,disabled?0:capacity);
+    }
+
+    /** Immediate memory-pressure trim; subsequent draws still obey the configured allocation limits. */
+    public void trimCompute(long budget,int capacity) {
+        RenderSystem.assertOnRenderThread();
+        if(budget<0 || capacity<0) throw new IllegalArgumentException("Negative Compute cache budget");
+        var iterator=computeOwners.entrySet().iterator();
+        while(iterator.hasNext()) {
+            var entry=iterator.next();
+            if(entry.getKey().isClosed() || computeBytes>budget || computeOwners.size()>capacity) {
+                for(var mesh:entry.getValue().entrySet()) {computeBytes-=ComputeSkinning.requiredBytes(mesh.getKey());mesh.getValue().close();}
+                iterator.remove();
+            }
+        }
+    }
+
+    /** Snapshot identity shares deformation across views while transforms and lighting remain per draw. */
+    public void renderWithSnapshot(AnimationState owner,PoseSnapshot snapshot,AssimpMesh mesh,PoseStack poses,
+            MultiBufferSource buffers,ResourceLocation texture,TextureManager textures,int light,int overlay,float[] tint) {
+        var palette=snapshot.getBoneTransforms(mesh);
+        if(!computeFailed && ComputeSkinning.available() && owner!=null && !owner.isClosed()
+                && AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.computeSkinningEnabled::get,false)
+                && !cn.minerealms.assimploader.compat.OculusCompat.shouldAvoidCustomShaders()) {
+            try {
+                pruneCompute();
+                long required=ComputeSkinning.requiredBytes(mesh);
+                long budget=(long)AssimpLoaderConfig.getIntOrDefault(AssimpLoaderConfig.CLIENT.computeSkinningMiB,128)*1024*1024;
+                int capacity=AssimpLoaderConfig.getIntOrDefault(AssimpLoaderConfig.CLIENT.computeSkinningOwners,128);
+                var meshes=computeOwners.get(owner);
+                ComputeSkinning output=meshes==null?null:meshes.get(mesh);
+                if(output==null && required<=Math.min(budget,128L*1024*1024)) {
+                    var iterator=computeOwners.entrySet().iterator();
+                    while(iterator.hasNext() && (computeBytes+required>budget || meshes==null&&computeOwners.size()>=capacity)) {
+                        var old=iterator.next();
+                        if(old.getKey()==owner) continue;
+                        for(var entry:old.getValue().entrySet()) {computeBytes-=ComputeSkinning.requiredBytes(entry.getKey());entry.getValue().close();}
+                        iterator.remove();
+                    }
+                    if(computeBytes+required<=budget) {
+                        output=new ComputeSkinning(mesh);
+                        if(meshes==null) {meshes=new java.util.IdentityHashMap<>();computeOwners.put(owner,meshes);}
+                        meshes.put(mesh,output);computeBytes+=required;
+                    }
+                }
+                if(output!=null) {
+                    if(buffers instanceof MultiBufferSource.BufferSource source) source.endBatch();
+                    Matrix4f modelView=createModelView(RenderSystem.getModelViewMatrix(),poses.last().pose());
+                    try(GpuDrawState drawState=new GpuDrawState()) {
+                        drawState.prepare();output.deform(snapshot);
+                        renderPacked(mesh,palette,createModelViewProjection(RenderSystem.getProjectionMatrix(),modelView),modelView,
+                                texture,textures,light,overlay,tint,null,output);
+                    }
+                    return;
+                }
+            } catch(IOException|RuntimeException failure) {
+                computeFailed=true;clearCompute();
+                cn.minerealms.assimploader.AssimpLoader.LOGGER.warn("Compute skinning failed; using vertex skinning until reload",failure);
+            }
+        }
+        renderWithPose(mesh,palette,poses,buffers,texture,textures,light,overlay,tint,
+                snapshot.hasActiveMorphs(mesh)?snapshot.getMorphWeights(mesh):null);
+    }
+
+    private void clearCompute() {
+        for(var meshes:computeOwners.values()) meshes.values().forEach(ComputeSkinning::close);
+        computeOwners.clear();computeBytes=0;
+    }
 
     public SkinnedMeshRenderer() {
         this.shader = new SkinnedMeshShader();
@@ -184,6 +277,12 @@ public class SkinnedMeshRenderer {
     private void renderPacked(AssimpMesh mesh, Matrix4f[] boneMatrices,
                        Matrix4f modelViewProjection, Matrix4f modelView,
                        ResourceLocation texture, TextureManager textureManager, int light, int overlay, float[] tint,float[] morphWeights) {
+        renderPacked(mesh,boneMatrices,modelViewProjection,modelView,texture,textureManager,light,overlay,tint,morphWeights,null);
+    }
+
+    private void renderPacked(AssimpMesh mesh, Matrix4f[] boneMatrices,
+                       Matrix4f modelViewProjection, Matrix4f modelView,
+                       ResourceLocation texture, TextureManager textureManager, int light, int overlay, float[] tint,float[] morphWeights,ComputeSkinning computed) {
 
         if (!initialized) {
             throw new IllegalStateException("Renderer not initialized");
@@ -204,15 +303,15 @@ public class SkinnedMeshRenderer {
         }
 
         // Get or create VBO
-        SkinnedMeshVBO vbo = vboCache.computeIfAbsent(mesh, m -> {
+        SkinnedMeshVBO vbo = computed==null?vboCache.computeIfAbsent(mesh, m -> {
             DebugManager.info(DebugCategory.RENDER, "Creating VBO for mesh: {}", m.getName());
             return createVBO(m);
-        });
+        }):null;
 
         // Bind shader
         shader.bind();
         shader.setTint(tint);
-        shader.setBoneCount(boneMatrices.length);
+        shader.setBoneCount(computed==null?boneMatrices.length:0);
         // Both sampler uniforms remain active even when the uniform-bone branch is selected.
         shader.setBoneMatricesTBO(3);
         shader.setMinecraftLighting(light, overlay);
@@ -231,7 +330,9 @@ public class SkinnedMeshRenderer {
             cn.minerealms.assimploader.debug.PerformanceProfiler.start("bone_matrix_upload");
         }
 
-        if (useTBO && tboRequested()) {
+        if (computed!=null) {
+            shader.setUseTBO(false);
+        } else if (useTBO && tboRequested()) {
             // Use TBO for efficient bone matrix upload
             RenderSystem.activeTexture(GL13.GL_TEXTURE3);
             boneMatrixTBO.upload(boneMatrices);
@@ -264,7 +365,8 @@ public class SkinnedMeshRenderer {
             cn.minerealms.assimploader.debug.PerformanceProfiler.start("vbo_draw");
         }
 
-        vbo.render();
+        if(computed!=null) computed.draw();
+        else vbo.render();
 
         if (DebugManager.isProfilingEnabled()) {
             cn.minerealms.assimploader.debug.PerformanceProfiler.end("vbo_draw");
@@ -312,6 +414,7 @@ public class SkinnedMeshRenderer {
      * Clear VBO cache
      */
     public void clearCache() {
+        clearCompute();
         for (SkinnedMeshVBO vbo : vboCache.values()) {
             vbo.delete();
         }

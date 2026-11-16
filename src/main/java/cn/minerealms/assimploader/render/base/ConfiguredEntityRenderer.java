@@ -36,6 +36,8 @@ public abstract class ConfiguredEntityRenderer<T extends Entity> extends EntityR
         var state=ClientAnimationManager.getInstance().getOrCreateAnimationState(entity,modelName(entity),scene);
         var pose=state==null?null:state.getPoseSnapshot();
         var local=pose==null?SceneTransforms.bounds(scene):pose.getBounds();
+        var visual=state==null?null:state.getRenderPose(net.minecraft.client.Minecraft.getInstance().getFrameTime());
+        if(visual!=null) local=local.minmax(visual.getBounds());
         var world=ModelWorldBounds.transform(local,modelTransform(entity,entity.getYRot(),1),entity.getX(),entity.getY(),entity.getZ());
         var previous=ModelWorldBounds.transform(local,modelTransform(entity,entity.yRotO,0),entity.xo,entity.yo,entity.zo);
         world=world.minmax(previous).inflate(.05);
@@ -67,8 +69,9 @@ public abstract class ConfiguredEntityRenderer<T extends Entity> extends EntityR
         try {
             var transform=modelTransform(entity,yaw,partialTick);
             cn.minerealms.assimploader.render.SceneTransforms.apply(stack,transform);
-            if(!cn.minerealms.assimploader.rendering.OculusEntityBufferCache.renderPosed(state,stack,light,OverlayTexture.NO_OVERLAY,false))
-                renderer.renderScene(scene,state,stack,buffers,light,OverlayTexture.NO_OVERLAY);
+            var visual=state==null?null:state.getRenderPose(partialTick);
+            if(!cn.minerealms.assimploader.rendering.OculusEntityBufferCache.renderPosed(state,visual,stack,light,OverlayTexture.NO_OVERLAY,false))
+                renderer.renderScene(scene,state,stack,buffers,light,OverlayTexture.NO_OVERLAY,partialTick);
             if(state!=null && state.getModelInstance()!=null) AttachmentTrailRenderer.render(state.getModelInstance(),stack,buffers,light,
                     new org.joml.Matrix4f().translation(
                             (float)net.minecraft.util.Mth.lerp(partialTick,entity.xo,entity.getX()),

@@ -49,6 +49,8 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = AssimpLoader.MODID, value = Dist.CLIENT)
 public final class HighBoneSmokeTest {
     private static final boolean ENABLED = Boolean.getBoolean("highbonetest.enabled");
+    private static final boolean COMPUTE = Boolean.getBoolean("highbonetest.compute");
+    private static Boolean oldCompute;
     private static final ResourceLocation MODEL = new ResourceLocation("assimploader", "models/validation/highbone_probe.glb");
     private static final String[] STAGES = {"wave-zero", "wave-morph", "wave-restored", "wave-morph-reloaded"};
     private static final String RUN = Long.toString(System.currentTimeMillis());
@@ -98,7 +100,7 @@ public final class HighBoneSmokeTest {
     private static void advance(Minecraft mc) {
         if (++stage == STAGES.length) {
             done = true;
-            AssimpLoader.LOGGER.info("[HighBoneSmoke] SUCCESS run={} actual 256-bone TBO, combined Morph, zero restore, CPU/GPU masks and recreation", RUN);
+            AssimpLoader.LOGGER.info("[HighBoneSmoke] SUCCESS run={} actual 256-bone {}, combined Morph, zero restore, CPU/GPU masks and recreation", RUN,COMPUTE?"Compute SSBO":"TBO");
             screen.release();
             mc.stop();
             return;
@@ -161,6 +163,12 @@ public final class HighBoneSmokeTest {
         ProbeScreen() { super(Component.literal("AssimpLoader 256 Bone Validation")); }
 
         void load() throws Exception {
+            if(COMPUTE) {
+                var config=cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT;
+                if(oldCompute==null) oldCompute=config.computeSkinningEnabled.get();
+                config.computeSkinningEnabled.set(true);
+                require(cn.minerealms.assimploader.rendering.ComputeSkinning.available(),"GL 4.3 Compute required; fallback cannot pass");
+            }
             scene = new AssimpModelLoader().loadModelFromResources(Minecraft.getInstance().getResourceManager(), MODEL, ModelImportMode.DYNAMIC);
             require(scene.getMeshes().size() == 1, "high bone fixture must remain one primitive");
             mesh = scene.getMeshes().get(0);
@@ -214,7 +222,7 @@ public final class HighBoneSmokeTest {
                 for (int i = 0; i < 2; i++) {
                     int x = left + i * (side + 16);
                     blit(graphics, targets[i].getColorTextureId(), x, 28, side);
-                    graphics.drawCenteredString(font, i == 0 ? "CPU / 256 bones" : "GPU TBO / 256 bones", x + side / 2, side + 36, 0xffeeeeee);
+                    graphics.drawCenteredString(font, i == 0 ? "CPU / 256 bones" : COMPUTE?"GPU Compute / 256 bones":"GPU TBO / 256 bones", x + side / 2, side + 36, 0xffeeeeee);
                 }
                 graphics.drawCenteredString(font, "GLB / " + STAGES[stage], width / 2, 9, 0xffeeeeee);
                 graphics.flush();
@@ -254,7 +262,15 @@ public final class HighBoneSmokeTest {
                         GL33.glQueryCounter(startQuery, GL33.GL_TIMESTAMP);
                     }
                     var material = ModelTextureCache.material(scene, mesh);
-                    gpu.renderWithPose(mesh, pose.getBoneTransforms(mesh), poses, buffers, ModelTextureCache.getTexture(scene, mesh),
+                    if(COMPUTE) {
+                        try(BindingProbe probe=frames==0?new BindingProbe():null) {
+                            gpu.renderWithSnapshot(state,pose,mesh,poses,buffers,ModelTextureCache.getTexture(scene,mesh),
+                                    mc.getTextureManager(),0x00f000f0,OverlayTexture.NO_OVERLAY,
+                                    material==null?new float[]{1,1,1,1}:material.getDiffuseColor());
+                            if(probe!=null) probe.verify();
+                        }
+                    }
+                    else gpu.renderWithPose(mesh, pose.getBoneTransforms(mesh), poses, buffers, ModelTextureCache.getTexture(scene, mesh),
                             mc.getTextureManager(), 0x00f000f0, OverlayTexture.NO_OVERLAY,
                             material == null ? new float[]{1, 1, 1, 1} : material.getDiffuseColor(),
                             pose.hasActiveMorphs(mesh) ? pose.getMorphWeights(mesh) : null);
@@ -283,6 +299,27 @@ public final class HighBoneSmokeTest {
         }
 
         void verify() {
+            if(COMPUTE) {
+                var actual=gpu.readComputeOutput(state,mesh);
+                var expected=cn.minerealms.assimploader.rendering.CpuSkinning.geometry(state.getPoseSnapshot(),mesh);
+                require(actual!=null,"Compute path fell back");
+                float positionError=0,normalError=0;
+                for(int index=0;index<actual.positions().length;index++) {
+                    require(Float.isFinite(actual.positions()[index])&&Float.isFinite(actual.normals()[index]),"non-finite Compute output");
+                    positionError=Math.max(positionError,Math.abs(actual.positions()[index]-expected.positions()[index]));
+                    normalError=Math.max(normalError,Math.abs(actual.normals()[index]-expected.normals()[index]));
+                }
+                require(positionError<.0001f&&normalError<.0001f,"Compute numerical mismatch "+positionError+" / "+normalError);
+                var stats=gpu.computeStatistics();
+                require(!stats.failed()&&stats.owners()==1&&stats.dispatches()>0&&stats.hits()>0,"Compute cache missing "+stats);
+                AssimpLoader.LOGGER.info("[HighBoneSmoke] COMPUTE vertices={} maxPositionError={} maxNormalError={} statistics={}",
+                        mesh.getVertexCount(),positionError,normalError,stats);
+                if(stage==0) {
+                    gpu.trimCompute(1024*1024,1);
+                    require(gpu.computeStatistics().bytes()==0&&gpu.computeStatistics().owners()==0,"Compute budget shrink retained buffers");
+                    AssimpLoader.LOGGER.info("[HighBoneSmoke] COMPUTE 1 MiB budget evicted the 1,134,592 byte owner");
+                }
+            }
             boolean[] cpuMask = mask(targets[0]), gpuMask = mask(targets[1]);
             int union = 0, difference = 0, pixels = 0;
             for (int i = 0; i < cpuMask.length; i++) {
@@ -327,6 +364,11 @@ public final class HighBoneSmokeTest {
         void release() {
             clearQueries();
             ClientAnimationManager.getInstance().release(OWNER);
+            if(oldCompute!=null) {cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT.computeSkinningEnabled.set(oldCompute);oldCompute=null;}
+            if(COMPUTE&&gpu!=null) {
+                gpu.pruneCompute();
+                require(gpu.computeStatistics().owners()==0,"Closed Compute owner retained buffers");
+            }
             for (TextureTarget target : targets) if (target != null) target.destroyBuffers();
         }
     }
@@ -335,6 +377,38 @@ public final class HighBoneSmokeTest {
         @Override protected String getModelName() { return "highbone_validation"; }
         void draw(AssimpScene scene, AnimationState state, List<SceneTransforms.Instance> instances, PoseStack stack, MultiBufferSource buffers) {
             renderInstances(scene, state, instances, stack, buffers, 0x00f000f0, OverlayTexture.NO_OVERLAY);
+        }
+    }
+
+    private static final class BindingProbe implements AutoCloseable {
+        private final int generic=GL11.glGetInteger(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER_BINDING);
+        private final int[] bindings=new int[4];
+        private final long[] offsets=new long[4],sizes=new long[4];
+        private final int sentinel=GL15.glGenBuffers();
+        private final int alignment=GL11.glGetInteger(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT);
+        BindingProbe() {
+            for(int index=0;index<4;index++) {
+                bindings[index]=GL30.glGetIntegeri(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER_BINDING,index);
+                offsets[index]=org.lwjgl.opengl.GL32.glGetInteger64i(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER_START,index);
+                sizes[index]=org.lwjgl.opengl.GL32.glGetInteger64i(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER_SIZE,index);
+            }
+            GL15.glBindBuffer(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER,sentinel);
+            GL15.glBufferData(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER,3L*alignment+256,GL15.GL_STATIC_DRAW);
+            for(int index=0;index<4;index++) GL30.glBindBufferRange(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER,index,sentinel,(long)index*alignment,128);
+        }
+        void verify() {
+            require(GL11.glGetInteger(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER_BINDING)==sentinel,"Compute leaked generic SSBO binding");
+            for(int index=0;index<4;index++) require(
+                    GL30.glGetIntegeri(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER_BINDING,index)==sentinel
+                    &&org.lwjgl.opengl.GL32.glGetInteger64i(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER_START,index)==(long)index*alignment
+                    &&org.lwjgl.opengl.GL32.glGetInteger64i(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER_SIZE,index)==128,"Compute leaked indexed SSBO range "+index);
+        }
+        @Override public void close() {
+            for(int index=0;index<4;index++) {
+                if(bindings[index]!=0&&sizes[index]>0) GL30.glBindBufferRange(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER,index,bindings[index],offsets[index],sizes[index]);
+                else GL30.glBindBufferBase(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER,index,bindings[index]);
+            }
+            GL15.glBindBuffer(org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER,generic);GL15.glDeleteBuffers(sentinel);
         }
     }
 

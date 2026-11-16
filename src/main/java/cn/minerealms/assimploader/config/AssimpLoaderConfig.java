@@ -108,6 +108,9 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.IntValue textureCacheSizeMB;
         public final ForgeConfigSpec.BooleanValue tboEnabled;
         public final ForgeConfigSpec.IntValue maxTBOBones;
+        public final ForgeConfigSpec.BooleanValue computeSkinningEnabled;
+        public final ForgeConfigSpec.IntValue computeSkinningMiB;
+        public final ForgeConfigSpec.IntValue computeSkinningOwners;
         public final RuntimeConfig runtime;
 
         // Hot-Reload
@@ -268,6 +271,13 @@ public class AssimpLoaderConfig {
             maxTBOBones = builder
                 .comment("Maximum TBO size (number of bones)")
                 .defineInRange("maxTBOBones", 1024, 64, 16384);
+
+            computeSkinningEnabled = builder.comment("Opt-in OpenGL 4.3 skinning; vanilla custom-shader path only")
+                    .define("computeSkinningEnabled", false);
+            computeSkinningMiB = builder.comment("Total Compute skinning buffer budget in MiB")
+                    .defineInRange("computeSkinningMiB", 128, 1, 1024);
+            computeSkinningOwners = builder.comment("Maximum cached Compute animation owners")
+                    .defineInRange("computeSkinningOwners", 128, 1, 1024);
 
             runtime = new RuntimeConfig(builder);
             builder.pop();

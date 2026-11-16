@@ -53,6 +53,10 @@ public final class ClientRenderResources {
         return skinnedRenderer;
     }
 
+    public static SkinnedMeshRenderer.ComputeStatistics computeStatistics() {
+        return skinnedRenderer==null?new SkinnedMeshRenderer.ComputeStatistics(0,0,0,0,false):skinnedRenderer.computeStatistics();
+    }
+
     public static void disableGpuSkinning(RuntimeException failure) {
         if (!skinningFailed) AssimpLoader.LOGGER.warn("GPU skinning failed; using CPU skinning", failure);
         skinningFailed = true;
@@ -87,7 +91,10 @@ public final class ClientRenderResources {
         }
     }
     @SubscribeEvent public static void tick(net.minecraftforge.event.TickEvent.ClientTickEvent event) {
-        if(event.phase==net.minecraftforge.event.TickEvent.Phase.END) OculusEntityBufferCache.prunePosed();
+        if(event.phase==net.minecraftforge.event.TickEvent.Phase.END) {
+            OculusEntityBufferCache.prunePosed();
+            if(skinnedRenderer!=null) skinnedRenderer.pruneCompute();
+        }
     }
 
     @Mod.EventBusSubscriber(modid = AssimpLoader.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)

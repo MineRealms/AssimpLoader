@@ -25,8 +25,9 @@ mode = "BALANCED"
 
 One simulation tick is 0.05 seconds. Presets enable IK, Spring Bone, particles,
 trails and GPU Morph. Budgets are upper bounds; they do not expand an asset's
-smaller configured capacities. The runtime policy does not itself add rendering
-interpolation, a new GPU backend, Compute dispatch or native execution.
+smaller configured capacities. Assets can explicitly enable
+[render interpolation](RENDER_POSE_INTERPOLATION.md); PERFORMANCE bypasses it.
+The runtime policy does not itself add a new GPU backend, Compute dispatch or native execution.
 
 `performance.optimizationLevel`, `rendering.gpuSkinningEnabled`,
 `performance.tboEnabled` and `performance.maxTBOBones` retain their existing
@@ -125,5 +126,7 @@ bounded by each spring's configuration when a distant instance catches up.
 
 `/assimploader performance` prints the active policy and managed-instance
 evaluation/skip counters. This is a client command. Direct `update(seconds)` calls
-remain deterministic and bypass the managed cadence. Pose interpolation is not
-implemented, so distant animation may visibly step at its selected cadence.
+remain deterministic and bypass the managed cadence. Asset-side
+`performance.renderInterpolation = true` smooths completed pose intervals,
+including skipped ticks, at the cost of visual latency and per-frame work.
+Without that opt-in, distant animation retains its selected evaluation cadence.

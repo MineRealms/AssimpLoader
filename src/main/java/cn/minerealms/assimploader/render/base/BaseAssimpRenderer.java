@@ -61,8 +61,13 @@ public abstract class BaseAssimpRenderer {
 
     public void renderScene(AssimpScene scene, AnimationState state, PoseStack stack,
                             MultiBufferSource buffers, int light, int overlay) {
+        renderScene(scene, state, stack, buffers, light, overlay, renderPartialTick());
+    }
+
+    public void renderScene(AssimpScene scene, AnimationState state, PoseStack stack,
+                            MultiBufferSource buffers, int light, int overlay, float partialTick) {
         ClientRenderResources.checkGeneration();
-        PoseSnapshot snapshot = snapshotForScene(scene, state);
+        PoseSnapshot snapshot = snapshotForScene(scene, state, partialTick);
         List<SceneTransforms.Instance> instances = snapshot == null ? SceneTransforms.instances(scene)
                 : snapshot.copyMeshInstances().stream()
                 .map(instance -> new SceneTransforms.Instance(instance.mesh(), instance.transform())).toList();
@@ -95,11 +100,10 @@ public abstract class BaseAssimpRenderer {
                             && skinned.isInitialized() && skinned.supports(palette.length)) {
                         var material = ModelTextureCache.material(scene, instance.mesh());
                         try {
-                            skinned.renderWithPose(instance.mesh(), palette, stack, buffers,
+                            skinned.renderWithSnapshot(state, snapshot, instance.mesh(), stack, buffers,
                                     ModelTextureCache.getTexture(scene, instance.mesh()),
                                     Minecraft.getInstance().getTextureManager(), light, overlay,
-                                    material == null ? new float[]{1,1,1,1} : material.getDiffuseColor(),
-                                    snapshot.hasActiveMorphs(instance.mesh())?snapshot.getMorphWeights(instance.mesh()):null);
+                                    material == null ? new float[]{1,1,1,1} : material.getDiffuseColor());
                         } catch (RuntimeException failure) {
                             ClientRenderResources.disableGpuSkinning(failure);
                             renderInstance(scene, snapshot, instance, stack, buffers, light, overlay);
@@ -121,11 +125,24 @@ public abstract class BaseAssimpRenderer {
 
     static PoseSnapshot snapshotForScene(AssimpScene scene, AnimationState state) {
         PoseSnapshot snapshot = state == null ? null : state.getPoseSnapshot();
+        return validateSnapshot(scene, snapshot);
+    }
+
+    static PoseSnapshot snapshotForScene(AssimpScene scene, AnimationState state, float partialTick) {
+        return validateSnapshot(scene, state == null ? null : state.getRenderPose(partialTick));
+    }
+
+    private static PoseSnapshot validateSnapshot(AssimpScene scene, PoseSnapshot snapshot) {
         if (snapshot != null && snapshot.getScene() == scene) return snapshot;
         // Draw imported defaults even when a caller has no animation owner.
         for (AssimpMesh mesh : scene.getMeshes()) if (mesh.hasMorphTargets())
             return PoseSnapshot.capture(0, scene, Map.of());
         return null;
+    }
+
+    private static float renderPartialTick() {
+        Minecraft client = Minecraft.getInstance();
+        return client == null ? 1 : client.getFrameTime();
     }
 
     private void renderInstance(AssimpScene scene, PoseSnapshot snapshot, SceneTransforms.Instance instance,
@@ -166,7 +183,7 @@ public abstract class BaseAssimpRenderer {
 
     protected void renderInstances(AssimpScene scene, AnimationState state, List<SceneTransforms.Instance> instances,
                                    PoseStack stack, MultiBufferSource buffers, int light, int overlay) {
-        renderSnapshotInstances(scene, snapshotForScene(scene, state), instances, stack, buffers, light, overlay);
+        renderSnapshotInstances(scene, snapshotForScene(scene, state, renderPartialTick()), instances, stack, buffers, light, overlay);
     }
 
     private void renderSnapshotInstances(AssimpScene scene, PoseSnapshot snapshot, List<SceneTransforms.Instance> instances,

@@ -66,12 +66,17 @@ public final class OculusEntityBufferCache {
     }
 
     public static boolean renderPosed(AnimationState owner,PoseStack poses,int light,int overlay,boolean blockEntity) {
+        return renderPosed(owner,owner==null?null:owner.getRenderPose(net.minecraft.client.Minecraft.getInstance().getFrameTime()),
+                poses,light,overlay,blockEntity);
+    }
+
+    public static boolean renderPosed(AnimationState owner,PoseSnapshot snapshot,PoseStack poses,int light,int overlay,boolean blockEntity) {
         if(owner==null || owner.isClosed() || failed || !OculusEntityDrawBridge.available()
                 || !AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.oculusPoseCacheEnabled::get,true)
                 || AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.optimizationLevel::get,
                     AssimpLoaderConfig.OptimizationLevel.AUTO)==AssimpLoaderConfig.OptimizationLevel.FALLBACK) return false;
-        var snapshot=owner.getPoseSnapshot();var scene=owner.getScene();var configured=owner.getModelInstance();
-        if(snapshot==null || !SceneTransforms.isOpaque(scene) || configured!=null&&configured.hasMaterialAnimation()) return false;
+        var scene=owner.getScene();var configured=owner.getModelInstance();
+        if(snapshot==null || snapshot.getScene()!=scene || !SceneTransforms.isOpaque(scene) || configured!=null&&configured.hasMaterialAnimation()) return false;
         RenderSystem.assertOnRenderThread();
         prunePosed();
         long budget=(long)AssimpLoaderConfig.getIntOrDefault(AssimpLoaderConfig.CLIENT.oculusPoseCacheMiB,128)*1024*1024;

@@ -1,0 +1,35 @@
+#version 430 core
+layout(local_size_x=128) in;
+struct Vertex {vec4 position; vec4 normal; vec4 uv; ivec4 bones0; vec4 weights0; ivec4 bones1; vec4 weights1;};
+layout(std430,binding=0) readonly buffer BindVertices {Vertex vertices[];};
+layout(std430,binding=1) readonly buffer Palette {mat4 bones[];};
+layout(std430,binding=2) readonly buffer Morphs {vec4 deltas[];};
+layout(std430,binding=3) writeonly buffer Result {float outputData[];};
+uniform int vertexCount,boneCount,morphCount;
+uniform float morphWeights[32];
+void main() {
+    uint id=gl_GlobalInvocationID.x;
+    if(id>=uint(vertexCount)) return;
+    Vertex vertex=vertices[id];
+    vec3 position=vertex.position.xyz, normal=vertex.normal.xyz;
+    for(int target=0;target<morphCount;target++) {
+        int offset=(target*vertexCount+int(id))*2;
+        position+=deltas[offset].xyz*morphWeights[target];
+        normal+=deltas[offset+1].xyz*morphWeights[target];
+    }
+    if(morphCount>0) normal=length(normal)>1e-8?normalize(normal):vec3(0,1,0);
+    mat4 skin=mat4(0);
+    float total=0;
+    for(int slot=0;slot<8;slot++) {
+        int bone=slot<4?vertex.bones0[slot]:vertex.bones1[slot-4];
+        float weight=slot<4?vertex.weights0[slot]:vertex.weights1[slot-4];
+        if(bone>=0&&bone<boneCount&&weight>0) {skin+=bones[bone]*weight;total+=weight;}
+    }
+    skin=total>1e-8?skin/total:mat4(1);
+    position=(skin*vec4(position,1)).xyz;
+    mat3 matrix=mat3(skin);
+    normal=abs(determinant(matrix))>1e-12?transpose(inverse(matrix))*normal:normal;
+    uint offset=id*8u;
+    for(uint axis=0u;axis<3u;axis++) {outputData[offset+axis]=position[axis];outputData[offset+3u+axis]=normal[axis];}
+    outputData[offset+6u]=vertex.uv.x;outputData[offset+7u]=vertex.uv.y;
+}

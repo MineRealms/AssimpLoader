@@ -167,6 +167,17 @@ public final class WorldRuntimeSmokeTest {
             AssimpLoader.LOGGER.info("[WorldRuntime] 256-bone world Morph={} render passes={}",probeWeight,passes);
         }
         var pose=instance.animation().getPoseSnapshot();
+        var visual=instance.animation().getRenderPose(.375f);
+        if(instance.animation().getPerformanceSettings().renderInterpolation()) {
+            double clock=instance.animation().getSimulationTime();
+            long emissions=instance.emittedParticles();
+            if(visual!=instance.animation().getRenderPose(.375f)) throw new IllegalStateException("Render phase cache not reused");
+            verifyVisualBounds(visual);
+            if(instance.animation().getPoseSnapshot()!=pose || instance.animation().getSimulationTime()!=clock
+                    || instance.emittedParticles()!=emissions) throw new IllegalStateException("Rendering advanced simulation");
+            AssimpLoader.LOGGER.info("[WorldRuntime] Interpolated frame={} authoritative={} phase=.375 vertices bounded; simulation/effects unchanged",
+                    visual.getFrameId(),pose.getFrameId());
+        }
         var bounds=pose.getBounds();
         var minimum=new Vector3f(Float.POSITIVE_INFINITY);
         var maximumEdge=new Vector3f(Float.NEGATIVE_INFINITY);
@@ -217,6 +228,20 @@ public final class WorldRuntimeSmokeTest {
         if(stage==7) {
             if(aiDistance<.3 || !aiWalk) throw new IllegalStateException("AI did not move or select walk: "+aiDistance+"/"+aiWalk);
             AssimpLoader.LOGGER.info("[WorldRuntime] AI moved {} blocks; observed walk=true",aiDistance);
+        }
+    }
+
+    private static void verifyVisualBounds(cn.minerealms.assimploader.animation.PoseSnapshot pose) {
+        var bounds=pose.getBounds().inflate(1e-4);
+        var point=new Vector3f();
+        for(var instance:pose.copyMeshInstances()) {
+            var positions=CpuSkinning.geometry(pose,instance.mesh()).positions();
+            var transform=instance.mesh().hasBones()?new Matrix4f():instance.transform();
+            for(int index=0;index<positions.length;index+=3) {
+                transform.transformPosition(point.set(positions[index],positions[index+1],positions[index+2]));
+                if(!point.isFinite() || !bounds.contains(point.x,point.y,point.z))
+                    throw new IllegalStateException("Interpolated vertex escaped bounds: "+point+" / "+bounds);
+            }
         }
     }
 
