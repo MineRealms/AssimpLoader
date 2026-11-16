@@ -116,6 +116,7 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.IntValue computeSkinningOwners;
         public final RuntimeConfig runtime;
         public final BatchConfig batch;
+        public final CharacterConfig character;
 
         // Hot-Reload
         public final ForgeConfigSpec.BooleanValue hotReloadEnabled;
@@ -145,6 +146,7 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.BooleanValue devLookdevEnabled;
 
         public ClientConfig(ForgeConfigSpec.Builder builder) {
+            character = new CharacterConfig(builder);
             builder.comment("Client visual inputs; never changes server collision or hit authority").push("visual");
             visualMode=builder.defineEnum("mode",ClientVisualPolicy.Mode.HOST_CONTROLLED);
             localGroundPlacement=builder.comment("CLIENT_LOCAL: align poses using loaded client block collision shapes")
@@ -394,6 +396,28 @@ public class AssimpLoaderConfig {
                 .comment("Enable LookDev loaded-model preview; node editing is inactive")
                 .define("lookdevEnabled", true);
 
+            builder.pop();
+        }
+    }
+
+    /** Optional local-player display. Server simulation never reads these client settings. */
+    public static final class CharacterConfig {
+        public final ForgeConfigSpec.BooleanValue enabled;
+        public final ForgeConfigSpec.ConfigValue<String> profile;
+        public final ForgeConfigSpec.BooleanValue groundPlacement;
+        public final ForgeConfigSpec.BooleanValue effects;
+
+        public CharacterConfig(ForgeConfigSpec.Builder builder) {
+            builder.comment("Local third-person character display; server movement and hitboxes stay authoritative")
+                    .push("character");
+            enabled = builder.comment("Replace only the local player's third-person world renderer")
+                    .define("enabled", false);
+            profile = builder.comment("Namespaced character profile JSON resource; resource packs may override it")
+                    .define("profile", "assimploader:models/character/block_player/profile.json");
+            groundPlacement = builder.comment("Sample loaded client block shapes for configured visual foot placement")
+                    .define("groundPlacement", true);
+            effects = builder.comment("Enable effects declared by the character instance definition")
+                    .define("effects", false);
             builder.pop();
         }
     }
