@@ -14,10 +14,10 @@ must not change server movement, AABB, collision or damage authority.
 
 - [x] Independent Blender rig, weighted meshes, actions, Morph/PBR fixtures.
 - [x] Typed character profile, player inputs and animation priority/controller.
-- [ ] Local player rendering, lifecycle, fallback and consistent visual frame.
-- [ ] Bullet rigid bodies, joints, collision, ragdoll and bounded world sampling.
-- [ ] Format-independent append/IK/morph/evaluation semantics and numerical fixtures.
-- [ ] Runtime validation, delayed captures and completed-frame diagnostics.
+- [x] Local third-person world rendering, lifecycle, fallback and consistent visual frame.
+- [x] Bullet rigid bodies, joints, collision, ragdoll and bounded world sampling.
+- [x] Format-independent append/IK/bone/group morph stages and numerical fixtures.
+- [x] Runtime validation, delayed captures and completed-frame diagnostics.
 - [ ] Equipment/display/workflow extensions after the core loop.
 
 No completion or runtime claim follows from adding a source file or dependency.
@@ -25,7 +25,8 @@ PMX/VMD binary parsers are out of scope. Preserve unsupported feature diagnostic
 
 ## Numerical Acceptance
 
-2026-11-17: `gradlew test --tests cn.minerealms.assimploader.character.*`: 28 passed.
+2026-11-17: full `gradlew test jarJar runClient` completed successfully:
+338 tests, 337 passed, one opt-in benchmark skipped. Character tests: 29 passed.
 FBX and GLB contain exactly the 15 authored actions after restricting export to
 this scene's NLA tracks. Both retain the skeleton, Blink and Smile morphs.
 Blender reports zero unweighted vertices (624 vertices, 312 triangles, 23 bones).
@@ -46,10 +47,37 @@ The rig's explicit `defaults` restores the authored zero expression; it does not
 globally rewrite other imported models. Group morphs are flattened with cycle
 and depth checks before per-frame evaluation.
 
-The player event path and loaded-block collision adapter are implemented but
-have not yet passed client runtime acceptance. Equipment, first-person arms,
-display timeline and profile selection are still pending. SDEF/QDEF, UV/material
-morph and format-specific motion tracks remain separate unimplemented semantics.
+## Actual Player Acceptance
+
+Run `1794852271688` completed seven stages using the actual local-player event
+renderer in the disposable `Character_BlockPlayer_Acceptance` world. Each stage
+settled for at least 10.5 seconds. Stages: idle, constrained leg IK, group expression,
+ragdoll, animation restore, owner reload and invalid-profile vanilla fallback.
+All stage assertions passed, and screenshots were inspected for colored geometry
+and physical collapse. Albedo, normal and packed specular channels were ready.
+Player physical width and height stayed unchanged. Ragdoll sampled 25 loaded-block
+collision proxies, used 17 bodies/16 joints and discarded zero simulation time.
+Reload/failure closed the former physics and animation owners.
+
+An earlier run passed numerical assertions but revealed black generated PNGs.
+Changing color space after assigning generated pixels had cleared their contents.
+The builder now selects color space before filling pixels, and an asset regression
+test checks albedo variance and the tangent-space normal. Only the corrected run
+above is accepted as visual evidence.
+
+![Actual local player](validation/character/idle.png)
+![Client rigid-body ragdoll](validation/character/ragdoll.png)
+![Returned to animation](validation/character/restored.png)
+
+See [Blender workflow](CHARACTER_BLENDER_WORKFLOW.md) for reusable re-export,
+resource ownership, units and client commands. The exporter validation in live
+Blender confirmed 24 blended vertices, zero missing/unnormalized weights, exact
+15 tracks, a floor within 0.000001 m of zero and a height of 1.825 m.
+
+Equipment, first-person arms, display timeline and profile-selection UI are
+separate extensions. Enable/disable/profile/reload/morph/ragdoll client commands
+are available. SDEF/QDEF, UV/material/flip/impulse morph and imported motion-track
+semantics are not claimed complete by this core acceptance.
 
 ## Sources And Evidence
 
