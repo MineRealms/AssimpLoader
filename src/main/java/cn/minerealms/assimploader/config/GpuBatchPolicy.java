@@ -21,7 +21,7 @@ public record GpuBatchPolicy(Mode mode, int maxInstances, int geometryMiB, int f
         range(maxInstances, 1, 16384, "maxInstances");
         range(geometryMiB, 1, 256, "geometryMiB");
         range(frameMiB, 1, 128, "frameMiB");
-        range(hiZMaxResolution, 64, 2048, "hiZMaxResolution");
+        range(hiZMaxResolution, 64, 1024, "hiZMaxResolution");
         if (!Double.isFinite(hiZBias) || hiZBias < 0 || hiZBias > .05)
             throw new IllegalArgumentException("hiZBias must be finite and in [0,0.05]");
     }

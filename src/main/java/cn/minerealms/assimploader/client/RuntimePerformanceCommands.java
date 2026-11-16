@@ -30,6 +30,8 @@ public final class RuntimePerformanceCommands {
                     + cn.minerealms.assimploader.rendering.OculusEntityBufferCache.poseStatistics()),false);
             context.getSource().sendSuccess(() -> Component.literal("Compute skinning: "
                     + cn.minerealms.assimploader.render.ClientRenderResources.computeStatistics()),false);
+            context.getSource().sendSuccess(() -> Component.literal("GPU batches: "
+                    + cn.minerealms.assimploader.config.GpuBatchPolicy.current()+" / "+WorldModelBatches.statistics()),false);
             return 1;
         })));
     }

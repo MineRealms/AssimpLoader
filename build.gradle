@@ -25,6 +25,14 @@ minecraft {
     runs {
         client {
             workingDirectory project.file('run')
+            if (project.hasProperty('clientBatchSmoke')) {
+                if (['clientRuntimeSmoke','clientComputeSmoke','clientHighBoneSmoke','clientDeerSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke','clientKubeJsSmoke'].any { project.hasProperty(it) }) {
+                    throw new GradleException('clientBatchSmoke must run independently')
+                }
+                property 'batchtest.enabled','true'
+                if(project.hasProperty('clientBatchSafety')) property 'batchtest.safety','true'
+                args '--width','1280','--height','900'
+            }
             if (project.hasProperty('clientKubeJsWorldSmoke')) {
                 if (!project.hasProperty('clientRuntimeSmoke')) throw new GradleException('clientKubeJsWorldSmoke requires clientRuntimeSmoke=<world>')
                 property 'worldruntimetest.kubejs','true'
@@ -53,6 +61,7 @@ minecraft {
                 property 'worldruntimetest.enabled','true'
                 if (project.hasProperty('withOculus')) property 'worldruntimetest.shaders','true'
                 property 'worldruntimetest.world',project.property('clientRuntimeSmoke').toString()
+                if(project.hasProperty('clientRuntimeBatchSmoke')) property 'worldruntimetest.batches','true'
                 args '--width','1280','--height','900'
             }
             if (project.hasProperty('clientDeerSmoke')) {

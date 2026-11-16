@@ -10,6 +10,7 @@
   "client": [
     "visibility.ShowcaseFrustumMixin",
     "visibility.ShowcaseViewportMixin",
+    "visibility.WorldBatchFlushMixin",
     "vehicle.ArmoredCarCameraMixin"
   ],
   "injectors": {

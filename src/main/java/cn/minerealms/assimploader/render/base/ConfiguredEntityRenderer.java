@@ -70,7 +70,14 @@ public abstract class ConfiguredEntityRenderer<T extends Entity> extends EntityR
             var transform=modelTransform(entity,yaw,partialTick);
             cn.minerealms.assimploader.render.SceneTransforms.apply(stack,transform);
             var visual=state==null?null:state.getRenderPose(partialTick);
-            if(!cn.minerealms.assimploader.rendering.OculusEntityBufferCache.renderPosed(state,visual,stack,light,OverlayTexture.NO_OVERLAY,false))
+            boolean batched=false;
+            if(cn.minerealms.assimploader.client.WorldModelBatches.isCollecting()) {
+                PoseStack deferred=new PoseStack();
+                deferred.last().pose().set(stack.last().pose());deferred.last().normal().set(stack.last().normal());
+                batched=cn.minerealms.assimploader.client.WorldModelBatches.submit(scene,state,visual,stack,buffers,
+                    light,OverlayTexture.NO_OVERLAY,()->renderer.renderScene(scene,state,deferred,buffers,light,OverlayTexture.NO_OVERLAY,partialTick));
+            }
+            if(!batched && !cn.minerealms.assimploader.rendering.OculusEntityBufferCache.renderPosed(state,visual,stack,light,OverlayTexture.NO_OVERLAY,false))
                 renderer.renderScene(scene,state,stack,buffers,light,OverlayTexture.NO_OVERLAY,partialTick);
             if(state!=null && state.getModelInstance()!=null) AttachmentTrailRenderer.render(state.getModelInstance(),stack,buffers,light,
                     new org.joml.Matrix4f().translation(

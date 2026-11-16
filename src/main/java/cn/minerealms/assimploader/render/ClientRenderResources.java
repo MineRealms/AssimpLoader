@@ -71,6 +71,7 @@ public final class ClientRenderResources {
         }
         generation = AssimpModelLoader.getCacheGeneration();
         CachedMeshRenderer.clear();
+        cn.minerealms.assimploader.client.WorldModelBatches.clear();
         OculusEntityBufferCache.clear();
         if (skinnedRenderer != null) skinnedRenderer.cleanup();
         skinnedRenderer = null;

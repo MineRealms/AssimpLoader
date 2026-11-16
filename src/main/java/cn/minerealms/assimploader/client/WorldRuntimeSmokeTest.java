@@ -57,6 +57,8 @@ public final class WorldRuntimeSmokeTest {
     private static boolean oldGui,oldPause;
     private static int oldFov;
     private static int oldCacheMiB,oldCacheInstances;
+    private static cn.minerealms.assimploader.config.GpuBatchPolicy.Mode oldBatchMode;
+    private static boolean oldBatchHiZ;
 
     private WorldRuntimeSmokeTest() {}
     @SubscribeEvent public static void serverTick(TickEvent.ServerTickEvent event) {
@@ -143,6 +145,12 @@ public final class WorldRuntimeSmokeTest {
     }
 
     private static void verify(Minecraft mc,DeerShowcaseEntity deer,ModelInstance instance) {
+        if(Boolean.getBoolean("worldruntimetest.batches")) {
+            var batches=WorldModelBatches.statistics();
+            if(batches==null || batches.accepted()==0 || batches.frames()==0 || !batches.lastHiZ())
+                throw new IllegalStateException("Expected actual world MDI and current-frame HiZ: "+batches);
+            AssimpLoader.LOGGER.info("[WorldRuntime] Actual world MDI and HiZ={}",batches);
+        }
         if(Boolean.getBoolean("worldruntimetest.shaders")) {
             var passes=instance.renderStatistics();
             if(!cn.minerealms.assimploader.compat.OculusCompat.isShadersActive() || passes.mainPasses()==0 || passes.shadowPasses()==0)
@@ -202,6 +210,7 @@ public final class WorldRuntimeSmokeTest {
         if(vertexCount==0) throw new IllegalStateException("Empty deer geometry");
         AssimpLoader.LOGGER.info("[WorldRuntime] stage={} vertices={} edgesMin={} edgesMax={} bounds={} bodyOffset={}",
                 STAGES[stage],vertexCount,minimum,maximumEdge,bounds,instance.groundBodyOffset());
+        if(stage==0) verifyLocalVisualInputs(deer,pose.getScene());
         if(stage==1) {
             int grounded=0; float maximum=0;
             for(var entry:instance.feet().entrySet()) {
@@ -232,6 +241,33 @@ public final class WorldRuntimeSmokeTest {
         if(stage==7) {
             if(aiDistance<.3 || !aiWalk) throw new IllegalStateException("AI did not move or select walk: "+aiDistance+"/"+aiWalk);
             AssimpLoader.LOGGER.info("[WorldRuntime] AI moved {} blocks; observed walk=true",aiDistance);
+        }
+    }
+
+    private static void verifyLocalVisualInputs(DeerShowcaseEntity deer,cn.minerealms.assimploader.model.AssimpScene scene) {
+        var config=cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT;
+        var oldMode=config.visualMode.get();boolean oldGround=config.localGroundPlacement.get(),oldEffects=config.localEffects.get();
+        var box=deer.getBoundingBox();boolean hostGround=deer.groundIkEnabled(),hostEffects=deer.effectsEnabled();
+        ModelInstance local=null;
+        try {
+            config.visualMode.set(cn.minerealms.assimploader.config.ClientVisualPolicy.Mode.CLIENT_LOCAL);
+            config.localGroundPlacement.set(true);config.localEffects.set(false);
+            cn.minerealms.assimploader.config.ClientVisualPolicy.refreshFromConfig();
+            local=cn.minerealms.assimploader.animation.InstanceDefinitionResources.forModel(DeerShowcaseRenderer.MODEL_RESOURCE).orElseThrow().instantiate(scene);
+            local.requestState("idle");
+            MinecraftInstanceWorldBinding.bind(local,deer,current->new Matrix4f().rotateY((float)Math.toRadians(-current.getYRot())),
+                    current->{throw new IllegalStateException("Local visual mode read host ground input");},
+                    current->{throw new IllegalStateException("Local visual mode read host effects input");});
+            for(int tick=0;tick<16;tick++) local.animation().update(.05f);
+            long grounded=local.feet().values().stream().filter(foot->foot.getLastTarget()!=null).count();
+            if(grounded!=4 || local.trailsEnabled() || !box.equals(deer.getBoundingBox())
+                    || deer.groundIkEnabled()!=hostGround || deer.effectsEnabled()!=hostEffects)
+                throw new IllegalStateException("Client visual independence failed: feet="+grounded);
+            AssimpLoader.LOGGER.info("[WorldRuntime] CLIENT_LOCAL sampled four feet with host suppliers forbidden; client entity AABB and synchronized switches unchanged");
+        } finally {
+            if(local!=null) local.animation().close();
+            config.visualMode.set(oldMode);config.localGroundPlacement.set(oldGround);config.localEffects.set(oldEffects);
+            cn.minerealms.assimploader.config.ClientVisualPolicy.refreshFromConfig();
         }
     }
 
@@ -299,6 +335,11 @@ public final class WorldRuntimeSmokeTest {
     private static void prepare(Minecraft mc) {
         oldGui=mc.options.hideGui;oldPause=mc.options.pauseOnLostFocus;oldFov=mc.options.fov().get();
         var config=cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT;
+        if(Boolean.getBoolean("worldruntimetest.batches")) {
+            oldBatchMode=config.batch.mode.get();oldBatchHiZ=config.batch.hiZEnabled.get();
+            config.batch.mode.set(cn.minerealms.assimploader.config.GpuBatchPolicy.Mode.MDI);config.batch.hiZEnabled.set(true);
+            cn.minerealms.assimploader.config.GpuBatchPolicy.refreshFromConfig();
+        }
         oldCacheMiB=config.oculusPoseCacheMiB.get();oldCacheInstances=config.oculusPoseCacheInstances.get();
         mc.options.hideGui=true;mc.options.pauseOnLostFocus=false;mc.options.fov().set(50);
         pending=true;
@@ -386,6 +427,11 @@ public final class WorldRuntimeSmokeTest {
         return null;
     }
     private static void restoreCacheConfig() {
+        if(oldBatchMode!=null) {
+            var config=cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT;
+            config.batch.mode.set(oldBatchMode);config.batch.hiZEnabled.set(oldBatchHiZ);
+            cn.minerealms.assimploader.config.GpuBatchPolicy.refreshFromConfig();oldBatchMode=null;
+        }
         if(oldCacheMiB>0) {
             var config=cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT;
             config.oculusPoseCacheMiB.set(oldCacheMiB);config.oculusPoseCacheInstances.set(oldCacheInstances);
