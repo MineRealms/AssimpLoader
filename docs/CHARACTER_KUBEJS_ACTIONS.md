@@ -122,6 +122,12 @@ scripted actions. Do not call both in the same tick.
 `clear()`, `controllers()`, `use(id)`, `useDefault()`, `active()`, `failure()`,
 `enable(boolean)`, `profile(resource)`, `reload()` and `status()`.
 
+Registration/selection and profile/enable settings are allowed during top-level
+client-script loading on Forge's mod loading thread. Character handles and frame
+controls require the client thread. Registration only stores the callback; it
+does not run a solver or load a model on that loading thread. Client-script reload
+clears prior registrations and the next character tick retires old policy state.
+
 Script state is a mutable Java Map belonging to the current model/player binding:
 use `state.get(key)` and `state.put(key, value)`. It is cleared on controller
 replacement, model reload or world/player replacement. Retain values in state,
@@ -198,6 +204,7 @@ Scripts do not supply arbitrary native-loop callbacks.
 | `layer(id, clip, weight, additive, mask)` | Named clip overlay with node weights |
 | `layerPhase(id, progress)` | Native or custom phase for a clip overlay |
 | `layerPlayback(id, speed, loop)` | Release layer phase and set its normal playback rate |
+| `layerPlayback(id)`, `layerReleasePhase(id)` | Inspect the layer clock or release phase pinning |
 | `layerWeight(id, weight)`, `removeLayer(id)` | Existing layer controls |
 | `bones()`, `node(name)`, `bounds()`, `attachment(name)` | Numeric node/bounds/attachment inspection |
 | `clearScriptControls()` | Remove script poses/layers and release base phase/rate |
@@ -207,6 +214,7 @@ Additional frame controls are `bone(role)`, `bones()`, `clip(intent)`,
 `ikTarget(name,x,y,z)`, `ikStatus(name)`, `motions()`, `motion(name,loop)`,
 `stopMotion()`, `seekMotion(seconds)`, `pauseMotion(boolean)`,
 `ragdoll(boolean)`, `automaticRagdoll()`, `physics()`,
+`physicsBodies()`, `body(id)`, `resetPhysics()`,
 `impulse(body,x,y,z)` and `torqueImpulse(body,x,y,z)`.
 IK targets and physics impulses are client visual controls only. Physics must be
 present in the selected profile; a missing rig/body/chain produces a diagnostic.
@@ -225,7 +233,17 @@ AssimpPlayerActions.config.after = function (frame, config) {
 
 ```powershell
 node model-tests/kubejs/player_actions_test.cjs
+.\gradlew.bat test build --console=plain
+.\gradlew.bat test build runClient -PclientKubeJsSmoke -PwithoutOptionalMods --console=plain
 ```
+
+Verified 2026-11-17: the offline policy harness passed. The real client/Rhino
+gate loaded the complete concatenated template with zero script load errors,
+reported `JavaScript assertions passed`, and wrote `success:true` to its result
+file. The final full build passed with **367 tests: 366 passed, one opt-in
+benchmark skipped, zero failures/errors**. Focused regressions cover loading-thread
+registration, shared-handle cleanup, clock pinning, batched pose publication and
+restoring paused/non-looping playback when retiring a policy.
 
 This offline harness verifies policy decisions and command payloads: rapid
 accepted retriggers, native-phase sampling, five-hit combo/reset/spin gates,
@@ -233,3 +251,21 @@ mirrored offhand, alternating punches, item uses, ID/tag rules, upper-body masks
 posture cleanup, torch priority and extension hooks. It is not proof of actual
 Minecraft/Rhino loading or final rendered poses; those require the real client
 acceptance gate documented in the integration report.
+
+The client acceptance task concatenates the canonical example with its probe
+script. It checks actual Rhino loading, loading-thread registration, nested
+pose/array conversion, clip/layer clocks and the unchanged demo controller against
+a real Assimp model handle with synthetic input. This is distinct from the
+earlier 13-stage actual-player acceptance and does not establish a visual review
+of every new scripted action. The Gradle task fails if its machine-readable
+`run/kubejs-smoke-result.json` is missing or reports failure.
+
+## Reference Evidence
+
+Local reference: `D:/Downloads/MoBends-forge-1.20.1-5.1.5.jar`, SHA-256
+`db7658ac859329a312c133e3c2d72b10a522bdf6fd50911d87ee92ee9e12b194`.
+`javap -p -c` on `SwordAction` confirms the five ordered slash classes, accepted
+attack change detection and 20-tick combo reset. This template independently
+authors equivalent policies and poses against the AssimpLoader rig. The original
+mod's classes/assets are not bundled. Other preset categories follow the user's
+provided behavior inventory; this document does not claim a full binary audit.

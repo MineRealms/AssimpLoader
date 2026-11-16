@@ -1,5 +1,10 @@
 # KubeJS Integration
 
+Player action policies, editable Mo' Bends-style presets, native attack clocks,
+procedural bone layers and character solver/physics controls are documented in
+[KubeJS player actions](CHARACTER_KUBEJS_ACTIONS.md). The complete opt-in template
+is [assimp_player_actions.js](../examples/kubejs/client_scripts/assimp_player_actions.js).
+
 Optional integration for Minecraft 1.20.1 / Forge. Development verification pins
 KubeJS `2001.6.5-build.26`, Rhino `2001.2.2-build.17`, and Architectury `9.1.12`.
 None is bundled or required for ordinary AssimpLoader installations.

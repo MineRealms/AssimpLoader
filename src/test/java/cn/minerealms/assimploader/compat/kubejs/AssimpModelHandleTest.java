@@ -80,6 +80,17 @@ class AssimpModelHandleTest {
         }
     }
 
+    @Test void policyRetirementRestoresPausedAndNonLoopingPlayback() throws Exception {
+        try(var state=fixture("highbone_probe")) {
+            var handle=new AssimpModelHandle(state);assertTrue(handle.state("wave"));
+            handle.playback(2,false).phase(.5).pause();assertTrue(state.isPaused());
+            CharacterActionFrame.clearControls(state);
+            assertFalse(state.isPaused());assertTrue(state.getCurrentAnimation().isPlaying());
+            assertTrue(state.getCurrentAnimation().isLooping());assertFalse(state.getCurrentAnimation().hasSynchronizedPhase());
+            double time=state.getSimulationTime();state.update(.05f);assertTrue(state.getSimulationTime()>time);
+        }
+    }
+
     @Test void invalidInputsAndExpiredOrCrossThreadHandlesFailClearly() throws Exception {
         var state=fixture("highbone_probe");var handle=new AssimpModelHandle(state);
         try {

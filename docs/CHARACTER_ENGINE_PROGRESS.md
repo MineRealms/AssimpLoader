@@ -18,10 +18,30 @@ must not change server movement, AABB, collision or damage authority.
 - [x] Bullet rigid bodies, joints, collision, ragdoll and bounded world sampling.
 - [x] Format-independent append/IK/bone/group morph stages and numerical fixtures.
 - [x] Runtime validation, delayed captures and completed-frame diagnostics.
-- [ ] Equipment/display/workflow extensions after the core loop.
+- [x] Physical hand equipment sockets, profile menu and semantic motion controls.
+- [x] Native attack phase/cadence synchronization and forward crouch knee poles.
+- [x] Optional KubeJS player policies, editable action library and solver controls.
+- [ ] Armor, first-person/remote-player rendering and camera/audio display timeline.
 
 No completion or runtime claim follows from adding a source file or dependency.
 PMX/VMD binary parsers are out of scope. Preserve unsupported feature diagnostics.
+
+## Subsequent Acceptance
+
+Run `1794855778366` passed all 13 actual-player stages with 10.5-second settling:
+idle, IK, expression, ragdoll, restore, reload, both equipment hands, semantic
+motion, menu, crouch, rapid native swings and invalid-profile fallback.
+That build had 358 tests: 357 passed and one opt-in benchmark skipped.
+The crouch checks assert forward knee positions and grounded ankle height;
+rapid swings compare normalized model phase to Minecraft's accepted phase.
+
+The new optional player-policy API and independent Mo' Bends-style script demo
+are described in [KubeJS player actions](CHARACTER_KUBEJS_ACTIONS.md). This keeps
+action decisions/curves editable while Java owns pose, physics and skinning.
+The final KubeJS extension build passes 367 tests (366 passed, one opt-in
+benchmark skipped), and the real client/Rhino acceptance reports success.
+That gate checks the canonical script and actual Assimp handles with synthetic
+input; new script actions have not each received an in-world visual review.
 
 ## Numerical Acceptance
 

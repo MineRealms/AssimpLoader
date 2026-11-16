@@ -34,7 +34,7 @@ AssimpAcceptance.onClient(function () {
     check(Math.abs(Number(playback.get('time')) / Number(playback.get('duration')) - 0.75) < 0.000001, 'base phase clock conversion failed')
     model.releasePhase().playback(1, true)
     // Exercise the actual template in Rhino against a real native model handle.
-    function mapped(values) { return {get: function (key) { return values[key] }} }
+    var mapped = function (values) { return {get: function (key) { return values[key] }} }
     var sword = mapped({id: 'minecraft:diamond_sword', attackType: 'sword', tags: [], useAnimation: 'none'})
     var empty = mapped({id: 'minecraft:air', attackType: 'fist', tags: [], useAnimation: 'none'})
     var facts = {tick: 1, time: 0.05, swingGeneration: 1, swingActive: true, swingProgress: 0.6,

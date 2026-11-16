@@ -8,8 +8,8 @@ The optional `equipmentDefinition` character-profile resource selects physical r
   "enabled": true,
   "right_hand": {
     "node": "Hand.R",
-    "position": [0, 0.055, 0],
-    "rotation": [0.70710678, 0, 0, 0.70710678],
+    "position": [0, 0.055, -0.125],
+    "rotation": [0, 0.70710678, -0.70710678, 0],
     "scale": 1
   },
   "left_hand": null
@@ -25,4 +25,9 @@ The optional `equipmentDefinition` character-profile resource selects physical r
 
 This path replaces local third-person world held-item layers only. Armor, capes, elytra geometry, first-person arms, inventory previews, and custom per-item grip/aim poses remain separate work. Server inventory, entity dimensions, collision, reach, and damage authority are unchanged.
 
-The fixture definition supplies an initial grip. Visual acceptance with swords, blocks and shields, both dominant-hand settings, and ragdoll poses is still required; compilation and numeric transform tests alone do not establish that every item has a correct grip.
+The fixture uses `Rx(-90) * Ry(180)` to align its hand frame with Minecraft's
+third-person item frame. The corrected 13-stage actual-player acceptance
+`1794855778366` passed with sword/shield, block/shield, both dominant-hand settings,
+ragdoll, crouch and native rapid swings. Each stage settled for 10.5 seconds.
+These fixtures do not establish that every modded item's authored display
+transform is suitable; packs can provide a different equipment sidecar.

@@ -75,7 +75,16 @@ public final class CharacterActionFrame {
     public void impulse(String body,double x,double y,double z){check();var physics=LocalPlayerCharacter.currentPhysics();if(physics==null)throw new IllegalStateException("Character has no physics");physics.applyImpulse(body,new Vector3f(number(x),number(y),number(z)));}
     public void torqueImpulse(String body,double x,double y,double z){check();var physics=LocalPlayerCharacter.currentPhysics();if(physics==null)throw new IllegalStateException("Character has no physics");physics.applyTorqueImpulse(body,new Vector3f(number(x),number(y),number(z)));}
     public void expire(){valid=false;}
-    public static void clearControls(AnimationState animation){new AssimpModelHandle(animation).clearScriptControls();}
+    public static void clearControls(AnimationState animation){
+        new AssimpModelHandle(animation).clearScriptControls();
+        animation.resume();
+        var player=animation.getCurrentAnimation();
+        if(player!=null) {
+            var binding=animation.getStateMachine().getBindings().get(animation.getStateMachine().getCurrentStateName());
+            player.setLooping(binding==null || !binding.clip().equals(player.getAnimation().getName()) || binding.looping());
+            player.play();
+        }
+    }
     private void check(){CharacterScriptApi.checkThread();if(!valid||animation.isClosed())throw new IllegalStateException("Character action frame expired; retain state values, not the frame");}
     private void checkRig(){check();if(rig==null)throw new IllegalStateException("Character has no solver rig");}
     private static float number(double value){if(!Double.isFinite(value)||!Float.isFinite((float)value))throw new IllegalArgumentException("Expected finite float");return (float)value;}
