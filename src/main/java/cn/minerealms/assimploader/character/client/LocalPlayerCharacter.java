@@ -6,6 +6,9 @@ import cn.minerealms.assimploader.animation.ClientAnimationManager;
 import cn.minerealms.assimploader.animation.ModelInstance;
 import cn.minerealms.assimploader.character.core.CharacterProfile;
 import cn.minerealms.assimploader.character.core.PlayerAnimationController;
+import cn.minerealms.assimploader.character.physics.BulletCharacterPhysics;
+import cn.minerealms.assimploader.character.physics.CharacterPhysicsAsset;
+import cn.minerealms.assimploader.character.solver.CharacterRigDefinition;
 import cn.minerealms.assimploader.client.MinecraftInstanceWorldBinding;
 import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
@@ -78,6 +81,9 @@ public final class LocalPlayerCharacter {
         final AssimpScene scene;
         final AnimationState animation;
         final PlayerAnimationController controller;
+        final BulletCharacterPhysics physics;
+        final CharacterPhysicsClientBinding physicsBinding;
+        final CharacterRigDefinition.Installed rig;
         final MinecraftPlayerInputSampler inputs = new MinecraftPlayerInputSampler();
 
         Binding(LocalPlayer player, CharacterProfile profile, AssimpScene scene) {
@@ -88,15 +94,31 @@ public final class LocalPlayerCharacter {
             if (animation == null) throw new IllegalArgumentException("Character needs a skeleton, animation or instance definition");
             try {
                 controller = new PlayerAnimationController(profile, animation);
+                var resources=Minecraft.getInstance().getResourceManager();
+                if(profile.solverDefinition()!=null) {
+                    try(var reader=resources.openAsReader(new ResourceLocation(profile.solverDefinition()))) {
+                        rig=CharacterRigDefinition.read(reader).install(animation);
+                    }
+                } else rig=null;
+                if(profile.physicsDefinition()!=null && AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.character.physicsEnabled::get,true)) {
+                    try(var reader=resources.openAsReader(new ResourceLocation(profile.physicsDefinition()))) {
+                        physics=new BulletCharacterPhysics(CharacterPhysicsAsset.read(reader,scene),scene,(float)profile.scale());
+                    }
+                    physicsBinding=new CharacterPhysicsClientBinding(physics);
+                    try {
+                        physicsBinding.update(player,profile.modelYawDegrees());
+                        animation.addModifier("character:physics",physics);
+                    } catch(RuntimeException exception) {physics.close();throw exception;}
+                } else {physics=null;physicsBinding=null;}
                 if (animation.getModelInstance() != null) {
                     MinecraftInstanceWorldBinding.bind(animation.getModelInstance(), player,
-                            value -> rotationScale(value.yBodyRot, profile.scale()),
+                            value -> rotationScale(value.yBodyRot, profile),
                             value -> settings.groundPlacement(), value -> settings.effects());
                 }
                 controller.update(inputs.sample(player));
-            } catch (RuntimeException exception) {
+            } catch (IOException | RuntimeException exception) {
                 ClientAnimationManager.getInstance().release(animationOwner);
-                throw exception;
+                throw new IllegalArgumentException("Cannot initialize character solver/physics",exception);
             }
         }
 
@@ -110,6 +132,8 @@ public final class LocalPlayerCharacter {
     public static AnimationState currentAnimation() { return active == null ? null : active.animation; }
     public static ModelInstance currentInstance() { return active == null ? null : active.animation.getModelInstance(); }
     public static CharacterProfile currentProfile() { return active == null ? null : active.profile; }
+    public static BulletCharacterPhysics currentPhysics() { return active == null ? null : active.physics; }
+    public static CharacterRigDefinition.Installed currentRig() { return active == null ? null : active.rig; }
     public static Settings settings() { return settings; }
 
     public static Diagnostics diagnostics() {
@@ -164,6 +188,7 @@ public final class LocalPlayerCharacter {
         }
         if (active == null || minecraft.isPaused()) return;
         try {
+            if(active.physicsBinding!=null)active.physicsBinding.update(active.player,active.profile.modelYawDegrees());
             active.controller.update(active.inputs.sample(active.player));
             // The existing NORMAL-priority ClientAnimationManager tick advances simulation exactly once.
             ClientAnimationManager.getInstance().markRendered(active.animation, 0);
@@ -246,7 +271,7 @@ public final class LocalPlayerCharacter {
         poses.pushPose();
         try {
             float yaw = Mth.rotLerp(event.getPartialTick(), binding.player.yBodyRotO, binding.player.yBodyRot);
-            poses.mulPose(Axis.YP.rotationDegrees(180 - yaw));
+            poses.mulPose(Axis.YP.rotationDegrees(binding.profile.modelYawDegrees() - yaw));
             float scale = (float) binding.profile.scale();
             poses.scale(scale, scale, scale);
             int overlay = LivingEntityRenderer.getOverlayCoords(binding.player, 0);
@@ -256,7 +281,7 @@ public final class LocalPlayerCharacter {
                         event.getPackedLight(), overlay, event.getPartialTick());
             }
             if (binding.animation.getModelInstance() != null) {
-                var world = rotationScale(yaw, binding.profile.scale());
+                var world = rotationScale(yaw, binding.profile);
                 world.setTranslation((float) Mth.lerp(event.getPartialTick(), binding.player.xo, binding.player.getX()),
                         (float) Mth.lerp(event.getPartialTick(), binding.player.yo, binding.player.getY()),
                         (float) Mth.lerp(event.getPartialTick(), binding.player.zo, binding.player.getZ()));
@@ -272,8 +297,8 @@ public final class LocalPlayerCharacter {
         }
     }
 
-    private static Matrix4f rotationScale(float bodyYaw, double scale) {
-        return new Matrix4f().rotateY((float) Math.toRadians(180 - bodyYaw)).scale((float) scale);
+    private static Matrix4f rotationScale(float bodyYaw, CharacterProfile profile) {
+        return new Matrix4f().rotateY((float) Math.toRadians(profile.modelYawDegrees() - bodyYaw)).scale((float) profile.scale());
     }
 
     @SubscribeEvent public static void logout(ClientPlayerNetworkEvent.LoggingOut event) {

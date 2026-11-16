@@ -1,0 +1,32 @@
+{
+  "source": "Independent generated block-style character; no CustomSteve assets",
+  "blender": "5.3.0",
+  "vertices": 624,
+  "triangles": 312,
+  "bones": 23,
+  "actions": [
+    "idle",
+    "walk",
+    "run",
+    "crouch",
+    "crouch_walk",
+    "jump",
+    "fall",
+    "swim",
+    "fly",
+    "elytra",
+    "ride",
+    "sleep",
+    "dead",
+    "use_item",
+    "swing"
+  ],
+  "morphs": [
+    "Blink",
+    "Smile"
+  ],
+  "heightMetres": 1.825,
+  "rig": "BlockPlayerRig",
+  "asset": "assimploader:models/character/block_player/block_player.fbx",
+  "note": "Runtime IK/append/rigid-body semantics are declared in sidecar resources, not baked physics."
+}

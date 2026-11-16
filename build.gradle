@@ -233,6 +233,15 @@ repositories {
 dependencies {
     minecraft "net.minecraftforge:forge:1.20.1-${forge_version}"
 
+    // Bullet rigid bodies/constraints, isolated behind the character physics service.
+    for (physicsLibrary in [
+            [group: 'com.github.stephengold', name: 'jbullet', version: '1.0.3', range: '[1.0.3,1.0.4)'],
+            [group: 'com.github.stephengold', name: 'stack-alloc', version: '1.0.2', range: '[1.0.2,1.0.3)'],
+            [group: 'javax.vecmath', name: 'vecmath', version: '1.5.2', range: '[1.5.2,1.5.3)']]) {
+        minecraftLibrary("${physicsLibrary.group}:${physicsLibrary.name}:${physicsLibrary.version}") { transitive = false }
+        jarJar(group: physicsLibrary.group, name: physicsLibrary.name, version: physicsLibrary.range) { transitive = false }
+    }
+
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     for (coordinate in ['dev.latvian.mods:kubejs-forge:2001.6.5-build.26',

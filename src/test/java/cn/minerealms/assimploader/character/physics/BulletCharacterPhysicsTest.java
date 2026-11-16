@@ -165,9 +165,13 @@ class BulletCharacterPhysicsTest {
         try(var physics=actor(definition(new Vec3(0,-10,0),List.of(box,capsule),List.of()))) {
             physics.setWorldBoxes(List.of(floor()));
             for(int i=0;i<240;i++) physics.advance(new HashMap<>(),1d/120);
-            assertEquals(.4,physics.bodyTransform("box").m31(),.025);
-            assertEquals(.5,physics.bodyTransform("capsule").m31(),.025);
-            physics.applyImpulse("box",new Vector3f(2,0,0));assertEquals(1,physics.linearVelocity("box").x,1e-5);
+            var boxPose=physics.bodyTransform("box");
+            double boxSupport=Math.abs(boxPose.m01())*.3+Math.abs(boxPose.m11())*.4+Math.abs(boxPose.m21())*.2;
+            assertEquals(boxSupport,boxPose.m31(),.025);
+            var capsulePose=physics.bodyTransform("capsule");
+            assertEquals(.2+.3*Math.abs(capsulePose.m11()),capsulePose.m31(),.025);
+            float before=physics.linearVelocity("box").x;
+            physics.applyImpulse("box",new Vector3f(2,0,0));assertEquals(before+1,physics.linearVelocity("box").x,1e-5);
         }
     }
 

@@ -214,7 +214,7 @@ public class AnimationState implements AutoCloseable {
             for (PoseModifier.Category category:PoseModifier.Category.values()) for (PoseModifier modifier : modifiers.values()) {
                 if(modifier.category()!=category) continue;
                 boolean enabled = switch (modifier.category()) {
-                    case GENERAL -> true;
+                    case BONE_MORPH, GENERAL, PHYSICS, POST_PHYSICS -> true;
                     case GROUND, IK -> policy.ikEnabled() && performance.ik();
                     case SPRING -> policy.springBonesEnabled() && performance.springBones();
                 };
@@ -253,6 +253,7 @@ public class AnimationState implements AutoCloseable {
             });
         }
         sampledMorphs.putAll(morphWeights);
+        if (!stopped) modifiers.values().forEach(modifier -> modifier.applyMorphs(scene, sampledMorphs));
         poseSnapshot = PoseSnapshot.capture(++frameId, scene, locals, sampledMorphs);
         if (performance.renderInterpolation() && RuntimePerformancePolicy.current().mode() != RuntimePerformancePolicy.Mode.PERFORMANCE)
             renderPoses.publish(poseSnapshot, deltaSeconds);
@@ -326,6 +327,15 @@ public class AnimationState implements AutoCloseable {
 
     public void addModifier(String id, PoseModifier modifier) {
         requireOpen();
+        java.util.Objects.requireNonNull(id);java.util.Objects.requireNonNull(modifier);
+        for(var entry:modifiers.entrySet()) {
+            if(entry.getKey().equals(id)) continue;
+            PoseModifier other=entry.getValue();
+            if((modifier.category()==PoseModifier.Category.PHYSICS&&other.category()==PoseModifier.Category.SPRING
+                    ||modifier.category()==PoseModifier.Category.SPRING&&other.category()==PoseModifier.Category.PHYSICS)
+                    &&modifier.controlledBones().stream().anyMatch(other.controlledBones()::contains))
+                throw new IllegalArgumentException("Rigid-body and Spring Bone modifiers cannot control the same bone");
+        }
         PoseModifier old = modifiers.put(java.util.Objects.requireNonNull(id), java.util.Objects.requireNonNull(modifier));
         if (old != null && old != modifier) old.close();
         stopped = false;

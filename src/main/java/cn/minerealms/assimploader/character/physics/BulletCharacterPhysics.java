@@ -29,6 +29,7 @@ import static cn.minerealms.assimploader.character.physics.CharacterPhysicsDefin
 public final class BulletCharacterPhysics implements PoseModifier {
     private final CharacterPhysicsDefinition definition;
     private final AssimpNode root;
+    private final float modelScale;
     private final Thread owner=Thread.currentThread();
     private final DiscreteDynamicsWorld world;
     private final Map<String,BodyState> bodies=new LinkedHashMap<>();
@@ -45,8 +46,8 @@ public final class BulletCharacterPhysics implements PoseModifier {
         final Body definition;final RigidBody body;final javax.vecmath.Vector3f inertia;
         final Matrix4f inverseOffset;final int depth;
         Transform target=new Transform();
-        BodyState(Body definition,RigidBody body,javax.vecmath.Vector3f inertia,int depth) {
-            this.definition=definition;this.body=body;this.inertia=inertia;this.depth=depth;inverseOffset=definition.offset().invert();
+        BodyState(Body definition,RigidBody body,javax.vecmath.Vector3f inertia,int depth,float scale) {
+            this.definition=definition;this.body=body;this.inertia=inertia;this.depth=depth;inverseOffset=scaled(definition.offset(),scale).invert();
         }
     }
     private record JointState(Joint definition,Generic6DofConstraint constraint,BodyState a,BodyState b) {}
@@ -65,8 +66,12 @@ public final class BulletCharacterPhysics implements PoseModifier {
     public record Statistics(int bodies,int joints,int worldBoxes,int lastSubsteps,long totalSubsteps,
             double pendingSeconds,double droppedSeconds,long resets,boolean ragdoll,boolean closed) {}
 
-    public BulletCharacterPhysics(CharacterPhysicsDefinition definition,AssimpScene scene) {this(definition,Objects.requireNonNull(scene).getRootNode());}
-    public BulletCharacterPhysics(CharacterPhysicsDefinition definition,AssimpNode root) {
+    public BulletCharacterPhysics(CharacterPhysicsDefinition definition,AssimpScene scene) {this(definition,Objects.requireNonNull(scene).getRootNode(),1);}
+    public BulletCharacterPhysics(CharacterPhysicsDefinition definition,AssimpScene scene,float scale) {this(definition,Objects.requireNonNull(scene).getRootNode(),scale);}
+    public BulletCharacterPhysics(CharacterPhysicsDefinition definition,AssimpNode root) {this(definition,root,1);}
+    private BulletCharacterPhysics(CharacterPhysicsDefinition definition,AssimpNode root,float scale) {
+        if(!Float.isFinite(scale)||scale<.001f||scale>100)throw new IllegalArgumentException("Invalid physics model scale");
+        modelScale=scale;
         this.definition=Objects.requireNonNull(definition);this.root=root;
         var configuration=new DefaultCollisionConfiguration();
         world=new DiscreteDynamicsWorld(new CollisionDispatcher(configuration),new DbvtBroadphase(),new SequentialImpulseConstraintSolver(),configuration);
@@ -75,12 +80,12 @@ public final class BulletCharacterPhysics implements PoseModifier {
         try {
             for(Body value:definition.bodies()) {
                 if(value.bone()!=null&&!graph.contains(value.bone())) throw new IllegalArgumentException("Unknown physics bone: "+value.bone());
-                CollisionShape shape=shape(value);var inertia=new javax.vecmath.Vector3f();shape.calculateLocalInertia(value.mass(),inertia);
-                Matrix4f initial=(value.bone()==null?new Matrix4f():graph.global(value.bone())).mul(value.offset());
+                CollisionShape shape=shape(value,scale);var inertia=new javax.vecmath.Vector3f();shape.calculateLocalInertia(value.mass(),inertia);
+                Matrix4f initial=scaled(rigidBone(value.bone()==null?new Matrix4f():graph.global(value.bone())).mul(value.offset()),scale);
                 Transform transform=bullet(initial);var info=new RigidBodyConstructionInfo(value.mode()==Mode.FOLLOW?0:value.mass(),new DefaultMotionState(transform),shape,
                         value.mode()==Mode.FOLLOW?new javax.vecmath.Vector3f():inertia);
                 info.linearDamping=value.linearDamping();info.angularDamping=value.angularDamping();info.friction=value.friction();info.restitution=value.restitution();
-                RigidBody rigid=new RigidBody(info);BodyState state=new BodyState(value,rigid,inertia,depth(root,value.bone(),0));state.target=transform;
+                RigidBody rigid=new RigidBody(info);BodyState state=new BodyState(value,rigid,inertia,depth(root,value.bone(),0),scale);state.target=transform;
                 if(value.mode()==Mode.FOLLOW) makeKinematic(rigid);
                 bodies.put(value.id(),state);world.addRigidBody(rigid,(short)value.group(),(short)value.mask());
                 if(value.bone()!=null) feedback.add(state);
@@ -88,8 +93,9 @@ public final class BulletCharacterPhysics implements PoseModifier {
             feedback.sort(Comparator.comparingInt(state->state.depth));
             for(Joint value:definition.joints()) {
                 BodyState a=bodies.get(value.bodyA()),b=bodies.get(value.bodyB());
-                Generic6DofConstraint joint=new Generic6DofConstraint(a.body,b.body,bullet(value.frameA()),bullet(value.frameB()),true);
-                joint.setLinearLowerLimit(value.linearLower().bullet());joint.setLinearUpperLimit(value.linearUpper().bullet());
+                Generic6DofConstraint joint=new Generic6DofConstraint(a.body,b.body,bullet(scaled(value.frameA(),scale)),bullet(scaled(value.frameB(),scale)),true);
+                var lower=value.linearLower().bullet();lower.scale(scale);var upper=value.linearUpper().bullet();upper.scale(scale);
+                joint.setLinearLowerLimit(lower);joint.setLinearUpperLimit(upper);
                 joint.setAngularLowerLimit(value.angularLower().bullet());joint.setAngularUpperLimit(value.angularUpper().bullet());
                 world.addConstraint(joint,value.disableLinkedCollision());joints.add(new JointState(value,joint,a,b));
             }
@@ -101,7 +107,7 @@ public final class BulletCharacterPhysics implements PoseModifier {
     public CharacterPhysicsDefinition definition() {return definition;}
     public Statistics statistics() {return new Statistics(bodies.size(),joints.size(),worldBoxes.size(),lastSubsteps,totalSubsteps,accumulator,droppedSeconds,resets,ragdoll,closed);}
 
-    /** Root is rigid model-to-anchor space. Visual scale must be baked into physics dimensions/offsets before creating this actor. */
+    /** Root is rigid model-to-anchor space; uniform visual scale is supplied at construction. */
     public void setFrame(Matrix4fc modelToAnchor,double worldAnchorX,double worldAnchorY,double worldAnchorZ) {
         requireOpen();rigid(modelToAnchor);
         if(!Double.isFinite(worldAnchorX)||!Double.isFinite(worldAnchorY)||!Double.isFinite(worldAnchorZ)) throw new IllegalArgumentException("Non-finite physics anchor");
@@ -169,7 +175,7 @@ public final class BulletCharacterPhysics implements PoseModifier {
         for(BodyState state:bodies.values()) {
             Matrix4f bone=state.definition.bone()==null?new Matrix4f():graph.global(state.definition.bone());
             if(state.definition.bone()!=null) animated.put(state.definition.bone(),new Matrix4f(bone));
-            state.target=bullet(new Matrix4f(frame).mul(bone).mul(state.definition.offset()));
+            state.target=bullet(new Matrix4f(frame).mul(scaled(rigidBone(bone).mul(state.definition.offset()),modelScale)));
         }
         if(resetPending||!initialized) {
             for(BodyState state:bodies.values()) {
@@ -208,6 +214,7 @@ public final class BulletCharacterPhysics implements PoseModifier {
         Matrix4f inverseFrame=new Matrix4f(frame).invert();
         for(BodyState state:feedback) if(!follows(state)) {
             Matrix4f result=new Matrix4f(inverseFrame).mul(joml(state.body.getCenterOfMassTransform(new Transform()))).mul(state.inverseOffset);
+            result.setTranslation(result.getTranslation(new Vector3f()).div(modelScale));
             Matrix4f original=animated.get(state.definition.bone());Vector3f scale=original.getScale(new Vector3f());
             Vector3f position=hybridPinned(state)?original.getTranslation(new Vector3f()):result.getTranslation(new Vector3f());
             graph.setGlobal(state.definition.bone(),new Matrix4f().translationRotateScale(position,result.getNormalizedRotation(new Quaternionf()),scale));
@@ -229,8 +236,8 @@ public final class BulletCharacterPhysics implements PoseModifier {
 
     private void spring(JointState state) {
         Spring spring=state.definition.spring();
-        Matrix4f a=joml(state.a.body.getCenterOfMassTransform(new Transform())).mul(state.definition.frameA());
-        Matrix4f b=joml(state.b.body.getCenterOfMassTransform(new Transform())).mul(state.definition.frameB());
+        Matrix4f a=joml(state.a.body.getCenterOfMassTransform(new Transform())).mul(scaled(state.definition.frameA(),modelScale));
+        Matrix4f b=joml(state.b.body.getCenterOfMassTransform(new Transform())).mul(scaled(state.definition.frameB(),modelScale));
         Vector3f pa=a.getTranslation(new Vector3f()),pb=b.getTranslation(new Vector3f());
         var localA=new javax.vecmath.Vector3f(pa.x,pa.y,pa.z);localA.sub(state.a.body.getCenterOfMassPosition(new javax.vecmath.Vector3f()));
         var localB=new javax.vecmath.Vector3f(pb.x,pb.y,pb.z);localB.sub(state.b.body.getCenterOfMassPosition(new javax.vecmath.Vector3f()));
@@ -265,7 +272,14 @@ public final class BulletCharacterPhysics implements PoseModifier {
     private static void makeKinematic(RigidBody body) {body.setCollisionFlags((body.getCollisionFlags()&~CollisionFlags.STATIC_OBJECT)|CollisionFlags.KINEMATIC_OBJECT);body.forceActivationState(CollisionObject.DISABLE_DEACTIVATION);}
     private static void zero(RigidBody body) {body.clearForces();body.setLinearVelocity(new javax.vecmath.Vector3f());body.setAngularVelocity(new javax.vecmath.Vector3f());body.setInterpolationLinearVelocity(new javax.vecmath.Vector3f());body.setInterpolationAngularVelocity(new javax.vecmath.Vector3f());}
     private static void place(RigidBody body,Transform transform,boolean clearVelocity) {body.setCenterOfMassTransform(transform);body.setInterpolationWorldTransform(transform);if(body.getMotionState()!=null) body.getMotionState().setWorldTransform(transform);if(clearVelocity) zero(body);body.activate(true);}
-    private static CollisionShape shape(Body value) {return switch(value.shape()) {case BOX->new BoxShape(value.size().bullet());case SPHERE->new SphereShape(value.size().x());case CAPSULE->new CapsuleShape(value.size().x(),value.size().y());};}
+    private static Matrix4f scaled(Matrix4f value,float scale) {return value.setTranslation(value.getTranslation(new Vector3f()).mul(scale));}
+    private static Matrix4f rigidBone(Matrix4f value) {
+        return new Matrix4f().translation(value.getTranslation(new Vector3f())).rotate(value.getUnnormalizedRotation(new Quaternionf()).normalize());
+    }
+    private static CollisionShape shape(Body value,float scale) {
+        var size=value.size().bullet();size.scale(scale);
+        return switch(value.shape()) {case BOX->new BoxShape(size);case SPHERE->new SphereShape(size.x);case CAPSULE->new CapsuleShape(size.x,size.y);};
+    }
     private static Transform bullet(Matrix4fc matrix) {
         Vector3f position=matrix.getTranslation(new Vector3f());Quaternionf rotation=matrix.getUnnormalizedRotation(new Quaternionf()).normalize();
         if(!position.isFinite()||!rotation.isFinite()) throw new IllegalArgumentException("Invalid physics target transform");

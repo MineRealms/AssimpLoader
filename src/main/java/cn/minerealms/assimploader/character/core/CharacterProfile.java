@@ -16,7 +16,8 @@ import java.util.Set;
 /** Immutable resource metadata; reading a profile never loads a model, accesses a world or allocates GL resources. */
 public record CharacterProfile(String model, double scale, Map<String, HumanoidBone> humanoid,
                                Map<String, String> animations, String physicsDefinition,
-                               double blendSeconds, double movementThreshold, HeadLook headLook) {
+                               double blendSeconds, double movementThreshold, HeadLook headLook,
+                               String solverDefinition, float modelYawDegrees) {
     private static final Set<String> ANIMATIONS = Set.of("idle", "walk", "run", "walk_backward", "strafe_left", "strafe_right",
             "crouch", "crouch_walk", "jump", "fall", "swim", "fly", "elytra", "ride", "sleep", "dead", "use_item", "swing");
 
@@ -74,6 +75,14 @@ public record CharacterProfile(String model, double scale, Map<String, HumanoidB
         });
         humanoid = Map.copyOf(humanoid); animations = Map.copyOf(animations);
         if (physicsDefinition != null) resource(physicsDefinition, "physicsDefinition");
+        if (solverDefinition != null) resource(solverDefinition, "solverDefinition");
+        if (!Float.isFinite(modelYawDegrees)) throw new IllegalArgumentException("Non-finite model yaw");
+    }
+
+    public CharacterProfile(String model, double scale, Map<String, HumanoidBone> humanoid,
+                            Map<String, String> animations, String physicsDefinition,
+                            double blendSeconds, double movementThreshold, HeadLook headLook) {
+        this(model,scale,humanoid,animations,physicsDefinition,blendSeconds,movementThreshold,headLook,null,180);
     }
 
     public String animation(String intent) { return animations.getOrDefault(intent, intent); }
@@ -88,7 +97,7 @@ public record CharacterProfile(String model, double scale, Map<String, HumanoidB
 
     public static CharacterProfile parse(JsonObject root) {
         Objects.requireNonNull(root, "Character profile");
-        keys(root, "version", "model", "scale", "humanoid", "animations", "physicsDefinition", "blendSeconds", "movementThreshold", "headLook");
+        keys(root, "version", "model", "scale", "humanoid", "animations", "physicsDefinition", "blendSeconds", "movementThreshold", "headLook", "solverDefinition", "modelYawDegrees");
         if (number(root, "version", 0) != 1) throw new IllegalArgumentException("Character profile version must be 1");
         Map<String, HumanoidBone> humanoid = new LinkedHashMap<>();
         object(root, "humanoid").entrySet().forEach(entry -> {
@@ -116,7 +125,8 @@ public record CharacterProfile(String model, double scale, Map<String, HumanoidB
         }
         return new CharacterProfile(text(root, "model", null), number(root, "scale", 1), humanoid, animations,
                 text(root, "physicsDefinition", null), number(root, "blendSeconds", .15), number(root, "movementThreshold", .02),
-                new HeadLook(bool(look, "enabled", true), forward, (float)number(look, "maxYaw", 75), (float)number(look, "maxPitch", 60)));
+                new HeadLook(bool(look, "enabled", true), forward, (float)number(look, "maxYaw", 75), (float)number(look, "maxPitch", 60)),
+                text(root,"solverDefinition",null),(float)number(root,"modelYawDegrees",180));
     }
 
     private static void resource(String value, String field) {

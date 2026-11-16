@@ -406,6 +406,8 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.ConfigValue<String> profile;
         public final ForgeConfigSpec.BooleanValue groundPlacement;
         public final ForgeConfigSpec.BooleanValue effects;
+        public final ForgeConfigSpec.BooleanValue physicsEnabled, physicsWorldCollision, ragdollOnDeath;
+        public final ForgeConfigSpec.IntValue physicsSampleTicks, physicsRadius;
 
         public CharacterConfig(ForgeConfigSpec.Builder builder) {
             builder.comment("Local third-person character display; server movement and hitboxes stay authoritative")
@@ -418,6 +420,13 @@ public class AssimpLoaderConfig {
                     .define("groundPlacement", true);
             effects = builder.comment("Enable effects declared by the character instance definition")
                     .define("effects", false);
+            physicsEnabled=builder.comment("Enable the profile's isolated client Bullet world; reload the character after changing")
+                    .define("physicsEnabled",true);
+            physicsWorldCollision=builder.comment("Use bounded collision proxies from already loaded client blocks")
+                    .define("physicsWorldCollision",true);
+            ragdollOnDeath=builder.define("ragdollOnDeath",true);
+            physicsSampleTicks=builder.defineInRange("physicsSampleTicks",4,1,20);
+            physicsRadius=builder.defineInRange("physicsRadius",2,1,4);
             builder.pop();
         }
     }
