@@ -105,6 +105,7 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.IntValue textureCacheSizeMB;
         public final ForgeConfigSpec.BooleanValue tboEnabled;
         public final ForgeConfigSpec.IntValue maxTBOBones;
+        public final RuntimeConfig runtime;
 
         // Hot-Reload
         public final ForgeConfigSpec.BooleanValue hotReloadEnabled;
@@ -258,6 +259,7 @@ public class AssimpLoaderConfig {
                 .comment("Maximum TBO size (number of bones)")
                 .defineInRange("maxTBOBones", 1024, 64, 16384);
 
+            runtime = new RuntimeConfig(builder);
             builder.pop();
 
             // Hot-Reload Configuration
@@ -360,6 +362,62 @@ public class AssimpLoaderConfig {
                 .comment("Enable LookDev loaded-model preview; node editing is inactive")
                 .define("lookdevEnabled", true);
 
+            builder.pop();
+        }
+    }
+
+    /** Runtime work budgets; GPU backend selection remains in the existing performance keys. */
+    public static final class RuntimeConfig {
+        public final ForgeConfigSpec.EnumValue<RuntimePerformancePolicy.Mode> mode;
+        public final ForgeConfigSpec.IntValue nearUpdateTicks;
+        public final ForgeConfigSpec.IntValue farUpdateTicks;
+        public final ForgeConfigSpec.DoubleValue farDistance;
+        public final ForgeConfigSpec.IntValue hiddenUpdateTicks;
+        public final ForgeConfigSpec.IntValue visibilityGraceTicks;
+        public final ForgeConfigSpec.BooleanValue ikEnabled;
+        public final ForgeConfigSpec.BooleanValue springBonesEnabled;
+        public final ForgeConfigSpec.BooleanValue particlesEnabled;
+        public final ForgeConfigSpec.BooleanValue trailsEnabled;
+        public final ForgeConfigSpec.IntValue maxParticleEmissions;
+        public final ForgeConfigSpec.IntValue maxTrailSamples;
+        public final ForgeConfigSpec.BooleanValue gpuMorphEnabled;
+        public final ForgeConfigSpec.IntValue maxMorphTargets;
+        public final ForgeConfigSpec.IntValue maxMorphMiB;
+
+        RuntimeConfig(ForgeConfigSpec.Builder builder) {
+            builder.comment("Runtime workload policy, separate from optimizationLevel GPU backend selection.",
+                    "QUALITY, BALANCED and PERFORMANCE use fixed presets; CUSTOM reads the values below.",
+                    "One tick is 0.05 simulation seconds. Far/hidden intervals cannot be faster than near.")
+                    .push("runtime");
+            mode = builder.defineEnum("mode", RuntimePerformancePolicy.Mode.BALANCED);
+            nearUpdateTicks = builder.comment("CUSTOM: visible nearby instance update interval in ticks")
+                    .defineInRange("nearUpdateTicks", 1, 1, 20);
+            farUpdateTicks = builder.comment("CUSTOM: distant instance update interval in ticks")
+                    .defineInRange("farUpdateTicks", 2, 1, 20);
+            farDistance = builder.comment("CUSTOM: distance in blocks at which far update cadence applies")
+                    .defineInRange("farDistance", 64.0, 1.0, 4096.0);
+            hiddenUpdateTicks = builder.comment("CUSTOM: update interval after the last rendered instance exceeds its grace period")
+                    .defineInRange("hiddenUpdateTicks", 10, 1, 20);
+            visibilityGraceTicks = builder.comment("CUSTOM: ticks after last render before hidden cadence applies")
+                    .defineInRange("visibilityGraceTicks", 40, 0, 1200);
+            ikEnabled = builder.comment("CUSTOM: allow instance IK modifiers")
+                    .define("ikEnabled", true);
+            springBonesEnabled = builder.comment("CUSTOM: allow instance Spring Bone simulation")
+                    .define("springBonesEnabled", true);
+            particlesEnabled = builder.comment("CUSTOM: allow attachment particle emitters")
+                    .define("particlesEnabled", true);
+            trailsEnabled = builder.comment("CUSTOM: allow attachment trail sampling and rendering")
+                    .define("trailsEnabled", true);
+            maxParticleEmissions = builder.comment("CUSTOM: maximum emissions across all emitters per instance update, 0 suppresses emission")
+                    .defineInRange("maxParticleEmissions", 16, 0, 32);
+            maxTrailSamples = builder.comment("CUSTOM: maximum retained samples per attachment trail")
+                    .defineInRange("maxTrailSamples", 128, 2, 4096);
+            gpuMorphEnabled = builder.comment("CUSTOM: allow the existing skinned vertex-shader Morph path")
+                    .define("gpuMorphEnabled", true);
+            maxMorphTargets = builder.comment("CUSTOM: maximum GPU Morph targets per mesh; excess uses CPU fallback")
+                    .defineInRange("maxMorphTargets", 32, 1, 32);
+            maxMorphMiB = builder.comment("CUSTOM: maximum immutable GPU Morph delta storage per mesh in MiB; excess uses CPU fallback")
+                    .defineInRange("maxMorphMiB", 128, 1, 128);
             builder.pop();
         }
     }

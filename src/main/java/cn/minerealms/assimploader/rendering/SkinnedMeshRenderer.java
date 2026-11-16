@@ -4,6 +4,7 @@ import cn.minerealms.assimploader.animation.BoneHierarchyBuilder;
 import cn.minerealms.assimploader.animation.SkinnedMeshProcessor;
 import cn.minerealms.assimploader.animation.MorphDeformation;
 import cn.minerealms.assimploader.config.AssimpLoaderConfig;
+import cn.minerealms.assimploader.config.RuntimePerformancePolicy;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.model.AssimpMesh;
@@ -349,7 +350,8 @@ public class SkinnedMeshRenderer {
     }
 
     public boolean supportsMorph(AssimpMesh mesh) {
-        return initialized && MorphTargetTBO.fits(mesh,maximumMorphTexels);
+        return initialized && MorphTargetTBO.fits(mesh,maximumMorphTexels)
+                && RuntimePerformancePolicy.current().permitsGpuMorph(mesh.getMorphTargets().size(), MorphTargetTBO.texels(mesh)*16);
     }
 
     static float[] packPalette(Matrix4f[] palette) {
