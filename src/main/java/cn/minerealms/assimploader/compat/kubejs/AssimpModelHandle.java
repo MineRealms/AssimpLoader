@@ -2,6 +2,8 @@ package cn.minerealms.assimploader.compat.kubejs;
 
 import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.animation.InstancePerformanceSettings;
+import cn.minerealms.assimploader.animation.ScriptPoseModifier;
+import cn.minerealms.assimploader.animation.AnimationPlayer;
 import cn.minerealms.assimploader.animation.ik.ChainIkModifier;
 import cn.minerealms.assimploader.animation.ik.LookAtModifier;
 import cn.minerealms.assimploader.collision.ModelCollision;
@@ -21,10 +23,11 @@ import java.util.Map;
 /** Weak, generation-bound script handle. No script callback runs inside a pose or vertex loop. */
 public final class AssimpModelHandle {
     private static final Gson JSON=new Gson();
+    private static final Map<AnimationState,java.util.Set<String>> CONTROLS=new java.util.WeakHashMap<>();
     private final WeakReference<AnimationState> reference;
     private final Thread thread=Thread.currentThread();
 
-    AssimpModelHandle(AnimationState state) {reference=new WeakReference<>(state);}
+    public AssimpModelHandle(AnimationState state) {reference=new WeakReference<>(java.util.Objects.requireNonNull(state));}
 
     public boolean isValid() {var state=reference.get();return state!=null&&!state.isClosed();}
     public boolean sameInstance(AssimpModelHandle other) {return other!=null&&isValid()&&reference.get()==other.reference.get();}
@@ -39,13 +42,53 @@ public final class AssimpModelHandle {
     public AssimpModelHandle stop() {live().stop();return this;}
     public AssimpModelHandle resetDynamics() {live().resetDynamics();return this;}
 
+    public List<String> bones() {
+        var names=new ArrayList<String>(); collect(live().getScene().getRootNode(),names); return names;
+    }
+    public Map<String,Object> playback() {
+        var player=player(); var clip=player.getAnimation();
+        return Map.of("clip",clip.getName(),"time",player.getCurrentTime()/clip.getTicksPerSecond(),
+                "duration",clip.getDuration()/clip.getTicksPerSecond(),"speed",player.getSpeed(),
+                "playing",player.isPlaying(),"looping",player.isLooping(),"synchronized",player.hasSynchronizedPhase());
+    }
+    public AssimpModelHandle playback(double speed,boolean looping) {var p=player();p.setSpeed(number(speed));p.setLooping(looping);return this;}
+    /** Native accepted attack phase or a script-owned timeline, normalized [0,1]. */
+    public AssimpModelHandle phase(double progress) {player().synchronizePhase(progress);return this;}
+    public AssimpModelHandle releasePhase() {player().releaseSynchronizedPhase();return this;}
+
+    /** Rest-relative Euler XYZ degrees; local translations use imported node units. */
+    public AssimpModelHandle pose(String id,Map<String,Object> options) {
+        var state=live(); var key=control(id,"pose:");
+        var modifier=new ScriptPoseModifier(state.getScene(),JSON.toJsonTree(options).getAsJsonObject());
+        state.addModifier(key,modifier); return this;
+    }
+    public AssimpModelHandle removePose(String id) {var state=live();String key=key(id,"pose:");state.removeModifier(key);forget(state,key);return this;}
+
     public AssimpModelHandle layer(String id,String clip,double weight,boolean additive,Map<String,Number> mask) {
         Map<String,Float> converted=new LinkedHashMap<>();
         mask.forEach((node,value)->converted.put(node,number(value.doubleValue())));
-        live().setLayer(id,clip,number(weight),additive,converted);return this;
+        live().setLayer(control(id,"layer:"),clip,number(weight),additive,converted);return this;
     }
-    public AssimpModelHandle layerWeight(String id,double weight) {live().setLayerWeight(id,number(weight));return this;}
-    public AssimpModelHandle removeLayer(String id) {live().removeLayer(id);return this;}
+    public AssimpModelHandle layerWeight(String id,double weight) {live().setLayerWeight(key(id,"layer:"),number(weight));return this;}
+    public AssimpModelHandle removeLayer(String id) {var state=live();String key=key(id,"layer:");state.removeLayer(key);forget(state,key);return this;}
+    public AssimpModelHandle layerPhase(String id,double phase) {layerPlayer(id).synchronizePhase(phase);return this;}
+    public AssimpModelHandle layerPlayback(String id,double speed,boolean looping) {var p=layerPlayer(id);p.releaseSynchronizedPhase();p.setSpeed(number(speed));p.setLooping(looping);return this;}
+    public Map<String,Object> layerPlayback(String id) {
+        var p=layerPlayer(id);var clip=p.getAnimation();
+        return Map.of("clip",clip.getName(),"time",p.getCurrentTime()/clip.getTicksPerSecond(),
+                "duration",clip.getDuration()/clip.getTicksPerSecond(),"speed",p.getSpeed(),
+                "playing",p.isPlaying(),"looping",p.isLooping(),"synchronized",p.hasSynchronizedPhase());
+    }
+    public AssimpModelHandle layerReleasePhase(String id) {layerPlayer(id).releaseSynchronizedPhase();return this;}
+    public AssimpModelHandle clearScriptControls() {
+        var state=live();var keys=CONTROLS.remove(state);
+        if(keys!=null) for(String key:keys) {
+            if(key.startsWith("kubejs:pose:"))state.removeModifier(key);else state.removeLayer(key);
+        }
+        var p=state.getCurrentAnimation();if(p!=null){p.releaseSynchronizedPhase();p.setSpeed(1);}
+        state.resetMorphWeights();
+        return this;
+    }
 
     public List<Map<String,Object>> meshes() {
         return new ArrayList<>(live().getScene().getMeshes().stream().map(mesh->Map.<String,Object>of("name",mesh.getName(),
@@ -122,6 +165,27 @@ public final class AssimpModelHandle {
         var state=reference.get();
         if(state==null||state.isClosed()) throw new IllegalStateException("Assimp instance expired; reacquire after reload or owner removal");
         return state;
+    }
+    private AnimationPlayer player() {
+        var player=live().getCurrentAnimation();
+        if(player==null)throw new IllegalStateException("Play a base clip before controlling its clock");return player;
+    }
+    private AnimationPlayer layerPlayer(String id) {
+        var layer=live().getLayer(key(id,"layer:"));
+        if(layer==null)throw new IllegalArgumentException("Unknown script layer: "+id);return layer.getPlayer();
+    }
+    private String control(String id,String kind) {
+        String key=key(id,kind); var owned=CONTROLS.computeIfAbsent(live(),ignored->new java.util.LinkedHashSet<>());
+        if(!owned.contains(key)&&owned.size()>=64)throw new IllegalArgumentException("Script controls exceed 64 layers/poses");
+        owned.add(key);return key;
+    }
+    private static String key(String id,String kind) {
+        if(id==null||id.isBlank()||id.length()>128)throw new IllegalArgumentException("Script control id requires 1..128 characters");
+        return "kubejs:"+kind+id;
+    }
+    private static void forget(AnimationState state,String key) {var keys=CONTROLS.get(state);if(keys!=null)keys.remove(key);}
+    private static void collect(cn.minerealms.assimploader.model.AssimpNode node,List<String> names) {
+        if(node==null)return;names.add(node.getName());node.getChildren().forEach(child->collect(child,names));
     }
     private static AssimpMesh mesh(AnimationState state,int index) {
         var meshes=state.getScene().getMeshes();

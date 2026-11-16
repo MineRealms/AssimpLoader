@@ -50,6 +50,7 @@ public final class LimitedIkModifier implements PoseModifier {
     public void setTarget(Vector3f value) {if(!value.isFinite())throw new IllegalArgumentException("Non-finite IK target");target.set(value);}
     public void setEnabled(boolean value){enabled=value;}
     public boolean isEnabled(){return enabled;}
+    public Vector3f target(){return new Vector3f(target);}
     public float lastError(){return lastError;}
     @Override public Category category(){return phase;}
     @Override public void apply(AssimpScene scene,Map<String,Matrix4f> locals,double dt) {

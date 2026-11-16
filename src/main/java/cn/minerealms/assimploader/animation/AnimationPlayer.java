@@ -154,6 +154,7 @@ public class AnimationPlayer {
     public void setLooping(boolean looping) {
         this.looping = looping;
     }
+    public boolean isLooping() { return looping; }
 
     public void setSpeed(float speed) {
         if (!Float.isFinite(speed)) throw new IllegalArgumentException("Animation speed must be finite");

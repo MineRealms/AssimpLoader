@@ -57,6 +57,7 @@ public final class CharacterMorphModifier implements PoseModifier {
         if(weight==0)inputs.remove(name);else inputs.put(name,weight);
     }
     public Map<String,Float> expandedWeights(){return Map.copyOf(expanded);}
+    public Map<String,Float> inputWeights(){return Map.copyOf(inputs);}
     void setMotionWeights(Map<String,Float> weights){motionInputs=Map.copyOf(weights);}
     private Map<String,Float> flatten(String name,Set<String> stack) {
         if(leaves.containsKey(name))return leaves.get(name);
