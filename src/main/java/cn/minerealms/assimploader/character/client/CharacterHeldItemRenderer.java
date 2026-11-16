@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemDisplayContext;
 import org.joml.Quaternionf;
@@ -37,7 +38,8 @@ final class CharacterHeldItemRenderer {
             poses.scale(mount.scale(), mount.scale(), mount.scale());
             Minecraft.getInstance().getItemRenderer().renderStatic(player, stack,
                     left ? ItemDisplayContext.THIRD_PERSON_LEFT_HAND : ItemDisplayContext.THIRD_PERSON_RIGHT_HAND,
-                    left, poses, buffers, player.level(), light, overlay, player.getId());
+                    left, poses, buffers, player.level(), light, OverlayTexture.NO_OVERLAY,
+                    player.getId()+(left?ItemDisplayContext.THIRD_PERSON_LEFT_HAND:ItemDisplayContext.THIRD_PERSON_RIGHT_HAND).ordinal());
         } finally {
             poses.popPose();
         }

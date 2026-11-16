@@ -20,5 +20,6 @@
   "equipmentDefinition": "assimploader:models/character/block_player/equipment.json",
   "blendSeconds": 0.15,
   "movementThreshold": 0.04,
+  "timing":{"swingSync":true,"movementSync":true,"walkStride":2.4,"runStride":3.2,"crouchStride":1.4,"minRate":0.25,"maxRate":12},
   "headLook": {"enabled": true, "forward": [0,0,-1], "maxYaw": 75, "maxPitch": 60}
 }

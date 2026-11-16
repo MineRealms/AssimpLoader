@@ -196,8 +196,10 @@ for name in ["idle", "walk", "run", "crouch", "crouch_walk", "jump", "fall", "sw
             rig.pose.bones["Hips"].location.y = -.16
             rig.pose.bones["Chest"].rotation_euler.x = .25
             for side in ("L", "R"):
-                rig.pose.bones[f"Thigh.{side}"].rotation_euler.x += -.45
-                rig.pose.bones[f"Shin.{side}"].rotation_euler.x += .72
+                rig.pose.bones[f"Thigh.{side}"].rotation_euler.x += -.556
+                rig.pose.bones[f"Shin.{side}"].rotation_euler.x += 1.206
+                rig.pose.bones[f"Foot.{side}"].rotation_euler.x = (rig.pose.bones[f"Thigh.{side}"].rotation_euler.x
+                    + rig.pose.bones[f"Shin.{side}"].rotation_euler.x)
         if name in ("jump", "fall"):
             for side in ("L", "R"):
                 rig.pose.bones[f"UpperArm.{side}"].rotation_euler.x = -.5

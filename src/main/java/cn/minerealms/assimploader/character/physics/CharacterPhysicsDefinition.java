@@ -48,7 +48,7 @@ public record CharacterPhysicsDefinition(Vec3 gravity,double fixedStep,int maxSu
             nonnegative(linearDamping,1000);nonnegative(angularDamping,1000);range(maxForce,.001f,100000,"spring maxForce");
         }
     }
-    /** Joint frames are local to their bodies. A lower component greater than upper explicitly frees that axis. */
+    /** Body-local frames and Bullet 6DOF angular convention (not JOML Euler). Lower > upper frees that axis. */
     public record Joint(String id,String bodyA,String bodyB,Vec3 positionA,Rotation rotationA,Vec3 positionB,Rotation rotationB,
             Vec3 linearLower,Vec3 linearUpper,Vec3 angularLower,Vec3 angularUpper,boolean disableLinkedCollision,Spring spring) {
         public Joint {

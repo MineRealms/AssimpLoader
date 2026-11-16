@@ -56,7 +56,10 @@ public record CharacterEquipmentDefinition(boolean enabled, Mount rightHand, Mou
 
     private static Mount defaultMount(CharacterProfile profile, String role) {
         var bone = profile.bone(role);
-        return bone == null ? null : new Mount(bone.node(), new Position(0, 0, 0), bone.referenceRotation(), 1);
+        if(bone==null)return null;
+        var rotation=bone.referenceRotation().quaternion().rotateX(-(float)Math.PI/2).rotateY((float)Math.PI);
+        return new Mount(bone.node(), new Position(0, 0, 0),
+                new CharacterProfile.Rotation(rotation.x,rotation.y,rotation.z,rotation.w), 1);
     }
 
     public static CharacterEquipmentDefinition read(Reader reader) {

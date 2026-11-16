@@ -20,6 +20,22 @@ import static org.junit.jupiter.api.Assertions.*;
 class CharacterEquipmentTest {
     private static final Path ASSET = Path.of("src/main/resources/assets/assimploader/models/character/block_player");
 
+    @Test void fixtureAndDefaultGripUseVanillaHandRotationOrder() throws Exception {
+        var expected=new org.joml.Quaternionf().rotateX(-(float)Math.PI/2).rotateY((float)Math.PI);
+        try(var reader=Files.newBufferedReader(ASSET.resolve("equipment.json"))) {
+            var equipment=CharacterEquipmentDefinition.read(reader);
+            for(var mount:java.util.List.of(equipment.rightHand(),equipment.leftHand())) {
+                var actual=mount.rotation().quaternion();
+                assertTrue(Math.abs(actual.dot(expected))>1-1e-6);
+                assertEquals(-.125,mount.position().z(),1e-6);
+            }
+        }
+        var profile=CharacterProfile.read(new StringReader("""
+                {"version":1,"model":"test:avatar.fbx","humanoid":{"right_hand":"Hand.R"}}
+                """));
+        assertTrue(Math.abs(CharacterEquipmentDefinition.defaults(profile).rightHand().rotation().quaternion().dot(expected))>1-1e-6);
+    }
+
     @Test void importedBoneUnitsDoNotChangeItemSizeOrMetreOffset() {
         var mount = new CharacterEquipmentDefinition.Mount("Hand", new CharacterEquipmentDefinition.Position(0, .1f, 0),
                 CharacterProfile.Rotation.IDENTITY, .75f);

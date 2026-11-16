@@ -178,6 +178,22 @@ minecraft {
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
+if (project.hasProperty('clientCharacterSmoke')) {
+    def resultFile = file('run/character-smoke-result.json')
+    tasks.matching { it.name == 'runClient' }.configureEach {
+        doFirst {
+            if (resultFile.exists() && !resultFile.delete())
+                throw new GradleException('Cannot remove stale character acceptance result')
+        }
+        doLast {
+            if (!resultFile.isFile()) throw new GradleException('Character acceptance did not produce a result')
+            def result = new groovy.json.JsonSlurper().parse(resultFile)
+            if (result.success != true) throw new GradleException("Character acceptance failed at stage ${result.stage}: ${result.failure}")
+            logger.lifecycle("Character acceptance ${result.run}: ${result.stages} stages passed")
+        }
+    }
+}
+
 if (project.hasProperty('clientKubeJsSmoke') || project.hasProperty('clientKubeJsWorldSmoke')) {
     def serverSmoke = project.hasProperty('clientKubeJsWorldSmoke')
     def smokeSource = file(serverSmoke ? 'model-tests/kubejs/assimploader_server_acceptance.js' : 'model-tests/kubejs/assimploader_acceptance.js')

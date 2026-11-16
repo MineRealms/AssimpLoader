@@ -17,6 +17,29 @@ import static org.junit.jupiter.api.Assertions.*;
 class BlockPlayerPhysicsTest {
     private static final String BASE="/assets/assimploader/models/character/block_player/";
     private InputStreamReader reader(String name) {return new InputStreamReader(Objects.requireNonNull(getClass().getResourceAsStream(BASE+name)));}
+    @Test void bulletKneeAngleConventionAllowsAuthoredForwardFlexion() throws Exception {
+        var shape=new com.bulletphysics.collision.shapes.SphereShape(.1f);
+        var a=new com.bulletphysics.dynamics.RigidBody(new com.bulletphysics.dynamics.RigidBodyConstructionInfo(0,null,shape));
+        var b=new com.bulletphysics.dynamics.RigidBody(new com.bulletphysics.dynamics.RigidBodyConstructionInfo(0,null,shape));
+        var identity=new com.bulletphysics.linearmath.Transform();identity.setIdentity();
+        a.setWorldTransform(identity);
+        var flexed=new com.bulletphysics.linearmath.Transform();flexed.setIdentity();flexed.basis.rotX(1.206f);b.setWorldTransform(flexed);
+        var constraint=new com.bulletphysics.dynamics.constraintsolver.Generic6DofConstraint(a,b,identity,identity,true);
+        constraint.calculateTransforms();
+        assertEquals(-1.206,constraint.getAngle(0),1e-5);
+        try(var source=reader("physics.json")) {
+            // Parse authoring joints through the imported fixture in the other acceptance test;
+            // here only the angular bounds are needed to pin Bullet's distinct sign convention.
+            var json=com.google.gson.JsonParser.parseReader(source).getAsJsonObject();
+            for(var element:json.getAsJsonArray("joints")) {
+                var joint=element.getAsJsonObject();
+                if(joint.get("id").getAsString().startsWith("knee_")) {
+                    assertTrue(constraint.getAngle(0)>=joint.getAsJsonArray("angularLower").get(0).getAsFloat());
+                    assertTrue(constraint.getAngle(0)<=joint.getAsJsonArray("angularUpper").get(0).getAsFloat());
+                }
+            }
+        } finally {a.destroy();b.destroy();}
+    }
     @Test void compiledJointFramesMeetAtRestAndWholeBodySurvivesAnimationAndRagdoll() throws Exception {
         try(var input=getClass().getResourceAsStream(BASE+"block_player.fbx")) {
             var scene=new AssimpModelLoader().loadModelFromMemory("block_player.fbx",Objects.requireNonNull(input).readAllBytes(),ModelImportMode.DYNAMIC);

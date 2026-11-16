@@ -10,6 +10,7 @@ final class MinecraftPlayerInputSampler {
     private int previousTick = -1;
     private boolean previousSwing;
     private int previousSwingTime;
+    private long swingGeneration;
 
     PlayerVisualInput sample(LocalPlayer player) {
         Vec3 position = player.position();
@@ -25,6 +26,7 @@ final class MinecraftPlayerInputSampler {
         double forward = -velocity.x * Math.sin(yaw) + velocity.z * Math.cos(yaw);
         double right = -velocity.x * Math.cos(yaw) - velocity.z * Math.sin(yaw);
         boolean swingEvent = player.swinging && (!previousSwing || player.swingTime < previousSwingTime);
+        if(swingEvent)swingGeneration++;
         previousSwing = player.swinging;
         previousSwingTime = player.swingTime;
         return PlayerVisualInput.builder(Math.max(0, player.tickCount), Math.max(0, player.tickCount) * .05)
@@ -35,6 +37,7 @@ final class MinecraftPlayerInputSampler {
                 .falling(!player.onGround() && velocity.y < -.01)
                 .swimming(player.isSwimming()).flying(player.getAbilities().flying).elytra(player.isFallFlying())
                 .riding(player.isPassenger()).sleeping(player.isSleeping()).dead(!player.isAlive())
-                .usingItem(player.isUsingItem()).swinging(swingEvent).build();
+                .usingItem(player.isUsingItem()).swinging(swingEvent)
+                .swingAction(swingGeneration,player.swinging,swingEvent?0:Math.max(0,Math.min(1,player.attackAnim))).build();
     }
 }
