@@ -12,6 +12,7 @@
 | [运行时性能模式](RUNTIME_PERFORMANCE_MODES.md)、[鹿展示与 Blender 工程](DEER_SHOWCASE.md) | 全局/资产预算、距离更新频率、四腿 IK 烘焙、Spring 和碰撞代理 |
 | [KubeJS 集成](KUBEJS_INTEGRATION.md) | 可选客户端模型控制、性能参数、挂点/命中查询，以及服务端鹿状态同步；附脚本示例 |
 | [GPU Batch Policy](GPU_BATCH_POLICY.md), [Validation](GPU_BATCH_VALIDATION_2026-11-16.md) | GPU instancing, MDI, current-frame Hi-Z, budgets and crowd acceptance |
+| [渲染性能图表与评估](benchmarks/README.md) | 六组图表、历史实测、经验数据、内存/降频计算和管线技术评估 |
 | [Client Visual Authority](CLIENT_VISUAL_AUTHORITY.md) | Local visual alignment and server collision authority |
 | [审计报告](AUDIT_2026-11-13.md) | 本次发现、修复、剩余问题、测试与运行边界 |
 | [修复与验收](FIXES_2026-11-13.md) | 首轮审计后的当前处理状态、统一 BUILD、实际截图和资源重载 |

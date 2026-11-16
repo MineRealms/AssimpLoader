@@ -1,0 +1,13 @@
+bones,instances,vertices,path,medianMs,p95Ms
+64,1,4095,pose_only,0.0953,0.1653
+64,1,4095,pose_and_cpu_skinning,0.4152,0.4851
+64,10,4095,pose_only,0.4070,0.5719
+64,10,4095,pose_and_cpu_skinning,3.8424,5.8021
+64,50,4095,pose_only,1.2867,1.8315
+64,50,4095,pose_and_cpu_skinning,18.4164,32.9536
+256,1,4095,pose_only,0.0960,0.1214
+256,1,4095,pose_and_cpu_skinning,0.4499,0.5103
+256,10,4095,pose_only,1.0118,1.1252
+256,10,4095,pose_and_cpu_skinning,4.4368,11.4453
+256,50,4095,pose_only,5.1465,5.5903
+256,50,4095,pose_and_cpu_skinning,22.7511,45.9178
