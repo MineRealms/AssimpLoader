@@ -1,0 +1,19 @@
+#version 430 core
+layout(local_size_x=8,local_size_y=8) in;
+layout(binding=0) uniform sampler2D sourceDepth;
+layout(r32f,binding=0) writeonly uniform image2D destination;
+uniform int sourceLevel;
+uniform ivec2 sourceSize;
+uniform ivec2 destinationSize;
+void main() {
+    ivec2 pixel=ivec2(gl_GlobalInvocationID.xy);
+    if(any(greaterThanEqual(pixel,destinationSize))) return;
+    ivec2 first=pixel*sourceSize/destinationSize;
+    ivec2 last=((pixel+1)*sourceSize+destinationSize-1)/destinationSize;
+    float maximum=0.0;
+    for(int y=first.y;y<last.y;y++) for(int x=first.x;x<last.x;x++) {
+        float value=texelFetch(sourceDepth,ivec2(x,y),sourceLevel).r;
+        maximum=max(maximum,isnan(value)||isinf(value)||value<0.0||value>1.0?1.0:value);
+    }
+    imageStore(destination,pixel,vec4(maximum));
+}
