@@ -28,6 +28,8 @@ trails and GPU Morph. Budgets are upper bounds; they do not expand an asset's
 smaller configured capacities. Assets can explicitly enable
 [render interpolation](RENDER_POSE_INTERPOLATION.md); PERFORMANCE bypasses it.
 The runtime policy does not itself add a new GPU backend, Compute dispatch or native execution.
+Independent opt-in GPU submission backends and occlusion budgets are configured
+under [performance.batch](GPU_BATCH_POLICY.md).
 
 `performance.optimizationLevel`, `rendering.gpuSkinningEnabled`,
 `performance.tboEnabled` and `performance.maxTBOBones` retain their existing

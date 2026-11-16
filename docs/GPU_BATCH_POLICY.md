@@ -109,6 +109,7 @@ binding, programs, textures and Minecraft's program state are restored.
 ```powershell
 .\gradlew.bat test build
 .\gradlew.bat runClient -PclientBatchSmoke
+.\gradlew.bat runClient -PclientBatchSmoke -PclientBatchSafety
 .\gradlew.bat runClient -PclientRuntimeSmoke=Scaffold_PBR_Test -PclientRuntimeBatchSmoke
 ```
 
@@ -122,6 +123,8 @@ warmed CPU submission and asynchronous GPU timestamp samples to
 These are controlled renderer measurements, not whole-world FPS or server-tick
 benchmarks. The world run separately checks binding, movement, terrain, effects,
 reload, save/reopen, cache bounds and removal.
+The safety-only run checks admission limits, frame and geometry budgets, invalid
+inputs and cleanup without repeating the timed crowd stages.
 
 ## Verification Scope
 
