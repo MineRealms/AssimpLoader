@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.rendering;
 
 import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.animation.PoseSnapshot;
+import cn.minerealms.assimploader.animation.MorphDeformation;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
@@ -21,14 +22,30 @@ public final class CpuSkinning {
     }
 
     public static Geometry geometry(PoseSnapshot snapshot, AssimpMesh mesh) {
-        if (snapshot == null) return new Geometry(mesh.getVertices(), mesh.getNormals());
+        if (snapshot == null) {
+            if (mesh.hasMorphTargets()) {
+                var morph = MorphDeformation.deform(mesh, mesh.getDefaultMorphWeights());
+                return new Geometry(morph.positions(), morph.normals());
+            }
+            return new Geometry(mesh.getVertices(), mesh.getNormals());
+        }
         Map<AssimpMesh, Geometry> meshes = CACHE.computeIfAbsent(snapshot, ignored -> new IdentityHashMap<>());
         Geometry cached = meshes.get(mesh);
         if (cached != null) return cached;
         Matrix4f[] palette = snapshot.getBoneTransforms(mesh);
-        if (palette == null) return new Geometry(mesh.getVertices(), mesh.getNormals());
+        float[] positions = mesh.getVertices(), normals = mesh.getNormals();
+        if (snapshot.hasActiveMorphs(mesh)) {
+            var morph = MorphDeformation.deform(mesh, snapshot.getMorphWeights(mesh));
+            positions = morph.positions();
+            normals = morph.normals();
+        }
+        if (palette == null) {
+            Geometry geometry = new Geometry(positions, normals);
+            meshes.put(mesh, geometry);
+            return geometry;
+        }
         var data = mesh.getSkinnedData();
-        Geometry geometry = deform(mesh.getVertices(), mesh.getNormals(), data.getBoneIndices(), data.getBoneWeights(), palette);
+        Geometry geometry = deform(positions, normals, data.getBoneIndices(), data.getBoneWeights(), palette);
         meshes.put(mesh, geometry);
         return geometry;
     }

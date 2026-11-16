@@ -46,6 +46,9 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
                 poses.translate(0.5, 0.5, 0.5);
             }
             renderer.renderScene(scene, animation, poses, buffers, light, overlay);
+            if (animation != null && animation.getModelInstance() != null) {
+                AttachmentTrailRenderer.render(animation.getModelInstance(), poses, buffers, light);
+            }
         } finally {
             poses.popPose();
         }

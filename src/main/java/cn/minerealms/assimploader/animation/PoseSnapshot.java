@@ -28,24 +28,42 @@ public final class PoseSnapshot {
     private final Map<String, Matrix4f> localTransforms;
     private final Map<String, Matrix4f> globalTransforms;
     private final Map<AssimpMesh, Matrix4f[]> palettes;
+    private final Map<AssimpMesh, float[]> morphWeights;
     private final List<MeshInstance> meshInstances;
     private final AABB bounds;
 
     private PoseSnapshot(long frameId, AssimpScene scene, Map<String, Matrix4f> overrides, Map<String, Matrix4f> locals,
                          Map<String, Matrix4f> globals, Map<AssimpMesh, Matrix4f[]> palettes,
-                         List<MeshInstance> instances, AABB bounds) {
+                         List<MeshInstance> instances, Map<AssimpMesh, float[]> morphWeights, AABB bounds) {
         this.frameId = frameId;
         this.scene = scene;
         this.localOverrides = overrides;
         this.localTransforms = locals;
         this.globalTransforms = globals;
         this.palettes = palettes;
+        this.morphWeights = morphWeights;
         this.meshInstances = List.copyOf(instances);
         this.bounds = bounds;
     }
 
     public static PoseSnapshot capture(long frameId, AssimpScene scene, Map<String, Matrix4f> localOverrides) {
+        return capture(frameId, scene, localOverrides, Map.of());
+    }
+
+    public static PoseSnapshot capture(long frameId, AssimpScene scene, Map<String, Matrix4f> localOverrides,
+                                       Map<AssimpMesh, float[]> morphOverrides) {
         Objects.requireNonNull(scene, "scene");
+        Objects.requireNonNull(morphOverrides, "morphOverrides");
+        Map<AssimpMesh, float[]> morphWeights = new IdentityHashMap<>();
+        for (AssimpMesh mesh : scene.getMeshes()) {
+            float[] weights = morphOverrides.containsKey(mesh)
+                    ? Objects.requireNonNull(morphOverrides.get(mesh), "morph weights").clone() : mesh.getDefaultMorphWeights();
+            if (weights.length != mesh.getMorphTargets().size()) throw new IllegalArgumentException("Morph weight count mismatch for " + mesh.getName());
+            for (float weight : weights) if (!Float.isFinite(weight)) throw new IllegalArgumentException("Non-finite morph weight");
+            if (mesh.hasMorphTargets()) morphWeights.put(mesh, weights);
+        }
+        for (AssimpMesh mesh : morphOverrides.keySet())
+            if (!scene.getMeshes().contains(mesh)) throw new IllegalArgumentException("Morph mesh does not belong to scene");
         Map<String, Matrix4f> overrides = copyMatrices(Objects.requireNonNull(localOverrides, "localOverrides"));
         Map<String, Matrix4f> locals = new LinkedHashMap<>(overrides);
         Map<String, Matrix4f> globals = new LinkedHashMap<>();
@@ -69,8 +87,8 @@ public final class PoseSnapshot {
             }
             palettes.put(mesh, palette);
         }
-        return new PoseSnapshot(frameId, scene, overrides, locals, globals, palettes, instances,
-                calculateBounds(scene, instances, palettes));
+        return new PoseSnapshot(frameId, scene, overrides, locals, globals, palettes, instances, morphWeights,
+                calculateBounds(scene, instances, palettes, morphWeights));
     }
 
     public long getFrameId() { return frameId; }
@@ -112,6 +130,22 @@ public final class PoseSnapshot {
 
     public AABB getBounds() { return bounds; }
 
+    public float[] getMorphWeights(AssimpMesh mesh) {
+        float[] weights = morphWeights.get(mesh);
+        return weights == null ? new float[0] : weights.clone();
+    }
+
+    public boolean hasActiveMorphs(AssimpMesh mesh) { return active(morphWeights.get(mesh)); }
+    public boolean hasActiveMorphs() {
+        for (float[] weights : morphWeights.values()) if (active(weights)) return true;
+        return false;
+    }
+
+    private static boolean active(float[] weights) {
+        if (weights != null) for (float weight : weights) if (weight != 0) return true;
+        return false;
+    }
+
     private static Map<String, Matrix4f> copyMatrices(Map<String, Matrix4f> matrices) {
         Map<String, Matrix4f> copy = new LinkedHashMap<>();
         matrices.forEach((name, matrix) -> copy.put(name, new Matrix4f(Objects.requireNonNull(matrix, "transform"))));
@@ -133,10 +167,17 @@ public final class PoseSnapshot {
     }
 
     private static AABB calculateBounds(AssimpScene scene, List<MeshInstance> instances,
-                                        Map<AssimpMesh, Matrix4f[]> palettes) {
+                                        Map<AssimpMesh, Matrix4f[]> palettes, Map<AssimpMesh, float[]> morphWeights) {
         Map<AssimpMesh, MeshBounds> layout;
         synchronized (BOUNDS_CACHE) {
             layout = BOUNDS_CACHE.computeIfAbsent(scene, PoseSnapshot::prepareBounds);
+        }
+        if (!morphWeights.isEmpty()) {
+            layout = new IdentityHashMap<>(layout);
+            for (var entry : morphWeights.entrySet()) if (active(entry.getValue())) {
+                AssimpMesh mesh = entry.getKey();
+                layout.put(mesh, prepareMeshBounds(mesh, MorphDeformation.deform(mesh, entry.getValue()).positions()));
+            }
         }
         BoundsAccumulator result = new BoundsAccumulator();
         Map<AssimpMesh, Boolean> visitedSkinned = new IdentityHashMap<>();
@@ -160,36 +201,39 @@ public final class PoseSnapshot {
         // Values retain mesh data only, so the weak scene keys remain collectible.
         Map<AssimpMesh, MeshBounds> layout = new IdentityHashMap<>();
         for (AssimpMesh mesh : scene.getMeshes()) {
-            BoundsAccumulator all = new BoundsAccumulator();
-            BoundsAccumulator unweighted = new BoundsAccumulator();
-            BoundsAccumulator[] bones = new BoundsAccumulator[mesh.getBoneOffsets().size()];
-            for (int i = 0; i < bones.length; i++) bones[i] = new BoundsAccumulator();
-            SkinnedMeshProcessor.SkinnedMeshData skin = mesh.getSkinnedData();
-            int[] indices = skin == null ? new int[0] : skin.getBoneIndices();
-            float[] weights = skin == null ? new float[0] : skin.getBoneWeights();
-            int stride = skin == null || skin.getVertexCount() == 0 ? 0 : indices.length / skin.getVertexCount();
-            float[] vertices = mesh.getVertices();
-            for (int vertex = 0; vertex < mesh.getVertexCount(); vertex++) {
-                int position = vertex * 3;
-                float x = vertices[position], y = vertices[position + 1], z = vertices[position + 2];
-                all.include(x, y, z);
-                float total = 0;
-                for (int influence = 0; influence < stride; influence++) {
-                    int slot = vertex * stride + influence;
-                    if (slot >= indices.length || slot >= weights.length) break;
-                    int bone = indices[slot];
-                    float weight = weights[slot];
-                    if (bone < 0 || bone >= bones.length || !Float.isFinite(weight) || weight <= 0) continue;
-                    bones[bone].include(x, y, z);
-                    total += weight;
-                }
-                if (total <= 1.0e-8f) unweighted.include(x, y, z);
-            }
-            AABB[] boneBoxes = new AABB[bones.length];
-            for (int i = 0; i < bones.length; i++) boneBoxes[i] = bones[i].toAabb();
-            layout.put(mesh, new MeshBounds(all.toAabb(), boneBoxes, unweighted.toAabb()));
+            layout.put(mesh, prepareMeshBounds(mesh, mesh.getVertices()));
         }
         return layout;
+    }
+
+    private static MeshBounds prepareMeshBounds(AssimpMesh mesh, float[] vertices) {
+        BoundsAccumulator all = new BoundsAccumulator();
+        BoundsAccumulator unweighted = new BoundsAccumulator();
+        BoundsAccumulator[] bones = new BoundsAccumulator[mesh.getBoneOffsets().size()];
+        for (int i = 0; i < bones.length; i++) bones[i] = new BoundsAccumulator();
+        SkinnedMeshProcessor.SkinnedMeshData skin = mesh.getSkinnedData();
+        int[] indices = skin == null ? new int[0] : skin.getBoneIndices();
+        float[] weights = skin == null ? new float[0] : skin.getBoneWeights();
+        int stride = skin == null || skin.getVertexCount() == 0 ? 0 : indices.length / skin.getVertexCount();
+        for (int vertex = 0; vertex < mesh.getVertexCount(); vertex++) {
+            int position = vertex * 3;
+            float x = vertices[position], y = vertices[position + 1], z = vertices[position + 2];
+            all.include(x, y, z);
+            float total = 0;
+            for (int influence = 0; influence < stride; influence++) {
+                int slot = vertex * stride + influence;
+                if (slot >= indices.length || slot >= weights.length) break;
+                int bone = indices[slot];
+                float weight = weights[slot];
+                if (bone < 0 || bone >= bones.length || !Float.isFinite(weight) || weight <= 0) continue;
+                bones[bone].include(x, y, z);
+                total += weight;
+            }
+            if (total <= 1.0e-8f) unweighted.include(x, y, z);
+        }
+        AABB[] boneBoxes = new AABB[bones.length];
+        for (int i = 0; i < bones.length; i++) boneBoxes[i] = bones[i].toAabb();
+        return new MeshBounds(all.toAabb(), boneBoxes, unweighted.toAabb());
     }
 
     public record MeshInstance(AssimpMesh mesh, Matrix4f transform) {

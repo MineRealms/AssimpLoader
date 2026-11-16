@@ -1,0 +1,45 @@
+{
+  "origin": "Original AssimpLoader Blender fixture; no third-party assets.",
+  "blender": "5.3.0",
+  "source": "model-tests\\animation_probe_morph.blend",
+  "gltf": "src\\main\\resources\\assets\\assimploader\\models\\validation\\animation_probe_morph.glb",
+  "command": "blender --background --factory-startup --python model-tests/create_animation_probe.py -- --morph-only",
+  "base_fixture": "model-tests\\animation_probe.blend",
+  "preserved_fbx": "src\\main\\resources\\assets\\assimploader\\models\\validation\\animation_probe.fbx",
+  "texture": "Embedded original 64x64 checker",
+  "deform_bones": [
+    "Shoulder",
+    "Elbow"
+  ],
+  "attachment_node": "ToolSocket",
+  "rig_clips": [
+    "Idle",
+    "Reach",
+    "Fold"
+  ],
+  "morph": {
+    "mesh": "BlendBridge",
+    "target": "Stretch",
+    "clip": "MorphPulse",
+    "frames": [
+      1,
+      25,
+      49
+    ],
+    "seconds": [
+      0,
+      1,
+      2
+    ],
+    "weights": [
+      0,
+      1,
+      0
+    ],
+    "maximum_delta_blender": [
+      0.9,
+      0.12,
+      0
+    ]
+  }
+}

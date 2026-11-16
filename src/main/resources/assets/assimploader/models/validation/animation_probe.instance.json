@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "model": "assimploader:models/validation/animation_probe.fbx",
+  "initial": "idle",
+  "states": {
+    "idle": { "clip": "Idle", "loop": true, "transition": 0.3 },
+    "reach": { "clip": "Reach", "loop": false, "transition": 0.4 },
+    "fold": { "clip": "Fold", "loop": true, "transition": 0.25 }
+  },
+  "transitions": [ { "from": "reach", "to": "fold", "duration": 0.6 } ],
+  "layers": {
+    "upper": { "clip": "Reach", "weight": 0, "mask": { "Elbow": 1 } }
+  },
+  "attachments": {
+    "tool": { "node": "ToolSocket", "translation": [0.15, 0, 0], "scale": [1, 1, 1] }
+  }
+}

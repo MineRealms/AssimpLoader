@@ -21,9 +21,19 @@ public class AnimationState implements AutoCloseable {
     private final Map<String, Matrix4f> bindTransforms = new LinkedHashMap<>();
     private final Map<AssimpMesh, BoneHierarchyBuilder> boneHierarchies = new HashMap<>();
     private final Map<AssimpMesh, Matrix4f[]> cachedBoneTransforms = new HashMap<>();
+    private final Map<String, AnimationPoseLayer> layers = new LinkedHashMap<>();
+    private final Map<String, PoseModifier> modifiers = new LinkedHashMap<>();
+    private final Map<AssimpMesh, float[]> morphWeights = new HashMap<>();
+    private Map<String, Matrix4f> evaluatedBasePose = Map.of();
+    private final AnimationStateMachine stateMachine = new AnimationStateMachine(this);
+    private double simulationTime;
+    private boolean stopped;
+    private ModelInstance modelInstance;
     private AnimationPlayer currentAnimation;
     private AnimationPlayer transitionSource;
     private Map<String, Matrix4f> transitionSourcePose;
+    private Map<AssimpMesh, float[]> transitionSourceMorphs;
+    private Map<AssimpMesh, float[]> evaluatedBaseMorphs = Map.of();
     private double transitionTime;
     private double transitionDuration;
     private long frameId;
@@ -75,15 +85,16 @@ public class AnimationState implements AutoCloseable {
         if (!Float.isFinite(deltaTime) || deltaTime < 0) {
             throw new IllegalArgumentException("Animation delta must be finite and non-negative");
         }
-        if (!initialized || paused || deltaTime == 0 || currentAnimation == null) return;
-        if (!currentAnimation.isPlaying() && !isTransitioning()) return;
-        currentAnimation.update(deltaTime);
+        if (!initialized || paused || stopped || deltaTime == 0) return;
+        if (currentAnimation != null) currentAnimation.update(deltaTime);
         if (transitionSource != null) transitionSource.update(deltaTime);
+        layers.values().forEach(layer -> layer.update(deltaTime));
+        simulationTime += deltaTime;
         if (isTransitioning()) {
             transitionTime = Math.min(transitionDuration, transitionTime + deltaTime);
             if (transitionTime >= transitionDuration) clearTransition();
         }
-        publishPose();
+        publishPose(deltaTime);
     }
 
     /** Legacy immediate switch retains the target clip's playback position. */
@@ -92,6 +103,7 @@ public class AnimationState implements AutoCloseable {
         if (!initialized) initialize();
         AnimationPlayer next = animationPlayers.get(animationName);
         if (next == null) return false;
+        stopped = false;
         clearTransition();
         if (currentAnimation != null && currentAnimation != next) currentAnimation.pause();
         currentAnimation = next;
@@ -111,16 +123,19 @@ public class AnimationState implements AutoCloseable {
         if (next == null) return false;
         if (next == currentAnimation) return true;
         boolean interrupted = isTransitioning();
-        Map<String, Matrix4f> displayed = poseSnapshot == null ? Map.of() : poseSnapshot.copyLocalOverrides();
+        Map<String, Matrix4f> displayed = evaluatedBasePose;
+        Map<AssimpMesh, float[]> displayedMorphs = evaluatedBaseMorphs;
         AnimationPlayer previous = currentAnimation;
         clearTransition();
         if (interrupted && previous != null) previous.pause();
         currentAnimation = next;
+        stopped = false;
         next.stop();
         next.play();
         if (durationSeconds > 0) {
             transitionSource = interrupted ? null : previous;
             transitionSourcePose = copyTransforms(displayed);
+            transitionSourceMorphs = copyWeights(displayedMorphs);
             transitionDuration = durationSeconds;
             transitionTime = 0;
         } else if (previous != null) {
@@ -135,9 +150,10 @@ public class AnimationState implements AutoCloseable {
     }
 
     public boolean isTransitioning() { return transitionSourcePose != null; }
+    public float getTransitionWeight() { return isTransitioning() ? (float) (transitionTime / transitionDuration) : 1; }
     public boolean isPaused() { return paused; }
     public void pause() { requireOpen(); paused = true; }
-    public void resume() { requireOpen(); paused = false; }
+    public void resume() { requireOpen(); paused = false; stopped = false; }
 
     /** Stops all clips and publishes the bind pose, including nodes absent from the last clip. */
     public void stop() {
@@ -146,6 +162,11 @@ public class AnimationState implements AutoCloseable {
         clearTransition();
         for (AnimationPlayer player : animationPlayers.values()) player.stop();
         currentAnimation = null;
+        stateMachine.resetSelection();
+        layers.clear();
+        modifiers.values().forEach(PoseModifier::reset);
+        stopped = true;
+        if (modelInstance != null) modelInstance.resetEffects();
         publishPose();
     }
 
@@ -153,6 +174,7 @@ public class AnimationState implements AutoCloseable {
         if (transitionSource != null && transitionSource != currentAnimation) transitionSource.pause();
         transitionSource = null;
         transitionSourcePose = null;
+        transitionSourceMorphs = null;
         transitionTime = 0;
         transitionDuration = 0;
     }
@@ -164,6 +186,10 @@ public class AnimationState implements AutoCloseable {
     }
 
     private void publishPose() {
+        publishPose(0);
+    }
+
+    private void publishPose(double deltaSeconds) {
         if (!initialized || scene == null) return;
         Map<String, Matrix4f> locals = currentLocals(currentAnimation);
         if (isTransitioning()) {
@@ -178,8 +204,120 @@ public class AnimationState implements AutoCloseable {
                         : AnimationBlender.blendTransforms(from, to, weight));
             }
         }
-        poseSnapshot = PoseSnapshot.capture(++frameId, scene, locals);
+        evaluatedBasePose = copyTransforms(locals);
+        if (!stopped) {
+            layers.values().forEach(layer -> layer.apply(locals, bindTransforms));
+            modifiers.values().forEach(modifier -> modifier.apply(scene, locals, deltaSeconds));
+        }
+        Map<AssimpMesh, float[]> sampledMorphs = sampleMorphs(currentAnimation);
+        if (isTransitioning()) {
+            Map<AssimpMesh, float[]> source = transitionSource == null ? transitionSourceMorphs : sampleMorphs(transitionSource);
+            float weight = getTransitionWeight();
+            for (AssimpMesh mesh : scene.getMeshes()) {
+                if (!mesh.hasMorphTargets()) continue;
+                float[] from = source.getOrDefault(mesh, mesh.getDefaultMorphWeights());
+                float[] to = sampledMorphs.getOrDefault(mesh, mesh.getDefaultMorphWeights());
+                float[] blended = new float[to.length];
+                for (int i = 0; i < to.length; i++) blended[i] = from[i] + (to[i] - from[i]) * weight;
+                sampledMorphs.put(mesh, blended);
+            }
+        }
+        evaluatedBaseMorphs = copyWeights(sampledMorphs);
+        sampledMorphs.putAll(morphWeights);
+        poseSnapshot = PoseSnapshot.capture(++frameId, scene, locals, sampledMorphs);
+        if (modelInstance != null && !stopped) modelInstance.afterPose();
     }
+
+    private Map<AssimpMesh, float[]> sampleMorphs(AnimationPlayer player) {
+        Map<AssimpMesh, float[]> result = new HashMap<>();
+        if (player == null) return result;
+        for (var channel : player.getAnimation().getMorphChannels()) {
+            for (int i = 0; i < scene.getMeshes().size(); i++) {
+                AssimpMesh mesh = scene.getMeshes().get(i);
+                if (mesh.hasMorphTargets() && (mesh.getName().equals(channel.getMeshName())
+                        || nodeOwnsMesh(scene.getRootNode(), channel.getMeshName(), i))) {
+                    result.put(mesh, channel.sample(player.getCurrentTime(), mesh.getMorphTargets().size()));
+                }
+            }
+        }
+        return result;
+    }
+
+    private static boolean nodeOwnsMesh(AssimpNode node, String name, int meshIndex) {
+        if (node == null) return false;
+        if (node.getName().equals(name)) for (int index : node.getMeshIndices()) if (index == meshIndex) return true;
+        for (AssimpNode child : node.getChildren()) if (nodeOwnsMesh(child, name, meshIndex)) return true;
+        return false;
+    }
+
+    private static Map<AssimpMesh, float[]> copyWeights(Map<AssimpMesh, float[]> source) {
+        Map<AssimpMesh, float[]> result = new HashMap<>();
+        source.forEach((mesh, values) -> result.put(mesh, values.clone()));
+        return result;
+    }
+
+    public AnimationStateMachine getStateMachine() { return stateMachine; }
+    public ModelInstance getModelInstance() { return modelInstance; }
+    void setModelInstance(ModelInstance instance) { modelInstance = instance; }
+    public double getSimulationTime() { return simulationTime; }
+
+    public AnimationPoseLayer setLayer(String id, String clip, float weight, boolean additive, Map<String, Float> mask) {
+        requireOpen();
+        if (!initialized) initialize();
+        var animation = scene.getAnimations().stream().filter(value -> value.getName().equals(clip)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown layer clip: " + clip));
+        var layer = new AnimationPoseLayer(animation, scene.getRootNode(), weight, additive, mask);
+        layers.put(java.util.Objects.requireNonNull(id), layer);
+        stopped = false;
+        publishPose();
+        return layer;
+    }
+
+    public AnimationPoseLayer getLayer(String id) { return layers.get(id); }
+    public void setLayerWeight(String id, float weight) {
+        requireOpen();
+        AnimationPoseLayer layer = layers.get(id);
+        if (layer == null) throw new IllegalArgumentException("Unknown layer: " + id);
+        layer.setWeight(weight);
+        publishPose();
+    }
+    public void removeLayer(String id) { requireOpen(); layers.remove(id); publishPose(); }
+
+    public void addModifier(String id, PoseModifier modifier) {
+        requireOpen();
+        PoseModifier old = modifiers.put(java.util.Objects.requireNonNull(id), java.util.Objects.requireNonNull(modifier));
+        if (old != null && old != modifier) old.close();
+        stopped = false;
+        publishPose();
+    }
+
+    public void removeModifier(String id) {
+        requireOpen();
+        PoseModifier old = modifiers.remove(id);
+        if (old != null) old.close();
+        publishPose();
+    }
+
+    public void resetDynamics() {
+        requireOpen();
+        modifiers.values().forEach(PoseModifier::reset);
+        if (modelInstance != null) modelInstance.resetEffects();
+        publishPose();
+    }
+
+    public void setMorphWeights(AssimpMesh mesh, float[] weights) {
+        requireOpen();
+        if (!initialized) initialize();
+        if (scene == null || !scene.getMeshes().contains(mesh)) throw new IllegalArgumentException("Mesh is not in this scene");
+        if (weights.length != mesh.getMorphTargets().size()) throw new IllegalArgumentException("Morph target count mismatch");
+        for (float weight : weights) {
+            if (!Float.isFinite(weight)) throw new IllegalArgumentException("Morph weight must be finite");
+        }
+        morphWeights.put(mesh, weights.clone());
+        publishPose();
+    }
+
+    public void resetMorphWeights() { requireOpen(); morphWeights.clear(); publishPose(); }
 
     private static Map<String, Matrix4f> copyTransforms(Map<String, Matrix4f> source) {
         Map<String, Matrix4f> copy = new LinkedHashMap<>();
@@ -252,6 +390,11 @@ public class AnimationState implements AutoCloseable {
         clearTransition();
         for (AnimationPlayer player : animationPlayers.values()) player.pause();
         currentAnimation = null;
+        modifiers.values().forEach(PoseModifier::close);
+        modifiers.clear();
+        layers.clear();
+        morphWeights.clear();
+        modelInstance = null;
         poseSnapshot = null;
         cachedBoneTransforms.clear();
         boneHierarchies.clear();

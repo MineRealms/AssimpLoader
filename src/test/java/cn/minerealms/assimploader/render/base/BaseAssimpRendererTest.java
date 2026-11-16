@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.render.base;
 
 import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.animation.PoseSnapshot;
+import cn.minerealms.assimploader.animation.MorphTargetTest;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpMaterial;
@@ -34,6 +35,24 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BaseAssimpRendererTest {
+    @Test
+    void unskinnedMorphDefaultsAndOwnedWeightsDrawWithNodeTransforms() {
+        AssimpScene scene = MorphTargetTest.fixture();
+        AssimpMesh mesh = scene.getMeshes().get(0);
+        MaterialRecordingRenderer defaults = new MaterialRecordingRenderer();
+        defaults.renderInstances(scene, SceneTransforms.instances(scene), new PoseStack(), ignored -> null, 0, 0);
+        assertEquals(List.of(0.5f), defaults.positions);
+        assertEquals(List.of(3f), defaults.translations);
+
+        AnimationState state = new AnimationState("morph", scene);
+        state.initialize();
+        state.setMorphWeights(mesh, new float[]{1});
+        MaterialRecordingRenderer owned = new MaterialRecordingRenderer();
+        owned.renderInstances(scene, state, SceneTransforms.instances(scene), new PoseStack(), ignored -> null, 0, 0);
+        assertEquals(List.of(2f), owned.positions);
+        assertEquals(List.of(3f), owned.translations);
+    }
+
     @Test
     void adjacentTrianglesRemainSeparateTrianglesInEntityBatches() {
         try (MemoryStack stack = MemoryStack.stackPush()) {

@@ -62,15 +62,25 @@ public class ClientAnimationManager {
     private AnimationState resolve(Map<String, AnimationState> states, String name, AssimpScene scene) {
         Objects.requireNonNull(name, "Model name");
         AnimationState existing = states.get(name);
-        if (scene == null || !scene.isDynamic() || (!scene.hasAnimations() && !scene.hasSkeleton())) {
+        if (scene == null || !scene.isDynamic()) {
             if (existing != null) existing.close();
             states.remove(name);
             return null;
         }
         if (existing != null && !existing.isClosed() && existing.getScene() == scene) return existing;
         if (existing != null) existing.close();
-        AnimationState state = new AnimationState(name, scene);
-        state.initialize();
+        var definition = InstanceDefinitionResources.forModel(scene.getSourceResource());
+        if (definition.isEmpty() && !scene.hasAnimations() && !scene.hasSkeleton()
+                && scene.getMeshes().stream().noneMatch(mesh -> mesh.hasMorphTargets())) {
+            states.remove(name);
+            return null;
+        }
+        AnimationState state;
+        if (definition.isPresent()) state = definition.get().instantiate(scene).animation();
+        else {
+            state = new AnimationState(name, scene);
+            state.initialize();
+        }
         states.put(name, state);
         return state;
     }

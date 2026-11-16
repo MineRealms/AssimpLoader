@@ -2,10 +2,13 @@ package cn.minerealms.assimploader.model;
 
 import cn.minerealms.assimploader.animation.AnimationDataExtractor;
 import cn.minerealms.assimploader.animation.BoneAnimationChannel;
+import cn.minerealms.assimploader.animation.MorphAnimationChannel;
 import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 import org.lwjgl.assimp.AIAnimation;
+import org.lwjgl.assimp.AIMeshMorphAnim;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -21,6 +24,7 @@ public class AssimpAnimation {
     private final double duration;
     private final double ticksPerSecond;
     private final List<BoneAnimationChannel> channels;
+    private final List<MorphAnimationChannel> morphChannels;
 
     public AssimpAnimation(AIAnimation aiAnimation, int index,
                            CoordinateSystemConverter.CoordinateSystem sourceSystem) {
@@ -30,6 +34,10 @@ public class AssimpAnimation {
         this.ticksPerSecond = aiAnimation.mTicksPerSecond() != 0 ? aiAnimation.mTicksPerSecond() : 25.0;
         this.channels = Collections.unmodifiableList(
                 AnimationDataExtractor.extractChannels(aiAnimation, sourceSystem));
+        List<MorphAnimationChannel> morphs = new ArrayList<>();
+        for (int i = 0; i < aiAnimation.mNumMorphMeshChannels(); i++)
+            morphs.add(new MorphAnimationChannel(AIMeshMorphAnim.create(aiAnimation.mMorphMeshChannels().get(i))));
+        this.morphChannels = List.copyOf(morphs);
     }
 
     public String getName() {
@@ -52,4 +60,6 @@ public class AssimpAnimation {
     public List<BoneAnimationChannel> getChannels() {
         return channels;
     }
+
+    public List<MorphAnimationChannel> getMorphChannels() { return morphChannels; }
 }

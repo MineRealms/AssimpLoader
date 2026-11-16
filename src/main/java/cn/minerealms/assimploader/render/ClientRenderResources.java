@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.render;
 
 import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.animation.ClientAnimationManager;
+import cn.minerealms.assimploader.animation.InstanceDefinitionResources;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.rendering.CachedMeshRenderer;
 import cn.minerealms.assimploader.rendering.CpuSkinning;
@@ -73,6 +74,7 @@ public final class ClientRenderResources {
         SceneTransforms.clear();
         CpuSkinning.clear();
         ClientAnimationManager.clearCache();
+        InstanceDefinitionResources.clear();
     }
 
     @SubscribeEvent public static void logout(ClientPlayerNetworkEvent.LoggingOut event) { clear(); }

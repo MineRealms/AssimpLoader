@@ -1,12 +1,14 @@
 package cn.minerealms.assimploader.model;
 
 import cn.minerealms.assimploader.animation.SkinnedMeshProcessor;
+import cn.minerealms.assimploader.animation.MorphTarget;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.assimp.AIBone;
+import org.lwjgl.assimp.AIAnimMesh;
 import org.lwjgl.assimp.AIColor4D;
 import org.lwjgl.assimp.AIFace;
 import org.lwjgl.assimp.AIMesh;
@@ -40,6 +42,8 @@ public class AssimpMesh {
     private final float[] vertexColors;
     private final int[] indices;
     private final int faceCount;
+    private final List<MorphTarget> morphTargets;
+    private final int morphMethod;
 
     /** Bone name -> inverse bind (offset) matrix, in stable declaration order. */
     private final Map<String, Matrix4f> boneOffsets;
@@ -59,6 +63,8 @@ public class AssimpMesh {
         this.bitangents = readBitangents(aiMesh);
         this.vertexColors = readVertexColors(aiMesh);
         this.indices = readIndices(aiMesh);
+        this.morphMethod = aiMesh.mMethod();
+        this.morphTargets = readMorphTargets(aiMesh);
 
         this.boneOffsets = readBones(aiMesh);
         this.skinnedData = this.boneOffsets.isEmpty()
@@ -211,6 +217,43 @@ public class AssimpMesh {
 
     // ------------------------------------------------------------------ skeleton
 
+    private List<MorphTarget> readMorphTargets(AIMesh mesh) {
+        List<MorphTarget> targets = new ArrayList<>();
+        if (mesh.mNumAnimMeshes() > 0 && mesh.mAnimMeshes() == null)
+            throw new IllegalArgumentException("Missing morph target array for " + name);
+        for (int i = 0; i < mesh.mNumAnimMeshes(); i++) {
+            AIAnimMesh target = AIAnimMesh.create(mesh.mAnimMeshes().get(i));
+            if (target.mNumVertices() != getVertexCount())
+                throw new IllegalArgumentException("Morph vertex count mismatch for " + name + ": " + i);
+            if (target.mNormals() != null && normals == null)
+                throw new IllegalArgumentException("Morph normals require base normals for " + name);
+            targets.add(new MorphTarget(target.mName().dataString(), target.mWeight(),
+                    readMorphDeltas(target.mVertices(), vertices, false),
+                    readMorphDeltas(target.mNormals(), normals, true)));
+        }
+        return List.copyOf(targets);
+    }
+
+    private float[] readMorphDeltas(AIVector3D.Buffer stream, float[] base, boolean direction) {
+        if (stream == null) return null;
+        float[] deltas = new float[base.length];
+        for (int i = 0; i < getVertexCount(); i++) {
+            AIVector3D source = stream.get(i);
+            Vector3f vector = new Vector3f(source.x(), source.y(), source.z());
+            Vector3f converted = direction
+                    ? CoordinateSystemConverter.convertDirection(vector, sourceCoordinateSystem,
+                    CoordinateSystemConverter.CoordinateSystem.MINECRAFT_LEFT_HANDED)
+                    : CoordinateSystemConverter.convertPosition(vector, sourceCoordinateSystem,
+                    CoordinateSystemConverter.CoordinateSystem.MINECRAFT_LEFT_HANDED);
+            deltas[i * 3] = converted.x - base[i * 3];
+            deltas[i * 3 + 1] = converted.y - base[i * 3 + 1];
+            deltas[i * 3 + 2] = converted.z - base[i * 3 + 2];
+            if (!Float.isFinite(deltas[i * 3]) || !Float.isFinite(deltas[i * 3 + 1]) || !Float.isFinite(deltas[i * 3 + 2]))
+                throw new IllegalArgumentException("Non-finite morph stream for " + name);
+        }
+        return deltas;
+    }
+
     private Map<String, Matrix4f> readBones(AIMesh aiMesh) {
         int boneCount = aiMesh.mNumBones();
         if (boneCount <= 0) {
@@ -321,5 +364,14 @@ public class AssimpMesh {
 
     public SkinnedMeshProcessor.SkinnedMeshData getSkinnedData() {
         return skinnedData;
+    }
+
+    public List<MorphTarget> getMorphTargets() { return morphTargets; }
+    public boolean hasMorphTargets() { return !morphTargets.isEmpty(); }
+    public int getMorphMethod() { return morphMethod; }
+    public float[] getDefaultMorphWeights() {
+        float[] weights = new float[morphTargets.size()];
+        for (int i = 0; i < weights.length; i++) weights[i] = morphTargets.get(i).getDefaultWeight();
+        return weights;
     }
 }

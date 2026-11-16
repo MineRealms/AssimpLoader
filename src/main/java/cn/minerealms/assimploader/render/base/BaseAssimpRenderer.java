@@ -2,6 +2,9 @@ package cn.minerealms.assimploader.render.base;
 
 import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.animation.PoseSnapshot;
+import cn.minerealms.assimploader.animation.ModelInstance;
+import cn.minerealms.assimploader.animation.MaterialAnimation;
+import cn.minerealms.assimploader.render.AnimatedMaterialConsumer;
 import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import cn.minerealms.assimploader.compat.OculusCompat;
 import cn.minerealms.assimploader.model.AssimpMaterial;
@@ -23,6 +26,7 @@ import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
 import java.util.List;
+import java.util.Map;
 
 /** Shared scene traversal and vanilla fallback consuming one completed pose per draw. */
 public abstract class BaseAssimpRenderer {
@@ -62,6 +66,16 @@ public abstract class BaseAssimpRenderer {
         List<SceneTransforms.Instance> instances = snapshot == null ? SceneTransforms.instances(scene)
                 : snapshot.copyMeshInstances().stream()
                 .map(instance -> new SceneTransforms.Instance(instance.mesh(), instance.transform())).toList();
+        ModelInstance configured = state == null ? null : state.getModelInstance();
+        if (configured != null && configured.hasMaterialAnimation()) {
+            for (int pass = 0; pass < 2; pass++) for (SceneTransforms.Instance instance : instances) {
+                AssimpMaterial material = ModelTextureCache.material(scene, instance.mesh());
+                MaterialAnimation.Sample sample = configured.material(material == null ? "" : material.getName());
+                boolean transparent = (material != null && material.isTransparent()) || (sample != null && sample.alpha() < 1);
+                if (transparent == (pass == 1)) renderInstance(scene, snapshot, instance, stack, buffers, light, overlay, sample);
+            }
+            return;
+        }
         var optimization = AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.optimizationLevel::get,
                 AssimpLoaderConfig.OptimizationLevel.AUTO);
         if (snapshot != null && scene.hasSkeleton()
@@ -75,7 +89,8 @@ public abstract class BaseAssimpRenderer {
                 // receive their scene-node transform a second time.
                 for (SceneTransforms.Instance instance : instances) {
                     Matrix4f[] palette = snapshot.getBoneTransforms(instance.mesh());
-                    if (instance.mesh().hasBones() && palette != null && skinned.isInitialized() && skinned.supports(palette.length)) {
+                    if (instance.mesh().hasBones() && palette != null && !snapshot.hasActiveMorphs(instance.mesh())
+                            && skinned.isInitialized() && skinned.supports(palette.length)) {
                         var material = ModelTextureCache.material(scene, instance.mesh());
                         try {
                             skinned.renderWithPose(instance.mesh(), palette, stack, buffers,
@@ -93,7 +108,7 @@ public abstract class BaseAssimpRenderer {
                 return;
             }
         }
-        if (snapshot != null && scene.hasSkeleton()) {
+        if (snapshot != null && (scene.hasSkeleton() || snapshot.hasActiveMorphs())) {
             renderSnapshotInstances(scene, snapshot, instances, stack, buffers, light, overlay);
             return;
         }
@@ -103,15 +118,27 @@ public abstract class BaseAssimpRenderer {
 
     static PoseSnapshot snapshotForScene(AssimpScene scene, AnimationState state) {
         PoseSnapshot snapshot = state == null ? null : state.getPoseSnapshot();
-        return snapshot != null && snapshot.getScene() == scene ? snapshot : null;
+        if (snapshot != null && snapshot.getScene() == scene) return snapshot;
+        // Draw imported defaults even when a caller has no animation owner.
+        for (AssimpMesh mesh : scene.getMeshes()) if (mesh.hasMorphTargets())
+            return PoseSnapshot.capture(0, scene, Map.of());
+        return null;
     }
 
     private void renderInstance(AssimpScene scene, PoseSnapshot snapshot, SceneTransforms.Instance instance,
                                  PoseStack stack, MultiBufferSource buffers, int light, int overlay) {
+        renderInstance(scene, snapshot, instance, stack, buffers, light, overlay, null);
+    }
+
+    private void renderInstance(AssimpScene scene, PoseSnapshot snapshot, SceneTransforms.Instance instance,
+                                 PoseStack stack, MultiBufferSource buffers, int light, int overlay, MaterialAnimation.Sample sample) {
         AssimpMesh mesh = instance.mesh();
         AssimpMaterial material = ModelTextureCache.material(scene, mesh);
         ResourceLocation texture = getTextureLocation(scene, mesh, getModelName());
-        VertexConsumer consumer = buffers.getBuffer(getRenderType(material, texture));
+        RenderType type = sample != null && sample.alpha() < 1 ? AssimpRenderTypes.entity(texture == null ? ModelTextureCache.WHITE : texture, true)
+                : getRenderType(material, texture);
+        VertexConsumer consumer = buffers.getBuffer(type);
+        if (sample != null) consumer = new AnimatedMaterialConsumer(consumer, sample);
         if (snapshot != null && mesh.hasBones()) {
             var geometry = CpuSkinning.geometry(snapshot, mesh);
             renderMesh(mesh, geometry.positions(), geometry.normals(), material, stack, consumer, light, overlay);
@@ -119,7 +146,10 @@ public abstract class BaseAssimpRenderer {
             stack.pushPose();
             try {
                 SceneTransforms.apply(stack, instance.transform());
-                renderMesh(mesh, material, stack, consumer, light, overlay);
+                if (snapshot != null && snapshot.hasActiveMorphs(mesh)) {
+                    var geometry = CpuSkinning.geometry(snapshot, mesh);
+                    renderMesh(mesh, geometry.positions(), geometry.normals(), material, stack, consumer, light, overlay);
+                } else renderMesh(mesh, material, stack, consumer, light, overlay);
             } finally {
                 stack.popPose();
             }
@@ -128,7 +158,7 @@ public abstract class BaseAssimpRenderer {
 
     public void renderInstances(AssimpScene scene, List<SceneTransforms.Instance> instances, PoseStack stack,
                                 MultiBufferSource buffers, int light, int overlay) {
-        renderSnapshotInstances(scene, null, instances, stack, buffers, light, overlay);
+        renderSnapshotInstances(scene, snapshotForScene(scene, null), instances, stack, buffers, light, overlay);
     }
 
     protected void renderInstances(AssimpScene scene, AnimationState state, List<SceneTransforms.Instance> instances,
