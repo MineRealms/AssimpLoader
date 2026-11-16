@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "enabled": true,
+  "right_hand": {"node":"Hand.R", "position":[0,0.055,0], "rotation":[0.70710678,0,0,0.70710678], "scale":1},
+  "left_hand": {"node":"Hand.L", "position":[0,0.055,0], "rotation":[0.70710678,0,0,0.70710678], "scale":1}
+}

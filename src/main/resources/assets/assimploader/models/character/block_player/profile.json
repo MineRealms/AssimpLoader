@@ -17,6 +17,7 @@
   },
   "physicsDefinition": "assimploader:models/character/block_player/physics.json",
   "solverDefinition": "assimploader:models/character/block_player/rig.json",
+  "equipmentDefinition": "assimploader:models/character/block_player/equipment.json",
   "blendSeconds": 0.15,
   "movementThreshold": 0.04,
   "headLook": {"enabled": true, "forward": [0,0,-1], "maxYaw": 75, "maxPitch": 60}

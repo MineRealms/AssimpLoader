@@ -5,6 +5,7 @@ import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.animation.ClientAnimationManager;
 import cn.minerealms.assimploader.animation.ModelInstance;
 import cn.minerealms.assimploader.character.core.CharacterProfile;
+import cn.minerealms.assimploader.character.core.CharacterEquipmentDefinition;
 import cn.minerealms.assimploader.character.core.PlayerAnimationController;
 import cn.minerealms.assimploader.character.physics.BulletCharacterPhysics;
 import cn.minerealms.assimploader.character.physics.CharacterPhysicsAsset;
@@ -87,6 +88,7 @@ public final class LocalPlayerCharacter {
         final BulletCharacterPhysics physics;
         final CharacterPhysicsClientBinding physicsBinding;
         final CharacterRigDefinition.Installed rig;
+        final CharacterEquipmentDefinition equipment;
         final MinecraftPlayerInputSampler inputs = new MinecraftPlayerInputSampler();
 
         Binding(LocalPlayer player, CharacterProfile profile, AssimpScene scene) {
@@ -98,6 +100,15 @@ public final class LocalPlayerCharacter {
             try {
                 controller = new PlayerAnimationController(profile, animation);
                 var resources=Minecraft.getInstance().getResourceManager();
+                if (profile.equipmentDefinition() != null) {
+                    try (var reader = resources.openAsReader(new ResourceLocation(profile.equipmentDefinition()))) {
+                        equipment = CharacterEquipmentDefinition.read(reader);
+                    }
+                } else equipment = CharacterEquipmentDefinition.defaults(profile);
+                for (var mount : new CharacterEquipmentDefinition.Mount[]{equipment.rightHand(), equipment.leftHand()}) {
+                    if (mount != null && scene.findNodeByName(mount.node()) == null)
+                        throw new IllegalArgumentException("Unknown equipment node: " + mount.node());
+                }
                 if(profile.solverDefinition()!=null) {
                     try(var reader=resources.openAsReader(new ResourceLocation(profile.solverDefinition()))) {
                         rig=CharacterRigDefinition.read(reader).install(animation);
@@ -291,6 +302,8 @@ public final class LocalPlayerCharacter {
                 RENDERER.renderScene(binding.scene, binding.animation, poses, event.getMultiBufferSource(),
                         event.getPackedLight(), overlay, event.getPartialTick());
             }
+            CharacterHeldItemRenderer.render(binding.player, binding.equipment, snapshot, poses,
+                    event.getMultiBufferSource(), event.getPackedLight(), overlay);
             if (binding.animation.getModelInstance() != null) {
                 var world = rotationScale(yaw, binding.profile);
                 world.setTranslation((float) Mth.lerp(event.getPartialTick(), binding.player.xo, binding.player.getX()),
