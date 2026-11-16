@@ -112,6 +112,7 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.IntValue computeSkinningMiB;
         public final ForgeConfigSpec.IntValue computeSkinningOwners;
         public final RuntimeConfig runtime;
+        public final BatchConfig batch;
 
         // Hot-Reload
         public final ForgeConfigSpec.BooleanValue hotReloadEnabled;
@@ -280,6 +281,7 @@ public class AssimpLoaderConfig {
                     .defineInRange("computeSkinningOwners", 128, 1, 1024);
 
             runtime = new RuntimeConfig(builder);
+            batch = new BatchConfig(builder);
             builder.pop();
 
             // Hot-Reload Configuration
@@ -382,6 +384,37 @@ public class AssimpLoaderConfig {
                 .comment("Enable LookDev loaded-model preview; node editing is inactive")
                 .define("lookdevEnabled", true);
 
+            builder.pop();
+        }
+    }
+
+    /** Opt-in opaque model submission. Collision and server simulation never read these client settings. */
+    public static final class BatchConfig {
+        public final ForgeConfigSpec.EnumValue<GpuBatchPolicy.Mode> mode;
+        public final ForgeConfigSpec.IntValue maxInstances;
+        public final ForgeConfigSpec.IntValue geometryMiB;
+        public final ForgeConfigSpec.IntValue frameMiB;
+        public final ForgeConfigSpec.BooleanValue hiZEnabled;
+        public final ForgeConfigSpec.IntValue hiZMaxResolution;
+        public final ForgeConfigSpec.DoubleValue hiZBias;
+
+        private BatchConfig(ForgeConfigSpec.Builder builder) {
+            builder.comment("Optional opaque model batching; unsupported render paths keep their existing renderer")
+                    .push("batch");
+            mode = builder.comment("OFF, INSTANCED or MDI; requires compatible OpenGL and no active shader pack")
+                    .defineEnum("mode", GpuBatchPolicy.Mode.OFF);
+            maxInstances = builder.comment("Maximum submitted mesh instances per frame")
+                    .defineInRange("maxInstances", 4096, 1, 16384);
+            geometryMiB = builder.comment("Maximum shared geometry storage in MiB")
+                    .defineInRange("geometryMiB", 128, 1, 256);
+            frameMiB = builder.comment("Maximum transient instance, palette and command storage in MiB")
+                    .defineInRange("frameMiB", 32, 1, 128);
+            hiZEnabled = builder.comment("MDI only: conservative occlusion using this frame's opaque client depth")
+                    .define("hiZEnabled", false);
+            hiZMaxResolution = builder.comment("Maximum dimension of the Hi-Z depth pyramid")
+                    .defineInRange("hiZMaxResolution", 1024, 64, 2048);
+            hiZBias = builder.comment("Additional depth tolerance; larger values cull less aggressively")
+                    .defineInRange("hiZBias", .0005, 0.0, .05);
             builder.pop();
         }
     }
