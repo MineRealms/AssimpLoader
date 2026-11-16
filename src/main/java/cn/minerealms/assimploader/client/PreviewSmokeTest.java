@@ -30,6 +30,7 @@ public final class PreviewSmokeTest {
     private static final String[] MODELS = Arrays.stream(ShowcaseModel.values())
             .map(ShowcaseModel::modelName).toArray(String[]::new);
     private static final String RUN = Long.toString(System.currentTimeMillis());
+    private static final long TEXTURE_SETTLE_MS = 10_000;
     private enum Phase { TITLE, WORLD, OPEN, RENDER, CAPTURE, ITEMS_RENDER, ITEMS_CAPTURE, RELOAD, FINISH, DONE }
     private static Phase phase = Phase.TITLE;
     private static long changedAt = System.currentTimeMillis();
@@ -74,7 +75,7 @@ public final class PreviewSmokeTest {
                 case RENDER -> {
                     if (!(mc.screen instanceof LoadedModelsScreen screen)) throw new IllegalStateException("Preview screen closed");
                     if (screen.isPreviewFailed()) throw new IllegalStateException("Preview renderer failed");
-                    if (elapsed < 1_000 || !screen.isPreviewRendered()) return;
+                    if (elapsed < TEXTURE_SETTLE_MS || !screen.isPreviewRendered()) return;
                     int error = GL11.glGetError();
                     if (error != GL11.GL_NO_ERROR) throw new IllegalStateException("OpenGL error " + error);
                     String name = "assimp-smoke-" + RUN + "-" + (afterReload ? "reload-" : "") + MODELS[model] + ".png";
@@ -100,7 +101,7 @@ public final class PreviewSmokeTest {
                     }
                 }
                 case ITEMS_RENDER -> {
-                    if (elapsed < 1_000) return;
+                    if (elapsed < TEXTURE_SETTLE_MS) return;
                     int error = GL11.glGetError();
                     if (error != GL11.GL_NO_ERROR) throw new IllegalStateException("Item OpenGL error " + error);
                     String name = "assimp-smoke-" + RUN + "-items.png";

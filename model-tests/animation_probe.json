@@ -1,0 +1,24 @@
+{
+  "origin": "Original fixture authored for AssimpLoader; no third-party assets.",
+  "blender": "5.3.0",
+  "fbx": "src\\main\\resources\\assets\\assimploader\\models\\validation\\animation_probe.fbx",
+  "source": "model-tests\\animation_probe.blend",
+  "texture": "Original 64x64 RGBA checker, embedded in FBX",
+  "fps": 24,
+  "clips": [
+    "Idle",
+    "Reach",
+    "Fold"
+  ],
+  "deform_bones": [
+    "Shoulder",
+    "Elbow"
+  ],
+  "attachment_node": "ToolSocket",
+  "coordinate_export": {
+    "forward": "-Z",
+    "up": "Y",
+    "scale": "FBX_SCALE_ALL"
+  },
+  "vertices": 76
+}

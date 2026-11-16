@@ -95,6 +95,14 @@ public class SkinnedMeshRenderer {
     public void renderWithPose(AssimpMesh mesh, BoneHierarchyBuilder boneHierarchy,
                                PoseStack poseStack, MultiBufferSource bufferSource,
                                ResourceLocation texture, TextureManager textureManager, int light, int overlay, float[] tint) {
+        renderWithPose(mesh, boneHierarchy.getFinalTransforms(), poseStack, bufferSource,
+                texture, textureManager, light, overlay, tint);
+    }
+
+    /** The palette belongs to the completed pose captured by the caller for this draw. */
+    public void renderWithPose(AssimpMesh mesh, Matrix4f[] boneMatrices,
+                               PoseStack poseStack, MultiBufferSource bufferSource,
+                               ResourceLocation texture, TextureManager textureManager, int light, int overlay, float[] tint) {
         if (bufferSource instanceof MultiBufferSource.BufferSource source) {
             source.endBatch();
         }
@@ -103,7 +111,7 @@ public class SkinnedMeshRenderer {
         Matrix4f modelViewProjection = createModelViewProjection(RenderSystem.getProjectionMatrix(), modelView);
         try (GpuDrawState drawState = new GpuDrawState()) {
             drawState.prepare();
-            renderPacked(mesh, boneHierarchy, modelViewProjection, modelView, texture, textureManager, light, overlay, tint);
+            renderPacked(mesh, boneMatrices, modelViewProjection, modelView, texture, textureManager, light, overlay, tint);
         }
     }
 
@@ -142,14 +150,21 @@ public class SkinnedMeshRenderer {
     public void render(AssimpMesh mesh, BoneHierarchyBuilder boneHierarchy,
                        Matrix4f modelViewProjection, Matrix4f modelView,
                        ResourceLocation texture, TextureManager textureManager, float lightLevel, float[] tint) {
+        render(mesh, boneHierarchy.getFinalTransforms(), modelViewProjection, modelView,
+                texture, textureManager, lightLevel, tint);
+    }
+
+    public void render(AssimpMesh mesh, Matrix4f[] boneMatrices,
+                       Matrix4f modelViewProjection, Matrix4f modelView,
+                       ResourceLocation texture, TextureManager textureManager, float lightLevel, float[] tint) {
         try (GpuDrawState drawState = new GpuDrawState()) {
             drawState.prepare();
-            renderPacked(mesh, boneHierarchy, modelViewProjection, modelView, texture, textureManager,
+            renderPacked(mesh, boneMatrices, modelViewProjection, modelView, texture, textureManager,
                     packedLight(lightLevel), OverlayTexture.NO_OVERLAY, tint);
         }
     }
 
-    private void renderPacked(AssimpMesh mesh, BoneHierarchyBuilder boneHierarchy,
+    private void renderPacked(AssimpMesh mesh, Matrix4f[] boneMatrices,
                        Matrix4f modelViewProjection, Matrix4f modelView,
                        ResourceLocation texture, TextureManager textureManager, int light, int overlay, float[] tint) {
 
@@ -161,7 +176,7 @@ public class SkinnedMeshRenderer {
             DebugManager.warn(DebugCategory.RENDER, "Mesh {} has no bones, cannot render as skinned mesh", mesh.getName());
             return;
         }
-        if (!supports(boneHierarchy)) {
+        if (boneMatrices == null || !supports(boneMatrices.length)) {
             throw new IllegalArgumentException("Bone palette exceeds the selected GPU rendering limits");
         }
 
@@ -179,7 +194,7 @@ public class SkinnedMeshRenderer {
         // Bind shader
         shader.bind();
         shader.setTint(tint);
-        shader.setBoneCount(boneHierarchy.getBoneCount());
+        shader.setBoneCount(boneMatrices.length);
         // Both sampler uniforms remain active even when the uniform-bone branch is selected.
         shader.setBoneMatricesTBO(3);
         shader.setMinecraftLighting(light, overlay);
@@ -195,15 +210,13 @@ public class SkinnedMeshRenderer {
 
         if (useTBO && tboRequested()) {
             // Use TBO for efficient bone matrix upload
-            Matrix4f[] boneMatrices = boneHierarchy.getFinalTransforms();
             RenderSystem.activeTexture(GL13.GL_TEXTURE3);
             boneMatrixTBO.upload(boneMatrices);
             boneMatrixTBO.bind(3);
             shader.setUseTBO(true);
         } else {
             // Fallback to uniform arrays (max 64 bones)
-            float[] boneMatrices = boneHierarchy.getFinalTransformsFlat();
-            shader.setBoneMatrices(boneMatrices);
+            shader.setBoneMatrices(packPalette(boneMatrices));
             shader.setUseTBO(false);
         }
 
@@ -299,12 +312,22 @@ public class SkinnedMeshRenderer {
     }
 
     public boolean supports(BoneHierarchyBuilder hierarchy) {
+        return hierarchy != null && supports(hierarchy.getBoneCount());
+    }
+
+    public boolean supports(int boneCount) {
         var level = AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.optimizationLevel::get,
                 AssimpLoaderConfig.OptimizationLevel.AUTO);
         if (level == AssimpLoaderConfig.OptimizationLevel.FALLBACK) return false;
         int capacity = useTBO && tboRequested()
                 ? Math.min(maxBones, AssimpLoaderConfig.getIntOrDefault(AssimpLoaderConfig.CLIENT.maxTBOBones, 1024)) : 64;
-        return hierarchy.getBoneCount() <= capacity;
+        return boneCount > 0 && boneCount <= capacity;
+    }
+
+    static float[] packPalette(Matrix4f[] palette) {
+        float[] result = new float[Math.multiplyExact(palette.length, 16)];
+        for (int bone = 0; bone < palette.length; bone++) palette[bone].get(result, bone * 16);
+        return result;
     }
 
     private static boolean tboRequested() {

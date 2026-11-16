@@ -35,7 +35,7 @@ public class ExampleClientEvents {
 class ClientTickHandler {
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
-        // Update animation manager once per frame (at END phase to avoid double-ticking)
+        // Advance simulation once per client tick; render calls only consume snapshots.
         if (event.phase == TickEvent.Phase.END) {
             ClientAnimationManager.getInstance().tick();
         }

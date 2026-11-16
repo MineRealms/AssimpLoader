@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.rendering;
 
 import cn.minerealms.assimploader.animation.AnimationState;
+import cn.minerealms.assimploader.animation.PoseSnapshot;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
@@ -9,22 +10,26 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-/** Shader-pack-compatible fallback, recomputed only when the instance palette changes. */
+/** Shader-pack-compatible fallback, shared across passes of one completed pose. */
 public final class CpuSkinning {
     public record Geometry(float[] positions, float[] normals) {}
-    private record Entry(Matrix4f[] palette, Geometry geometry) {}
-    private static final Map<AnimationState, Map<AssimpMesh, Entry>> CACHE = new WeakHashMap<>();
+    private static final Map<PoseSnapshot, Map<AssimpMesh, Geometry>> CACHE = new WeakHashMap<>();
     private CpuSkinning() {}
 
     public static Geometry geometry(AnimationState state, AssimpMesh mesh) {
-        Matrix4f[] palette = state.getCachedBoneTransforms(mesh);
+        return geometry(state == null ? null : state.getPoseSnapshot(), mesh);
+    }
+
+    public static Geometry geometry(PoseSnapshot snapshot, AssimpMesh mesh) {
+        if (snapshot == null) return new Geometry(mesh.getVertices(), mesh.getNormals());
+        Map<AssimpMesh, Geometry> meshes = CACHE.computeIfAbsent(snapshot, ignored -> new IdentityHashMap<>());
+        Geometry cached = meshes.get(mesh);
+        if (cached != null) return cached;
+        Matrix4f[] palette = snapshot.getBoneTransforms(mesh);
         if (palette == null) return new Geometry(mesh.getVertices(), mesh.getNormals());
-        Map<AssimpMesh, Entry> meshes = CACHE.computeIfAbsent(state, ignored -> new IdentityHashMap<>());
-        Entry cached = meshes.get(mesh);
-        if (cached != null && cached.palette() == palette) return cached.geometry();
         var data = mesh.getSkinnedData();
         Geometry geometry = deform(mesh.getVertices(), mesh.getNormals(), data.getBoneIndices(), data.getBoneWeights(), palette);
-        meshes.put(mesh, new Entry(palette, geometry));
+        meshes.put(mesh, geometry);
         return geometry;
     }
 

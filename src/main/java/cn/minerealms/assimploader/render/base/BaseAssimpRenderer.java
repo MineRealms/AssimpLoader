@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.render.base;
 
 import cn.minerealms.assimploader.animation.AnimationState;
+import cn.minerealms.assimploader.animation.PoseSnapshot;
 import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import cn.minerealms.assimploader.compat.OculusCompat;
 import cn.minerealms.assimploader.model.AssimpMaterial;
@@ -22,9 +23,8 @@ import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
 import java.util.List;
-import java.util.Map;
 
-/** Shared scene traversal and allocation-free vanilla fallback. */
+/** Shared scene traversal and vanilla fallback consuming one completed pose per draw. */
 public abstract class BaseAssimpRenderer {
     protected abstract String getModelName();
 
@@ -58,12 +58,13 @@ public abstract class BaseAssimpRenderer {
     public void renderScene(AssimpScene scene, AnimationState state, PoseStack stack,
                             MultiBufferSource buffers, int light, int overlay) {
         ClientRenderResources.checkGeneration();
-        Map<String, Matrix4f> transforms = state != null && state.getCurrentAnimation() != null
-                ? state.getCurrentAnimation().getBoneTransforms() : null;
-        List<SceneTransforms.Instance> instances = SceneTransforms.instances(scene, transforms);
+        PoseSnapshot snapshot = snapshotForScene(scene, state);
+        List<SceneTransforms.Instance> instances = snapshot == null ? SceneTransforms.instances(scene)
+                : snapshot.copyMeshInstances().stream()
+                .map(instance -> new SceneTransforms.Instance(instance.mesh(), instance.transform())).toList();
         var optimization = AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.optimizationLevel::get,
                 AssimpLoaderConfig.OptimizationLevel.AUTO);
-        if (state != null && state.hasSkinnedMeshes()
+        if (snapshot != null && scene.hasSkeleton()
                 && optimization != AssimpLoaderConfig.OptimizationLevel.FALLBACK
                 && AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.gpuSkinningEnabled::get, true)
                 && !OculusCompat.shouldAvoidCustomShaders()
@@ -73,41 +74,46 @@ public abstract class BaseAssimpRenderer {
                 // A palette already contains scene parent transforms, so skinned meshes do not
                 // receive their scene-node transform a second time.
                 for (SceneTransforms.Instance instance : instances) {
-                    var hierarchy = state.getBoneHierarchy(instance.mesh());
-                    if (instance.mesh().hasBones() && hierarchy != null && skinned.isInitialized() && skinned.supports(hierarchy)) {
+                    Matrix4f[] palette = snapshot.getBoneTransforms(instance.mesh());
+                    if (instance.mesh().hasBones() && palette != null && skinned.isInitialized() && skinned.supports(palette.length)) {
                         var material = ModelTextureCache.material(scene, instance.mesh());
                         try {
-                            skinned.renderWithPose(instance.mesh(), hierarchy, stack, buffers,
+                            skinned.renderWithPose(instance.mesh(), palette, stack, buffers,
                                     ModelTextureCache.getTexture(scene, instance.mesh()),
                                     Minecraft.getInstance().getTextureManager(), light, overlay,
                                     material == null ? new float[]{1,1,1,1} : material.getDiffuseColor());
                         } catch (RuntimeException failure) {
                             ClientRenderResources.disableGpuSkinning(failure);
-                            renderInstance(scene, state, instance, stack, buffers, light, overlay);
+                            renderInstance(scene, snapshot, instance, stack, buffers, light, overlay);
                         }
                     } else {
-                        renderInstance(scene, state, instance, stack, buffers, light, overlay);
+                        renderInstance(scene, snapshot, instance, stack, buffers, light, overlay);
                     }
                 }
                 return;
             }
         }
-        if (state != null && state.hasSkinnedMeshes()) {
-            renderInstances(scene, state, instances, stack, buffers, light, overlay);
+        if (snapshot != null && scene.hasSkeleton()) {
+            renderSnapshotInstances(scene, snapshot, instances, stack, buffers, light, overlay);
             return;
         }
         if (CachedMeshRenderer.render(scene, instances, stack, buffers, light, overlay)) return;
         renderInstances(scene, instances, stack, buffers, light, overlay);
     }
 
-    private void renderInstance(AssimpScene scene, AnimationState state, SceneTransforms.Instance instance,
+    static PoseSnapshot snapshotForScene(AssimpScene scene, AnimationState state) {
+        PoseSnapshot snapshot = state == null ? null : state.getPoseSnapshot();
+        return snapshot != null && snapshot.getScene() == scene ? snapshot : null;
+    }
+
+    private void renderInstance(AssimpScene scene, PoseSnapshot snapshot, SceneTransforms.Instance instance,
                                  PoseStack stack, MultiBufferSource buffers, int light, int overlay) {
         AssimpMesh mesh = instance.mesh();
         AssimpMaterial material = ModelTextureCache.material(scene, mesh);
         ResourceLocation texture = getTextureLocation(scene, mesh, getModelName());
         VertexConsumer consumer = buffers.getBuffer(getRenderType(material, texture));
-        if (state != null && mesh.hasBones() && state.getBoneHierarchy(mesh) != null) {
-            var geometry = CpuSkinning.geometry(state, mesh);
+        if (snapshot != null && mesh.hasBones()) {
+            var geometry = CpuSkinning.geometry(snapshot, mesh);
             renderMesh(mesh, geometry.positions(), geometry.normals(), material, stack, consumer, light, overlay);
         } else {
             stack.pushPose();
@@ -122,18 +128,23 @@ public abstract class BaseAssimpRenderer {
 
     public void renderInstances(AssimpScene scene, List<SceneTransforms.Instance> instances, PoseStack stack,
                                 MultiBufferSource buffers, int light, int overlay) {
-        renderInstances(scene, null, instances, stack, buffers, light, overlay);
+        renderSnapshotInstances(scene, null, instances, stack, buffers, light, overlay);
     }
 
     protected void renderInstances(AssimpScene scene, AnimationState state, List<SceneTransforms.Instance> instances,
                                    PoseStack stack, MultiBufferSource buffers, int light, int overlay) {
+        renderSnapshotInstances(scene, snapshotForScene(scene, state), instances, stack, buffers, light, overlay);
+    }
+
+    private void renderSnapshotInstances(AssimpScene scene, PoseSnapshot snapshot, List<SceneTransforms.Instance> instances,
+                                         PoseStack stack, MultiBufferSource buffers, int light, int overlay) {
         // Glass must not write depth before the model's opaque surfaces have been submitted.
         for (int pass = 0; pass < 2; pass++) {
             boolean transparent = pass == 1;
             for (SceneTransforms.Instance instance : instances) {
                 AssimpMaterial material = ModelTextureCache.material(scene, instance.mesh());
                 if ((material != null && material.isTransparent()) == transparent) {
-                    renderInstance(scene, state, instance, stack, buffers, light, overlay);
+                    renderInstance(scene, snapshot, instance, stack, buffers, light, overlay);
                 }
             }
         }

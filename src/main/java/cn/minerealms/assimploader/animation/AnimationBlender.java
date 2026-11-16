@@ -1,5 +1,6 @@
 package cn.minerealms.assimploader.animation;
 
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -180,20 +181,20 @@ public class AnimationBlender {
      * Blend two animations with a weight
      */
     public static Matrix4f blendTransforms(Matrix4f transform1, Matrix4f transform2, float weight) {
+        if (weight == 0 || transform1.equals(transform2)) return new Matrix4f(transform1);
+        if (weight == 1) return new Matrix4f(transform2);
         // Decompose matrices
         Vector3f pos1 = new Vector3f();
-        Quaternionf rot1 = new Quaternionf();
         Vector3f scale1 = new Vector3f();
         transform1.getTranslation(pos1);
-        transform1.getUnnormalizedRotation(rot1);
         transform1.getScale(scale1);
+        Quaternionf rot1 = signedRotation(transform1, scale1);
 
         Vector3f pos2 = new Vector3f();
-        Quaternionf rot2 = new Quaternionf();
         Vector3f scale2 = new Vector3f();
         transform2.getTranslation(pos2);
-        transform2.getUnnormalizedRotation(rot2);
         transform2.getScale(scale2);
+        Quaternionf rot2 = signedRotation(transform2, scale2);
 
         // Blend components
         Vector3f blendedPos = pos1.lerp(pos2, weight);
@@ -205,6 +206,15 @@ public class AnimationBlender {
             .translate(blendedPos)
             .rotate(blendedRot)
             .scale(blendedScale);
+    }
+
+    private static Quaternionf signedRotation(Matrix4f transform, Vector3f scale) {
+        // Keep reflections in the X scale so the remaining matrix is a proper rotation.
+        Matrix3f rotation = new Matrix3f(transform);
+        if (rotation.determinant() < 0) scale.x = -scale.x;
+        rotation.scale(scale.x == 0 ? 0 : 1 / scale.x,
+                scale.y == 0 ? 0 : 1 / scale.y, scale.z == 0 ? 0 : 1 / scale.z);
+        return rotation.getNormalizedRotation(new Quaternionf()).normalize();
     }
 
     /**

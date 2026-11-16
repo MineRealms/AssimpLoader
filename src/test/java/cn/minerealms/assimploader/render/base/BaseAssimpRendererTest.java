@@ -1,12 +1,14 @@
 package cn.minerealms.assimploader.render.base;
 
 import cn.minerealms.assimploader.animation.AnimationState;
+import cn.minerealms.assimploader.animation.PoseSnapshot;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpMaterial;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.render.SceneTransforms;
+import cn.minerealms.assimploader.rendering.CpuSkinning;
 import cn.minerealms.assimploader.util.CoordinateSystemConverter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -23,6 +25,8 @@ import org.lwjgl.system.MemoryStack;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -76,6 +80,65 @@ class BaseAssimpRendererTest {
         assertEquals(List.of(0.75f, 0.75f, 0.25f, 0.25f), renderer.reds);
     }
 
+    @Test
+    void allMaterialPassesUseOneCapturedSnapshotWithoutReadingLivePlayers() {
+        AssimpScene scene = skinnedGlassAndMetal();
+        PoseSnapshot first = PoseSnapshot.capture(1, scene,
+                Map.of("RootJoint", new Matrix4f().translation(2, 0, 0)));
+        PoseSnapshot next = PoseSnapshot.capture(2, scene,
+                Map.of("RootJoint", new Matrix4f().translation(9, 0, 0)));
+        AtomicInteger captures = new AtomicInteger();
+        AnimationState state = new AnimationState("transparent-test", scene) {
+            @Override public PoseSnapshot getPoseSnapshot() {
+                return captures.getAndIncrement() == 0 ? first : next;
+            }
+            @Override public cn.minerealms.assimploader.animation.AnimationPlayer getCurrentAnimation() {
+                throw new AssertionError("Rendering must not read the mutable animation player");
+            }
+        };
+        MaterialRecordingRenderer renderer = new MaterialRecordingRenderer();
+
+        renderer.renderInstances(scene, state, glassFirstInstances(scene), new PoseStack(), ignored -> null, 0, 0);
+
+        assertEquals(1, captures.get());
+        assertEquals(List.of(2f, 2f, 2f, 2f), renderer.positions);
+        assertEquals(List.of(0f, 0f, 0f, 0f), renderer.translations);
+    }
+
+    @Test
+    void snapshotCacheSeparatesInstancesAndPreservesPreviouslyCompletedFrames() {
+        AssimpScene scene = skinnedGlassAndMetal();
+        AssimpMesh mesh = scene.getMeshes().get(0);
+        PoseSnapshot first = PoseSnapshot.capture(7, scene,
+                Map.of("RootJoint", new Matrix4f().translation(2, 0, 0)));
+        PoseSnapshot otherInstance = PoseSnapshot.capture(7, scene,
+                Map.of("RootJoint", new Matrix4f().translation(9, 0, 0)));
+
+        var firstGeometry = CpuSkinning.geometry(first, mesh);
+        var secondGeometry = CpuSkinning.geometry(otherInstance, mesh);
+        assertSame(firstGeometry, CpuSkinning.geometry(first, mesh));
+        assertNotSame(firstGeometry, secondGeometry);
+        assertEquals(2f, firstGeometry.positions()[0], 1e-6f);
+        assertEquals(9f, secondGeometry.positions()[0], 1e-6f);
+        assertEquals(2f, firstGeometry.positions()[0], 1e-6f);
+        CpuSkinning.clear();
+        assertNotSame(firstGeometry, CpuSkinning.geometry(first, mesh));
+    }
+
+    @Test
+    void resourceReplacementRejectsSnapshotsFromThePreviousScene() {
+        AssimpScene oldScene = skinnedGlassAndMetal();
+        AssimpScene newScene = skinnedGlassAndMetal();
+        PoseSnapshot oldPose = PoseSnapshot.capture(1, oldScene, Map.of());
+        AnimationState oldState = new AnimationState("transparent-test", oldScene) {
+            @Override public PoseSnapshot getPoseSnapshot() { return oldPose; }
+        };
+
+        assertSame(oldPose, BaseAssimpRenderer.snapshotForScene(oldScene, oldState));
+        assertNull(BaseAssimpRenderer.snapshotForScene(newScene, oldState));
+        assertNull(BaseAssimpRenderer.snapshotForScene(newScene, null));
+    }
+
     private static List<SceneTransforms.Instance> glassFirstInstances(AssimpScene scene) {
         AssimpMesh glass = scene.getMeshes().stream().filter(mesh -> scene.getMaterials().get(mesh.getMaterialIndex()).isTransparent()).findFirst().orElseThrow();
         AssimpMesh metal = scene.getMeshes().stream().filter(mesh -> !scene.getMaterials().get(mesh.getMaterialIndex()).isTransparent()).findFirst().orElseThrow();
@@ -120,6 +183,7 @@ class BaseAssimpRendererTest {
     private static class MaterialRecordingRenderer extends BaseAssimpRenderer {
         private final List<Float> reds = new ArrayList<>();
         private final List<Float> translations = new ArrayList<>();
+        private final List<Float> positions = new ArrayList<>();
 
         @Override protected String getModelName() { return "transparent-test"; }
         @Override protected ResourceLocation getTextureLocation(AssimpScene scene, AssimpMesh mesh, String name) { return null; }
@@ -132,6 +196,7 @@ class BaseAssimpRendererTest {
             if (index == 2) {
                 reds.add(r);
                 translations.add(pose.m30());
+                positions.add(vertices[index * 3]);
             }
         }
     }

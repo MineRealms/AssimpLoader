@@ -4,9 +4,27 @@ import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class SkinnedMeshRendererTest {
+    @Test
+    void packsSnapshotPaletteInConsecutiveColumnMajorMatricesWithoutChangingIt() {
+        Matrix4f first = new Matrix4f().translation(1, 2, 3).rotateY(0.5f);
+        Matrix4f second = new Matrix4f().translation(4, 5, 6).scale(2, 3, 4);
+        Matrix4f originalFirst = new Matrix4f(first);
+        Matrix4f originalSecond = new Matrix4f(second);
+
+        float[] packed = SkinnedMeshRenderer.packPalette(new Matrix4f[]{first, second});
+
+        assertEquals(32, packed.length);
+        assertArrayEquals(first.get(new float[16]), Arrays.copyOfRange(packed, 0, 16), 1e-6f);
+        assertArrayEquals(second.get(new float[16]), Arrays.copyOfRange(packed, 16, 32), 1e-6f);
+        assertEquals(originalFirst, first);
+        assertEquals(originalSecond, second);
+    }
+
     @Test
     void composesPoseThenGlobalViewThenProjectionWithoutMutatingInputs() {
         Matrix4f pose = new Matrix4f().translation(1, 2, 3).rotateZ((float) (Math.PI / 2));

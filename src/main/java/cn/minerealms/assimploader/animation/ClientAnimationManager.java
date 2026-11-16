@@ -1,94 +1,125 @@
 package cn.minerealms.assimploader.animation;
 
-import cn.minerealms.assimploader.debug.DebugManager;
-import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
-import net.minecraft.client.Minecraft;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
+import cn.minerealms.assimploader.core.ModelImportMode;
+import cn.minerealms.assimploader.model.AssimpScene;
+import net.minecraft.client.Minecraft;
 
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
-/**
- * Client-side singleton manager for item animation states.
- * Maintains one AnimationState per model for rendering items in hand/GUI.
- */
+/** Client-thread playback owners. Imported scenes remain shared, playback does not. */
 public class ClientAnimationManager {
-    private static ClientAnimationManager instance;
-
+    private static final ClientAnimationManager INSTANCE = new ClientAnimationManager();
     private final Map<String, AnimationState> animationStates = new HashMap<>();
-    private long lastUpdateTime = 0;
+    private final Map<OwnerReference, Map<String, AnimationState>> instances = new HashMap<>();
+    private final ReferenceQueue<Object> collectedOwners = new ReferenceQueue<>();
 
-    private ClientAnimationManager() {
-    }
+    private static final class OwnerReference extends WeakReference<Object> {
+        private final int hash;
 
-    public static ClientAnimationManager getInstance() {
-        if (instance == null) {
-            instance = new ClientAnimationManager();
+        private OwnerReference(Object owner, ReferenceQueue<Object> queue) {
+            super(owner, queue);
+            hash = System.identityHashCode(owner);
         }
-        return instance;
+
+        @Override public int hashCode() { return hash; }
+
+        @Override public boolean equals(Object other) {
+            if (this == other) return true;
+            Object owner = get();
+            return owner != null && other instanceof OwnerReference reference && owner == reference.get();
+        }
     }
 
-    /**
-     * Get or create animation state for a model.
-     * @param modelName Model name (e.g., "circle", "models/block/circle")
-     * @return AnimationState for this model
-     */
+    ClientAnimationManager() {}
+
+    public static ClientAnimationManager getInstance() { return INSTANCE; }
+
+    /** Compatibility entry point: a shared default instance for this model. */
     public AnimationState getOrCreateAnimationState(String modelName) {
-        var scene = AssimpModelLoader.getCachedModel(modelName);
+        drainCollectedOwners();
+        return resolve(animationStates, modelName,
+                AssimpModelLoader.getCachedModel(modelName, ModelImportMode.DYNAMIC));
+    }
+
+    public AnimationState getOrCreateAnimationState(Object owner, String modelName) {
+        return getOrCreateAnimationState(owner, modelName,
+                AssimpModelLoader.getCachedModel(modelName, ModelImportMode.DYNAMIC));
+    }
+
+    /** Keep a stable owner (e.g. an ItemStack); release explicitly when its lifetime is known. */
+    public AnimationState getOrCreateAnimationState(Object owner, String modelName, AssimpScene scene) {
+        Objects.requireNonNull(owner, "Animation owner");
+        drainCollectedOwners();
+        return resolve(instances.computeIfAbsent(new OwnerReference(owner, collectedOwners), ignored -> new HashMap<>()),
+                modelName, scene);
+    }
+
+    private AnimationState resolve(Map<String, AnimationState> states, String name, AssimpScene scene) {
+        Objects.requireNonNull(name, "Model name");
+        AnimationState existing = states.get(name);
         if (scene == null || !scene.isDynamic() || (!scene.hasAnimations() && !scene.hasSkeleton())) {
-            animationStates.remove(modelName);
+            if (existing != null) existing.close();
+            states.remove(name);
             return null;
         }
-        AnimationState existing = animationStates.get(modelName);
-        if (existing != null && existing.getScene() == scene) return existing;
-        AnimationState state = new AnimationState(modelName, scene);
+        if (existing != null && !existing.isClosed() && existing.getScene() == scene) return existing;
+        if (existing != null) existing.close();
+        AnimationState state = new AnimationState(name, scene);
         state.initialize();
-        if (!state.isInitialized()) return null;
-        animationStates.put(modelName, state);
+        states.put(name, state);
         return state;
     }
 
-    /**
-     * Update all animation states. Should be called once per frame.
-     */
+    /** Called once at client tick END; paused single-player worlds do not advance animation. */
     public void tick() {
-        long currentTime = System.currentTimeMillis();
+        drainCollectedOwners();
+        if (!Minecraft.getInstance().isPaused()) update(0.05f);
+    }
 
-        if (lastUpdateTime == 0) {
-            lastUpdateTime = currentTime;
-            return;
+    /** Deterministic simulation step in seconds, independent of rendering and wall-clock stalls. */
+    public void update(float deltaTime) {
+        if (!Float.isFinite(deltaTime) || deltaTime < 0) {
+            throw new IllegalArgumentException("Animation delta must be finite and non-negative");
         }
+        drainCollectedOwners();
+        updateStates(animationStates, deltaTime);
+        for (Map<String, AnimationState> states : instances.values()) updateStates(states, deltaTime);
+    }
 
-        float deltaTime = Math.max(0, Math.min(0.25f, (currentTime - lastUpdateTime) / 1000.0f));
-        lastUpdateTime = currentTime;
-
-        // Update all active animations
-        for (AnimationState state : animationStates.values()) {
-            if (state.isInitialized() && state.getCurrentAnimation() != null) {
-                state.update(deltaTime);
-            }
+    private static void updateStates(Map<String, AnimationState> states, float deltaTime) {
+        for (AnimationState state : states.values()) {
+            if (state.isInitialized()) state.update(deltaTime);
         }
     }
 
-    /**
-     * Clear all animation states (e.g., on resource reload).
-     */
+    public void release(Object owner) {
+        drainCollectedOwners();
+        if (owner == null) return;
+        Map<String, AnimationState> removed = instances.remove(new OwnerReference(owner, null));
+        if (removed != null) removed.values().forEach(AnimationState::close);
+    }
+
+    private void drainCollectedOwners() {
+        OwnerReference owner;
+        while ((owner = (OwnerReference) collectedOwners.poll()) != null) {
+            Map<String, AnimationState> removed = instances.remove(owner);
+            if (removed != null) removed.values().forEach(AnimationState::close);
+        }
+    }
+
     public void clear() {
+        drainCollectedOwners();
+        animationStates.values().forEach(AnimationState::close);
+        instances.values().forEach(states -> states.values().forEach(AnimationState::close));
         animationStates.clear();
-        lastUpdateTime = 0;
+        instances.clear();
     }
 
-    /**
-     * Static method to clear cache (for hot-reload).
-     */
-    public static void clearCache() {
-        getInstance().clear();
-    }
-
-    /**
-     * Get animation state if it exists (without creating).
-     */
-    public AnimationState getAnimationState(String modelName) {
-        return animationStates.get(modelName);
-    }
+    public static void clearCache() { INSTANCE.clear(); }
+    public AnimationState getAnimationState(String modelName) { return animationStates.get(modelName); }
 }

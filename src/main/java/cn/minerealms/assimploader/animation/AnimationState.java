@@ -1,243 +1,264 @@
 package cn.minerealms.assimploader.animation;
 
 import cn.minerealms.assimploader.core.AssimpModelLoader;
-import cn.minerealms.assimploader.debug.DebugManager;
-import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
-import cn.minerealms.assimploader.model.AssimpAnimation;
+import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpMesh;
+import cn.minerealms.assimploader.model.AssimpNode;
 import cn.minerealms.assimploader.model.AssimpScene;
-import org.lwjgl.assimp.AIBone;
-import org.lwjgl.assimp.AIMesh;
+import org.joml.Matrix4f;
 
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
 
-/**
- * Per-instance animation state for a BlockEntity or Entity.
- *
- * Each instance maintains:
- * - Its own AnimationPlayer instances
- * - Its own BoneHierarchyBuilder
- * - Independent animation playback state
- *
- * This allows multiple blocks/entities with the same model to have independent animations.
- */
-public class AnimationState {
-
+/** Single-writer playback state. Renderers and attachments consume a completed snapshot. */
+public class AnimationState implements AutoCloseable {
     private final String modelName;
     private final AssimpScene scene;
-    private final Map<String, AnimationPlayer> animationPlayers;
-    private final Map<AssimpMesh, BoneHierarchyBuilder> boneHierarchies;
+    private final Map<String, AnimationPlayer> animationPlayers = new LinkedHashMap<>();
+    private final Map<String, Matrix4f> bindTransforms = new LinkedHashMap<>();
+    private final Map<AssimpMesh, BoneHierarchyBuilder> boneHierarchies = new HashMap<>();
+    private final Map<AssimpMesh, Matrix4f[]> cachedBoneTransforms = new HashMap<>();
     private AnimationPlayer currentAnimation;
-    private boolean initialized = false;
-
-    // Dirty flag system for caching
-    private boolean transformsDirty = true;
-    private final Map<AssimpMesh, org.joml.Matrix4f[]> cachedBoneTransforms = new HashMap<>();
+    private AnimationPlayer transitionSource;
+    private Map<String, Matrix4f> transitionSourcePose;
+    private double transitionTime;
+    private double transitionDuration;
+    private long frameId;
+    private long hierarchyFrame = -1;
+    private long paletteFrame = -1;
+    private volatile PoseSnapshot poseSnapshot;
+    private boolean initialized;
+    private boolean paused;
+    private boolean closed;
 
     public AnimationState(String modelName) {
-        this(modelName, AssimpModelLoader.getCachedModel(modelName,
-                cn.minerealms.assimploader.core.ModelImportMode.DYNAMIC));
+        this(modelName, AssimpModelLoader.getCachedModel(modelName, ModelImportMode.DYNAMIC));
     }
 
     public AnimationState(String modelName, AssimpScene scene) {
         this.modelName = modelName;
         this.scene = scene;
-        this.animationPlayers = new LinkedHashMap<>();
-        this.boneHierarchies = new HashMap<>();
-
-        if (scene == null) {
-            DebugManager.error(DebugCategory.ANIMATION, "Failed to create AnimationState: model {} not found in DYNAMIC mode", modelName);
-        } else {
-            DebugManager.info(DebugCategory.ANIMATION, "AnimationState created for model '{}': mode={}, meshes={}, animations={}",
-                modelName, scene.getImportMode(), scene.getMeshes().size(), scene.getAnimations().size());
-        }
     }
 
-    /**
-     * Initialize animation system for this instance
-     */
     public void initialize() {
-        if (initialized || scene == null) {
-            return;
-        }
-
-        DebugManager.info(DebugCategory.ANIMATION, "Initializing AnimationState for model: {}", modelName);
-
-        // Build bone hierarchies for each skinned mesh
+        requireOpen();
+        if (initialized || scene == null) return;
+        collectBindTransforms(scene.getRootNode());
         for (AssimpMesh mesh : scene.getMeshes()) {
-            if (mesh.hasBones()) {
-                BoneHierarchyBuilder boneHierarchy = new BoneHierarchyBuilder();
-                boneHierarchy.buildFromMesh(mesh, scene.getRootNode());
-                boneHierarchies.put(mesh, boneHierarchy);
-
-                DebugManager.debug(DebugCategory.ANIMATION, "Built bone hierarchy for mesh: {} ({} bones)",
-                        mesh.getName(), boneHierarchy.getBoneCount());
-            }
+            for (String bone : mesh.getBoneOffsets().keySet()) bindTransforms.putIfAbsent(bone, new Matrix4f());
         }
-
-        // Create animation players for each animation in the FBX
-        for (AssimpAnimation animation : scene.getAnimations()) {
-            AnimationPlayer player = new AnimationPlayer(animation, scene.getRootNode());
+        for (var animation : scene.getAnimations()) {
+            var player = new AnimationPlayer(animation, scene.getRootNode());
             player.setLooping(true);
             animationPlayers.put(animation.getName(), player);
-
-            DebugManager.info(DebugCategory.ANIMATION, "Animation '{}': duration={} ticks, channels={}",
-                    animation.getName(), animation.getDuration(), animation.getChannels().size());
         }
-
-        // Set default animation if available
         if (!animationPlayers.isEmpty()) {
             currentAnimation = animationPlayers.values().iterator().next();
             currentAnimation.play();
-            DebugManager.info(DebugCategory.ANIMATION, "Default animation set: {}", currentAnimation.getAnimation().getName());
         }
-
         initialized = true;
-        applyCurrentTransforms();
+        publishPose();
     }
 
-    /**
-     * Update animation state (call every tick)
-     *
-     * @param deltaTime Time since last update in seconds (typically 0.05 for 20 TPS)
-     */
+    private void collectBindTransforms(AssimpNode node) {
+        if (node == null) return;
+        bindTransforms.putIfAbsent(node.getName(), new Matrix4f(node.getTransformation()));
+        for (AssimpNode child : node.getChildren()) collectBindTransforms(child);
+    }
+
+    /** Simulation seconds; drawing a snapshot never advances this clock. */
     public void update(float deltaTime) {
-        if (!initialized || currentAnimation == null) {
-            return;
+        requireOpen();
+        if (!Float.isFinite(deltaTime) || deltaTime < 0) {
+            throw new IllegalArgumentException("Animation delta must be finite and non-negative");
         }
-
-        // Update current animation
+        if (!initialized || paused || deltaTime == 0 || currentAnimation == null) return;
+        if (!currentAnimation.isPlaying() && !isTransitioning()) return;
         currentAnimation.update(deltaTime);
-
-        // Mark transforms as dirty - need recalculation
-        transformsDirty = true;
-
-        applyCurrentTransforms();
-    }
-
-    private void applyCurrentTransforms() {
-        Map<String, org.joml.Matrix4f> boneTransforms = currentAnimation == null
-                ? Map.of() : currentAnimation.getBoneTransforms();
-        for (Map.Entry<AssimpMesh, BoneHierarchyBuilder> entry : boneHierarchies.entrySet()) {
-            BoneHierarchyBuilder boneHierarchy = entry.getValue();
-            for (Map.Entry<String, org.joml.Matrix4f> transform : boneTransforms.entrySet()) {
-                boneHierarchy.updateBoneTransform(transform.getKey(), transform.getValue());
-            }
-
-            // Recalculate final transforms
-            boneHierarchy.updateTransforms();
+        if (transitionSource != null) transitionSource.update(deltaTime);
+        if (isTransitioning()) {
+            transitionTime = Math.min(transitionDuration, transitionTime + deltaTime);
+            if (transitionTime >= transitionDuration) clearTransition();
         }
+        publishPose();
     }
 
-    /**
-     * Play a specific animation by name
-     *
-     * @param animationName Name of the animation to play
-     * @return true if animation was found and started
-     */
+    /** Legacy immediate switch retains the target clip's playback position. */
     public boolean playAnimation(String animationName) {
-        AnimationPlayer player = animationPlayers.get(animationName);
-        if (player == null) {
-            DebugManager.warn(DebugCategory.ANIMATION, "Animation not found: {}", animationName);
-            return false;
-        }
-
-        if (currentAnimation != null && currentAnimation != player) {
-            currentAnimation.pause();
-        }
-
-        currentAnimation = player;
-        for (BoneHierarchyBuilder hierarchy : boneHierarchies.values()) hierarchy.resetToBindPose();
-        currentAnimation.play();
-        applyCurrentTransforms();
-        transformsDirty = true;
-
-        DebugManager.debug(DebugCategory.ANIMATION, "Playing animation: {}", animationName);
+        requireOpen();
+        if (!initialized) initialize();
+        AnimationPlayer next = animationPlayers.get(animationName);
+        if (next == null) return false;
+        clearTransition();
+        if (currentAnimation != null && currentAnimation != next) currentAnimation.pause();
+        currentAnimation = next;
+        next.play();
+        publishPose();
         return true;
     }
 
-    /**
-     * Get bone hierarchy for a specific mesh
-     */
+    /** Starts the target at its first sample and blends local TRS; interruption preserves the displayed pose. */
+    public boolean transitionTo(String animationName, double durationSeconds) {
+        requireOpen();
+        if (!Double.isFinite(durationSeconds) || durationSeconds < 0) {
+            throw new IllegalArgumentException("Transition duration must be finite and non-negative");
+        }
+        if (!initialized) initialize();
+        AnimationPlayer next = animationPlayers.get(animationName);
+        if (next == null) return false;
+        if (next == currentAnimation) return true;
+        boolean interrupted = isTransitioning();
+        Map<String, Matrix4f> displayed = poseSnapshot == null ? Map.of() : poseSnapshot.copyLocalOverrides();
+        AnimationPlayer previous = currentAnimation;
+        clearTransition();
+        if (interrupted && previous != null) previous.pause();
+        currentAnimation = next;
+        next.stop();
+        next.play();
+        if (durationSeconds > 0) {
+            transitionSource = interrupted ? null : previous;
+            transitionSourcePose = copyTransforms(displayed);
+            transitionDuration = durationSeconds;
+            transitionTime = 0;
+        } else if (previous != null) {
+            previous.pause();
+        }
+        publishPose();
+        return true;
+    }
+
+    public boolean playAnimation(String animationName, double durationSeconds) {
+        return transitionTo(animationName, durationSeconds);
+    }
+
+    public boolean isTransitioning() { return transitionSourcePose != null; }
+    public boolean isPaused() { return paused; }
+    public void pause() { requireOpen(); paused = true; }
+    public void resume() { requireOpen(); paused = false; }
+
+    /** Stops all clips and publishes the bind pose, including nodes absent from the last clip. */
+    public void stop() {
+        requireOpen();
+        if (!initialized) initialize();
+        clearTransition();
+        for (AnimationPlayer player : animationPlayers.values()) player.stop();
+        currentAnimation = null;
+        publishPose();
+    }
+
+    private void clearTransition() {
+        if (transitionSource != null && transitionSource != currentAnimation) transitionSource.pause();
+        transitionSource = null;
+        transitionSourcePose = null;
+        transitionTime = 0;
+        transitionDuration = 0;
+    }
+
+    private Map<String, Matrix4f> currentLocals(AnimationPlayer player) {
+        Map<String, Matrix4f> locals = new LinkedHashMap<>();
+        if (player != null) player.getBoneTransforms().forEach((name, matrix) -> locals.put(name, new Matrix4f(matrix)));
+        return locals;
+    }
+
+    private void publishPose() {
+        if (!initialized || scene == null) return;
+        Map<String, Matrix4f> locals = currentLocals(currentAnimation);
+        if (isTransitioning()) {
+            Map<String, Matrix4f> source = transitionSource == null ? transitionSourcePose : currentLocals(transitionSource);
+            float weight = (float) (transitionTime / transitionDuration);
+            var names = new LinkedHashSet<>(source.keySet());
+            names.addAll(locals.keySet());
+            for (String name : names) {
+                Matrix4f from = source.getOrDefault(name, bindTransforms.getOrDefault(name, new Matrix4f()));
+                Matrix4f to = locals.getOrDefault(name, bindTransforms.getOrDefault(name, new Matrix4f()));
+                locals.put(name, weight == 0 || from.equals(to) ? new Matrix4f(from)
+                        : AnimationBlender.blendTransforms(from, to, weight));
+            }
+        }
+        poseSnapshot = PoseSnapshot.capture(++frameId, scene, locals);
+    }
+
+    private static Map<String, Matrix4f> copyTransforms(Map<String, Matrix4f> source) {
+        Map<String, Matrix4f> copy = new LinkedHashMap<>();
+        source.forEach((name, matrix) -> copy.put(name, new Matrix4f(matrix)));
+        return copy;
+    }
+
+    public PoseSnapshot getPoseSnapshot() { return poseSnapshot; }
+
+    /** Compatibility view; new consumers should use getPoseSnapshot() instead. */
     public BoneHierarchyBuilder getBoneHierarchy(AssimpMesh mesh) {
+        ensureCompatibilityHierarchies();
         return boneHierarchies.get(mesh);
     }
 
-    /** All bone hierarchies, keyed by mesh. */
     public Map<AssimpMesh, BoneHierarchyBuilder> getBoneHierarchies() {
-        return boneHierarchies;
+        ensureCompatibilityHierarchies();
+        return Collections.unmodifiableMap(boneHierarchies);
     }
 
-    /**
-     * Get cached bone transforms for a mesh (with dirty flag optimization)
-     */
-    public org.joml.Matrix4f[] getCachedBoneTransforms(AssimpMesh mesh) {
-        if (transformsDirty) {
-            // Recalculate all bone transforms
-            for (Map.Entry<AssimpMesh, BoneHierarchyBuilder> entry : boneHierarchies.entrySet()) {
-                BoneHierarchyBuilder hierarchy = entry.getValue();
-                cachedBoneTransforms.put(entry.getKey(), hierarchy.getFinalTransforms());
+    private void ensureCompatibilityHierarchies() {
+        PoseSnapshot snapshot = poseSnapshot;
+        if (snapshot == null || hierarchyFrame == snapshot.getFrameId()) return;
+        Map<String, Matrix4f> locals = snapshot.copyLocalOverrides();
+        for (AssimpMesh mesh : scene.getMeshes()) {
+            if (!mesh.hasBones()) continue;
+            BoneHierarchyBuilder hierarchy = boneHierarchies.computeIfAbsent(mesh, value -> {
+                var result = new BoneHierarchyBuilder();
+                result.buildFromMesh(value, scene.getRootNode());
+                return result;
+            });
+            hierarchy.resetToBindPose();
+            locals.forEach(hierarchy::updateBoneTransform);
+            hierarchy.updateTransforms();
+        }
+        hierarchyFrame = snapshot.getFrameId();
+    }
+
+    /** Legacy palette cache. Consumers must not modify the returned arrays or matrices. */
+    public Matrix4f[] getCachedBoneTransforms(AssimpMesh mesh) {
+        PoseSnapshot snapshot = poseSnapshot;
+        if (snapshot == null) return null;
+        if (paletteFrame != snapshot.getFrameId()) {
+            cachedBoneTransforms.clear();
+            for (AssimpMesh candidate : scene.getMeshes()) {
+                Matrix4f[] palette = snapshot.getBoneTransforms(candidate);
+                if (palette != null) cachedBoneTransforms.put(candidate, palette);
             }
-            transformsDirty = false;
+            paletteFrame = snapshot.getFrameId();
         }
         return cachedBoneTransforms.get(mesh);
     }
 
-    /**
-     * Invalidate transform cache (call on hot-reload or animation change)
-     */
     public void invalidateCache() {
-        transformsDirty = true;
+        requireOpen();
+        publishPose();
     }
 
-    /**
-     * Get all available animation names
-     */
-    public String[] getAvailableAnimations() {
-        return animationPlayers.keySet().toArray(new String[0]);
+    public String[] getAvailableAnimations() { return animationPlayers.keySet().toArray(new String[0]); }
+    public AnimationPlayer getCurrentAnimation() { return currentAnimation; }
+    public boolean hasAnimations() { return !animationPlayers.isEmpty(); }
+    public boolean hasSkinnedMeshes() { return scene != null && scene.hasSkeleton(); }
+    public boolean isInitialized() { return initialized && !closed; }
+    public boolean isClosed() { return closed; }
+    public AssimpScene getScene() { return scene; }
+    public String getModelName() { return modelName; }
+
+    @Override public void close() {
+        if (closed) return;
+        clearTransition();
+        for (AnimationPlayer player : animationPlayers.values()) player.pause();
+        currentAnimation = null;
+        poseSnapshot = null;
+        cachedBoneTransforms.clear();
+        boneHierarchies.clear();
+        closed = true;
     }
 
-    /**
-     * Get current animation player
-     */
-    public AnimationPlayer getCurrentAnimation() {
-        return currentAnimation;
-    }
-
-    /**
-     * Check if this state has any animations
-     */
-    public boolean hasAnimations() {
-        return !animationPlayers.isEmpty();
-    }
-
-    /**
-     * Check if this state has any skinned meshes
-     */
-    public boolean hasSkinnedMeshes() {
-        return !boneHierarchies.isEmpty();
-    }
-
-    /**
-     * Check if initialized
-     */
-    public boolean isInitialized() {
-        return initialized;
-    }
-
-    /**
-     * Get the scene
-     */
-    public AssimpScene getScene() {
-        return scene;
-    }
-
-    /**
-     * Get model name
-     */
-    public String getModelName() {
-        return modelName;
+    private void requireOpen() {
+        if (closed) throw new IllegalStateException("Animation instance is closed");
     }
 }
