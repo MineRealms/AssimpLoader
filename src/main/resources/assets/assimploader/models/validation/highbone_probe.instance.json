@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "model": "assimploader:models/validation/highbone_probe.glb",
+  "initial": "wave",
+  "states": {
+    "wave": {
+      "clip": "Wave",
+      "loop": true,
+      "transition": 0
+    },
+    "pulse": {
+      "clip": "MorphPulse",
+      "loop": true,
+      "transition": 0
+    }
+  }
+}

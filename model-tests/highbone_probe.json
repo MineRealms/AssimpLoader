@@ -1,0 +1,21 @@
+{
+  "origin": "Original AssimpLoader fixture, no third-party assets",
+  "blender": "5.3.0",
+  "bones": 256,
+  "weighted_bones": 256,
+  "meshes": 1,
+  "source_vertices": 2048,
+  "morph_targets": [
+    "Spread"
+  ],
+  "clips": [
+    "Wave",
+    "MorphPulse"
+  ],
+  "fps": 24,
+  "samples": 4,
+  "centroid_checks_per_sample": 256,
+  "source": "model-tests\\highbone_probe.blend",
+  "gltf": "src\\main\\resources\\assets\\assimploader\\models\\validation\\highbone_probe.glb",
+  "command": "blender --background --factory-startup --python model-tests/create_highbone_probe.py"
+}
