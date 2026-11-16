@@ -26,6 +26,8 @@ public final class RuntimePerformanceCommands {
             context.getSource().sendSuccess(() -> Component.literal("Instances=" + stats.instances()
                     + ", last tick evaluated/skipped/paused=" + stats.evaluated() + "/" + stats.skipped() + "/" + stats.paused()
                     + ", total evaluated/skipped=" + stats.totalEvaluated() + "/" + stats.totalSkipped()), false);
+            context.getSource().sendSuccess(() -> Component.literal("Oculus poses: "
+                    + cn.minerealms.assimploader.rendering.OculusEntityBufferCache.poseStatistics()),false);
             return 1;
         })));
     }

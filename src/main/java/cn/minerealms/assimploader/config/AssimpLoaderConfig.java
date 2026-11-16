@@ -97,6 +97,9 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.BooleanValue oculusPbrSupportEnabled;
         public final ForgeConfigSpec.IntValue oculusInjectionPriority;
         public final ForgeConfigSpec.BooleanValue oculusSplatShaderEnabled;
+        public final ForgeConfigSpec.BooleanValue oculusPoseCacheEnabled;
+        public final ForgeConfigSpec.IntValue oculusPoseCacheMiB;
+        public final ForgeConfigSpec.IntValue oculusPoseCacheInstances;
 
         // Performance
         public final ForgeConfigSpec.EnumValue<OptimizationLevel> optimizationLevel;
@@ -229,6 +232,13 @@ public class AssimpLoaderConfig {
             oculusSplatShaderEnabled = builder
                 .comment("Reserved legacy option; Gaussian shader-pack injection is inactive")
                 .define("splatShaderEnabled", true);
+
+            oculusPoseCacheEnabled = builder.comment("Reuse opaque animated ENTITY buffers across Oculus main/shadow passes")
+                .define("poseCacheEnabled", true);
+            oculusPoseCacheMiB = builder.comment("Total resident animated vertex buffer budget in MiB; oversized poses use normal submission")
+                .defineInRange("poseCacheMiB", 128, 1, 1024);
+            oculusPoseCacheInstances = builder.comment("Maximum animated instances with resident Oculus buffers")
+                .defineInRange("poseCacheInstances", 128, 1, 1024);
 
             builder.pop();
 

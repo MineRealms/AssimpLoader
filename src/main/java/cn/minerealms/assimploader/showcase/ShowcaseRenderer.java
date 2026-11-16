@@ -30,7 +30,8 @@ public class ShowcaseRenderer extends BaseAssimpRenderer implements BlockEntityR
         poses.pushPose();
         try {
             poses.translate(0.5, 0, 0.5);
-            if (state!=null || !OculusEntityBufferCache.render(scene, poses, light, overlay))
+            if (state!=null ? !OculusEntityBufferCache.renderPosed(state,poses,light,overlay,true)
+                    : !OculusEntityBufferCache.render(scene, poses, light, overlay))
                 renderScene(scene, state, poses, buffers, light, overlay);
             if (state!=null && state.getModelInstance()!=null) AttachmentTrailRenderer.render(state.getModelInstance(),poses,buffers,light);
         } finally {

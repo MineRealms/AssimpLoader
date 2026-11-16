@@ -131,6 +131,15 @@ public final class OculusEntityDrawBridge {
         }
     }
 
+    public static int entityVertexStride() {
+        if(!available()) return 0;
+        try {
+            return ((VertexFormat)api().entityFormat.get(null)).getVertexSize();
+        } catch(ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            fail(exception);return 0;
+        }
+    }
+
     /** Discard cached optional API handles and allow signature discovery after resource reload. */
     public static synchronized void reset() {
         api = null;

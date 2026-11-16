@@ -38,7 +38,7 @@ import java.util.UUID;
 public final class WorldRuntimeSmokeTest {
     private static final boolean ENABLED=Boolean.getBoolean("worldruntimetest.enabled");
     private static final String RUN=Long.toString(System.currentTimeMillis());
-    private static final String[] STAGES={"terrain-off","terrain-on","world-effects","moved","teleported","reloaded","saved-recreated","ai","world-reopened","removed"};
+    private static final String[] STAGES={"terrain-off","terrain-on","world-effects","moved","teleported","reloaded","saved-recreated","ai","world-reopened","cache-budget","removed"};
     private static volatile int stage=-2;
     private static long changed=System.currentTimeMillis();
     private static boolean pending;
@@ -56,6 +56,7 @@ public final class WorldRuntimeSmokeTest {
     private static long probeMainBaseline,probeShadowBaseline;
     private static boolean oldGui,oldPause;
     private static int oldFov;
+    private static int oldCacheMiB,oldCacheInstances;
 
     private WorldRuntimeSmokeTest() {}
     @SubscribeEvent public static void serverTick(TickEvent.ServerTickEvent event) {
@@ -98,10 +99,12 @@ public final class WorldRuntimeSmokeTest {
             if(stage==-1) { prepare(mc);return; }
             if(stage<0) return;
             if(pending || mc.screen!=null || mc.getOverlay()!=null) return;
-            if(stage==9) {
+            if(stage==10) {
                 if(System.currentTimeMillis()-changed<10_500) return;
                 if(deer(mc)!=null || retiredInstance==null || !retiredInstance.animation().isClosed())
                     throw new IllegalStateException("Removed entity retained managed animation");
+                if(cn.minerealms.assimploader.rendering.OculusEntityBufferCache.isPoseCached(retiredInstance.animation()))
+                    throw new IllegalStateException("Removed entity retained posed GPU buffers");
                 AssimpLoader.LOGGER.info("[WorldRuntime] Entity removal closed playback, effects and collision state");
                 advance(mc);return;
             }
@@ -145,6 +148,13 @@ public final class WorldRuntimeSmokeTest {
             if(!cn.minerealms.assimploader.compat.OculusCompat.isShadersActive() || passes.mainPasses()==0 || passes.shadowPasses()==0)
                 throw new IllegalStateException("Expected active Oculus main and shadow passes: "+passes);
             AssimpLoader.LOGGER.info("[WorldRuntime] Active Oculus render passes={}",passes);
+            var cache=cn.minerealms.assimploader.rendering.OculusEntityBufferCache.poseStatistics();
+            if(cn.minerealms.assimploader.rendering.OculusEntityBufferCache.isPoseCacheFailed()
+                    || cache.draws()==0 || cache.shadowDraws()==0 || cache.hits()==0 || cache.uploads()>=cache.draws())
+                throw new IllegalStateException("Expected pose upload reuse across main/shadow passes: "+cache);
+            AssimpLoader.LOGGER.info("[WorldRuntime] Oculus posed buffer statistics={}",cache);
+            if(stage==9 && (cache.owners()>1 || cache.residentBytes()>1024*1024))
+                throw new IllegalStateException("Pose cache exceeded configured budget: "+cache);
         }
         if(stage<=2) {
             var probePose=probeInstance.animation().getPoseSnapshot();
@@ -234,6 +244,8 @@ public final class WorldRuntimeSmokeTest {
 
     private static void prepare(Minecraft mc) {
         oldGui=mc.options.hideGui;oldPause=mc.options.pauseOnLostFocus;oldFov=mc.options.fov().get();
+        var config=cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT;
+        oldCacheMiB=config.oculusPoseCacheMiB.get();oldCacheInstances=config.oculusPoseCacheInstances.get();
         mc.options.hideGui=true;mc.options.pauseOnLostFocus=false;mc.options.fov().set(50);
         pending=true;
         stage=-3;
@@ -263,13 +275,20 @@ public final class WorldRuntimeSmokeTest {
     private static void advance(Minecraft mc) {
         if(++stage==STAGES.length) {
             stage=99;mc.options.hideGui=oldGui;mc.options.pauseOnLostFocus=oldPause;mc.options.fov().set(oldFov);
-            AssimpLoader.LOGGER.info("[WorldRuntime] SUCCESS run={} terrain/effects/movement/teleport/reload/NBT/AI/disk-reopen/removal",RUN);mc.stop();return;
+            restoreCacheConfig();
+            AssimpLoader.LOGGER.info("[WorldRuntime] SUCCESS run={} terrain/effects/movement/teleport/reload/NBT/AI/disk-reopen/cache-budget/removal",RUN);mc.stop();return;
         }
         if(stage==5) {
             mc.reloadResourcePacks().whenComplete((v,error)->mc.execute(()->{if(error!=null) fail(mc,error);else {pending=false;changed=System.currentTimeMillis();}}));return;
         }
+        if(stage==9) {
+            var config=cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT;
+            config.oculusPoseCacheMiB.set(1);config.oculusPoseCacheInstances.set(1);
+            pending=false;changed=System.currentTimeMillis();return;
+        }
+        if(stage==10) restoreCacheConfig();
         var server=mc.getSingleplayerServer();var playerId=mc.player.getUUID();
-        if(stage==6 || stage==8 || stage==9) retiredInstance=lastInstance;
+        if(stage==6 || stage==8 || stage==10) retiredInstance=lastInstance;
         server.execute(()->{
             try {
                 var player=server.getPlayerList().getPlayer(playerId);var level=player.serverLevel();
@@ -299,7 +318,7 @@ public final class WorldRuntimeSmokeTest {
                     });
                     return;
                 }
-                if(stage==9) deer.remove(Entity.RemovalReason.DISCARDED);
+                if(stage==10) deer.remove(Entity.RemovalReason.DISCARDED);
                 mc.execute(()->{pending=false;changed=System.currentTimeMillis();});
             } catch(Exception|LinkageError error) {mc.execute(()->fail(mc,error));}
         });
@@ -308,5 +327,11 @@ public final class WorldRuntimeSmokeTest {
         for(var entity:mc.level.entitiesForRendering()) if(entity.getUUID().equals(deerId)&&entity instanceof DeerShowcaseEntity deer) return deer;
         return null;
     }
-    private static void fail(Minecraft mc,Throwable error) {stage=99;AssimpLoader.LOGGER.error("[WorldRuntime] FAILED",error);mc.stop();}
+    private static void restoreCacheConfig() {
+        if(oldCacheMiB>0) {
+            var config=cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT;
+            config.oculusPoseCacheMiB.set(oldCacheMiB);config.oculusPoseCacheInstances.set(oldCacheInstances);
+        }
+    }
+    private static void fail(Minecraft mc,Throwable error) {stage=99;restoreCacheConfig();AssimpLoader.LOGGER.error("[WorldRuntime] FAILED",error);mc.stop();}
 }

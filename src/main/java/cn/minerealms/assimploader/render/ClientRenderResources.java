@@ -86,6 +86,9 @@ public final class ClientRenderResources {
             Minecraft.getInstance().execute(() -> ClientAnimationManager.getInstance().release(event.getEntity()));
         }
     }
+    @SubscribeEvent public static void tick(net.minecraftforge.event.TickEvent.ClientTickEvent event) {
+        if(event.phase==net.minecraftforge.event.TickEvent.Phase.END) OculusEntityBufferCache.prunePosed();
+    }
 
     @Mod.EventBusSubscriber(modid = AssimpLoader.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
     public static final class ReloadRegistration {

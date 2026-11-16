@@ -67,7 +67,8 @@ public abstract class ConfiguredEntityRenderer<T extends Entity> extends EntityR
         try {
             var transform=modelTransform(entity,yaw,partialTick);
             cn.minerealms.assimploader.render.SceneTransforms.apply(stack,transform);
-            renderer.renderScene(scene,state,stack,buffers,light,OverlayTexture.NO_OVERLAY);
+            if(!cn.minerealms.assimploader.rendering.OculusEntityBufferCache.renderPosed(state,stack,light,OverlayTexture.NO_OVERLAY,false))
+                renderer.renderScene(scene,state,stack,buffers,light,OverlayTexture.NO_OVERLAY);
             if(state!=null && state.getModelInstance()!=null) AttachmentTrailRenderer.render(state.getModelInstance(),stack,buffers,light,
                     new org.joml.Matrix4f().translation(
                             (float)net.minecraft.util.Mth.lerp(partialTick,entity.xo,entity.getX()),

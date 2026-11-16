@@ -188,7 +188,7 @@ public abstract class BaseAssimpRenderer {
         renderMesh(mesh, mesh.getVertices(), mesh.getNormals(), material, stack, consumer, light, overlay);
     }
 
-    private void renderMesh(AssimpMesh mesh, float[] vertices, float[] normals, AssimpMaterial material, PoseStack stack,
+    protected void renderMesh(AssimpMesh mesh, float[] vertices, float[] normals, AssimpMaterial material, PoseStack stack,
                               VertexConsumer consumer, int light, int overlay) {
         float[] uv = mesh.getTexCoords();
         int[] indices = mesh.getIndices();
