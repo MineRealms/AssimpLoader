@@ -19,6 +19,20 @@ import static cn.minerealms.assimploader.character.core.PlayerAnimationControlle
 import static org.junit.jupiter.api.Assertions.*;
 
 class PlayerAnimationControllerTest {
+    @Test void staleSwingProgressWithoutAnActiveGameActionCannotLeaveIdleOrPinTheClip() {
+        try (var instance = instance(); var controller = new PlayerAnimationController(profile(false),instance)) {
+            var state = instance.animation();
+            assertEquals(IDLE,controller.update(input(0).swingAction(0,false,.9f).build()).selected());
+            assertFalse(state.getCurrentAnimation().hasSynchronizedPhase());
+            assertEquals(SWING,controller.update(input(1).swingAction(1,true,0).build()).selected());
+            var swing = state.getCurrentAnimation();
+            assertTrue(swing.hasSynchronizedPhase());
+            assertEquals(IDLE,controller.update(input(2).swingAction(1,false,.9f).build()).selected());
+            assertFalse(swing.hasSynchronizedPhase());
+            assertEquals(IDLE,controller.update(input(3).swingAction(1,false,1).build()).selected());
+        }
+    }
+
     @Test void nativeSwingUsesObservedPhaseAndConsecutiveGenerationsWithoutQueueOrBlend() {
         try (var instance = instance(); var controller = new PlayerAnimationController(profile(false), instance)) {
             var state = instance.animation();
