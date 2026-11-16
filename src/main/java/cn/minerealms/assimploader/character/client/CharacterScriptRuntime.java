@@ -19,23 +19,23 @@ import java.util.function.Consumer;
 /** One callback per character tick. Java remains the sole owner of simulation and pose evaluation. */
 public final class CharacterScriptRuntime {
     private static final Map<String,Consumer<CharacterActionFrame>> CONTROLLERS=new LinkedHashMap<>();
-    private static String active,failure="";
-    private static long revision;
+    private static volatile String active,failure="";
+    private static volatile long revision;
     private CharacterScriptRuntime() {}
 
-    public static void register(String id,Consumer<CharacterActionFrame> controller) {
+    public static synchronized void register(String id,Consumer<CharacterActionFrame> controller) {
         name(id);Objects.requireNonNull(controller);
         if(!CONTROLLERS.containsKey(id)&&CONTROLLERS.size()>=32)throw new IllegalArgumentException("At most 32 character controllers");
         CONTROLLERS.put(id,controller);active=id;failure="";revision++;
     }
-    public static void unregister(String id) {if(CONTROLLERS.remove(id)!=null){if(id.equals(active))active=null;revision++;}}
-    public static void clear() {CONTROLLERS.clear();active=null;failure="";revision++;}
-    public static void use(String id) {
+    public static synchronized void unregister(String id) {if(CONTROLLERS.remove(id)!=null){if(id.equals(active))active=null;revision++;}}
+    public static synchronized void clear() {CONTROLLERS.clear();active=null;failure="";revision++;}
+    public static synchronized void use(String id) {
         if(!CONTROLLERS.containsKey(id))throw new IllegalArgumentException("Unknown character controller: "+id);
         if(!id.equals(active)){active=id;failure="";revision++;}
     }
-    public static void useDefault() {if(active!=null){active=null;failure="";revision++;}}
-    public static List<String> controllers() {return new ArrayList<>(CONTROLLERS.keySet());}
+    public static synchronized void useDefault() {if(active!=null){active=null;failure="";revision++;}}
+    public static synchronized List<String> controllers() {return new ArrayList<>(CONTROLLERS.keySet());}
     public static String active() {return active;}
     public static String failure() {return failure;}
     private static void name(String id) {
@@ -57,8 +57,11 @@ public final class CharacterScriptRuntime {
         public Session(AnimationState animation,CharacterRigDefinition.Installed rig) {this.animation=animation;this.rig=rig;}
         public boolean run(LocalPlayer player,CharacterProfile profile,PlayerAnimationController controller,PlayerVisualInput input) {
             if(closed)return false;
-            if(seenRevision!=revision){reset();controller.reset();seenRevision=revision;}
-            var callback=CONTROLLERS.get(active);
+            Consumer<CharacterActionFrame> callback;long startedRevision;String selected;
+            synchronized(CharacterScriptRuntime.class) {
+                startedRevision=revision;selected=active;callback=CONTROLLERS.get(selected);
+            }
+            if(seenRevision!=startedRevision){reset();controller.reset();seenRevision=startedRevision;}
             if(callback==null)return false;
             if(!controlled) {
                 originalRagdoll=LocalPlayerCharacter.ragdollOverride();
@@ -72,16 +75,23 @@ public final class CharacterScriptRuntime {
             if(swing!=null&&swing.active()&&swing.generation()!=lastSwing){lastSwing=swing.generation();lastAttackTick=input.sequence();}
             long elapsed=lastAttackTick==Long.MIN_VALUE?1_000_000:Math.max(0,input.sequence()-lastAttackTick);
             var frame=new CharacterActionFrame(player,profile,controller,input,animation,rig,state,elapsed);
-            long startedRevision=revision;
+            animation.beginPoseEdit();
             try {
                 callback.accept(frame);
                 if(startedRevision!=revision){reset();controller.reset();return false;}
                 return true;
             } catch(RuntimeException | LinkageError exception) {
-                failure="Controller "+active+": "+exception;
-                AssimpLoader.LOGGER.warn("Character script failed; restoring the built-in controller: {}",active,exception);
-                active=null;revision++;seenRevision=revision;reset();controller.reset();return false;
-            } finally {frame.expire();}
+                synchronized(CharacterScriptRuntime.class) {
+                    failure="Controller "+selected+": "+exception;
+                    if(startedRevision==revision){active=null;revision++;seenRevision=revision;}
+                }
+                AssimpLoader.LOGGER.warn("Character script failed; restoring the built-in controller: {}",selected,exception);
+                reset();controller.reset();return false;
+            } finally {
+                frame.expire();
+                // The animation manager evaluates the complete command set once at its normal tick.
+                animation.endPoseEdit(false);
+            }
         }
         public void reset() {
             if(controlled&&!animation.isClosed()) {

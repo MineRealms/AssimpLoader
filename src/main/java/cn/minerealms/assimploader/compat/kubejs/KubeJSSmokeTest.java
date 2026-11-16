@@ -28,6 +28,11 @@ public final class KubeJSSmokeTest {
         if(titleAt==0) titleAt=System.currentTimeMillis();
         if(result==null&&System.currentTimeMillis()-titleAt<15_000) return;
         done=true;
+        try {
+            var json=new com.google.gson.JsonObject();json.addProperty("success","ok".equals(result));
+            json.addProperty("failure",result==null?"acceptance script did not execute":result);
+            java.nio.file.Files.writeString(client.gameDirectory.toPath().resolve("kubejs-smoke-result.json"),json.toString());
+        } catch(java.io.IOException exception) {throw new IllegalStateException("Cannot write KubeJS acceptance result",exception);}
         if("ok".equals(result)) AssimpLoader.LOGGER.info("[KubeJSAssimp] SUCCESS real client_scripts binding, arrays, maps, layers, Morph, queries and expired handles");
         else AssimpLoader.LOGGER.error("[KubeJSAssimp] FAILED {}",result==null?"acceptance script did not execute":result);
         client.stop();

@@ -37,14 +37,46 @@ class AssimpModelHandleTest {
             assertEquals(4,handle.performance().get("updateIntervalTicks"));
             assertEquals(16,state.getPerformanceSettings().maxTrailSamples());
             handle.layer("script","Wave",.25,false,Map.of("B255",1));
-            handle.layerWeight("script",.75);assertEquals(.75,state.getLayer("script").getWeight());
-            handle.removeLayer("script");assertNull(state.getLayer("script"));
+            handle.layerWeight("script",.75);assertEquals(.75,state.getLayer("kubejs:layer:script").getWeight());
+            handle.removeLayer("script");assertNull(state.getLayer("kubejs:layer:script"));
             handle.morph(0,new double[]{1});double active=handle.bounds().get("maxX");
             handle.morph(0,new double[]{0});assertTrue(active>handle.bounds().get("maxX"));
             assertEquals(256,handle.meshes().get(0).get("bones"));
             assertTrue(handle.node("B255").containsKey("x"));
             handle.resetMorphs().pause().resume().resetDynamics();
             assertEquals(seconds,state.getSimulationTime());assertSame(untouched,other.getPoseSnapshot());
+        }
+    }
+
+    @Test void clockAndPoseControlsAreSharedAcrossHandlesAndCleanupPreservesAssetControls() throws Exception {
+        try(var state=fixture("highbone_probe")) {
+            var one=new AssimpModelHandle(state);var two=new AssimpModelHandle(state);
+            state.setLayer("asset","Wave",.1f,false,Map.of("B255",1f));
+            one.layer("attack","Wave",1,false,Map.of("B255",1)).layerPhase("attack",.7);
+            one.play("Wave",0);one.phase(.3);one.playback(2,false);
+            one.pose("aim",Map.of("bones",Map.of("B255",Map.of("rotation",List.of(15,0,0)))));
+            state.update(.05f);
+            var clock=two.layerPlayback("attack");
+            assertEquals(.7,((Number)clock.get("time")).doubleValue()/((Number)clock.get("duration")).doubleValue(),1e-6);
+            assertTrue(state.getCurrentAnimation().hasSynchronizedPhase());
+            assertNotNull(state.getModifier("kubejs:pose:aim"));
+            two.clearScriptControls();
+            assertNull(state.getLayer("kubejs:layer:attack"));assertNull(state.getModifier("kubejs:pose:aim"));
+            assertNotNull(state.getLayer("asset"));assertFalse(state.getCurrentAnimation().hasSynchronizedPhase());
+            assertEquals(1,state.getCurrentAnimation().getSpeed());
+        }
+    }
+
+    @Test void scriptCommandBatchPublishesOnceWithoutAdvancingSimulation() throws Exception {
+        try(var state=fixture("highbone_probe")) {
+            var handle=new AssimpModelHandle(state);var before=state.getPoseSnapshot();double time=state.getSimulationTime();
+            state.beginPoseEdit();
+            handle.layer("a","Wave",.5,false,Map.of("B255",1));handle.layerWeight("a",1);
+            handle.pose("aim",Map.of("bones",Map.of("B255",Map.of("rotation",List.of(15,0,0)))));
+            assertSame(before,state.getPoseSnapshot());state.endPoseEdit(false);assertSame(before,state.getPoseSnapshot());
+            state.update(.05f);assertNotSame(before,state.getPoseSnapshot());
+            assertEquals(time+.05f,state.getSimulationTime(),1e-8);
+            assertThrows(IllegalStateException.class,()->state.endPoseEdit(false));
         }
     }
 

@@ -15,21 +15,21 @@ public final class CharacterScriptApi {
 
     public int apiVersion() {return 1;}
     public CharacterScriptApi register(String id, Consumer<CharacterActionFrame> controller) {
-        checkThread();CharacterScriptRuntime.register(id,controller);return this;
+        CharacterScriptRuntime.register(id,controller);return this;
     }
-    public CharacterScriptApi unregister(String id) {checkThread();CharacterScriptRuntime.unregister(id);return this;}
-    public CharacterScriptApi clear() {checkThread();CharacterScriptRuntime.clear();return this;}
-    public CharacterScriptApi use(String id) {checkThread();CharacterScriptRuntime.use(id);return this;}
-    public CharacterScriptApi useDefault() {checkThread();CharacterScriptRuntime.useDefault();return this;}
-    public List<String> controllers() {checkThread();return CharacterScriptRuntime.controllers();}
-    public String active() {checkThread();return CharacterScriptRuntime.active();}
-    public String failure() {checkThread();return CharacterScriptRuntime.failure();}
+    public CharacterScriptApi unregister(String id) {CharacterScriptRuntime.unregister(id);return this;}
+    public CharacterScriptApi clear() {CharacterScriptRuntime.clear();return this;}
+    public CharacterScriptApi use(String id) {CharacterScriptRuntime.use(id);return this;}
+    public CharacterScriptApi useDefault() {CharacterScriptRuntime.useDefault();return this;}
+    public List<String> controllers() {return CharacterScriptRuntime.controllers();}
+    public String active() {return CharacterScriptRuntime.active();}
+    public String failure() {return CharacterScriptRuntime.failure();}
     public CharacterScriptApi enable(boolean enabled) {
-        checkThread();var s=LocalPlayerCharacter.settings();
+        var s=LocalPlayerCharacter.settings();
         LocalPlayerCharacter.configure(new LocalPlayerCharacter.Settings(enabled,s.profile(),s.groundPlacement(),s.effects()));return this;
     }
     public CharacterScriptApi profile(String resource) {
-        checkThread();var s=LocalPlayerCharacter.settings();
+        var s=LocalPlayerCharacter.settings();
         LocalPlayerCharacter.configure(new LocalPlayerCharacter.Settings(s.enabled(),resource,s.groundPlacement(),s.effects()));return this;
     }
     public CharacterScriptApi reload() {checkThread();LocalPlayerCharacter.reload();return this;}

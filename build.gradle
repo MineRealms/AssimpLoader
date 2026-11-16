@@ -198,21 +198,39 @@ if (project.hasProperty('clientKubeJsSmoke') || project.hasProperty('clientKubeJ
     def serverSmoke = project.hasProperty('clientKubeJsWorldSmoke')
     def smokeSource = file(serverSmoke ? 'model-tests/kubejs/assimploader_server_acceptance.js' : 'model-tests/kubejs/assimploader_acceptance.js')
     def smokeTarget = file(serverSmoke ? 'run/kubejs/server_scripts/assimploader_acceptance.generated.js' : 'run/kubejs/client_scripts/assimploader_acceptance.generated.js')
+    def smokePayload = {
+        serverSmoke ? smokeSource.bytes : (file('examples/kubejs/client_scripts/assimp_player_actions.js').getText('UTF-8') + '\n' + smokeSource.getText('UTF-8')).getBytes('UTF-8')
+    }
     def prepareScript = tasks.register('prepareKubeJsSmoke') {
         doLast {
-            if (smokeTarget.exists() && !Arrays.equals(smokeTarget.bytes, smokeSource.bytes)) {
+            byte[] payload = smokePayload()
+            if (smokeTarget.exists() && !Arrays.equals(smokeTarget.bytes, payload)) {
                 throw new GradleException('Refusing to replace an existing KubeJS acceptance script')
             }
             smokeTarget.parentFile.mkdirs()
-            project.copy { from smokeSource; into smokeTarget.parentFile; rename { smokeTarget.name } }
+            smokeTarget.bytes = payload
         }
     }
     def cleanScript = tasks.register('cleanKubeJsSmoke') {
         doLast {
-            if (smokeTarget.isFile() && Arrays.equals(smokeTarget.bytes, smokeSource.bytes)) smokeTarget.delete()
+            if (smokeTarget.isFile() && Arrays.equals(smokeTarget.bytes, smokePayload())) smokeTarget.delete()
         }
     }
     tasks.matching { it.name == 'runClient' }.configureEach { dependsOn prepareScript; finalizedBy cleanScript }
+}
+
+if (project.hasProperty('clientKubeJsSmoke')) {
+    def kubeResult = file('run/kubejs-smoke-result.json')
+    tasks.matching { it.name == 'runClient' }.configureEach {
+        doFirst {
+            if (kubeResult.exists() && !kubeResult.delete()) throw new GradleException('Cannot remove stale KubeJS result')
+        }
+        doLast {
+            if (!kubeResult.isFile()) throw new GradleException('KubeJS acceptance did not produce a result')
+            def result = new groovy.json.JsonSlurper().parse(kubeResult)
+            if (result.success != true) throw new GradleException("KubeJS acceptance failed: ${result.failure}")
+        }
+    }
 }
 
 configurations {

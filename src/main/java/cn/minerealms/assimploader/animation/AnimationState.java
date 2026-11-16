@@ -39,6 +39,8 @@ public class AnimationState implements AutoCloseable {
     private double transitionTime;
     private double transitionDuration;
     private long frameId;
+    private int poseEditDepth;
+    private boolean poseEditPending;
     private long hierarchyFrame = -1;
     private long paletteFrame = -1;
     private volatile PoseSnapshot poseSnapshot;
@@ -193,6 +195,7 @@ public class AnimationState implements AutoCloseable {
     }
 
     private void publishPose(double deltaSeconds) {
+        if (poseEditDepth > 0) { poseEditPending = true; return; }
         if (!initialized || scene == null) return;
         Map<String, Matrix4f> locals = currentLocals(currentAnimation);
         if (isTransitioning()) {
@@ -290,6 +293,15 @@ public class AnimationState implements AutoCloseable {
     }
 
     public AnimationStateMachine getStateMachine() { return stateMachine; }
+    /** Collect native script commands without repeatedly solving IK/physics or rebuilding skinning bounds. */
+    public void beginPoseEdit() { requireOpen(); poseEditDepth++; }
+    public void endPoseEdit(boolean publish) {
+        if (poseEditDepth == 0) throw new IllegalStateException("No pose edit is active");
+        if (--poseEditDepth == 0) {
+            boolean pending = poseEditPending; poseEditPending = false;
+            if (pending && publish) publishPose();
+        }
+    }
     public PoseModifier getModifier(String id) { return modifiers.get(id); }
     public ModelInstance getModelInstance() { return modelInstance; }
     public InstancePerformanceSettings getPerformanceSettings() { return performance; }
