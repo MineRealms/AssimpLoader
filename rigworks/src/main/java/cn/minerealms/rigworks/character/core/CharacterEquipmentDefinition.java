@@ -2,21 +2,44 @@ package cn.minerealms.rigworks.character.core;
 
 import cn.minerealms.assimploader.animation.PoseSnapshot;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.GsonBuilder;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.io.Reader;
+import java.io.Writer;
+import java.io.IOException;
 import java.util.Objects;
 import java.util.Set;
 
 /** Physical-hand sockets. Offsets use metres and do not inherit imported FBX bone scale. */
-public record CharacterEquipmentDefinition(boolean enabled, Mount rightHand, Mount leftHand, java.util.List<CharacterGripDefinition> grips) {
-    public CharacterEquipmentDefinition {grips=java.util.List.copyOf(grips);}
+public record CharacterEquipmentDefinition(boolean enabled, Mount rightHand, Mount leftHand, java.util.List<CharacterGripDefinition> grips,
+                                           java.util.Map<String, Mount> sockets, java.util.List<CharacterEquipmentRule> overrides) {
+    public CharacterEquipmentDefinition {
+        grips=java.util.List.copyOf(grips); sockets=java.util.Map.copyOf(sockets); overrides=java.util.List.copyOf(overrides);
+        if(sockets.size()>64 || overrides.size()>64)throw new IllegalArgumentException("At most 64 equipment sockets and rules");
+        sockets.forEach((name,mount)->{if(!name.matches("[a-z][a-z0-9_]{0,63}"))throw new IllegalArgumentException("Invalid socket name: "+name);Objects.requireNonNull(mount);});
+        for(var rule:overrides) if(rule.socket()!=null && !sockets.containsKey(rule.socket()))throw new IllegalArgumentException("Unknown override socket: "+rule.socket());
+    }
+    public CharacterEquipmentDefinition(boolean enabled,Mount rightHand,Mount leftHand,java.util.List<CharacterGripDefinition> grips){this(enabled,rightHand,leftHand,grips,java.util.Map.of(),java.util.List.of());}
     public CharacterEquipmentDefinition(boolean enabled,Mount rightHand,Mount leftHand){this(enabled,rightHand,leftHand,java.util.List.of());}
+
+    public CharacterEquipmentDefinition withHands(Mount right, Mount left) {return new CharacterEquipmentDefinition(enabled,right,left,grips,sockets,overrides);}
+    public Mount socket(String name) {return sockets.get(name);}
+    public Mount select(String arm,String item,Set<String> tags,String state,String useAnimation,String context) {
+        var override=override(arm,item,tags,state,useAnimation,context);
+        return override!=null?override:arm.equals("left")?leftHand:rightHand;
+    }
+    public Mount override(String arm,String item,Set<String> tags,String state,String useAnimation,String context) {
+        for(var rule:overrides) if(rule.matches(arm,item,tags,state,useAnimation,context)) return rule.mount()!=null?rule.mount():sockets.get(rule.socket());
+        return null;
+    }
     public record Position(float x, float y, float z) {
         public Position {
             if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)
@@ -68,7 +91,7 @@ public record CharacterEquipmentDefinition(boolean enabled, Mount rightHand, Mou
         JsonElement value = JsonParser.parseReader(reader);
         if (!value.isJsonObject()) throw new IllegalArgumentException("Equipment definition must be an object");
         JsonObject root = value.getAsJsonObject();
-        keys(root, "version", "enabled", "right_hand", "left_hand", "grips");
+        keys(root, "version", "enabled", "right_hand", "left_hand", "grips", "sockets", "overrides");
         if (!root.has("version") || number(root.get("version")) != 1)
             throw new IllegalArgumentException("Equipment definition version must be 1");
         boolean enabled = true;
@@ -77,10 +100,80 @@ public record CharacterEquipmentDefinition(boolean enabled, Mount rightHand, Mou
                 throw new IllegalArgumentException("Equipment enabled must be boolean");
             enabled = root.get("enabled").getAsBoolean();
         }
-        return new CharacterEquipmentDefinition(enabled, mount(root, "right_hand"), mount(root, "left_hand"),CharacterGripDefinition.read(root.get("grips")));
+        var sockets = new java.util.LinkedHashMap<String,Mount>();
+        if(root.has("sockets")) {
+            if(!root.get("sockets").isJsonObject())throw new IllegalArgumentException("Equipment sockets must be an object");
+            var entries=root.getAsJsonObject("sockets");
+            entries.keySet().forEach(name->{var socket=mount(entries,name);if(socket==null)throw new IllegalArgumentException("Named sockets cannot be null");sockets.put(name,socket);});
+        }
+        return new CharacterEquipmentDefinition(enabled, mount(root, "right_hand"), mount(root, "left_hand"),CharacterGripDefinition.read(root.get("grips")),sockets,CharacterEquipmentRule.read(root.get("overrides")));
     }
 
-    private static Mount mount(JsonObject root, String key) {
+    /** Standard resource schema, also used for local editor overrides. */
+    public JsonObject toJson() {
+        JsonObject root = new JsonObject();
+        root.addProperty("version", 1);
+        root.addProperty("enabled", enabled);
+        root.add("right_hand", mountJson(rightHand));
+        root.add("left_hand", mountJson(leftHand));
+        JsonArray rules = new JsonArray();
+        for (var grip : grips) {
+            JsonObject rule = new JsonObject();
+            rule.addProperty("id", grip.id());
+            rule.add("items", strings(grip.items()));
+            rule.add("tags", strings(grip.tags()));
+            rule.add("states", strings(grip.states()));
+            rule.addProperty("primary_arm", grip.primaryArm());
+            rule.add("socket", point(grip.socket()));
+            rule.add("pole", point(grip.pole()));
+            rule.add("hand_offset", point(grip.handOffset()));
+            rule.add("rotation", rotation(grip.rotation()));
+            rule.addProperty("min_bend", grip.minimumBend());
+            rule.addProperty("max_bend", grip.maximumBend());
+            rule.addProperty("weight", grip.weight());
+            rule.addProperty("orientation_weight", grip.orientationWeight());
+            rule.addProperty("free_support", grip.freeSupport());
+            rules.add(rule);
+        }
+        root.add("grips", rules);
+        JsonObject named = new JsonObject();
+        sockets.entrySet().stream().sorted(java.util.Map.Entry.comparingByKey()).forEach(entry->named.add(entry.getKey(),mountJson(entry.getValue())));
+        root.add("sockets",named);
+        JsonArray selections = new JsonArray();
+        overrides.forEach(rule->selections.add(rule.toJson()));
+        root.add("overrides",selections);
+        return root;
+    }
+
+    public void write(Writer writer) throws IOException {
+        new GsonBuilder().setPrettyPrinting().serializeNulls().create().toJson(toJson(), writer);
+        writer.write('\n');
+    }
+
+    static JsonElement mountJson(Mount mount) {
+        if (mount == null) return JsonNull.INSTANCE;
+        JsonObject value = new JsonObject();
+        value.addProperty("node", mount.node());
+        value.add("position", point(mount.position()));
+        value.add("rotation", rotation(mount.rotation()));
+        value.addProperty("scale", mount.scale());
+        return value;
+    }
+
+    private static JsonArray point(Position value) { return numbers(value.x(), value.y(), value.z()); }
+    private static JsonArray rotation(CharacterProfile.Rotation value) { return numbers(value.x(), value.y(), value.z(), value.w()); }
+    private static JsonArray numbers(float... values) {
+        JsonArray array = new JsonArray();
+        for (float value : values) array.add(value);
+        return array;
+    }
+    private static JsonArray strings(Set<String> values) {
+        JsonArray array = new JsonArray();
+        values.stream().sorted().forEach(array::add);
+        return array;
+    }
+
+    static Mount mount(JsonObject root, String key) {
         if (!root.has(key) || root.get(key).isJsonNull()) return null;
         if (!root.get(key).isJsonObject()) throw new IllegalArgumentException("Expected equipment socket object: " + key);
         JsonObject value = root.getAsJsonObject(key);
