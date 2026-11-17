@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 /** Optional GL 4.3 deformation. Output remains on the GPU; readback is diagnostic only. */
 public final class ComputeSkinning implements AutoCloseable {
     private static final int INPUT_STRIDE=112, OUTPUT_STRIDE=32, GROUP_SIZE=128;
+    private static int sharedProgram, programUsers;
     private final AssimpMesh mesh;
     private final int[] buffers=new int[4];
     private int program,vao,elements;
@@ -120,14 +121,23 @@ public final class ComputeSkinning implements AutoCloseable {
             GL20.glUniform1i(GL20.glGetUniformLocation(program,"morphCount"),morph?mesh.getMorphTargets().size():0);
             if(morph) GL20.glUniform1fv(GL20.glGetUniformLocation(program,"morphWeights"),MorphDeformation.effectiveWeights(mesh,snapshot.getMorphWeights(mesh)));
             GL43.glDispatchCompute((mesh.getVertexCount()+127)/128,1,1);
-            GL42.glMemoryBarrier(GL42.GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT|GL42.GL_BUFFER_UPDATE_BARRIER_BIT);
+            GL42.glMemoryBarrier(GL42.GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT|GL42.GL_BUFFER_UPDATE_BARRIER_BIT
+                    |GL43.GL_SHADER_STORAGE_BARRIER_BIT);
             pose=snapshot;dispatches++;
         }
     }
 
-    public void draw() {GL30.glBindVertexArray(vao);GL11.glDrawElements(GL11.GL_TRIANGLES,mesh.getIndices().length,GL11.GL_UNSIGNED_INT,0);}
+    public void draw() {
+        GL30.glBindVertexArray(vao);
+        var selection = MeshDrawSelection.current();
+        if (selection == null) GL11.glDrawElements(GL11.GL_TRIANGLES,mesh.getIndices().length,GL11.GL_UNSIGNED_INT,0);
+        else selection.drawBound(mesh, false);
+    }
     public long dispatches() {return dispatches;}
     public long hits() {return hits;}
+
+    int outputBuffer() { return buffers[3]; }
+    int indexBuffer() { return elements; }
 
     public CpuSkinning.Geometry readback() {
         RenderSystem.assertOnRenderThread();
@@ -158,6 +168,7 @@ public final class ComputeSkinning implements AutoCloseable {
         if(GL15.glGetBufferParameteri(GL43.GL_SHADER_STORAGE_BUFFER,GL15.GL_BUFFER_SIZE)!=bytes) throw new IllegalStateException("Compute allocation failed");
     }
     private void compile() throws IOException {
+        if(sharedProgram!=0) {program=sharedProgram;programUsers++;return;}
         String source;
         try(var stream=ComputeSkinning.class.getResourceAsStream("/assets/assimploader/shaders/skinning.comp")) {
             if(stream==null) throw new IOException("Missing compute shader");
@@ -169,17 +180,22 @@ public final class ComputeSkinning implements AutoCloseable {
             if(GL20.glGetShaderi(shader,GL20.GL_COMPILE_STATUS)==0) throw new IOException(GL20.glGetShaderInfoLog(shader));
             program=GL20.glCreateProgram();GL20.glAttachShader(program,shader);GL20.glLinkProgram(program);
             if(GL20.glGetProgrami(program,GL20.GL_LINK_STATUS)==0) throw new IOException(GL20.glGetProgramInfoLog(program));
+            sharedProgram=program;programUsers++;
         } finally {GL20.glDeleteShader(shader);}
     }
     @Override public void close() {
         for(int index=0;index<buffers.length;index++) {if(buffers[index]!=0) GL15.glDeleteBuffers(buffers[index]);buffers[index]=0;}
         if(elements!=0) GL15.glDeleteBuffers(elements);
         if(vao!=0) GL30.glDeleteVertexArrays(vao);
-        if(program!=0) GL20.glDeleteProgram(program);
+        if(program!=0) {
+            if(program==sharedProgram) {
+                if(--programUsers==0) {GL20.glDeleteProgram(program);sharedProgram=0;}
+            } else GL20.glDeleteProgram(program);
+        }
         elements=vao=program=0;pose=null;
     }
 
-    private static final class State implements AutoCloseable {
+    static final class State implements AutoCloseable {
         private final int program=GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM),vao=GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
         private final int array=GL11.glGetInteger(GL15.GL_ARRAY_BUFFER_BINDING),storage=GL11.glGetInteger(GL43.GL_SHADER_STORAGE_BUFFER_BINDING);
         private final int[] indexed=new int[4];
