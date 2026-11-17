@@ -55,7 +55,7 @@ public final class CharacterActionFrame {
         controller.update(new PlayerVisualInput(i.sequence(),i.timeSeconds(),i.forwardVelocity(),i.strafeVelocity(),i.verticalVelocity(),
                 i.bodyYawDegrees(),i.headYawDegrees(),i.headPitchDegrees(),i.onGround(),i.crouching(),i.sprinting(),i.jumping(),
                 i.falling(),i.swimming(),i.flying(),i.elytra(),i.riding(),i.sleeping(),i.dead(),false,false,
-                i.swingAction()==null?null:new PlayerVisualInput.SwingAction(i.swingAction().generation(),false,0)));
+                i.swingAction()==null?null:new PlayerVisualInput.SwingAction(i.swingAction().generation(),false,0),i.actionState()));
     }
     public void locomotion(){defaultMotion();}
     public void defaultAnimation(){check();var vanilla=LocalPlayerCharacter.currentVanillaDriver();if(vanilla!=null)vanilla.update(player,true);else controller.update(observation);}
@@ -116,6 +116,12 @@ public final class CharacterActionFrame {
         out.put("jumping",i.jumping());out.put("falling",i.falling());out.put("swimming",i.swimming());out.put("flying",i.flying());out.put("elytra",i.elytra());
         out.put("riding",i.riding());out.put("sleeping",i.sleeping());out.put("dead",i.dead());out.put("usingItem",i.usingItem());
         out.put("climbing",p.onClimbable());out.put("inWater",p.isInWater());out.put("underWater",p.isUnderWater());out.put("inLava",p.isInLava());
+        var action=i.actionState();
+        out.put("pose",action.pose());out.put("airPhase",action.airPhaseName());out.put("crawling",i.crawling());
+        out.put("riptide",action.riptide());out.put("frozen",action.frozen());
+        out.put("takingOff",action.airPhase()==cn.minerealms.rigworks.character.core.PlayerActionState.AirPhase.TAKEOFF);
+        out.put("landing",action.airPhase()==cn.minerealms.rigworks.character.core.PlayerActionState.AirPhase.LANDING);
+        out.put("climbDirection",p.onClimbable()?(i.verticalVelocity()>.05?"up":i.verticalVelocity()<-.05?"down":"idle"):"none");
         out.put("passengerLiving",p.getVehicle() instanceof net.minecraft.world.entity.LivingEntity);
         out.put("vehicleType",p.getVehicle()==null?"":BuiltInRegistries.ENTITY_TYPE.getKey(p.getVehicle().getType()).toString());
         out.put("primaryArm",lower(p.getMainArm().name()));
