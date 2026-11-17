@@ -9,6 +9,7 @@ version="${file.jarVersion}"
 displayName="AssimpLoader - Advanced 3D Model System"
 logoFile="assimploader_icon.png"
 authors="MineRealms Team"
+displayTest="IGNORE_ALL_VERSION"
 description='''
 AssimpLoader - Advanced 3D Model Loading System for Minecraft
 

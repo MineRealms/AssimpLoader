@@ -3,7 +3,6 @@ package cn.minerealms.assimploader.render;
 import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.animation.ClientAnimationManager;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
-import cn.minerealms.assimploader.example.AssimpBlockItem;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.render.base.BaseAssimpRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -31,7 +30,7 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
         ClientRenderResources.checkGeneration();
         var baked = Minecraft.getInstance().getItemRenderer().getModel(stack, null, null, 0);
         AssimpBakedModel model = baked instanceof AssimpBakedModel assimp ? assimp : null;
-        String key = stack.getItem() instanceof AssimpBlockItem item && item.getModelName() != null
+        String key = stack.getItem() instanceof AssimpModelItem item && item.getModelName() != null
                 ? item.getModelName() : ForgeRegistries.ITEMS.getKey(stack.getItem()).getPath();
         AssimpScene scene = AssimpModelLoader.getCachedModel(key);
         if (scene == null && model != null) scene = model.getScene();

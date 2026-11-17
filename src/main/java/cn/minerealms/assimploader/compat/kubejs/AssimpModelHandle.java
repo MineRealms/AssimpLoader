@@ -4,6 +4,7 @@ import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.animation.InstancePerformanceSettings;
 import cn.minerealms.assimploader.animation.ScriptPoseModifier;
 import cn.minerealms.assimploader.animation.AnimationPlayer;
+import cn.minerealms.assimploader.animation.ModelAnimationProcessor;
 import cn.minerealms.assimploader.animation.ik.ChainIkModifier;
 import cn.minerealms.assimploader.animation.ik.LookAtModifier;
 import cn.minerealms.assimploader.collision.ModelCollision;
@@ -64,6 +65,59 @@ public final class AssimpModelHandle {
     }
     public AssimpModelHandle removePose(String id) {var state=live();String key=key(id,"pose:");state.removeModifier(key);forget(state,key);return this;}
 
+    /** Ensure a resource definition is compiled once for this instance; explicit reload replaces it transactionally. */
+    public AssimpModelHandle processor(String id,String resource) {
+        var state=live();String key=key(id,"processor:");
+        String source=new net.minecraft.resources.ResourceLocation(resource).toString();
+        var current=state.getModifier(key);
+        if(current instanceof ModelAnimationProcessor processor && !processor.isClosed() && source.equals(processor.source()))return this;
+        return reloadProcessor(id,source);
+    }
+    /** Inline declarations compile only when this method is called; retain their ID and update numeric controls each tick. */
+    public AssimpModelHandle processor(String id,Map<String,Object> definition) {
+        var compiled=ModelAnimationProcessor.compile(live().getScene(),JSON.toJsonTree(java.util.Objects.requireNonNull(definition)).getAsJsonObject());
+        return installProcessor(id,compiled);
+    }
+    public AssimpModelHandle reloadProcessor(String id,String resource) {
+        var state=live();String source=new net.minecraft.resources.ResourceLocation(resource).toString();
+        try(var reader=net.minecraft.client.Minecraft.getInstance().getResourceManager().openAsReader(new net.minecraft.resources.ResourceLocation(source))) {
+            return installProcessor(id,ModelAnimationProcessor.read(state.getScene(),source,reader));
+        }catch(java.io.IOException error){throw new IllegalArgumentException("Cannot read animation processor: "+source,error);}
+    }
+    private AssimpModelHandle installProcessor(String id,ModelAnimationProcessor compiled) {
+        var state=live();String key=key(id,"processor:");
+        if(state.getModifier(key)!=null&&!(state.getModifier(key) instanceof ModelAnimationProcessor))
+            throw new IllegalArgumentException("Animation processor ID already used by another modifier");
+        if(state.getModifier(key) instanceof ModelAnimationProcessor old && state.getModifier(key+":ik")!=old.ikStage())
+            throw new IllegalArgumentException("Animation processor IK stage ownership changed");
+        if(state.getModifier(key)==null&&state.getModifier(key+":ik")!=null)
+            throw new IllegalArgumentException("Animation processor IK ID already used by another modifier");
+        control(id,"processor:");
+        state.beginPoseEdit();
+        try {state.addModifier(key,compiled);state.addModifier(key+":ik",compiled.ikStage());}
+        finally {state.endPoseEdit(false);}
+        return this;
+    }
+    public AssimpModelHandle processorEnabled(String id,boolean enabled){processor(id).enabled(enabled);return this;}
+    public AssimpModelHandle processorEnabled(String id,String control,boolean enabled){processor(id).enabled(control,enabled);return this;}
+    public AssimpModelHandle processorWeight(String id,String control,double weight){processor(id).weight(control,weight);return this;}
+    public AssimpModelHandle processorPhase(String id,String clip,double phase){processor(id).phase(clip,phase);return this;}
+    public AssimpModelHandle processorReleasePhase(String id,String clip){processor(id).releasePhase(clip);return this;}
+    public AssimpModelHandle processorTarget(String id,String ik,double x,double y,double z){processor(id).target(ik,x,y,z);return this;}
+    public List<String> processorControls(String id){return processor(id).controls();}
+    public AssimpModelHandle removeProcessor(String id) {
+        var state=live();String key=key(id,"processor:");
+        state.beginPoseEdit();
+        try {state.removeModifier(key);state.removeModifier(key+":ik");}
+        finally {state.endPoseEdit(true);}
+        forget(state,key);return this;
+    }
+    private ModelAnimationProcessor processor(String id) {
+        var modifier=live().getModifier(key(id,"processor:"));
+        if(!(modifier instanceof ModelAnimationProcessor processor))throw new IllegalArgumentException("Unknown animation processor: "+id);
+        return processor;
+    }
+
     public AssimpModelHandle layer(String id,String clip,double weight,boolean additive,Map<String,Number> mask) {
         Map<String,Float> converted=new LinkedHashMap<>();
         mask.forEach((node,value)->converted.put(node,number(value.doubleValue())));
@@ -83,10 +137,22 @@ public final class AssimpModelHandle {
     public AssimpModelHandle clearScriptControls() {
         var state=live();var keys=CONTROLS.remove(state);
         if(keys!=null) for(String key:keys) {
-            if(key.startsWith("kubejs:pose:"))state.removeModifier(key);else state.removeLayer(key);
+            if(key.startsWith("kubejs:processor:")){state.removeModifier(key);state.removeModifier(key+":ik");}
+            else if(key.startsWith("kubejs:pose:"))state.removeModifier(key);else state.removeLayer(key);
         }
         var p=state.getCurrentAnimation();if(p!=null){p.releaseSynchronizedPhase();p.setSpeed(1);}
         state.resetMorphWeights();
+        return this;
+    }
+    /** Retire a script policy and restore the declarative clip's playback contract. */
+    public AssimpModelHandle retireScriptControls() {
+        clearScriptControls();
+        var state=live();state.resume();var player=state.getCurrentAnimation();
+        if(player!=null) {
+            var binding=state.getStateMachine().getBindings().get(state.getStateMachine().getCurrentStateName());
+            player.setLooping(binding==null || !binding.clip().equals(player.getAnimation().getName()) || binding.looping());
+            player.play();
+        }
         return this;
     }
 

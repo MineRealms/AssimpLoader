@@ -1,10 +1,7 @@
 package cn.minerealms.assimploader.light;
-
 import cn.minerealms.assimploader.AssimpLoader;
+
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -234,26 +231,6 @@ public class MinecraftLightConverter {
         float level = intensity * attenuation * 15.0f;
 
         return Math.max(0, Math.min(15, (int)level));
-    }
-
-    /**
-     * Place light blocks in world
-     */
-    public static void placeLightsInWorld(Level level, List<MinecraftLight> lights) {
-        for (MinecraftLight light : lights) {
-            BlockPos pos = light.getPosition();
-
-            // Check if position is valid
-            if (!level.isLoaded(pos)) {
-                continue;
-            }
-
-            // Place light block
-            BlockState lightBlock = Blocks.LIGHT.defaultBlockState();
-            level.setBlock(pos, lightBlock, 3);
-
-            AssimpLoader.LOGGER.debug("Placed light at {} with level {}", pos, light.getLightLevel());
-        }
     }
 
     /**

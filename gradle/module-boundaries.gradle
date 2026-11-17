@@ -1,0 +1,42 @@
+tasks.register('verifyModuleBoundaries') {
+    group = 'verification'
+    description = 'Verify independent mod contents and one-way source dependencies'
+    dependsOn 'reobfJarJar', 'reobfShowcaseJar', ':rigworks:reobfJar'
+    doLast {
+        fileTree('src/main/java').matching { include '**/*.java' }.each { source ->
+            def text = source.getText('UTF-8')
+            if (text =~ /cn\.minerealms\.(rigworks|assimpshowcase)\./ ||
+                    text =~ /cn\.minerealms\.assimploader\.(showcase|deer|vehicle|rocket|example)\./)
+                throw new GradleException("Engine references a content mod: ${source}")
+            if (text =~ /\b(RegisterCommandsEvent|ServerTickEvent|DeferredRegister|SimpleChannel)\b/ ||
+                    text =~ /\b(setBlock|addFreshEntity|sendToServer)\s*\(/)
+                throw new GradleException("Engine contains a gameplay server entry: ${source}")
+        }
+        fileTree('rigworks/src/main/java').matching { include '**/*.java' }.each { source ->
+            if (source.getText('UTF-8') =~ /cn\.minerealms\.(assimpshowcase|assimploader\.(showcase|deer|vehicle|rocket|example))\./)
+                throw new GradleException("RigWorks references Showcase: ${source}")
+        }
+        def archives = [
+                [task: tasks.named('jarJar').get(), id: 'assimploader',
+                 forbidden: ['cn/minerealms/rigworks/', 'cn/minerealms/assimpshowcase/', 'models/character/', 'models/showcase/', 'models/validation/', 'SmokeTest.class', 'assimpshowcase.refmap.json']],
+                [task: tasks.named('showcaseJar').get(), id: 'assimpshowcase',
+                 forbidden: ['cn/minerealms/rigworks/', 'cn/minerealms/assimploader/', 'SmokeTest.class', 'assimploader.refmap.json']],
+                [task: project(':rigworks').tasks.named('jar').get(), id: 'rigworks',
+                 forbidden: ['cn/minerealms/assimpshowcase/', 'cn/minerealms/assimploader/', 'SmokeTest.class']]
+        ]
+        archives.each { spec ->
+            def artifact = spec.task.archiveFile.get().asFile
+            def zip = new java.util.zip.ZipFile(artifact)
+            try {
+                def entries = zip.entries().toList()*.name
+                def wrong = entries.find { entry -> spec.forbidden.any { entry.contains(it) } }
+                if (wrong != null) throw new GradleException("${artifact.name} contains ${wrong}")
+                def metadata = zip.getInputStream(zip.getEntry('META-INF/mods.toml')).getText('UTF-8')
+                def ids = (metadata =~ /(?m)^modId="([^"]+)"/).collect { it[1] }
+                if (ids.count(spec.id) != 1) throw new GradleException("Wrong mod entry in ${artifact.name}")
+                logger.lifecycle("Verified isolated ${spec.id}: ${artifact.name}")
+            } finally { zip.close() }
+        }
+    }
+}
+tasks.named('build').configure { dependsOn 'verifyModuleBoundaries' }

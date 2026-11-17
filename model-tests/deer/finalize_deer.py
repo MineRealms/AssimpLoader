@@ -5,7 +5,7 @@ from pathlib import Path
 from mathutils import Matrix, Vector
 
 BASE = Path('H:/MinecraftMods/AssimpLoader/model-tests/deer')
-ASSETS = Path('H:/MinecraftMods/AssimpLoader/src/main/resources/assets/assimploader/models/validation')
+ASSETS = Path(__file__).resolve().parents[2] / 'src/showcase/resources/assets/assimploader/models/validation'
 FIXTURES = Path('H:/MinecraftMods/AssimpLoader/src/test/resources/fixtures')
 scene = bpy.context.scene
 rig, body = bpy.data.objects['DeerRig'], bpy.data.objects['DeerMesh']

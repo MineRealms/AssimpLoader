@@ -10,10 +10,15 @@ This section supersedes the old completion statement below for new requests.
 - [x] Move gameplay registries, networking, commands and world writes out of the engine.
 - [x] Extract animation clock, model visibility, item contract and optional UI/diagnostic providers.
 - [x] Build three isolated artifacts and compile the combined development harness.
-- [ ] Verify the three Mods load together with Oculus and KubeJS.
+- [x] Verify the three Mods load together with Oculus and KubeJS.
 - [ ] Finish and test the generic JSON/KubeJS shader parameter bridge.
 - [ ] Close swimming, bow/crossbow contact and fishing endpoint regressions with geometric checks.
-- [ ] Deliver reusable JSON/KubeJS processor examples and clarify remaining graph work.
+- [x] Deliver reusable JSON/KubeJS processor examples and clarify remaining graph work.
+
+Checkpoint: the combined development startup and initial resource bake passed.
+`build compileIntegrationTestJava :rigworks:compileIntegrationJava` passed;
+400 tests, zero failures/errors, one skipped. The stronger native geometry probe
+found a shoulder-origin discrepancy and remains an open acceptance gate.
 
 The design and the distinction between current APIs and future work are recorded in
 `MODULE_SPLIT_AND_DATA_DRIVEN_PLAN_2026-11-17.md`.

@@ -1,6 +1,6 @@
-package cn.minerealms.assimploader.example;
+package cn.minerealms.assimpshowcase.example;
 
-import cn.minerealms.assimploader.showcase.ShowcaseModel;
+import cn.minerealms.assimpshowcase.showcase.ShowcaseModel;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;

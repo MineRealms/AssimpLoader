@@ -15,7 +15,7 @@ import java.util.Map;
 /** Client scripts issue bounded commands; the regular Java runtime owns simulation and rendering. */
 public final class AssimpScriptApi {
     public int apiVersion() {return 1;}
-    public CharacterScriptApi character() {return CharacterScriptApi.INSTANCE;}
+    public ShaderScriptApi shaders() {return new ShaderScriptApi();}
 
     public List<String> models() {
         checkThread();

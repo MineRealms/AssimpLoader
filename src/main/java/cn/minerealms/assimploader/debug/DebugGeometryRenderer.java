@@ -3,7 +3,6 @@ package cn.minerealms.assimploader.debug;
 import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.animation.ModelInstance;
 import cn.minerealms.assimploader.animation.PoseSnapshot;
-import cn.minerealms.assimploader.character.client.LocalPlayerCharacter;
 import cn.minerealms.assimploader.compat.OculusCompat;
 import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import cn.minerealms.assimploader.model.AssimpNode;
@@ -73,7 +72,7 @@ public final class DebugGeometryRenderer {
         if(event.getStage()!=RenderLevelStageEvent.Stage.AFTER_ENTITIES || !ClientDebugTools.enabled() || OculusCompat.isRenderingShadowPass())return;
         var config=AssimpLoaderConfig.CLIENT.debugView;
         if(!config.collision.get() && !config.worldCollision.get())return;
-        var physics=LocalPlayerCharacter.currentPhysics();if(physics==null)return;
+        for(var physics:ClientDiagnostics.physics()) {
         var mc=Minecraft.getInstance();var camera=event.getCamera().getPosition();var anchor=physics.debugAnchor();
         var poses=event.getPoseStack();var buffers=mc.renderBuffers().bufferSource();var lines=buffers.getBuffer(RenderType.lines());
         poses.pushPose();poses.translate(anchor.x-camera.x,anchor.y-camera.y,anchor.z-camera.z);
@@ -94,6 +93,7 @@ public final class DebugGeometryRenderer {
             LevelRenderer.renderLineBox(poses,lines,box,1,.3f,.55f,1);
         }
         poses.popPose();buffers.endBatch(RenderType.lines());
+        }
     }
     private static void capsule(PoseStack poses,VertexConsumer lines,Vector3f a,Vector3f b,float radius,float r,float g,float blue) {
         var axis=new Vector3f(b).sub(a);

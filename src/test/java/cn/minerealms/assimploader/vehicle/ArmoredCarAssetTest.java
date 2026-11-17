@@ -1,9 +1,9 @@
-package cn.minerealms.assimploader.vehicle;
+package cn.minerealms.assimpshowcase.vehicle;
 
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.render.SceneTransforms;
-import cn.minerealms.assimploader.vehicle.client.ArmoredCarGeometry;
+import cn.minerealms.assimpshowcase.vehicle.client.ArmoredCarGeometry;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 

@@ -1,4 +1,6 @@
-package cn.minerealms.assimploader.showcase;
+package cn.minerealms.assimpshowcase.showcase;
+
+import cn.minerealms.assimploader.render.ModelVisibility;
 
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.core.ModelImportMode;
@@ -75,7 +77,7 @@ class ShowcaseAssetsTest {
             var scene = new AssimpModelLoader().loadModelFromMemory("rocket_engine.fbx", stream.readAllBytes(),
                     ModelImportMode.STATIC);
             assertNotNull(scene);
-            var bounds = ShowcaseVisibility.modelBounds(scene);
+            var bounds = ModelVisibility.modelBounds(scene);
             assertEquals(0, bounds.minY, 0.01);
             assertEquals(4.6, bounds.maxY, 0.01);
             assertEquals(2.1485, bounds.getXsize(), 0.01);

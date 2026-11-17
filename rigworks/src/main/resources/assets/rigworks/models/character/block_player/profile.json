@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "model": "rigworks:models/character/block_player/block_player.fbx",
+  "modelYawDegrees": 0,
+  "scale": 1,
+  "humanoid": {
+    "hips": "Hips", "spine": "Spine", "chest": "Chest", "neck": "Neck", "head": "Head",
+    "left_upper_arm": "UpperArm.L", "left_forearm": "Forearm.L", "left_hand": "Hand.L",
+    "right_upper_arm": "UpperArm.R", "right_forearm": "Forearm.R", "right_hand": "Hand.R",
+    "left_thigh": "Thigh.L", "left_shin": "Shin.L", "left_foot": "Foot.L",
+    "right_thigh": "Thigh.R", "right_shin": "Shin.R", "right_foot": "Foot.R"
+  },
+  "animations": {
+    "idle": "idle", "walk": "walk", "run": "run", "crouch": "crouch", "crouch_walk": "crouch_walk",
+    "jump": "jump", "fall": "fall", "swim": "swim", "fly": "fly", "elytra": "elytra",
+    "ride": "ride", "sleep": "sleep", "dead": "dead", "use_item": "use_item", "swing": "swing"
+  },
+  "physicsDefinition": "rigworks:models/character/block_player/physics.json",
+  "solverDefinition": "rigworks:models/character/block_player/rig.json",
+  "equipmentDefinition": "rigworks:models/character/block_player/equipment.json",
+  "blendSeconds": 0.15,
+  "movementThreshold": 0.04,
+  "timing":{"swingSync":true,"movementSync":true,"walkStride":2.4,"runStride":3.2,"crouchStride":1.4,"minRate":0.25,"maxRate":12},
+  "headLook": {"enabled": true, "forward": [0,0,1], "maxYaw": 75, "maxPitch": 60}
+}

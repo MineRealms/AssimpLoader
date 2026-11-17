@@ -3,10 +3,10 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
-const source = fs.readFileSync(path.join(__dirname, '../../examples/kubejs/client_scripts/assimp_player_actions.js'), 'utf8')
+const source = fs.readFileSync(path.join(__dirname, '../../rigworks/examples/kubejs/client_scripts/rigworks_player_actions.js'), 'utf8')
 let callback, registered
 const api = { register(id, fn) { registered = id; callback = fn; return this }, profile() { return this }, enable() { return this } }
-const context = vm.createContext({ Assimp: { character: () => api } })
+const context = vm.createContext({ RigWorks: api })
 vm.runInContext(source, context, { filename: 'assimp_player_actions.js' })
 const demo = context.AssimpPlayerActions
 assert.equal(registered, demo.config.id)
@@ -20,7 +20,7 @@ function fixture() {
   const state = new Map(), poses = new Map()
   state.put = state.set.bind(state)
   const model = { pose(id, options) { poses.set(id, JSON.parse(JSON.stringify(options))); return this }, removePose(id) { poses.delete(id); return this } }
-  let defaultTicks = 0
+  let defaultTicks = 0, nativeTicks = 0
   return {
     state, poses,
     run(changes = {}) {
@@ -29,13 +29,13 @@ function fixture() {
         swingProgress: 0, swingActive: false, mainItem: item(), offItem: item(), swingItem: item(),
         useItem: item(), useArm: 'right', useTicks: 0, verticalVelocity: 0 }, changes)))
       callback({ input: () => input, state: () => state, model: () => model,
-        defaultMotion() { defaultTicks++ }, bone: role => roles.includes(role) ? role : null })
+        defaultMotion() { defaultTicks++ }, defaultAnimation() { nativeTicks++ }, bone: role => roles.includes(role) ? role : null })
       for (const pose of poses.values()) for (const bone of Object.values(pose.bones)) {
         assert(bone.rotation.every(Number.isFinite), 'non-finite script rotation')
       }
       return state.get('action')
     },
-    get defaultTicks() { return defaultTicks }
+    get defaultTicks() { return defaultTicks }, get nativeTicks() { return nativeTicks }
   }
 }
 const sword = item('minecraft:diamond_sword', 'sword')
@@ -87,6 +87,17 @@ for (const [use, expected] of [['bow', 'bow'], ['block', 'shield'], ['eat', 'eat
 }
 f = fixture()
 assert.equal(f.run({ swingActive: true, swingGeneration: 1, swingItem: item('minecraft:iron_axe', 'tool') }), 'tool')
+for (const use of ['bow', 'crossbow']) {
+  f = fixture()
+  f.run({ swingActive: true, swingGeneration: 1, swingItem: sword })
+  assert.equal(f.run({ tick: 2, usingItem: true, useAnimation: use, useItem: item('minecraft:' + use, 'tool', use) }), 'native_' + use)
+  assert.equal(f.nativeTicks, 1)
+  assert.equal(f.poses.size, 0, 'native two-handed action retained script arm overlays')
+}
+f = fixture()
+const charged = item('minecraft:crossbow', 'tool', 'crossbow'); charged.set('chargedCrossbow', true)
+assert.equal(f.run({ offItem: charged }), 'native_crossbow_hold')
+assert.equal(f.nativeTicks, 1)
 demo.config.items.unshift({ id: 'test:wand', use: 'bow' }, { tag: 'test:swords', attack: 'sword' })
 f = fixture()
 assert.equal(f.run({ usingItem: true, useItem: item('test:wand', 'tool') }), 'bow')

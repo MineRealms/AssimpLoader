@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "enabled": false,
+  "uniforms": {
+    "assimpDemoEnabled": { "type": "int", "default": 1, "disabled": 0, "min": 0, "max": 1 },
+    "assimpDemoTint": { "type": "vec3", "default": [1, 0.8, 0.5], "disabled": [1, 1, 1], "min": 0, "max": 1 },
+    "assimpDemoStrength": { "type": "float", "default": 0.25, "disabled": 0, "min": 0, "max": 1 }
+  }
+}

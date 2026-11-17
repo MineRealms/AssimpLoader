@@ -8,8 +8,6 @@ import cn.minerealms.assimploader.render.AssimpGeometryLoader;
 import cn.minerealms.assimploader.render.GLCapabilityDetector;
 import cn.minerealms.assimploader.util.DebugLogger;
 import cn.minerealms.assimploader.util.AssimpLoaderPaths;
-import cn.minerealms.assimploader.vehicle.VehicleNetworking;
-import cn.minerealms.assimploader.vehicle.VehicleRegistry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ModelEvent;
@@ -52,6 +50,7 @@ public class AssimpLoader {
 
     public AssimpLoader() {
         instance = this;
+        if (FMLEnvironment.dist != Dist.CLIENT) return;
 
         LOGGER.info("Initializing AssimpLoader - Advanced 3D Model Loading System");
 
@@ -85,20 +84,12 @@ public class AssimpLoader {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         // Register setup events
-        modEventBus.addListener(this::commonSetup);
-        VehicleRegistry.register(modEventBus);
-        cn.minerealms.assimploader.deer.DeerShowcaseRegistry.register(modEventBus);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(this::clientSetup);
             modEventBus.addListener(this::registerModelLoaders);
             modEventBus.addListener(cn.minerealms.assimploader.lookdev.LookDevKeybind::registerKeyMappings);
-            modEventBus.addListener(cn.minerealms.assimploader.vehicle.VehicleClientInput::registerKeyMappings);
-            MinecraftForge.EVENT_BUS.register(cn.minerealms.assimploader.vehicle.VehicleClientInput.class);
         }
-
-        // Register examples
-        cn.minerealms.assimploader.showcase.ShowcaseRegistry.register(modEventBus);
 
         // Register auto-test manager (client-side only) - controlled by config
         if (FMLEnvironment.dist == Dist.CLIENT) {
@@ -109,19 +100,6 @@ public class AssimpLoader {
         PhotonCompat.init();
 
         LOGGER.info("AssimpLoader mod instance created");
-    }
-
-    private void commonSetup(final FMLCommonSetupEvent event) {
-        LOGGER.info("AssimpLoader common setup");
-        DebugLogger.debug("Common setup phase starting");
-
-        event.enqueueWork(() -> {
-            VehicleNetworking.register();
-
-            // Cache manager is now a singleton
-            LOGGER.info("Model cache manager ready");
-            DebugLogger.debug("Model cache manager initialized");
-        });
     }
 
     private void clientSetup(final FMLClientSetupEvent event) {

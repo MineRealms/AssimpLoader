@@ -7,7 +7,7 @@ import bpy
 from mathutils import Quaternion, Vector
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / 'src/main/resources/assets/assimploader/models/validation/highbone_probe.glb'
+OUTPUT = ROOT / 'src/showcase/resources/assets/assimploader/models/validation/highbone_probe.glb'
 SOURCE = ROOT / 'model-tests/highbone_probe.blend'
 REFERENCE = ROOT / 'src/test/resources/fixtures/highbone_reference.json'
 scene = bpy.context.scene

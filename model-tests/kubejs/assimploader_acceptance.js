@@ -1,5 +1,5 @@
 // Generated into client_scripts only by -PclientKubeJsSmoke.
-Assimp.character().register('acceptance_top_level', function (frame) { frame.defaultMotion() })
+RigWorks.register('acceptance_top_level', function (frame) { frame.defaultMotion() })
 AssimpAcceptance.onClient(function () {
   function check(value, message) { if (!value) throw new Error(message) }
   var probe = null
@@ -7,11 +7,11 @@ AssimpAcceptance.onClient(function () {
   var block = null
   try {
     check(Assimp.apiVersion() === 1, 'Assimp client binding missing')
-    check(Assimp.character().controllers().contains('acceptance_top_level'), 'top-level client script registration failed')
-    Assimp.character().unregister('acceptance_top_level')
+    check(RigWorks.controllers().contains('acceptance_top_level'), 'top-level client script registration failed')
+    RigWorks.unregister('acceptance_top_level')
     probe = AssimpAcceptance.create('highbone_probe')
     var model = probe.handle()
-    check(Assimp.character().controllers().contains(AssimpPlayerActions.config.id), 'canonical player demo did not load in Rhino')
+    check(RigWorks.controllers().contains(AssimpPlayerActions.config.id), 'canonical player demo did not load in Rhino')
     check(model.isValid(), 'new handle invalid')
     check(model.state('wave'), 'JSON state unavailable')
     check(!model.state('missing'), 'unknown state accepted')
@@ -70,8 +70,8 @@ AssimpAcceptance.onClient(function () {
       check(distance>.1, 'real FBX hand did not move through '+expected[hit]+': '+distance)
     }
     blockModel.clearScriptControls()
-    Assimp.character().unregister(AssimpPlayerActions.config.id)
-    var characters = Assimp.character()
+    RigWorks.unregister(AssimpPlayerActions.config.id)
+    var characters = RigWorks
     characters.register('acceptance', function (frame) { frame.defaultMotion() })
     check(characters.controllers().contains('acceptance'), 'Rhino Consumer controller registration missing')
     check(String(characters.active()) === 'acceptance', 'registered controller was not selected')

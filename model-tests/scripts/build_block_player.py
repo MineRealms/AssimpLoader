@@ -8,12 +8,19 @@ from mathutils import Vector
 
 ROOT = Path("H:/MinecraftMods/AssimpLoader")
 OUT = ROOT / "model-tests/block_player"
-ASSET = ROOT / "src/main/resources/assets/assimploader/models/character/block_player"
+ASSET = ROOT / "rigworks/src/main/resources/assets/rigworks/models/character/block_player"
 OUT.mkdir(parents=True, exist_ok=True)
 ASSET.mkdir(parents=True, exist_ok=True)
 
-scene = bpy.data.scenes.new("BlockPlayer_CharacterEngine")
+previous = bpy.data.scenes.get("BlockPlayer_CharacterEngine")
+scene = bpy.data.scenes.new("BlockPlayer_Rebuild")
 bpy.context.window.scene = scene
+if previous:
+    for owned in list(previous.objects):
+        if len(owned.users_scene) == 1:
+            bpy.data.objects.remove(owned, do_unlink=True)
+    bpy.data.scenes.remove(previous)
+scene.name = "BlockPlayer_CharacterEngine"
 scene.unit_settings.system = "METRIC"
 scene.unit_settings.scale_length = 1
 scene.render.fps = 30
@@ -82,7 +89,8 @@ bones = [
     ("Pendant2", (0, -.21, 1.18), (0, -.23, .99), "Pendant1"),
     ("ChestFollower", (.1, 0, 1.2), (.1, 0, 1.35), "Root"),
 ]
-for side, x in [("L", .36), ("R", -.36)]:
+# Assimp's exported model faces +Z; anatomical left must import at +X.
+for side, x in [("L", -.36), ("R", .36)]:
     bones.extend([
         (f"UpperArm.{side}", (x, 0, 1.36), (x, 0, 1.07), "Chest"),
         (f"Forearm.{side}", (x, 0, 1.07), (x, 0, .80), f"UpperArm.{side}"),
@@ -127,7 +135,7 @@ box("Hair1", (0, .24, 1.54), (.18, .08, .20), "Hair1", 4)
 box("Hair2", (0, .26, 1.34), (.16, .08, .20), "Hair2", 4)
 box("Pendant1", (0, -.21, 1.28), (.075, .065, .20), "Pendant1", 7)
 box("Pendant2", (0, -.23, 1.08), (.09, .065, .18), "Pendant2", 7)
-for side, x in [("L", .36), ("R", -.36)]:
+for side, x in [("L", -.36), ("R", .36)]:
     box(f"UpperArm.{side}", (x, 0, 1.215), (.20, .24, .29), f"UpperArm.{side}", 1)
     box(f"Forearm.{side}", (x, 0, .935), (.18, .22, .27), f"Forearm.{side}", 0)
     box(f"Hand.{side}", (x, -.015, .745), (.19, .24, .11), f"Hand.{side}", 0)
@@ -236,7 +244,7 @@ ik_collection = bpy.data.collections.new("Authoring_IK_Controls")
 scene.collection.children.link(ik_collection)
 for side in ("L", "R"):
     control = bpy.data.objects.new(f"IK_Target.{side}", None)
-    control.location = (.12 if side == "L" else -.12, 0, .1)
+    control.location = (-.12 if side == "L" else .12, 0, .1)
     control.empty_display_type = "SPHERE"
     control.empty_display_size = .08
     ik_collection.objects.link(control)
@@ -277,7 +285,7 @@ manifest = {
     "triangles": sum(len(p.vertices) - 2 for p in mesh.polygons),
     "bones": len(armature.bones), "actions": list(actions),
     "morphs": ["Blink", "Smile"], "heightMetres": 1.825,
-    "rig": rig.name, "asset": "assimploader:models/character/block_player/block_player.fbx",
+    "rig": rig.name, "asset": "rigworks:models/character/block_player/block_player.fbx",
     "note": "Runtime IK/append/rigid-body semantics are declared in sidecar resources, not baked physics."
 }
 (OUT / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

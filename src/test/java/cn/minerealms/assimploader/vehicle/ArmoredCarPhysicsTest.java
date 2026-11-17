@@ -1,4 +1,4 @@
-package cn.minerealms.assimploader.vehicle;
+package cn.minerealms.assimpshowcase.vehicle;
 
 import org.junit.jupiter.api.Test;
 

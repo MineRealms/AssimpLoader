@@ -4,15 +4,11 @@
   "package": "cn.minerealms.assimploader.mixin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "assimploader.refmap.json",
-  "mixins": [
-    "vehicle.VehicleServerMovementGuard"
-  ],
+  "mixins": [],
   "client": [
-    "character.PlayerRendererPoseAccess",
     "visibility.ShowcaseFrustumMixin",
     "visibility.ShowcaseViewportMixin",
-    "visibility.WorldBatchFlushMixin",
-    "vehicle.ArmoredCarCameraMixin"
+    "visibility.WorldBatchFlushMixin"
   ],
   "injectors": {
     "defaultRequire": 1

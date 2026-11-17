@@ -84,7 +84,7 @@ class AssimpModelHandleTest {
         try(var state=fixture("highbone_probe")) {
             var handle=new AssimpModelHandle(state);assertTrue(handle.state("wave"));
             handle.playback(2,false).phase(.5).pause();assertTrue(state.isPaused());
-            CharacterActionFrame.clearControls(state);
+            handle.retireScriptControls();
             assertFalse(state.isPaused());assertTrue(state.getCurrentAnimation().isPlaying());
             assertTrue(state.getCurrentAnimation().isLooping());assertFalse(state.getCurrentAnimation().hasSynchronizedPhase());
             double time=state.getSimulationTime();state.update(.05f);assertTrue(state.getSimulationTime()>time);

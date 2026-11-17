@@ -6,7 +6,7 @@ from pathlib import Path
 from mathutils import Vector
 
 BASE = Path('H:/MinecraftMods/AssimpLoader/model-tests/deer')
-ASSETS = Path('H:/MinecraftMods/AssimpLoader/src/main/resources/assets/assimploader/models/validation')
+ASSETS = Path(__file__).resolve().parents[2] / 'src/showcase/resources/assets/assimploader/models/validation'
 scene = bpy.context.scene
 rig = bpy.data.objects['DeerRig']
 body = bpy.data.objects['DeerMesh']

@@ -10,7 +10,7 @@ from mathutils import Quaternion, Vector
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'model-tests' / 'animation_probe.blend'
-OUTPUT = ROOT / 'src/main/resources/assets/assimploader/models/validation/animation_probe.fbx'
+OUTPUT = ROOT / 'src/showcase/resources/assets/assimploader/models/validation/animation_probe.fbx'
 PREVIEW = ROOT / 'model-tests' / 'animation_probe.png'
 MANIFEST = ROOT / 'model-tests' / 'animation_probe.json'
 REFERENCE = ROOT / 'src/test/resources/fixtures/animation_probe_reference.json'

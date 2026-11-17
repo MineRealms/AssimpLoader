@@ -12,12 +12,39 @@ buildscript {
 
 apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'org.spongepowered.mixin'
+apply plugin: 'java-library'
 
 version = mod_version
 group = maven_group
 base { archivesName = archives_base_name }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+// Content mods compile against the library; the library never sees their classes.
+sourceSets {
+    showcase {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+    integrationTest {
+        java.srcDirs = ['src/integration/java']
+        resources.srcDirs = ['src/integration/resources']
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath + sourceSets.showcase.output
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath + sourceSets.showcase.output
+    }
+}
+configurations {
+    localRuntime { canBeConsumed = false; canBeResolved = false }
+    runtimeClasspath.extendsFrom localRuntime
+    showcaseImplementation.extendsFrom implementation
+    showcaseCompileOnly.extendsFrom compileOnly
+    showcaseRuntimeOnly.extendsFrom runtimeOnly
+    showcaseAnnotationProcessor.extendsFrom annotationProcessor
+    integrationTestImplementation.extendsFrom showcaseImplementation
+    integrationTestCompileOnly.extendsFrom showcaseCompileOnly
+    integrationTestRuntimeOnly.extendsFrom showcaseRuntimeOnly
+}
+evaluationDependsOn(':rigworks')
 
 minecraft {
     mappings channel: 'official', version: '1.20.1'
@@ -146,6 +173,14 @@ minecraft {
             mods {
                 assimploader {
                     source sourceSets.main
+                    source sourceSets.integrationTest
+                }
+                assimpshowcase {
+                    source sourceSets.showcase
+                }
+                rigworks {
+                    source project(':rigworks').sourceSets.main
+                    source project(':rigworks').sourceSets.integration
                 }
             }
         }
@@ -162,6 +197,8 @@ minecraft {
                 assimploader {
                     source sourceSets.main
                 }
+                assimpshowcase { source sourceSets.showcase }
+                rigworks { source project(':rigworks').sourceSets.main }
             }
         }
 
@@ -220,7 +257,7 @@ if (project.hasProperty('clientKubeJsSmoke') || project.hasProperty('clientKubeJ
     def smokeSource = file(serverSmoke ? 'model-tests/kubejs/assimploader_server_acceptance.js' : 'model-tests/kubejs/assimploader_acceptance.js')
     def smokeTarget = file(serverSmoke ? 'run/kubejs/server_scripts/assimploader_acceptance.generated.js' : 'run/kubejs/client_scripts/assimploader_acceptance.generated.js')
     def smokePayload = {
-        serverSmoke ? smokeSource.bytes : (file('examples/kubejs/client_scripts/assimp_player_actions.js').getText('UTF-8') + '\n' + smokeSource.getText('UTF-8')).getBytes('UTF-8')
+        serverSmoke ? smokeSource.bytes : (file('rigworks/examples/kubejs/client_scripts/rigworks_player_actions.js').getText('UTF-8') + '\n' + smokeSource.getText('UTF-8')).getBytes('UTF-8')
     }
     def prepareScript = tasks.register('prepareKubeJsSmoke') {
         doLast {
@@ -307,6 +344,7 @@ dependencies {
             [group: 'com.github.stephengold', name: 'jbullet', version: '1.0.3', range: '[1.0.3,1.0.4)'],
             [group: 'com.github.stephengold', name: 'stack-alloc', version: '1.0.2', range: '[1.0.2,1.0.3)'],
             [group: 'javax.vecmath', name: 'vecmath', version: '1.5.2', range: '[1.5.2,1.5.3)']]) {
+        api("${physicsLibrary.group}:${physicsLibrary.name}:${physicsLibrary.version}") { transitive = false }
         minecraftLibrary("${physicsLibrary.group}:${physicsLibrary.name}:${physicsLibrary.version}") { transitive = false }
         jarJar(group: physicsLibrary.group, name: physicsLibrary.name, version: physicsLibrary.range) {
             transitive = false
@@ -323,7 +361,7 @@ dependencies {
         def kubeDependency = fg.deobf(coordinate)
         compileOnly(kubeDependency) { transitive = false }
         if (project.hasProperty('withKubeJS') || project.hasProperty('clientKubeJsSmoke') || project.hasProperty('clientKubeJsWorldSmoke')) {
-            runtimeOnly(kubeDependency) { transitive = false }
+            localRuntime(kubeDependency) { transitive = false }
         }
     }
 
@@ -332,6 +370,7 @@ dependencies {
     minecraftLibrary("org.lwjgl:lwjgl-assimp:3.3.1") {
         transitive = false // Minecraft already supplies the matching LWJGL core.
     }
+    api('org.lwjgl:lwjgl-assimp:3.3.1') { transitive = false }
 
     // Bundle LWJGL Assimp into the mod
     jarJar(group: 'org.lwjgl', name: 'lwjgl-assimp', version: '[3.3.1,3.3.2)')
@@ -357,17 +396,17 @@ dependencies {
     softDeps.each { dep ->
         def mapped = fg.deobf(dep)
         compileOnly mapped
-        if (!project.hasProperty('withoutOptionalMods')) runtimeOnly mapped
+        if (!project.hasProperty('withoutOptionalMods')) localRuntime mapped
     }
 
     // Development clients include Oculus by default; never bundled into the mod.
     if (!project.hasProperty('withoutOculus')) {
-        runtimeOnly fg.deobf('maven.modrinth:oculus:iQ1SwGc3') // Oculus 1.8.0 / MC 1.20.1
-        runtimeOnly fg.deobf('maven.modrinth:embeddium:UTbfe5d1') // Embeddium 0.3.31
+        localRuntime fg.deobf('maven.modrinth:oculus:iQ1SwGc3') // Oculus 1.8.0 / MC 1.20.1
+        localRuntime fg.deobf('maven.modrinth:embeddium:UTbfe5d1') // Embeddium 0.3.31
     }
     if (project.hasProperty('rosettaRepo')) {
         // A Maven coordinate lets ForgeGradle remap the bridge for a development client.
-        runtimeOnly(fg.deobf("dev.rosetta:rosetta-remote-debug-bridge-forge:${project.findProperty('rosettaVersion') ?: '1.0.0'}")) {
+        localRuntime(fg.deobf("dev.rosetta:rosetta-remote-debug-bridge-forge:${project.findProperty('rosettaVersion') ?: '1.0.0'}")) {
             transitive = false
         }
     }
@@ -377,6 +416,7 @@ dependencies {
 }
 
 jar {
+    exclude 'assimpshowcase.refmap.json'
     from(['LICENSE', 'docs/THIRD_PARTY_NOTICES.md']) { into 'META-INF' }
     from('licenses') { into 'META-INF/licenses' }
     from('third_party_sources') { into 'META-INF/third-party-sources' }
@@ -401,6 +441,7 @@ jarJar.enable()
 // The '-all' jar is what users install, so the Assimp natives have to live there.
 // (Putting them in the plain jar only would ship a mod that cannot load its native library.)
 tasks.named('jarJar').configure {
+    exclude 'assimpshowcase.refmap.json'
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(['LICENSE', 'docs/THIRD_PARTY_NOTICES.md']) { into 'META-INF' }
     from('licenses') { into 'META-INF/licenses' }
@@ -422,6 +463,32 @@ mixin {
     config "mixins.photon_compat.json"
     config "mixins.iris_compat.json"
     config "mixins.assimploader.json"
+    add sourceSets.showcase, 'assimpshowcase.refmap.json'
+    config 'mixins.assimpshowcase.json'
+    config 'mixins.rigworks.json'
+}
+
+tasks.register('showcaseJar', Jar) {
+    exclude 'assimploader.refmap.json'
+    archiveBaseName = 'assimpshowcase'
+    from sourceSets.showcase.output
+    from('LICENSE') { into 'META-INF' }
+    manifest { attributes 'MixinConfigs': 'mixins.assimpshowcase.json' }
+}
+reobf { showcaseJar {} }
+tasks.named('showcaseJar').configure { finalizedBy 'reobfShowcaseJar' }
+
+// Only the development acceptance harness may depend on both content mods.
+sourceSets.integrationTest.compileClasspath += project(':rigworks').sourceSets.main.output + project(':rigworks').sourceSets.integration.output
+sourceSets.integrationTest.runtimeClasspath += project(':rigworks').sourceSets.main.output + project(':rigworks').sourceSets.integration.output
+sourceSets.test.compileClasspath += sourceSets.showcase.output
+sourceSets.test.runtimeClasspath += sourceSets.showcase.output
+tasks.named('build').configure { dependsOn 'showcaseJar', ':rigworks:build' }
+apply from: 'gradle/module-boundaries.gradle'
+// ForgeGradle 6 resolves source-set build task names in the run's owning project.
+tasks.register('integrationClasses') { dependsOn ':rigworks:integrationClasses' }
+tasks.matching { it.name in ['runClient', 'prepareRunClient', 'runServer', 'prepareRunServer'] }.configureEach {
+    dependsOn ':rigworks:classes'
 }
 
 jar.finalizedBy('reobfJar')

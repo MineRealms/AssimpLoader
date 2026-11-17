@@ -1,0 +1,1 @@
+cn.minerealms.assimpshowcase.compat.kubejs.AssimpKubeJSCommonPlugin

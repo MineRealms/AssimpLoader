@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "cn.minerealms.rigworks.mixin.character",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "rigworks.refmap.json",
+  "client": ["PlayerRendererPoseAccess", "FishingHookRendererMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

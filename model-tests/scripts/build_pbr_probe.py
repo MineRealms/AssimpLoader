@@ -112,7 +112,7 @@ options = dict(use_selection=True, object_types={'MESH'}, axis_forward='-Z', axi
                apply_unit_scale=True, apply_scale_options='FBX_SCALE_NONE', bake_space_transform=False,
                use_mesh_modifiers=True, mesh_smooth_type='FACE', use_triangles=True, add_leaf_bones=False,
                bake_anim=False, path_mode='COPY', embed_textures=True)
-target = ROOT / 'src/main/resources/assets/assimploader/models/showcase/pbr_probe.fbx'
+target = ROOT / 'src/showcase/resources/assets/assimploader/models/showcase/pbr_probe.fbx'
 target.parent.mkdir(parents=True, exist_ok=True)
 try:
     bpy.ops.export_scene.fbx(filepath=str(OUTPUT / 'pbr_probe.fbx'), **options)

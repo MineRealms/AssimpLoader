@@ -82,6 +82,7 @@ public final class ClientRenderResources {
         CpuSkinning.clear();
         ClientAnimationManager.clearCache();
         InstanceDefinitionResources.clear();
+        ScriptShaderParameters.defaults();
     }
 
     @SubscribeEvent public static void logout(ClientPlayerNetworkEvent.LoggingOut event) { clear(); }

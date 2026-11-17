@@ -2,7 +2,6 @@ package cn.minerealms.assimploader.debug;
 
 import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.animation.ClientAnimationManager;
-import cn.minerealms.assimploader.character.client.LocalPlayerCharacter;
 import cn.minerealms.assimploader.client.WorldModelBatches;
 import cn.minerealms.assimploader.compat.OculusCompat;
 import cn.minerealms.assimploader.config.AssimpLoaderConfig;
@@ -38,7 +37,7 @@ public final class PerformanceHud {
     private static void sample() {
         var runtime=ClientAnimationManager.getInstance().getPerformanceStatistics();
         var cache=OculusEntityBufferCache.poseStatistics();var compute=ClientRenderResources.computeStatistics();
-        var batch=WorldModelBatches.statistics();var physics=LocalPlayerCharacter.currentPhysics();
+        var batch=WorldModelBatches.statistics();
         float[] sorted=Arrays.copyOf(history,count);Arrays.sort(sorted);
         float mean=0;for(float value:sorted)mean+=value;mean=count==0?0:mean/count;
         float p95=count==0?0:sorted[Math.min(count-1,(int)Math.ceil(count*.95)-1)];
@@ -50,8 +49,8 @@ public final class PerformanceHud {
                 "Pose buffers "+cache.buffers()+"  MiB "+String.format(Locale.ROOT,"%.1f",cache.residentBytes()/1048576d),
                 "Compute dispatch/hit "+compute.dispatches()+"/"+compute.hits()+"  MiB "+String.format(Locale.ROOT,"%.1f",compute.bytes()/1048576d),
                 batch==null?"Batch inactive":"Batch instances/draws "+batch.lastInstances()+"/"+batch.lastSubmissions()+"  HiZ "+batch.lastHiZ(),
-                physics==null?"RigPhysics OFF":"Physics bodies/joints "+physics.statistics().bodies()+"/"+physics.statistics().joints()+"  substeps "+physics.statistics().lastSubsteps(),
-                "Player "+LocalPlayerCharacter.animationMode()+"  heap MiB "+(memory.totalMemory()-memory.freeMemory())/1048576);
+                "Heap MiB "+(memory.totalMemory()-memory.freeMemory())/1048576);
+        var extended=new java.util.ArrayList<>(text);extended.addAll(ClientDiagnostics.lines());text=List.copyOf(extended);
     }
     @SubscribeEvent public static void render(RenderGuiEvent.Post event) {
         var mc=Minecraft.getInstance();

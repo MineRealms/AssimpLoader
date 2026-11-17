@@ -92,8 +92,6 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.DoubleValue largeModelThreshold;
         public final ForgeConfigSpec.IntValue modelViewDistance;
         public final ForgeConfigSpec.EnumValue<ShaderMode> shaderMode;
-        public final ForgeConfigSpec.BooleanValue rocketExhaustEnabled;
-        public final ForgeConfigSpec.BooleanValue rocketShaderBridgeEnabled;
 
         // Oculus/Iris
         public final ForgeConfigSpec.BooleanValue oculusEnabled;
@@ -117,7 +115,6 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.IntValue computeSkinningOwners;
         public final RuntimeConfig runtime;
         public final BatchConfig batch;
-        public final CharacterConfig character;
 
         // Hot-Reload
         public final ForgeConfigSpec.BooleanValue hotReloadEnabled;
@@ -143,24 +140,16 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.BooleanValue devAutoTestEnabled;
         public final ForgeConfigSpec.ConfigValue<List<? extends String>> devAutoTestCommands;
         public final ForgeConfigSpec.IntValue devAutoTestDelay;
-        public final ForgeConfigSpec.BooleanValue devExampleBlocksEnabled;
         public final ForgeConfigSpec.BooleanValue devLookdevEnabled;
 
         public ClientConfig(ForgeConfigSpec.Builder builder) {
             debugView = new DebugViewConfig(builder);
-            character = new CharacterConfig(builder);
             builder.comment("Client visual inputs; never changes server collision or hit authority").push("visual");
             visualMode=builder.defineEnum("mode",ClientVisualPolicy.Mode.HOST_CONTROLLED);
             localGroundPlacement=builder.comment("CLIENT_LOCAL: align poses using loaded client block collision shapes")
                     .define("groundPlacement",true);
             localEffects=builder.comment("CLIENT_LOCAL: enable configured attachment particles and trails")
                     .define("effects",false);
-            builder.pop();
-            builder.comment("Rocket exhaust rendering").push("rocketExhaust");
-            rocketExhaustEnabled = builder.comment("Render the data-driven GPU volumetric rocket demo")
-                    .define("enabled", true);
-            rocketShaderBridgeEnabled = builder.comment("Oculus 1.8.0 only: upload exhaust uniforms to explicitly compatible shader packs")
-                    .define("shaderPackBridge", true);
             builder.pop();
 
             // Debug Configuration
@@ -390,10 +379,6 @@ public class AssimpLoaderConfig {
                 .comment("Delay before executing auto-test (ticks)")
                 .defineInRange("autoTestDelay", 100, 0, 1200);
 
-            devExampleBlocksEnabled = builder
-                .comment("Reserved legacy option; example registry IDs remain registered for save compatibility")
-                .define("exampleBlocksEnabled", true);
-
             devLookdevEnabled = builder
                 .comment("Enable LookDev loaded-model preview; node editing is inactive")
                 .define("lookdevEnabled", true);
@@ -420,42 +405,6 @@ public class AssimpLoaderConfig {
             attachments=builder.define("attachments",false);
             material=builder.defineEnum("material",MaterialView.DEFAULT);
             hudScale=builder.defineInRange("hudScale",1,1,3);
-            builder.pop();
-        }
-    }
-
-    public enum CharacterAnimationMode { VANILLA, SCRIPTED, CLIPS }
-
-    /** Optional local-player display. Server simulation never reads these client settings. */
-    public static final class CharacterConfig {
-        public final ForgeConfigSpec.BooleanValue enabled;
-        public final ForgeConfigSpec.ConfigValue<String> profile;
-        public final ForgeConfigSpec.BooleanValue groundPlacement;
-        public final ForgeConfigSpec.BooleanValue effects;
-        public final ForgeConfigSpec.EnumValue<CharacterAnimationMode> animationMode;
-        public final ForgeConfigSpec.BooleanValue physicsEnabled, physicsWorldCollision, ragdollOnDeath;
-        public final ForgeConfigSpec.IntValue physicsSampleTicks, physicsRadius;
-
-        public CharacterConfig(ForgeConfigSpec.Builder builder) {
-            builder.comment("Local third-person character display; server movement and hitboxes stay authoritative")
-                    .push("character");
-            enabled = builder.comment("Replace only the local player's third-person world renderer")
-                    .define("enabled", false);
-            profile = builder.comment("Namespaced character profile JSON resource; resource packs may override it")
-                    .define("profile", "assimploader:models/character/block_player/profile.json");
-            groundPlacement = builder.comment("Sample loaded client block shapes for configured visual foot placement")
-                    .define("groundPlacement", true);
-            effects = builder.comment("Enable effects declared by the character instance definition")
-                    .define("effects", false);
-            animationMode = builder.comment("VANILLA: original player poses; SCRIPTED: KubeJS over original locomotion; CLIPS: profile animation clips")
-                    .defineEnum("animationMode", CharacterAnimationMode.VANILLA);
-            physicsEnabled=builder.comment("Enable the profile's isolated client Bullet world; reload the character after changing")
-                    .define("physicsEnabled",true);
-            physicsWorldCollision=builder.comment("Use bounded collision proxies from already loaded client blocks")
-                    .define("physicsWorldCollision",true);
-            ragdollOnDeath=builder.define("ragdollOnDeath",true);
-            physicsSampleTicks=builder.defineInRange("physicsSampleTicks",4,1,20);
-            physicsRadius=builder.defineInRange("physicsRadius",2,1,4);
             builder.pop();
         }
     }

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "enabled": false,
+  "uniforms": {
+    "assimpAcceptanceInt": {"type":"int", "default":1, "disabled":0},
+    "assimpAcceptanceFloat": {"type":"float", "default":0.25, "disabled":0},
+    "assimpAcceptanceVec2": {"type":"vec2", "default":[0.1,0.2], "disabled":[0,0]},
+    "assimpAcceptanceVec3": {"type":"vec3", "default":[0.1,0.2,0.3], "disabled":[0,0,0]},
+    "assimpAcceptanceVec4": {"type":"vec4", "default":[0.1,0.2,0.3,0.4], "disabled":[0,0,0,0]},
+    "assimpAcceptanceWrongType": {"type":"vec3", "default":[1,1,1], "disabled":[0,0,0]}
+  }
+}

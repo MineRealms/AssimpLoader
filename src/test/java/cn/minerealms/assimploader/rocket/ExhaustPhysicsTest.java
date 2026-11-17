@@ -1,9 +1,9 @@
 package cn.minerealms.assimploader.rocket;
 
-import cn.minerealms.assimploader.rocket.common.ExhaustFlowState;
-import cn.minerealms.assimploader.rocket.common.ExhaustPhysics;
-import cn.minerealms.assimploader.rocket.common.ExhaustProfile;
-import cn.minerealms.assimploader.rocket.common.RocketEngineState;
+import cn.minerealms.assimpshowcase.rocket.common.ExhaustFlowState;
+import cn.minerealms.assimpshowcase.rocket.common.ExhaustPhysics;
+import cn.minerealms.assimpshowcase.rocket.common.ExhaustProfile;
+import cn.minerealms.assimpshowcase.rocket.common.RocketEngineState;
 import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
