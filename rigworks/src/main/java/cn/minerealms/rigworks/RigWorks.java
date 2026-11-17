@@ -10,6 +10,7 @@ public final class RigWorks {
     public static final String MODID = "rigworks";
 
     public RigWorks() {
+        cn.minerealms.rigworks.network.CharacterAppearanceNetwork.register();
         if (FMLEnvironment.dist == Dist.CLIENT) {
             RigWorksConfig.register();
         }
