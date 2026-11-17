@@ -24,6 +24,7 @@ public final class CharacterScriptApi {
     public List<String> controllers() {return CharacterScriptRuntime.controllers();}
     public String active() {return CharacterScriptRuntime.active();}
     public String failure() {return CharacterScriptRuntime.failure();}
+    public String reloadFailure() {return CharacterScriptRuntime.reloadFailure();}
     public String mode(){return LocalPlayerCharacter.animationMode().name().toLowerCase(java.util.Locale.ROOT);}
     public CharacterScriptApi mode(String mode){checkThread();LocalPlayerCharacter.setAnimationMode(
             cn.minerealms.rigworks.RigWorksConfig.CharacterAnimationMode.valueOf(mode.toUpperCase(java.util.Locale.ROOT)));return this;}

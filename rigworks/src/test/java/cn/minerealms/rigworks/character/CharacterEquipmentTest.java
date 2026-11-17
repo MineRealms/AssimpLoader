@@ -20,6 +20,26 @@ import static org.junit.jupiter.api.Assertions.*;
 class CharacterEquipmentTest {
     private static final Path ASSET = Path.of("src/main/resources/assets/rigworks/models/character/block_player");
 
+    @Test void fixtureItemFrameAccountsForTheImportedHandBasis() throws Exception {
+        var scene=new AssimpModelLoader().loadModel(ASSET.resolve("block_player.fbx"),ModelImportMode.DYNAMIC);
+        var graph=new cn.minerealms.assimploader.animation.PoseGraph(scene.getRootNode(),cn.minerealms.assimploader.animation.SkinBindPose.locals(scene));
+        try(var reader=Files.newBufferedReader(ASSET.resolve("equipment.json"))) {
+            var equipment=CharacterEquipmentDefinition.read(reader);
+            var expected=new org.joml.Quaternionf().rotationX((float)Math.PI).rotateX(-(float)Math.PI/2).rotateY((float)Math.PI);
+            for(var mount:java.util.List.of(equipment.rightHand(),equipment.leftHand())) {
+                var hand=graph.global(mount.node()).getUnnormalizedRotation(new org.joml.Quaternionf()).normalize();
+                var correction=new org.joml.Quaternionf(hand).invert().mul(expected).normalize();
+                var desired=new Matrix4f().rotate(expected).transformDirection(new Vector3f(mount==equipment.leftHand()?-1f/16:1f/16,.125f,-.625f));
+                String shoulder=mount.node().endsWith(".L")?"UpperArm.L":"UpperArm.R";
+                var offset=new org.joml.Quaternionf(hand).invert().transform(desired.sub(graph.position(mount.node()).sub(graph.position(shoulder))));
+                assertEquals(0,offset.distance(new Vector3f(mount.position().x(),mount.position().y(),mount.position().z())),2e-6,
+                        "Fixture grip retains native item metres and the anatomical side offset");
+                assertTrue(Math.abs(new org.joml.Quaternionf(hand).mul(mount.rotation().quaternion()).dot(expected))>1-1e-6,
+                        "The item frame must cancel imported hand roll: "+mount.node()+" correction="+correction);
+            }
+        }
+    }
+
     @Test void fixtureAndDefaultGripUseVanillaHandRotationOrder() throws Exception {
         var expected=new org.joml.Quaternionf().rotateX(-(float)Math.PI/2).rotateY((float)Math.PI);
         try(var reader=Files.newBufferedReader(ASSET.resolve("equipment.json"))) {

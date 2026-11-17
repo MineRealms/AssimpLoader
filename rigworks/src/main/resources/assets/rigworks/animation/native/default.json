@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "enabled": true,
+  "attack": true,
+  "items": true,
+  "root": 1,
+  "body": 1,
+  "head": 1,
+  "leftArm": 1,
+  "rightArm": 1,
+  "leftLeg": 1,
+  "rightLeg": 1
+}

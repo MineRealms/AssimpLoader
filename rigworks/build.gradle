@@ -38,14 +38,16 @@ dependencies {
         compileOnly(fg.deobf(coordinate)) { transitive = false }
     }
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
+    testImplementation(fg.deobf('dev.latvian.mods:rhino-forge:2001.2.2-build.17')) { transitive = false }
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.3'
 }
 mixin {
     add sourceSets.main, 'rigworks.refmap.json'
     config 'mixins.rigworks.json'
+    config 'mixins.rigworks.kubejs.json'
 }
 jar {
-    manifest { attributes 'MixinConfigs': 'mixins.rigworks.json' }
+    manifest { attributes 'MixinConfigs': 'mixins.rigworks.json,mixins.rigworks.kubejs.json' }
 }
 jar.finalizedBy 'reobfJar'
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }

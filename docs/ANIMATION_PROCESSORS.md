@@ -126,11 +126,14 @@ editing JSON while retaining a live instance.
 
 ## Current Boundary
 
-This version does not import Blender constraints, expose arbitrary FBX features,
-retarget humanoids, compile graph dependencies, infer weapon contact sockets,
-change server collision, schedule arbitrary shaders, or provide per-processor
-physics ownership. Processor clip layers currently sample skeletal node channels;
-clip Morph channels remain available through the existing animation/morph APIs.
+This version does not import Blender constraint graphs, expose arbitrary FBX
+features, infer weapon contact sockets, change server collision, schedule
+arbitrary shaders, or provide per-processor physics ownership. Processor clips
+compose both skeletal and Morph channels using one clock. Explicit modifier
+dependencies are compiled and validated; see [evaluation plans](POSE_EVALUATION_PLAN.md).
+Imported resource facts are available through [capabilities](MODEL_CAPABILITIES_AND_CLIP_MORPHS.md).
 Owned CCD chains do not add joint hinge/angle limits; the existing constrained
 rig solvers remain separate. A declared IK target is an input, not an automatic
-two-handed item contact solution. These are explicit next-stage engine features.
+two-handed item contact solution. RigWorks provides a separate optional
+[item contact policy](RIGWORKS_HAND_CONTACTS.md) built on the engine's constrained
+two-bone solver. Humanoid mapping and native player observations belong to RigWorks.

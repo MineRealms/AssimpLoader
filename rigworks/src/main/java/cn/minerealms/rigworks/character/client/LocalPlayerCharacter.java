@@ -92,6 +92,7 @@ public final class LocalPlayerCharacter {
         final CharacterPhysicsClientBinding physicsBinding;
         final CharacterRigDefinition.Installed rig;
         final CharacterEquipmentDefinition equipment;
+        final CharacterHandContacts contacts;
         final CharacterScriptRuntime.Session scripts;
         final MinecraftPlayerInputSampler inputs = new MinecraftPlayerInputSampler();
 
@@ -119,6 +120,8 @@ public final class LocalPlayerCharacter {
                         rig=CharacterRigDefinition.read(reader).install(animation);
                     }
                 } else rig=null;
+                contacts=equipment.grips().isEmpty()?null:new CharacterHandContacts(profile,equipment,scene);
+                if(contacts!=null)animation.addModifier("rigworks:hand_contacts",contacts);
                 if(profile.physicsDefinition()!=null && AssimpLoaderConfig.getOrDefault(cn.minerealms.rigworks.RigWorksConfig.CLIENT.physicsEnabled::get,true)) {
                     try(var reader=resources.openAsReader(new ResourceLocation(profile.physicsDefinition()))) {
                         physics=new BulletCharacterPhysics(CharacterPhysicsAsset.read(reader,scene),scene,(float)profile.scale());
@@ -158,6 +161,9 @@ public final class LocalPlayerCharacter {
     public static BulletCharacterPhysics currentPhysics() { return active == null ? null : active.physics; }
     public static CharacterRigDefinition.Installed currentRig() { return active == null ? null : active.rig; }
     public static VanillaPlayerPoseDriver currentVanillaDriver() { return active == null ? null : active.vanilla; }
+    public static CharacterHandContacts currentHandContacts(){return active==null?null:active.contacts;}
+    public static boolean handContactsEnabled(){return AssimpLoaderConfig.getOrDefault(cn.minerealms.rigworks.RigWorksConfig.CLIENT.handContacts::get,false);}
+    public static void setHandContactsEnabled(boolean value){var config=cn.minerealms.rigworks.RigWorksConfig.CLIENT.handContacts;config.set(value);config.save();}
     /** Item socket in the rendered model frame, with double precision world translation kept outside the matrix. */
     public static Matrix4f equipmentTransform(net.minecraft.world.entity.HumanoidArm arm, float partialTick) {
         var binding = active;
@@ -246,13 +252,19 @@ public final class LocalPlayerCharacter {
         if (active == null || minecraft.isPaused()) return;
         try {
             var input=active.inputs.sample(active.player);
+            if(active.contacts!=null)active.contacts.prepare(active.player,handContactsEnabled()
+                    &&(active.physics==null||!active.physics.statistics().ragdoll()));
             switch (animationMode()) {
                 case VANILLA -> {
                     active.scripts.reset();active.controller.reset();active.vanilla.update(active.player,true);
                 }
                 case SCRIPTED -> {
                     active.controller.reset();active.vanilla.disable();
-                    if(!active.scripts.run(active.player,active.profile,active.controller,input))active.vanilla.update(active.player,true);
+                    if(!active.scripts.run(active.player,active.profile,active.controller,input)) {
+                        if(active.contacts!=null)active.contacts.prepare(active.player,handContactsEnabled()
+                                &&(active.physics==null||!active.physics.statistics().ragdoll()));
+                        active.vanilla.update(active.player,true);
+                    }
                 }
                 case CLIPS -> {
                     active.scripts.reset();active.vanilla.disable();active.controller.update(input);
@@ -387,6 +399,7 @@ public final class LocalPlayerCharacter {
                     context.getSource().sendSuccess(() -> Component.literal("Mode="+animationMode()+" RigPhysics="+physicsEnabled()
                             +" controller="+CharacterScriptRuntime.active()+" scriptFailure="+CharacterScriptRuntime.failure()),false);
                     if(currentPhysics()!=null)context.getSource().sendSuccess(()->Component.literal(currentPhysics().statistics().toString()),false);
+                    if(currentHandContacts()!=null)context.getSource().sendSuccess(()->Component.literal(currentHandContacts().statistics().toString()),false);
                     return 1;
                 }).then(Commands.literal("menu").executes(context -> {
                     Minecraft.getInstance().execute(() -> cn.minerealms.assimploader.client.ui.LookDevNavigation.open(cn.minerealms.assimploader.client.ui.LookDevNavigation.Page.PLAYER));
@@ -397,6 +410,9 @@ public final class LocalPlayerCharacter {
                 .then(Commands.literal("physics")
                     .then(Commands.literal("on").executes(context->{setPhysicsEnabled(true);return 1;}))
                     .then(Commands.literal("off").executes(context->{setPhysicsEnabled(false);return 1;})))
+                .then(Commands.literal("contacts")
+                    .then(Commands.literal("on").executes(context->{setHandContactsEnabled(true);return 1;}))
+                    .then(Commands.literal("off").executes(context->{setHandContactsEnabled(false);return 1;})))
                 .then(Commands.literal("disable").executes(context -> {setPersistentEnabled(false);return 1;}))
                 .then(Commands.literal("profile").then(Commands.argument("resource",net.minecraft.commands.arguments.ResourceLocationArgument.id()).executes(context->{
                     var config=cn.minerealms.rigworks.RigWorksConfig.CLIENT.profile;

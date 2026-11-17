@@ -14,7 +14,9 @@ import java.util.Objects;
 import java.util.Set;
 
 /** Physical-hand sockets. Offsets use metres and do not inherit imported FBX bone scale. */
-public record CharacterEquipmentDefinition(boolean enabled, Mount rightHand, Mount leftHand) {
+public record CharacterEquipmentDefinition(boolean enabled, Mount rightHand, Mount leftHand, java.util.List<CharacterGripDefinition> grips) {
+    public CharacterEquipmentDefinition {grips=java.util.List.copyOf(grips);}
+    public CharacterEquipmentDefinition(boolean enabled,Mount rightHand,Mount leftHand){this(enabled,rightHand,leftHand,java.util.List.of());}
     public record Position(float x, float y, float z) {
         public Position {
             if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)
@@ -66,7 +68,7 @@ public record CharacterEquipmentDefinition(boolean enabled, Mount rightHand, Mou
         JsonElement value = JsonParser.parseReader(reader);
         if (!value.isJsonObject()) throw new IllegalArgumentException("Equipment definition must be an object");
         JsonObject root = value.getAsJsonObject();
-        keys(root, "version", "enabled", "right_hand", "left_hand");
+        keys(root, "version", "enabled", "right_hand", "left_hand", "grips");
         if (!root.has("version") || number(root.get("version")) != 1)
             throw new IllegalArgumentException("Equipment definition version must be 1");
         boolean enabled = true;
@@ -75,7 +77,7 @@ public record CharacterEquipmentDefinition(boolean enabled, Mount rightHand, Mou
                 throw new IllegalArgumentException("Equipment enabled must be boolean");
             enabled = root.get("enabled").getAsBoolean();
         }
-        return new CharacterEquipmentDefinition(enabled, mount(root, "right_hand"), mount(root, "left_hand"));
+        return new CharacterEquipmentDefinition(enabled, mount(root, "right_hand"), mount(root, "left_hand"),CharacterGripDefinition.read(root.get("grips")));
     }
 
     private static Mount mount(JsonObject root, String key) {

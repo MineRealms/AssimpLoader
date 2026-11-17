@@ -21,7 +21,7 @@ public final class RigWorksConfig {
     }
 
     public static final class ClientConfig {
-        public final ForgeConfigSpec.BooleanValue enabled, groundPlacement, effects;
+        public final ForgeConfigSpec.BooleanValue enabled, groundPlacement, effects, handContacts;
         public final ForgeConfigSpec.ConfigValue<String> profile;
         public final ForgeConfigSpec.EnumValue<CharacterAnimationMode> animationMode;
         public final ForgeConfigSpec.BooleanValue physicsEnabled, physicsWorldCollision, ragdollOnDeath;
@@ -34,6 +34,8 @@ public final class RigWorksConfig {
             profile = builder.define("profile", "rigworks:models/character/block_player/profile.json");
             groundPlacement = builder.define("groundPlacement", true);
             effects = builder.define("effects", false);
+            handContacts = builder.comment("Client visual support-hand contacts declared in equipment JSON")
+                    .define("handContacts",false);
             animationMode = builder.comment("VANILLA: native poses; SCRIPTED: KubeJS policy; CLIPS: imported animation clips")
                     .defineEnum("animationMode", CharacterAnimationMode.VANILLA);
             physicsEnabled = builder.define("physicsEnabled", true);

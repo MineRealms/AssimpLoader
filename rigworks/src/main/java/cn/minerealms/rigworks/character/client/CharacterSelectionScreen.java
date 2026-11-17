@@ -37,7 +37,7 @@ public final class CharacterSelectionScreen extends Screen {
         cn.minerealms.assimploader.client.ui.LookDevNavigation.install(this,widget->addRenderableWidget(widget),
                 cn.minerealms.assimploader.client.ui.LookDevNavigation.Page.PLAYER);
         String value = profile == null ? LocalPlayerCharacter.settings().profile() : profile.getValue();
-        int toggleWidth = Math.max(80, (panelWidth - 38) / 2);
+        int toggleWidth = Math.max(64, (panelWidth - 44) / 3);
         addRenderableWidget(FlatUi.toggle(left, controlsY, toggleWidth, 26, Component.literal("Character"),
                 () -> LocalPlayerCharacter.settings().enabled(), button -> {
                     var setting = cn.minerealms.rigworks.RigWorksConfig.CLIENT.enabled;
@@ -48,6 +48,9 @@ public final class CharacterSelectionScreen extends Screen {
                 LocalPlayerCharacter::physicsEnabled,
                 button -> LocalPlayerCharacter.setPhysicsEnabled(!LocalPlayerCharacter.physicsEnabled())))
                 .setTooltip(Tooltip.create(Component.literal("Enable character rigid-body physics")));
+        addRenderableWidget(FlatUi.toggle(left + 2 * (toggleWidth + 6),controlsY,toggleWidth,26,Component.literal("Contacts"),
+                LocalPlayerCharacter::handContactsEnabled,button->LocalPlayerCharacter.setHandContactsEnabled(!LocalPlayerCharacter.handContactsEnabled())))
+                .setTooltip(Tooltip.create(Component.literal("Support-hand contacts from equipment JSON")));
         addRenderableWidget(FlatUi.icon(left + panelWidth - 26, controlsY, FlatUi.Icon.RELOAD,
                 Component.literal("Reload character"), button -> LocalPlayerCharacter.reload()));
 

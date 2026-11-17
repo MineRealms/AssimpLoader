@@ -6,6 +6,7 @@ import cn.minerealms.rigworks.character.client.LocalPlayerCharacter;
 import cn.minerealms.rigworks.character.core.CharacterProfile;
 import cn.minerealms.rigworks.character.core.PlayerAnimationController;
 import cn.minerealms.rigworks.character.core.PlayerVisualInput;
+import cn.minerealms.rigworks.character.core.VanillaPoseSelection;
 import cn.minerealms.assimploader.character.solver.CharacterRigDefinition;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -58,13 +59,33 @@ public final class CharacterActionFrame {
     }
     public void locomotion(){defaultMotion();}
     public void defaultAnimation(){check();var vanilla=LocalPlayerCharacter.currentVanillaDriver();if(vanilla!=null)vanilla.update(player,true);else controller.update(observation);}
-    public List<String> morphs(){check();return rig==null?List.of():new ArrayList<>(rig.morphs().names());}
+    /** Select native behavior sampling independently from skeletal output weights. */
+    public void nativeAnimationDefinition(Map<String, ?> options){check();nativeDriver().update(player,VanillaPoseSelection.fromMap(options));}
+    public void nativeAnimation(String resource){check();var vanilla=nativeDriver();vanilla.update(player,vanilla.selection(resource,false));}
+    public void reloadNativeAnimation(String resource){check();nativeDriver().selection(resource,true);}
+    private cn.minerealms.rigworks.character.client.VanillaPlayerPoseDriver nativeDriver(){
+        var vanilla=LocalPlayerCharacter.currentVanillaDriver();
+        if(vanilla==null)throw new IllegalStateException("Selective native animation requires the vanilla pose driver");
+        return vanilla;
+    }
+    public List<String> contacts(){check();var contacts=LocalPlayerCharacter.currentHandContacts();return contacts==null?cn.minerealms.assimploader.util.ReadOnlyList.copyOf(List.<String>of()):contacts.rules();}
+    public void contact(String id,boolean mainHand){check();handContacts().select(id,mainHand);}
+    public void contactWeight(double value){check();handContacts().weight(value);}
+    public void noContact(){check();var contacts=LocalPlayerCharacter.currentHandContacts();if(contacts!=null)contacts.disable();}
+    public Map<String,Object> contactStatus(){
+        check();var contacts=LocalPlayerCharacter.currentHandContacts();if(contacts==null)return Map.of("available",false);
+        var value=contacts.statistics();return Map.of("available",true,"rule",value.rule(),"support",value.support(),"error",value.error(),"clamped",value.clamped());
+    }
+    private cn.minerealms.rigworks.character.client.CharacterHandContacts handContacts(){
+        var contacts=LocalPlayerCharacter.currentHandContacts();if(contacts==null)throw new IllegalStateException("Character has no hand contacts");return contacts;
+    }
+    public List<String> morphs(){check();return rig==null?new ArrayList<>():new ArrayList<>(rig.morphs().names());}
     public void morph(String name,double weight){checkRig();rig.morphs().setWeight(name,number(weight));}
-    public List<String> ikChains(){check();return rig==null?List.of():new ArrayList<>(rig.ik().keySet());}
+    public List<String> ikChains(){check();return rig==null?new ArrayList<>():new ArrayList<>(rig.ik().keySet());}
     public void ik(String name,boolean enabled){checkRig();var value=rig.ik().get(name);if(value==null)throw new IllegalArgumentException("Unknown character IK: "+name);value.setEnabled(enabled);}
     public void ikTarget(String name,double x,double y,double z){checkRig();var value=rig.ik().get(name);if(value==null)throw new IllegalArgumentException("Unknown character IK: "+name);value.setTarget(new Vector3f(number(x),number(y),number(z)));}
     public Map<String,Object> ikStatus(String name){checkRig();var value=rig.ik().get(name);if(value==null)throw new IllegalArgumentException("Unknown character IK: "+name);var p=value.target();return Map.of("enabled",value.isEnabled(),"error",value.lastError(),"x",p.x,"y",p.y,"z",p.z);}
-    public List<String> motions(){check();return rig==null?List.of():new ArrayList<>(rig.motions().names());}
+    public List<String> motions(){check();return rig==null?new ArrayList<>():new ArrayList<>(rig.motions().names());}
     public void motion(String name,boolean loop){checkRig();if(!name.equals(rig.motions().currentName()))rig.motions().play(name,loop);}
     public void stopMotion(){checkRig();rig.motions().reset();}
     public void seekMotion(double seconds){checkRig();rig.motions().seek(seconds);}

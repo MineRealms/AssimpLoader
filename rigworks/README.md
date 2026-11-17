@@ -58,8 +58,16 @@ RigWorks.register('my_pack:player', function (frame) {
 
 Profiles, rig definitions, physics assets and equipment sockets remain JSON
 resources. AssimpLoader now provides a first [JSON animation processor](../docs/ANIMATION_PROCESSORS.md)
-with cached clips, poses, masks and owned CCD IK. A full dependency graph and
-whole-script transactional reload remain separate engine work.
+with cached clips, poses, masks, Morph and owned CCD IK. Modifier dependencies
+are compiled into a validated [evaluation plan](../docs/POSE_EVALUATION_PLAN.md).
+The RigWorks controller registry retains its last successful generation after a
+failed standard client script reload; other KubeJS event handlers and global
+side effects retain KubeJS's own reload behavior.
+
+Native motion can be selected per channel through [JSON or script definitions](../docs/RIGWORKS_NATIVE_CHANNELS.md).
+Optional [support-hand contacts](../docs/RIGWORKS_HAND_CONTACTS.md) have an
+independent Player-page toggle and start disabled. Socket coordinates and item
+selection are equipment data, with script overrides for each tick.
 
 The example defaults `nativeItemActions` to bow/crossbow. Those actions delegate
 the entire pose to the native driver, clearing script arm overrides first;

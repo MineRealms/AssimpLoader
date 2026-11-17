@@ -5,6 +5,7 @@ import cn.minerealms.assimploader.animation.PoseGraph;
 import cn.minerealms.assimploader.animation.PoseSnapshot;
 import cn.minerealms.assimploader.animation.SkinBindPose;
 import cn.minerealms.rigworks.character.core.CharacterProfile;
+import cn.minerealms.rigworks.character.core.CharacterEquipmentDefinition;
 import cn.minerealms.rigworks.mixin.character.PlayerRendererPoseAccess;
 import cn.minerealms.assimploader.model.AssimpScene;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -205,6 +206,7 @@ public final class VanillaRuntimeProbe {
             }
             require(spread(swings) > .5f, "Accepted vanilla attack phases did not change the final arm pose");
             checks.put("attack", Map.of("samples", attackSamples, "directionChange", spread(swings)));
+            checks.put("itemSupportContacts",verifyContacts(player,profile,scene,driver,animation));
         } finally {
             access.assimploader$setModelProperties(real);
         }
@@ -214,7 +216,91 @@ public final class VanillaRuntimeProbe {
         return Map.of("passed", true, "checks", checks, "realPlayerUnchanged", true,
                 "input", "Unregistered LocalPlayer subclass; original PlayerRenderer and PlayerModel; independent FBX AnimationState",
                 "notCovered", List.of("Live key input and accepted swing detection", "Server authority", "Render pixels", "Armor/cape layers", "Physics and terrain solver",
-                        "Scripted pose overlays", "Item mesh grip contact and fishing-line endpoint", "Custom reference-pose calibration and native skin mesh deformation"));
+                        "Scripted pose overlays", "Arbitrary resource-pack grip geometry and fishing-line endpoint", "Custom reference-pose calibration and native skin mesh deformation"));
+    }
+
+    private static Map<String,Object> verifyContacts(ProbePlayer player,CharacterProfile profile,AssimpScene scene,
+            VanillaPlayerPoseDriver driver,AnimationState animation) {
+        CharacterEquipmentDefinition equipment;
+        try(var reader=Minecraft.getInstance().getResourceManager().openAsReader(new net.minecraft.resources.ResourceLocation(profile.equipmentDefinition()))) {
+            equipment=CharacterEquipmentDefinition.read(reader);
+        }catch(java.io.IOException error){throw new IllegalStateException("Cannot read contact fixture",error);}
+        var contacts=new CharacterHandContacts(profile,equipment,scene);
+        var samples=new ArrayList<Map<String,Object>>();float maximumError=0,maximumPrimaryError=0,maximumReachableError=0,maximumConstraintError=0;
+        int clampedSamples=0;
+        animation.addModifier("contact-runtime-probe",contacts);
+        try {
+            for(String skin:List.of("default","slim")) for(var primary:HumanoidArm.values()) for(var hand:InteractionHand.values())
+                for(String action:List.of("bow","crossbow_charge","crossbow_hold")) for(float pitch:new float[]{-60,0,60})
+                    for(float yaw:new float[]{-35,0,35}) for(int useTicks:new int[]{0,5,15,25}) {
+                    player.modelName=skin;player.reset();player.primary=primary;player.useHand=hand;player.setXRot(pitch);
+                    player.yHeadRot=player.yHeadRotO=yaw;player.useTicks=useTicks;
+                    var weapon=new ItemStack(action.equals("bow")?Items.BOW:Items.CROSSBOW);
+                    if(action.equals("crossbow_hold"))CrossbowItem.setCharged(weapon,true);
+                    if(hand==InteractionHand.MAIN_HAND)player.main=weapon;else player.off=weapon;
+                    player.using=!action.equals("crossbow_hold");
+                    contacts.disable();var original=sample(player,driver,animation);
+                    var physical=hand==InteractionHand.MAIN_HAND?primary:primary.getOpposite();
+                    String mainNode=profile.bone(physical==HumanoidArm.LEFT?"left_hand":"right_hand").node();
+                    var mainBefore=original.getNodeTransform(mainNode);
+                    contacts.prepare(player,true);animation.invalidateCache();
+                    var result=animation.getPoseSnapshot();var stats=contacts.statistics();
+                    float primaryError=mainBefore.getTranslation(new Vector3f()).distance(result.getNodeTransform(mainNode).getTranslation(new Vector3f()));
+                    require(!stats.rule().isEmpty(),"Automatic contact selector missed "+action+"/"+primary+"/"+hand);
+                    require(primaryError<.00002f&&mainBefore.equals(result.getNodeTransform(mainNode),.00002f),"Support IK moved the primary item frame");
+                    String side=physical==HumanoidArm.LEFT?"right":"left";
+                    for(String[] segment:new String[][]{{side+"_upper_arm",side+"_forearm"},{side+"_forearm",side+"_hand"}}) {
+                        float before=position(original,profile,segment[0]).distance(position(original,profile,segment[1]));
+                        float after=position(result,profile,segment[0]).distance(position(result,profile,segment[1]));
+                        require(Math.abs(before-after)<.00002f,"Support IK changed an FBX segment length");
+                    }
+                    maximumError=Math.max(maximumError,stats.error());maximumPrimaryError=Math.max(maximumPrimaryError,primaryError);
+                    var displayContext=physical==HumanoidArm.LEFT?net.minecraft.world.item.ItemDisplayContext.THIRD_PERSON_LEFT_HAND:net.minecraft.world.item.ItemDisplayContext.THIRD_PERSON_RIGHT_HAND;
+                    var itemModel=Minecraft.getInstance().getItemRenderer().getModel(weapon,player.level(),player,player.getId()+displayContext.ordinal());
+                    var itemStack=new PoseStack();net.minecraftforge.client.ForgeHooksClient.handleCameraTransforms(itemStack,itemModel,displayContext,physical==HumanoidArm.LEFT);
+                    var mount=physical==HumanoidArm.LEFT?equipment.leftHand():equipment.rightHand();
+                    var item=mount.transform(original).mul(itemStack.last().pose());
+                    var definition=equipment.grips().stream().filter(rule->rule.id().equals(stats.rule())).findFirst().orElseThrow();
+                    require(definition.weight()==1&&definition.handOffsetVector().lengthSquared()==0,
+                            "Runtime contact oracle expects full-weight wrist targets");
+                    var shoulder=position(original,profile,side+"_upper_arm");
+                    float upper=shoulder.distance(position(original,profile,side+"_forearm"));
+                    float lower=position(original,profile,side+"_forearm").distance(position(original,profile,side+"_hand"));
+                    var target=item.transformPosition(definition.socketVector());
+                    var requested=new Vector3f(target).sub(shoulder);float requestedDistance=requested.length();
+                    double near=Math.sqrt(upper*upper+lower*lower+2*upper*lower*Math.cos(Math.toRadians(definition.maximumBend())));
+                    double far=Math.sqrt(upper*upper+lower*lower+2*upper*lower*Math.cos(Math.toRadians(definition.minimumBend())));
+                    float legalDistance=(float)Math.max(near,Math.min(far,requestedDistance));
+                    var nearestLegal=new Vector3f(shoulder).fma(legalDistance,requested.normalize());
+                    float constraintError=nearestLegal.distance(position(result,profile,side+"_hand"));
+                    require(Float.isFinite(stats.error())&&constraintError<.00002f,
+                            "Contact IK did not reach the nearest bend-limited target: "+constraintError);
+                    require(Math.abs(stats.error()-Math.abs(legalDistance-requestedDistance))<.00002f,
+                            "Contact diagnostic error disagrees with independent reach calculation");
+                    boolean expectedClamped=Math.abs(legalDistance-requestedDistance)>1e-6f;
+                    require(stats.clamped()==expectedClamped,"Contact clamp diagnostic disagrees with reach limits");
+                    if(stats.clamped())clampedSamples++;else maximumReachableError=Math.max(maximumReachableError,stats.error());
+                    maximumConstraintError=Math.max(maximumConstraintError,constraintError);
+                    var sample=new LinkedHashMap<String,Object>();
+                    sample.putAll(Map.of("skin",skin,"action",action,"mainArm",primary.name(),"itemHand",hand.name(),"pitch",pitch,
+                            "rule",stats.rule(),"support",stats.support(),"error",stats.error(),"clamped",stats.clamped()));
+                    sample.put("nativeSupportInItem",vector(new Matrix4f(item).invert().transformPosition(position(original,profile,side+"_hand"))));
+                    sample.put("shoulderInItem",vector(new Matrix4f(item).invert().transformPosition(position(original,profile,side+"_upper_arm"))));
+                    sample.put("yaw",yaw);sample.put("useTicks",useTicks);
+                    sample.put("requestedDistance",requestedDistance);sample.put("legalDistance",legalDistance);
+                    sample.put("constraintError",constraintError);
+                    samples.add(sample);
+                }
+        }finally{animation.removeModifier("contact-runtime-probe");}
+        var report=Map.<String,Object>of("samples",samples,"sampleCount",samples.size(),"maximumContactError",maximumError,
+                "maximumReachableContactError",maximumReachableError,"maximumConstraintError",maximumConstraintError,
+                "clampedSamples",clampedSamples,"maximumPrimaryDisplacement",maximumPrimaryError,
+                "criterion","Reachable targets meet the wrist; unreachable targets meet the independently computed nearest bend-limited point",
+                "displayTransform","Actual ItemRenderer model overrides and Forge third-person camera transform");
+        try{java.nio.file.Files.writeString(Minecraft.getInstance().gameDirectory.toPath().resolve("hand-contact-probe.json"),new com.google.gson.Gson().toJson(report));}
+        catch(java.io.IOException error){throw new IllegalStateException("Cannot write hand contact report",error);}
+        require(maximumReachableError<.00002f,"Reachable item support contact exceeds tolerance: "+maximumReachableError);
+        return report;
     }
 
     /** Use the original ModelPart matrix implementation as the geometric oracle, independent of the retargeter's Euler conversion. */

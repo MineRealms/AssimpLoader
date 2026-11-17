@@ -466,6 +466,7 @@ mixin {
     add sourceSets.showcase, 'assimpshowcase.refmap.json'
     config 'mixins.assimpshowcase.json'
     config 'mixins.rigworks.json'
+    config 'mixins.rigworks.kubejs.json'
 }
 
 tasks.register('showcaseJar', Jar) {

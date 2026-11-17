@@ -1,5 +1,21 @@
 # Active Work - 2026-11-17
 
+## Next Engine Pass
+
+- [x] Add JSON item support sockets and constrained two-bone contact solving.
+- [x] Expose tick-scoped contact policy through RigWorks client scripts.
+- [x] Add native motion channel selection and preserve good controllers on failed reload.
+- [x] Compose processor clip Morph and report observed asset capabilities.
+- [x] Compile modifier dependencies and validate conflicting physics writers.
+- [x] Verify actual FBX contact geometry, Rhino controls and combined Mod runtime.
+- [ ] Document limits and commit/push verified changes.
+
+Build and combined Oculus/KubeJS acceptance passed: 453 tests, zero failures or
+errors, one optional skip. The 864-pose contact probe verified reachable wrist
+targets and independent bend-limited clamping; 176 targets were unreachable and
+were reported as clamped, not as successful mesh contact. See
+`ENGINE_NEXT_VALIDATION_2026-11-17.md` for current evidence and remaining work.
+
 ## Follow-up: Module Split and Data-driven Runtime
 
 This section supersedes the old completion statement below for new requests.
@@ -21,10 +37,12 @@ passed: 402 tests, zero failures/errors, one skipped. The stronger probe found a
 then verified the fix for standard/slim shoulder origins. See
 `MODULE_SPLIT_VALIDATION_2026-11-17.md` for evidence and remaining boundaries.
 
-Automatic item-specific support-grip IK, a dependency graph compiler, imported
-capability inventory and processor-owned rigid-body arbitration remain next-stage
-engine work. Native arm geometry is verified; it is not a proof of arbitrary
-custom item mesh contact. The old handoff below is historical, not current process state.
+The next engine pass above adds optional item support constraints, a modifier
+dependency compiler and imported capability inventory. Exclusive physics writers
+are checked at whole-bone granularity; arbitrary per-channel graph ownership and
+processor-owned rigid-body graphs remain future work. Native arm geometry and
+configured wrist targets do not prove arbitrary custom item mesh contact. The old
+handoff below is historical, not current process state.
 
 The design and the distinction between current APIs and future work are recorded in
 `MODULE_SPLIT_AND_DATA_DRIVEN_PLAN_2026-11-17.md`.

@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "cn.minerealms.rigworks.mixin.character.kubejs",
+  "plugin": "cn.minerealms.rigworks.mixin.character.kubejs.KubeJSReloadMixinPlugin",
+  "compatibilityLevel": "JAVA_17",
+  "client": ["KubeJSClientReloadMixin", "KubeJSConsoleMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

@@ -3,6 +3,8 @@ package cn.minerealms.rigworks.character.client;
 import cn.minerealms.assimploader.animation.PoseGraph;
 import cn.minerealms.assimploader.animation.SkinBindPose;
 import cn.minerealms.rigworks.character.core.CharacterProfile;
+import cn.minerealms.rigworks.character.core.VanillaPoseSelection;
+import cn.minerealms.assimploader.animation.AnimationBlender;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpScene;
@@ -192,6 +194,58 @@ class VanillaPoseRetargeterTest {
         locals.put("Hips", new Matrix4f().translate(1, 2, 3));
         retarget.update(new Matrix4f(), parts()); retarget.disable(); retarget.apply(scene, locals, 0);
         assertEquals(Map.of("Hips", new Matrix4f().translate(1, 2, 3)), locals);
+    }
+
+    @Test void selectedArmPreservesEveryUnselectedLocalAndResetsItsOwnForearmOnly() throws Exception {
+        var scene = scene(); var profile = profile();
+        var locals = new LinkedHashMap<>(SkinBindPose.locals(scene));
+        locals.get("Head").rotateX(.7f);
+        locals.get("Forearm.R").rotateZ(.8f);
+        locals.get("Forearm.L").rotateZ(-.6f);
+        var before = new LinkedHashMap<String, Matrix4f>();
+        locals.forEach((name, matrix) -> before.put(name, new Matrix4f(matrix)));
+        var options = VanillaPoseSelection.fromMap(Map.of("root",0,"body",0,"head",0,"leftArm",0,"rightArm",1,"leftLeg",0,"rightLeg",0));
+        var values = parts(); values.put("right_upper_arm", part(-1.2f,.3f,.2f));
+        var retargeter = new VanillaPoseRetargeter(profile, scene);
+        retargeter.update(new Matrix4f().rotateX(.9f), values, options);
+        retargeter.apply(scene,locals,0);
+        for (var entry : before.entrySet()) {
+            if (!List.of("UpperArm.R","Forearm.R","Hand.R").contains(entry.getKey()))
+                assertEquals(entry.getValue(),locals.get(entry.getKey()),"Unselected local: "+entry.getKey());
+        }
+        assertEquals(SkinBindPose.locals(scene).get("Forearm.R"),locals.get("Forearm.R"));
+        assertFalse(before.get("UpperArm.R").equals(locals.get("UpperArm.R")));
+    }
+
+    @Test void rootOnlyRotatesTheIncomingAnimatedSkeletonWithoutResettingItsLocals() throws Exception {
+        var scene = scene(); var profile = profile();
+        var locals = new LinkedHashMap<>(SkinBindPose.locals(scene));
+        locals.get("Forearm.R").rotateX(.9f);
+        locals.get("Hips").translate(.1f,.2f,-.3f);
+        var before = new PoseGraph(scene.getRootNode(),locals).position("Hand.R");
+        var forearm = new Matrix4f(locals.get("Forearm.R"));
+        var root = new Matrix4f().rotateX(.7f);
+        var options = VanillaPoseSelection.fromMap(Map.of("body",0,"head",0,"leftArm",0,"rightArm",0,"leftLeg",0,"rightLeg",0));
+        var retargeter = new VanillaPoseRetargeter(profile,scene);
+        retargeter.update(root,parts(),options);retargeter.apply(scene,locals,0);
+        assertEquals(forearm,locals.get("Forearm.R"));
+        assertEquals(0,new PoseGraph(scene.getRootNode(),locals).position("Hand.R").distance(root.transformPosition(before)),2e-5);
+    }
+
+    @Test void channelHalfWeightBlendsLocalTrsAndZeroWeightIsAnExactNoOp() throws Exception {
+        var scene = scene();var profile = profile();
+        var values = parts(); values.put("head",part(.9f,.4f,0));
+        var full = new LinkedHashMap<>(SkinBindPose.locals(scene));
+        var half = new LinkedHashMap<>(SkinBindPose.locals(scene));
+        var zero = new LinkedHashMap<>(SkinBindPose.locals(scene));
+        var initial = new Matrix4f(zero.get("Head")).rotateZ(.3f);
+        full.put("Head",new Matrix4f(initial));half.put("Head",new Matrix4f(initial));zero.put("Head",new Matrix4f(initial));
+        var retargeter = new VanillaPoseRetargeter(profile,scene);
+        retargeter.update(new Matrix4f(),values,VanillaPoseSelection.fromMap(Map.of("head",1,"root",0)));retargeter.apply(scene,full,0);
+        retargeter.update(new Matrix4f(),values,VanillaPoseSelection.fromMap(Map.of("head",.5,"root",0)));retargeter.apply(scene,half,0);
+        retargeter.update(new Matrix4f(),values,VanillaPoseSelection.fromMap(Map.of("head",0,"root",0)));retargeter.apply(scene,zero,0);
+        assertTrue(AnimationBlender.blendTransforms(initial,full.get("Head"),.5f).equals(half.get("Head"),1e-6f));
+        assertEquals(initial,zero.get("Head"));
     }
 
     @Test void originalCrouchAndAttackPivotOffsetsAreScaledFromTheRigsOwnProportions() throws Exception {

@@ -2,6 +2,7 @@ package cn.minerealms.rigworks.character.client;
 
 import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.rigworks.character.core.CharacterProfile;
+import cn.minerealms.rigworks.character.core.VanillaPoseSelection;
 import cn.minerealms.rigworks.mixin.character.PlayerRendererPoseAccess;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
@@ -14,6 +15,7 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.util.Mth;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import org.joml.Matrix4f;
 
@@ -30,6 +32,7 @@ public final class VanillaPlayerPoseDriver implements AutoCloseable {
     private PlayerModel<AbstractClientPlayer> model;
     private PlayerModel<?> sampledSource;
     private boolean closed;
+    private final Map<String, VanillaPoseSelection> selections = new LinkedHashMap<>();
 
     public VanillaPlayerPoseDriver(CharacterProfile profile, AnimationState animation) {
         this.profile = Objects.requireNonNull(profile);
@@ -42,7 +45,13 @@ public final class VanillaPlayerPoseDriver implements AutoCloseable {
 
     /** actions=false leaves swing and held-item transforms to the script's upper-body layer. */
     public void update(LocalPlayer player, boolean actions) {
+        update(player, actions ? VanillaPoseSelection.ALL : VanillaPoseSelection.MOTION);
+    }
+
+    public void update(LocalPlayer player, VanillaPoseSelection selection) {
         if (closed || animation.isClosed()) throw new IllegalStateException("Vanilla player driver is closed");
+        Objects.requireNonNull(selection);
+        if (!selection.enabled()) { disable(); return; }
         var renderer = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(player);
         if (!(renderer instanceof PlayerRenderer vanilla) || !(vanilla instanceof PlayerRendererPoseAccess access))
             throw new IllegalStateException("Vanilla player renderer pose access is unavailable");
@@ -52,10 +61,10 @@ public final class VanillaPlayerPoseDriver implements AutoCloseable {
             model = createPoseModel(source, "slim".equals(player.getModelName()));
             sampledSource = source;
         }
-        model.leftArmPose = actions ? source.leftArmPose : HumanoidModel.ArmPose.EMPTY;
-        model.rightArmPose = actions ? source.rightArmPose : HumanoidModel.ArmPose.EMPTY;
+        model.leftArmPose = selection.items() ? source.leftArmPose : HumanoidModel.ArmPose.EMPTY;
+        model.rightArmPose = selection.items() ? source.rightArmPose : HumanoidModel.ArmPose.EMPTY;
         model.crouching = source.crouching;
-        model.attackTime = actions ? player.getAttackAnim(1) : 0;
+        model.attackTime = selection.attack() ? player.getAttackAnim(1) : 0;
         model.riding = player.isPassenger() && player.getVehicle() != null && player.getVehicle().shouldRiderSit();
         model.young = player.isBaby();
 
@@ -97,7 +106,7 @@ public final class VanillaPlayerPoseDriver implements AutoCloseable {
         parts.put("right_upper_arm", part(model.rightArm));
         parts.put("left_thigh", part(model.leftLeg));
         parts.put("right_thigh", part(model.rightLeg));
-        retargeter.update(root, parts);
+        retargeter.update(root, parts, selection);
         animation.resume();
     }
 
@@ -122,9 +131,31 @@ public final class VanillaPlayerPoseDriver implements AutoCloseable {
 
     public void disable() { retargeter.disable(); }
 
+    /** Resource definitions are compiled once per player binding; explicit reload replaces only on success. */
+    public VanillaPoseSelection selection(String resource, boolean reload) {
+        if (closed || animation.isClosed()) throw new IllegalStateException("Vanilla player driver is closed");
+        if (!reload && selections.containsKey(resource)) return selections.get(resource);
+        if (!selections.containsKey(resource) && selections.size() >= 32) throw new IllegalArgumentException("At most 32 native pose definitions per binding");
+        ResourceLocation id = new ResourceLocation(resource);
+        try (var reader = Minecraft.getInstance().getResourceManager().openAsReader(id)) {
+            VanillaPoseSelection compiled = VanillaPoseSelection.read(new java.io.StringReader(readBounded(reader)));
+            selections.put(resource, compiled);
+            return compiled;
+        } catch (java.io.IOException error) { throw new IllegalArgumentException("Cannot read native pose: " + resource, error); }
+    }
+
+    private static String readBounded(java.io.Reader reader) throws java.io.IOException {
+        char[] data = new char[4097];
+        int total = 0, count;
+        while (total < data.length && (count = reader.read(data, total, data.length - total)) != -1) total += count;
+        if (total > 4096) throw new IllegalArgumentException("Native pose JSON exceeds 4096 characters");
+        return new String(data, 0, total);
+    }
+
     @Override public void close() {
         if (closed) return;
         closed = true;
+        selections.clear();
         retargeter.disable();
         if (!animation.isClosed() && animation.getModifier(MODIFIER) == retargeter) animation.removeModifier(MODIFIER);
     }
