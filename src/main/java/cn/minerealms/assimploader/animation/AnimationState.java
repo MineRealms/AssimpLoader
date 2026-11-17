@@ -24,6 +24,7 @@ public class AnimationState implements AutoCloseable {
     private final Map<AssimpMesh, Matrix4f[]> cachedBoneTransforms = new HashMap<>();
     private final Map<String, AnimationPoseLayer> layers = new LinkedHashMap<>();
     private final Map<String, PoseModifier> modifiers = new LinkedHashMap<>();
+    private PoseEvaluationPlan evaluationPlan = PoseEvaluationPlan.compile(Map.of());
     private final Map<AssimpMesh, float[]> morphWeights = new HashMap<>();
     private Map<String, Matrix4f> evaluatedBasePose = Map.of();
     private final AnimationStateMachine stateMachine = new AnimationStateMachine(this);
@@ -211,12 +212,12 @@ public class AnimationState implements AutoCloseable {
             }
         }
         evaluatedBasePose = copyTransforms(locals);
+        var policy = RuntimePerformancePolicy.current();
         if (!stopped) {
             layers.values().forEach(layer -> layer.apply(locals, bindTransforms));
-            var policy = RuntimePerformancePolicy.current();
-            for (PoseModifier.Category category:PoseModifier.Category.values()) for (PoseModifier modifier : modifiers.values()) {
-                if(modifier.category()!=category) continue;
-                boolean enabled = switch (modifier.category()) {
+            for (var stage : evaluationPlan.stages()) {
+                PoseModifier modifier = stage.modifier();
+                boolean enabled = switch (stage.category()) {
                     case MOTION, BONE_MORPH, GENERAL, PHYSICS, POST_PHYSICS -> true;
                     case GROUND, IK -> policy.ikEnabled() && performance.ik();
                     case SPRING -> policy.springBonesEnabled() && performance.springBones();
@@ -256,9 +257,16 @@ public class AnimationState implements AutoCloseable {
             });
         }
         sampledMorphs.putAll(morphWeights);
-        if (!stopped) modifiers.values().forEach(modifier -> modifier.applyMorphs(scene, sampledMorphs));
+        if (!stopped) for (var stage : evaluationPlan.stages()) {
+            boolean enabled = switch (stage.category()) {
+                case GROUND, IK -> policy.ikEnabled() && performance.ik();
+                case SPRING -> policy.springBonesEnabled() && performance.springBones();
+                default -> true;
+            };
+            if (enabled) stage.modifier().applyMorphs(scene, sampledMorphs);
+        }
         poseSnapshot = PoseSnapshot.capture(++frameId, scene, locals, sampledMorphs);
-        if (performance.renderInterpolation() && RuntimePerformancePolicy.current().mode() != RuntimePerformancePolicy.Mode.PERFORMANCE)
+        if (performance.renderInterpolation() && policy.mode() != RuntimePerformancePolicy.Mode.PERFORMANCE)
             renderPoses.publish(poseSnapshot, deltaSeconds);
         else renderPoses.reset(poseSnapshot);
         if (modelInstance != null && !stopped) modelInstance.afterPose();
@@ -303,6 +311,7 @@ public class AnimationState implements AutoCloseable {
         }
     }
     public PoseModifier getModifier(String id) { return modifiers.get(id); }
+    public java.util.List<Map<String, Object>> evaluationSchedule() { return evaluationPlan.diagnostic(); }
     public ModelInstance getModelInstance() { return modelInstance; }
     public InstancePerformanceSettings getPerformanceSettings() { return performance; }
     public void setPerformanceSettings(InstancePerformanceSettings settings) {
@@ -338,28 +347,39 @@ public class AnimationState implements AutoCloseable {
     public void removeLayer(String id) { requireOpen(); layers.remove(id); publishPose(); }
 
     public void addModifier(String id, PoseModifier modifier) {
-        requireOpen();
-        java.util.Objects.requireNonNull(id);java.util.Objects.requireNonNull(modifier);
-        for(var entry:modifiers.entrySet()) {
-            if(entry.getKey().equals(id)) continue;
-            PoseModifier other=entry.getValue();
-            if((modifier.category()==PoseModifier.Category.PHYSICS&&other.category()==PoseModifier.Category.SPRING
-                    ||modifier.category()==PoseModifier.Category.SPRING&&other.category()==PoseModifier.Category.PHYSICS)
-                    &&modifier.controlledBones().stream().anyMatch(other.controlledBones()::contains))
-                throw new IllegalArgumentException("Rigid-body and Spring Bone modifiers cannot control the same bone");
-        }
-        PoseModifier old = modifiers.put(java.util.Objects.requireNonNull(id), java.util.Objects.requireNonNull(modifier));
-        if (old != null && old != modifier) old.close();
-        stopped = false;
-        publishPose();
+        replaceModifiers(Map.of(id, modifier), java.util.Set.of());
     }
 
     public void removeModifier(String id) {
+        removeModifiers(java.util.Set.of(id));
+    }
+
+    public void replaceModifiers(Map<String, ? extends PoseModifier> replacements) {
+        replaceModifiers(replacements, java.util.Set.of());
+    }
+
+    /** Validate the complete candidate before publishing it or closing any currently owned modifier. */
+    public void replaceModifiers(Map<String, ? extends PoseModifier> replacements, java.util.Set<String> removals) {
         requireOpen();
-        PoseModifier old = modifiers.remove(id);
-        if (old != null) old.close();
+        var candidate = new LinkedHashMap<>(modifiers);
+        removals.forEach(candidate::remove);
+        replacements.forEach((id, modifier) -> candidate.put(java.util.Objects.requireNonNull(id), java.util.Objects.requireNonNull(modifier)));
+        var compiled = PoseEvaluationPlan.compile(candidate);
+        var retained = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<PoseModifier, Boolean>());
+        retained.addAll(candidate.values());
+        var retired = new java.util.ArrayList<PoseModifier>();
+        for (var stage : evaluationPlan.stages()) {
+            var modifier = stage.modifier();
+            if (retained.add(modifier)) retired.add(modifier);
+        }
+        Collections.reverse(retired);
+        modifiers.clear(); modifiers.putAll(candidate); evaluationPlan = compiled;
+        if (!replacements.isEmpty()) stopped = false;
+        retired.forEach(PoseModifier::close);
         publishPose();
     }
+
+    public void removeModifiers(java.util.Set<String> ids) { replaceModifiers(Map.of(), ids); }
 
     public void resetDynamics() {
         requireOpen();
@@ -471,8 +491,13 @@ public class AnimationState implements AutoCloseable {
         clearTransition();
         for (AnimationPlayer player : animationPlayers.values()) player.pause();
         currentAnimation = null;
-        modifiers.values().forEach(PoseModifier::close);
+        var released = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<PoseModifier, Boolean>());
+        var releaseOrder = new java.util.ArrayList<PoseModifier>();
+        for (var stage : evaluationPlan.stages()) if (released.add(stage.modifier())) releaseOrder.add(stage.modifier());
+        Collections.reverse(releaseOrder);
+        releaseOrder.forEach(PoseModifier::close);
         modifiers.clear();
+        evaluationPlan = PoseEvaluationPlan.compile(Map.of());
         layers.clear();
         morphWeights.clear();
         if (modelInstance != null) modelInstance.release();

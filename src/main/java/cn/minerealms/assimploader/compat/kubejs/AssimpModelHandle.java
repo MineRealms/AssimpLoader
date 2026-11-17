@@ -10,6 +10,7 @@ import cn.minerealms.assimploader.animation.ik.LookAtModifier;
 import cn.minerealms.assimploader.collision.ModelCollision;
 import cn.minerealms.assimploader.collision.Ray;
 import cn.minerealms.assimploader.model.AssimpMesh;
+import cn.minerealms.assimploader.model.ModelCapabilities;
 import com.google.gson.Gson;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -34,6 +35,9 @@ public final class AssimpModelHandle {
     public boolean sameInstance(AssimpModelHandle other) {return other!=null&&isValid()&&reference.get()==other.reference.get();}
     public String model() {return live().getModelName();}
     public String[] animations() {return live().getAvailableAnimations();}
+    /** Cached imported asset facts, independent of this instance's enabled modifiers and current shader. */
+    public Map<String,Object> capabilities() {return ModelCapabilities.of(live().getScene());}
+    public List<Map<String,Object>> schedule() {return live().evaluationSchedule();}
     public List<String> states() {return new ArrayList<>(live().getStateMachine().getBindings().keySet());}
     public String currentState() {return live().getStateMachine().getCurrentStateName();}
     public boolean state(String name) {return live().getStateMachine().request(name);}
@@ -59,9 +63,10 @@ public final class AssimpModelHandle {
 
     /** Rest-relative Euler XYZ degrees; local translations use imported node units. */
     public AssimpModelHandle pose(String id,Map<String,Object> options) {
-        var state=live(); var key=control(id,"pose:");
+        var state=live(); var key=checkControl(id,"pose:");
         var modifier=new ScriptPoseModifier(state.getScene(),JSON.toJsonTree(options).getAsJsonObject());
-        state.addModifier(key,modifier); return this;
+        try {state.addModifier(key,modifier);} catch(RuntimeException error){if(state.getModifier(key)!=modifier)modifier.close();throw error;}
+        control(id,"pose:");return this;
     }
     public AssimpModelHandle removePose(String id) {var state=live();String key=key(id,"pose:");state.removeModifier(key);forget(state,key);return this;}
 
@@ -85,17 +90,21 @@ public final class AssimpModelHandle {
         }catch(java.io.IOException error){throw new IllegalArgumentException("Cannot read animation processor: "+source,error);}
     }
     private AssimpModelHandle installProcessor(String id,ModelAnimationProcessor compiled) {
-        var state=live();String key=key(id,"processor:");
-        if(state.getModifier(key)!=null&&!(state.getModifier(key) instanceof ModelAnimationProcessor))
-            throw new IllegalArgumentException("Animation processor ID already used by another modifier");
-        if(state.getModifier(key) instanceof ModelAnimationProcessor old && state.getModifier(key+":ik")!=old.ikStage())
-            throw new IllegalArgumentException("Animation processor IK stage ownership changed");
-        if(state.getModifier(key)==null&&state.getModifier(key+":ik")!=null)
-            throw new IllegalArgumentException("Animation processor IK ID already used by another modifier");
-        control(id,"processor:");
-        state.beginPoseEdit();
-        try {state.addModifier(key,compiled);state.addModifier(key+":ik",compiled.ikStage());}
-        finally {state.endPoseEdit(false);}
+        AnimationState state=null;String key=null;
+        try {
+            state=live();key=checkControl(id,"processor:");
+            if(state.getModifier(key)!=null&&!(state.getModifier(key) instanceof ModelAnimationProcessor))
+                throw new IllegalArgumentException("Animation processor ID already used by another modifier");
+            if(state.getModifier(key) instanceof ModelAnimationProcessor old && state.getModifier(key+":ik")!=old.ikStage())
+                throw new IllegalArgumentException("Animation processor IK stage ownership changed");
+            if(state.getModifier(key)==null&&state.getModifier(key+":ik")!=null)
+                throw new IllegalArgumentException("Animation processor IK ID already used by another modifier");
+            var replacements=new LinkedHashMap<String,cn.minerealms.assimploader.animation.PoseModifier>();
+            replacements.put(key,compiled);replacements.put(key+":ik",compiled.ikStage(key));
+            state.beginPoseEdit();
+            try {state.replaceModifiers(replacements);} finally {state.endPoseEdit(false);}
+            control(id,"processor:");
+        } catch(RuntimeException error) {if(state==null||key==null||state.getModifier(key)!=compiled)compiled.close();throw error;}
         return this;
     }
     public AssimpModelHandle processorEnabled(String id,boolean enabled){processor(id).enabled(enabled);return this;}
@@ -107,9 +116,7 @@ public final class AssimpModelHandle {
     public List<String> processorControls(String id){return processor(id).controls();}
     public AssimpModelHandle removeProcessor(String id) {
         var state=live();String key=key(id,"processor:");
-        state.beginPoseEdit();
-        try {state.removeModifier(key);state.removeModifier(key+":ik");}
-        finally {state.endPoseEdit(true);}
+        state.removeModifiers(java.util.Set.of(key,key+":ik"));
         forget(state,key);return this;
     }
     private ModelAnimationProcessor processor(String id) {
@@ -135,11 +142,18 @@ public final class AssimpModelHandle {
     }
     public AssimpModelHandle layerReleasePhase(String id) {layerPlayer(id).releaseSynchronizedPhase();return this;}
     public AssimpModelHandle clearScriptControls() {
-        var state=live();var keys=CONTROLS.remove(state);
-        if(keys!=null) for(String key:keys) {
-            if(key.startsWith("kubejs:processor:")){state.removeModifier(key);state.removeModifier(key+":ik");}
-            else if(key.startsWith("kubejs:pose:"))state.removeModifier(key);else state.removeLayer(key);
+        var state=live();var keys=CONTROLS.get(state);
+        var removals=new java.util.LinkedHashSet<String>();
+        if(keys!=null)for(String key:keys) {
+            if(key.startsWith("kubejs:processor:")){removals.add(key);removals.add(key+":ik");}
+            else if(key.startsWith("kubejs:pose:"))removals.add(key);
         }
+        state.beginPoseEdit();
+        try {
+            state.removeModifiers(removals);
+            if(keys!=null)for(String key:keys)if(key.startsWith("kubejs:layer:"))state.removeLayer(key);
+            CONTROLS.remove(state);
+        } finally {state.endPoseEdit(false);}
         var p=state.getCurrentAnimation();if(p!=null){p.releaseSynchronizedPhase();p.setSpeed(1);}
         state.resetMorphWeights();
         return this;
@@ -241,9 +255,13 @@ public final class AssimpModelHandle {
         if(layer==null)throw new IllegalArgumentException("Unknown script layer: "+id);return layer.getPlayer();
     }
     private String control(String id,String kind) {
-        String key=key(id,kind); var owned=CONTROLS.computeIfAbsent(live(),ignored->new java.util.LinkedHashSet<>());
-        if(!owned.contains(key)&&owned.size()>=64)throw new IllegalArgumentException("Script controls exceed 64 layers/poses");
+        String key=checkControl(id,kind); var owned=CONTROLS.computeIfAbsent(live(),ignored->new java.util.LinkedHashSet<>());
         owned.add(key);return key;
+    }
+    private String checkControl(String id,String kind) {
+        String key=key(id,kind);var owned=CONTROLS.get(live());
+        if(owned!=null&&!owned.contains(key)&&owned.size()>=64)throw new IllegalArgumentException("Script controls exceed 64 layers/poses");
+        return key;
     }
     private static String key(String id,String kind) {
         if(id==null||id.isBlank()||id.length()>128)throw new IllegalArgumentException("Script control id requires 1..128 characters");

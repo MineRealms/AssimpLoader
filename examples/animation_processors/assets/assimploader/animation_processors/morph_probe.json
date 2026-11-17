@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "clips": {
+    "shape_key_pulse": {
+      "clip": "MorphPulse",
+      "enabled": true,
+      "weight": 1,
+      "additive": false,
+      "loop": true,
+      "speed": 1
+    }
+  }
+}

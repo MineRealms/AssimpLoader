@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.animation;
 
 import cn.minerealms.assimploader.animation.ik.ChainIkModifier;
 import cn.minerealms.assimploader.model.AssimpScene;
+import cn.minerealms.assimploader.model.AssimpMesh;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -34,13 +35,16 @@ public final class ModelAnimationProcessor implements PoseModifier {
     }
     private final class Clip extends Step {
         final AnimationPoseLayer layer;
+        final ClipMorphComposition morphs;
         Clip(String name,JsonObject spec) {
             super(name,spec);
             keys(spec,Set.of("clip","weight","enabled","additive","mask","speed","loop"));
             String clipName=text(spec.get("clip"),"clip");
             var animation=scene.getAnimations().stream().filter(clip->clip.getName().equals(clipName)).findFirst()
                     .orElseThrow(()->new IllegalArgumentException("Unknown processor clip: "+clipName));
-            layer=new AnimationPoseLayer(animation,scene.getRootNode(),weight,bool(spec,"additive",false),mask(spec));
+            var mask=mask(spec,true);
+            layer=new AnimationPoseLayer(animation,scene.getRootNode(),weight,bool(spec,"additive",false),mask);
+            morphs=new ClipMorphComposition(scene,animation,mask);
             layer.getPlayer().setSpeed((float)number(spec,"speed",1,-16,16));
             layer.getPlayer().setLooping(bool(spec,"loop",true));
         }
@@ -126,9 +130,12 @@ public final class ModelAnimationProcessor implements PoseModifier {
     private final Map<String,Step> controls=new LinkedHashMap<>();
     private final List<Step> composition=new ArrayList<>();
     private final List<Ik> ik=new ArrayList<>();
+    private final Set<String> dependencies;
+    private String mainStageId;
     private boolean enabled,closed;
     private final PoseModifier ikStage=new PoseModifier() {
         @Override public Category category(){return Category.IK;}
+        @Override public Set<String> dependencies(){return mainStageId==null?Set.of():Set.of(mainStageId);}
         @Override public Set<String> controlledBones(){return ModelAnimationProcessor.this.controlledBones();}
         @Override public void apply(AssimpScene scene,Map<String,Matrix4f> locals,double delta) {
             if(closed||!enabled)return;
@@ -139,7 +146,14 @@ public final class ModelAnimationProcessor implements PoseModifier {
     private ModelAnimationProcessor(AssimpScene scene,String source,JsonObject definition) {
         this.scene=java.util.Objects.requireNonNull(scene);this.source=source;
         bind.putAll(SkinBindPose.locals(scene));
-        keys(definition,Set.of("version","enabled","clips","poses","ik"));
+        keys(definition,Set.of("version","enabled","clips","poses","ik","after"));
+        var after=new LinkedHashSet<String>();
+        if(definition.has("after")) {
+            var values=definition.get("after");
+            if(!values.isJsonArray()||values.getAsJsonArray().size()>64)throw new IllegalArgumentException("Processor after requires at most 64 modifier IDs");
+            for(var value:values.getAsJsonArray())after.add(text(value,"after modifier ID"));
+        }
+        dependencies=Set.copyOf(after);
         var version=definition.get("version");
         if(version==null||!version.isJsonPrimitive()||!version.getAsJsonPrimitive().isNumber()
                 ||version.getAsBigDecimal().compareTo(java.math.BigDecimal.ONE)!=0)
@@ -197,7 +211,15 @@ public final class ModelAnimationProcessor implements PoseModifier {
         value.modifier.setTarget(new Vector3f((float)finite(x,-MAX_NUMBER,MAX_NUMBER),(float)finite(y,-MAX_NUMBER,MAX_NUMBER),(float)finite(z,-MAX_NUMBER,MAX_NUMBER)));
     }
     public PoseModifier ikStage(){return ikStage;}
+    /** Bind the companion stage to its full instance modifier ID before atomic installation. */
+    public PoseModifier ikStage(String mainModifierId) {
+        checkOpen();
+        if(mainModifierId==null||mainModifierId.isBlank())throw new IllegalArgumentException("Processor main modifier ID required");
+        if(mainStageId!=null&&!mainStageId.equals(mainModifierId))throw new IllegalStateException("Processor already bound to another modifier ID");
+        mainStageId=mainModifierId;return ikStage;
+    }
     @Override public Category category(){return Category.GENERAL;}
+    @Override public Set<String> dependencies(){return dependencies;}
     @Override public Set<String> controlledBones() {
         var names=new LinkedHashSet<String>();controls.values().forEach(step->names.addAll(step.bones()));return Collections.unmodifiableSet(names);
     }
@@ -208,6 +230,13 @@ public final class ModelAnimationProcessor implements PoseModifier {
             if(step instanceof Clip||step.weight>0)step.apply(scene,locals,delta);
         }
     }
+    @Override public void applyMorphs(AssimpScene scene,Map<AssimpMesh,float[]> weights) {
+        if(closed||!enabled)return;
+        for(var step:composition)if(step instanceof Clip clip&&clip.enabled&&clip.weight>0) {
+            clip.layer.setWeight(clip.weight);
+            clip.morphs.apply(clip.layer,weights);
+        }
+    }
     @Override public void reset(){if(!closed)controls.values().forEach(Step::reset);}
     @Override public void close(){if(!closed){closed=true;controls.values().forEach(Step::close);}}
 
@@ -215,11 +244,17 @@ public final class ModelAnimationProcessor implements PoseModifier {
     private void checkOpen(){if(closed)throw new IllegalStateException("Animation processor expired");}
     private void requireNode(String name){if(!bind.containsKey(name))throw new IllegalArgumentException("Unknown processor node: "+name);}
     private Map<String,Float> mask(JsonObject spec) {
+        return mask(spec,false);
+    }
+    private Map<String,Float> mask(JsonObject spec,boolean allowMesh) {
         if(!spec.has("mask"))return Map.of();
         var values=object(spec.get("mask"),"Processor mask");
         if(values.size()>256)throw new IllegalArgumentException("Processor mask bone limit");
         var result=new LinkedHashMap<String,Float>();
-        values.entrySet().forEach(entry->{requireNode(entry.getKey());result.put(entry.getKey(),boundedWeight(numeric(entry.getValue())));});
+        values.entrySet().forEach(entry->{
+            if(!allowMesh||scene.getMeshes().stream().noneMatch(mesh->mesh.getName().equals(entry.getKey())))requireNode(entry.getKey());
+            result.put(entry.getKey(),boundedWeight(numeric(entry.getValue())));
+        });
         return Map.copyOf(result);
     }
     private Map<String,Matrix4f> capture(Map<String,Matrix4f> locals,Set<String> names) {
