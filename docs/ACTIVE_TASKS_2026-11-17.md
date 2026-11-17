@@ -8,7 +8,7 @@
 - [x] Compose processor clip Morph and report observed asset capabilities.
 - [x] Compile modifier dependencies and validate conflicting physics writers.
 - [x] Verify actual FBX contact geometry, Rhino controls and combined Mod runtime.
-- [ ] Document limits and commit/push verified changes.
+- [x] Document limits and commit/push verified changes (`59a075b`, `ea4cdcc`, `ced3885`).
 
 Build and combined Oculus/KubeJS acceptance passed: 453 tests, zero failures or
 errors, one optional skip. The 864-pose contact probe verified reachable wrist
