@@ -71,7 +71,7 @@ public final class OculusEntityBufferCache {
     }
 
     public static boolean renderPosed(AnimationState owner,PoseSnapshot snapshot,PoseStack poses,int light,int overlay,boolean blockEntity) {
-        if(owner==null || owner.isClosed() || failed || !OculusEntityDrawBridge.available()
+        if(cn.minerealms.assimploader.debug.MaterialDebugViews.active() || owner==null || owner.isClosed() || failed || !OculusEntityDrawBridge.available()
                 || !AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.oculusPoseCacheEnabled::get,true)
                 || AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.optimizationLevel::get,
                     AssimpLoaderConfig.OptimizationLevel.AUTO)==AssimpLoaderConfig.OptimizationLevel.FALLBACK) return false;
@@ -108,6 +108,8 @@ public final class OculusEntityBufferCache {
             for(var instance:snapshot.copyMeshInstances()) instances.add(new SceneTransforms.Instance(instance.mesh(),
                     instance.mesh().hasBones()?new Matrix4f():instance.transform()));
             draw(scene,instances,poses,light,overlay,state,entry.meshes,true);
+            cn.minerealms.assimploader.debug.DebugGeometryRenderer.render(scene,snapshot,configured,poses,
+                    net.minecraft.client.Minecraft.getInstance().renderBuffers().bufferSource());
             if(configured!=null) configured.noteRenderPass(OculusCompat.isRenderingShadowPass());
             return true;
         } catch(Exception | LinkageError error) {
@@ -149,7 +151,7 @@ public final class OculusEntityBufferCache {
 
     private static boolean render(AssimpScene scene, List<SceneTransforms.Instance> instances,
                                   PoseStack poses, int light, int overlay, boolean blockEntity) {
-        if (failed || scene.hasSkeleton() || !SceneTransforms.isOpaque(scene)
+        if (cn.minerealms.assimploader.debug.MaterialDebugViews.active() || failed || scene.hasSkeleton() || !SceneTransforms.isOpaque(scene)
                 || !OculusEntityDrawBridge.available()
                 || AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.optimizationLevel::get,
                     AssimpLoaderConfig.OptimizationLevel.AUTO) == AssimpLoaderConfig.OptimizationLevel.FALLBACK) return false;
@@ -166,6 +168,8 @@ public final class OculusEntityBufferCache {
                 entries.computeIfAbsent(instance.mesh(), mesh -> upload(scene, mesh,null,null));
             }
             draw(scene,instances,poses,light,overlay,state,entries,false);
+            cn.minerealms.assimploader.debug.DebugGeometryRenderer.render(scene,null,null,poses,
+                    net.minecraft.client.Minecraft.getInstance().renderBuffers().bufferSource());
             return true;
         } catch (Exception | LinkageError error) {
             release();

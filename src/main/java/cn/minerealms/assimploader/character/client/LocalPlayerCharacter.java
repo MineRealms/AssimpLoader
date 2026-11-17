@@ -380,7 +380,7 @@ public final class LocalPlayerCharacter {
                     if(currentPhysics()!=null)context.getSource().sendSuccess(()->Component.literal(currentPhysics().statistics().toString()),false);
                     return 1;
                 }).then(Commands.literal("menu").executes(context -> {
-                    Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(new CharacterSelectionScreen(null)));
+                    Minecraft.getInstance().execute(() -> cn.minerealms.assimploader.client.ui.LookDevNavigation.open(cn.minerealms.assimploader.client.ui.LookDevNavigation.Page.PLAYER));
                     return 1;
                 })).then(Commands.literal("enable").executes(context -> {setPersistentEnabled(true);return 1;}))
                 .then(motionCommands())

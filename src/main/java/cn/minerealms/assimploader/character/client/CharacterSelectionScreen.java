@@ -32,9 +32,11 @@ public final class CharacterSelectionScreen extends Screen {
         panelWidth = Math.min(760, width - 32);
         left = (width - panelWidth) / 2;
         compact = height < 360;
-        controlsY = compact ? 40 : 62;
-        motionY = compact ? 78 : 106;
-        profileY = compact ? 116 : 150;
+        controlsY = compact ? 50 : 62;
+        motionY = compact ? 88 : 106;
+        profileY = compact ? 126 : 150;
+        cn.minerealms.assimploader.client.ui.LookDevNavigation.install(this,widget->addRenderableWidget(widget),
+                cn.minerealms.assimploader.client.ui.LookDevNavigation.Page.PLAYER);
         String value = profile == null ? LocalPlayerCharacter.settings().profile() : profile.getValue();
         int toggleWidth = Math.max(80, (panelWidth - 38) / 2);
         addRenderableWidget(FlatUi.toggle(left, controlsY, toggleWidth, 26, Component.literal("Character"),
@@ -72,8 +74,8 @@ public final class CharacterSelectionScreen extends Screen {
 
         profiles = minecraft.getResourceManager().listResources("models", id -> id.getPath().endsWith("/profile.json"))
                 .keySet().stream().sorted().toList();
-        listY = compact ? 160 : 200;
-        footerY = height - (compact ? 34 : 58);
+        listY = compact ? 174 : 200;
+        footerY = height - (compact ? 28 : 58);
         visibleRows = Math.max(1, Math.min(12, (footerY - listY - 12) / 30));
         rows.clear();
         for (int index = 0; index < visibleRows; index++) {
@@ -131,11 +133,7 @@ public final class CharacterSelectionScreen extends Screen {
 
     @Override public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         graphics.fill(0, 0, width, height, FlatUi.BACKGROUND);
-        int headerHeight = compact ? 30 : 46;
-        graphics.fill(0, 0, width, headerHeight, FlatUi.SURFACE);
-        graphics.fill(0, headerHeight - 1, width, headerHeight, FlatUi.LINE);
-        graphics.drawString(font, "ASSIMPLOADER", left, compact ? 11 : 12, FlatUi.ACCENT, false);
-        graphics.drawString(font, title, compact ? left + 94 : left, compact ? 11 : 28, FlatUi.TEXT, false);
+        cn.minerealms.assimploader.client.ui.LookDevNavigation.render(graphics,width);
         graphics.drawString(font, "Motion", left, motionY - 11, FlatUi.MUTED, false);
         graphics.drawString(font, "Profile", left, profileY - 11, FlatUi.MUTED, false);
         graphics.drawString(font, "Available profiles", left, listY - 13, FlatUi.MUTED, false);
@@ -161,6 +159,6 @@ public final class CharacterSelectionScreen extends Screen {
         return super.mouseScrolled(x, y, amount);
     }
 
-    @Override public void onClose() { minecraft.setScreen(parent); }
+    @Override public void onClose() { cn.minerealms.assimploader.client.ui.LookDevNavigation.close(parent); }
     @Override public boolean isPauseScreen() { return false; }
 }

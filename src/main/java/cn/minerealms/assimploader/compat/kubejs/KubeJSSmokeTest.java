@@ -46,12 +46,13 @@ public final class KubeJSSmokeTest {
             });
         }
         public Probe create(String name) throws Exception {
-            if(!name.equals("highbone_probe")&&!name.equals("deer_showcase")) throw new IllegalArgumentException("Unknown acceptance fixture");
-            String base="/assets/assimploader/models/validation/"+name;
-            try(var model=KubeJSSmokeTest.class.getResourceAsStream(base+".glb");
+            if(!name.equals("highbone_probe")&&!name.equals("deer_showcase")&&!name.equals("block_player")) throw new IllegalArgumentException("Unknown acceptance fixture");
+            String base=name.equals("block_player")?"/assets/assimploader/models/character/block_player/block_player":"/assets/assimploader/models/validation/"+name;
+            String extension=name.equals("block_player")?".fbx":".glb";
+            try(var model=KubeJSSmokeTest.class.getResourceAsStream(base+extension);
                 var definition=KubeJSSmokeTest.class.getResourceAsStream(base+".instance.json")) {
                 if(model==null||definition==null) throw new IllegalStateException("Missing acceptance fixture");
-                var scene=new AssimpModelLoader().loadModelFromMemory(base+".glb",model.readAllBytes(),ModelImportMode.DYNAMIC);
+                var scene=new AssimpModelLoader().loadModelFromMemory(base+extension,model.readAllBytes(),ModelImportMode.DYNAMIC);
                 AssimpModelLoader.registerModel(new net.minecraft.resources.ResourceLocation("assimploader","models/validation/"+name+".glb"),scene);
                 var instance=ModelInstanceDefinition.read(new InputStreamReader(definition,StandardCharsets.UTF_8)).instantiate(scene);
                 return new Probe(instance.animation());

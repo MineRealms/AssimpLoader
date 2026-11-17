@@ -3,7 +3,7 @@ package cn.minerealms.assimploader.lookdev;
 import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
-import cn.minerealms.assimploader.lookdev.ui.LoadedModelsScreen;
+import cn.minerealms.assimploader.client.ui.LookDevNavigation;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.client.Minecraft;
@@ -48,7 +48,7 @@ public class LookDevCommand {
         try {
             DebugManager.info(DebugCategory.LOOKDEV, "Opening LookDev screen via command");
 
-            Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(new LoadedModelsScreen()));
+            Minecraft.getInstance().execute(() -> LookDevNavigation.open(LookDevNavigation.Page.MODELS));
 
             DebugManager.info(DebugCategory.LOOKDEV, "LookDev screen opened successfully");
             return 1;

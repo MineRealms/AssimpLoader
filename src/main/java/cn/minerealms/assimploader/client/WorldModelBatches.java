@@ -46,7 +46,8 @@ public final class WorldModelBatches {
         if(event.getStage()==RenderLevelStageEvent.Stage.AFTER_SKY) {
             active=false;
             var policy=GpuBatchPolicy.current();
-            boolean unavailable=!policy.enabled() || OculusCompat.shouldAvoidCustomShaders() || OculusCompat.isRenderingShadowPass()
+            boolean unavailable=AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.debugView.enabled::get,false)
+                    || !policy.enabled() || OculusCompat.shouldAvoidCustomShaders() || OculusCompat.isRenderingShadowPass()
                     || AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.optimizationLevel::get,
                     AssimpLoaderConfig.OptimizationLevel.AUTO)==AssimpLoaderConfig.OptimizationLevel.FALLBACK;
             if(renderer!=null && (unavailable || !renderer.policy().equals(policy))) {renderer.close();renderer=null;}

@@ -17,6 +17,8 @@ public final class CapsuleCollider implements CollisionShape {
     }
 
     public float radius() { return radius; }
+    public Vector3f start(){return new Vector3f(start);}
+    public Vector3f end(){return new Vector3f(end);}
     public Vector3f closestPoint(Vector3fc point) {
         Vector3f segment = new Vector3f(end).sub(start);
         float length = segment.lengthSquared();

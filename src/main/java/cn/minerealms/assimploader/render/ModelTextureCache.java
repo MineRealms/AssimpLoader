@@ -56,6 +56,8 @@ public final class ModelTextureCache {
         Entry entry = textures.materials.computeIfAbsent(material,
                 ignored -> textures.create(material, material.getDiffuseTexture()));
         entry.schedule();
+        var view=cn.minerealms.assimploader.debug.MaterialDebugViews.current();
+        if(view!=cn.minerealms.assimploader.config.AssimpLoaderConfig.MaterialView.DEFAULT) return entry.debug(view);
         OculusPBRSupport.prepareTexture(entry.location);
         return entry.location;
     }
@@ -227,6 +229,9 @@ public final class ModelTextureCache {
         private final ResourceLocation location;
         private final AssimpPbrTexture texture;
         private CompletableFuture<PbrTexturePreparation.Prepared> pending;
+        private PbrTexturePreparation.Prepared prepared;
+        private final Map<cn.minerealms.assimploader.config.AssimpLoaderConfig.MaterialView,ResourceLocation> debugTextures=new java.util.EnumMap<>(cn.minerealms.assimploader.config.AssimpLoaderConfig.MaterialView.class);
+        private final java.util.Set<cn.minerealms.assimploader.config.AssimpLoaderConfig.MaterialView> debugPending=java.util.EnumSet.noneOf(cn.minerealms.assimploader.config.AssimpLoaderConfig.MaterialView.class);
         private boolean failed;
         private boolean closed;
         private String normalSource = "pending";
@@ -255,6 +260,7 @@ public final class ModelTextureCache {
                     try {
                         OculusPBRSupport.invalidateTexture(texture);
                         texture.publish(prepared.albedo(), prepared.maps());
+                        this.prepared=prepared;
                         normalSource = prepared.normalSource();
                         specularSource = prepared.specularSource();
                     } catch (RuntimeException | LinkageError exception) {
@@ -268,10 +274,33 @@ public final class ModelTextureCache {
             }
         }
 
+        private ResourceLocation debug(cn.minerealms.assimploader.config.AssimpLoaderConfig.MaterialView view) {
+            ResourceLocation ready=debugTextures.get(view);
+            if(ready!=null)return ready;
+            if(prepared==null || debugPending.contains(view) || closed)return WHITE;
+            var data=prepared;
+            debugPending.add(view);
+            try {
+                CompletableFuture.supplyAsync(()->cn.minerealms.assimploader.debug.MaterialDebugViews.image(view,data.albedo(),data.maps()),WORKERS)
+                    .whenComplete((image,error)->RenderSystem.recordRenderCall(()->{
+                        debugPending.remove(view);
+                        if(closed || owner.closed || error!=null)return;
+                        var location=new ResourceLocation("assimploader","runtime/debug_"+nextTexture++);
+                        var texture=new net.minecraft.client.renderer.texture.DynamicTexture(AssimpPbrTexture.nativeImage(image));
+                        try {
+                            Minecraft.getInstance().getTextureManager().register(location,texture);
+                            texture.setFilter(false,false);debugTextures.put(view,location);
+                        } catch(RuntimeException | Error failure) {texture.close();texture.releaseId();throw failure;}
+                    }));
+            } catch(RejectedExecutionException busy){debugPending.remove(view);}
+            return WHITE;
+        }
+
         private void close(net.minecraft.client.renderer.texture.TextureManager manager) {
             closed = true;
             if (pending != null) pending.cancel(false);
             if (texture != null) manager.release(location);
+            debugTextures.values().forEach(manager::release);debugTextures.clear();prepared=null;
         }
     }
 }

@@ -49,18 +49,18 @@ public final class LoadedModelsScreen extends Screen {
     private record NodeRow(AssimpNode node, int depth) {}
 
     public LoadedModelsScreen() {
+        this(false);
+    }
+    public LoadedModelsScreen(boolean nodes) {
         super(Component.literal("LookDev"));
+        nodesTab=nodes;
     }
 
     @Override
     protected void init() {
         sidebar = Math.max(132, Math.min(260, width / 3));
-        addRenderableWidget(FlatUi.choice(sidebar + 10, 10, 72, 26,
-                Component.translatable("screen.assimploader.preview"), () -> !nodesTab, button -> setTab(false)));
-        addRenderableWidget(FlatUi.choice(sidebar + 84, 10, 64, 26,
-                Component.translatable("screen.assimploader.nodes"), () -> nodesTab, button -> setTab(true)));
-        addRenderableWidget(FlatUi.icon(width - 36, 10, FlatUi.Icon.CLOSE,
-                Component.translatable("gui.done"), button -> onClose()));
+        cn.minerealms.assimploader.client.ui.LookDevNavigation.install(this,widget->addRenderableWidget(widget),nodesTab?
+                cn.minerealms.assimploader.client.ui.LookDevNavigation.Page.NODES:cn.minerealms.assimploader.client.ui.LookDevNavigation.Page.MODELS);
         String query = search == null ? "" : search.getValue();
         search = FlatUi.field(font, 10, 54, sidebar - 20, 26, Component.translatable("screen.assimploader.filter"));
         search.setMaxLength(256);
@@ -81,14 +81,14 @@ public final class LoadedModelsScreen extends Screen {
         zoomIn = addRenderableWidget(FlatUi.icon(toolX + 98, 54, FlatUi.Icon.PLUS,
                 Component.translatable("screen.assimploader.zoom_in"), button -> camera.zoom(1)));
         refreshCatalog();
-        fitCamera(false);
         updateControls();
     }
 
-    private void setTab(boolean nodes) {
+    public void setTab(boolean nodes) {
+        if (nodesTab == nodes) return;
         nodesTab = nodes;
         dragButton = -1;
-        updateControls();
+        if (minecraft != null) rebuildWidgets();
     }
 
     private void updateControls() {
@@ -184,8 +184,7 @@ public final class LoadedModelsScreen extends Screen {
         graphics.fill(0, 45, width, 46, FlatUi.LINE);
         graphics.fill(sidebar, 89, width, 90, FlatUi.LINE);
         graphics.fill(previewX(), previewY(), width, height - 24, 0xff282d31);
-        graphics.drawString(font, "ASSIMPLOADER", 12, 11, FlatUi.ACCENT, false);
-        graphics.drawString(font, title, 12, 27, FlatUi.TEXT, false);
+        cn.minerealms.assimploader.client.ui.LookDevNavigation.render(graphics,width);
         renderModelList(graphics, mouseX, mouseY);
         renderSelectionInfo(graphics);
         graphics.flush();
@@ -370,6 +369,7 @@ public final class LoadedModelsScreen extends Screen {
     }
 
     @Override public void removed() { releaseRenderer(); }
+    @Override public void onClose() { cn.minerealms.assimploader.client.ui.LookDevNavigation.close(null); }
     @Override public boolean isPauseScreen() { return false; }
 
     public boolean selectModel(String name) {

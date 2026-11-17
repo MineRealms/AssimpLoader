@@ -4,6 +4,7 @@ AssimpAcceptance.onClient(function () {
   function check(value, message) { if (!value) throw new Error(message) }
   var probe = null
   var deer = null
+  var block = null
   try {
     check(Assimp.apiVersion() === 1, 'Assimp client binding missing')
     check(Assimp.character().controllers().contains('acceptance_top_level'), 'top-level client script registration failed')
@@ -48,6 +49,27 @@ AssimpAcceptance.onClient(function () {
     AssimpPlayerActions.controller(frame)
     check(policyState.action === 'slash_down' && policyState.actionPhase === 0, 'real Rhino rapid combo retrigger failed')
     model.clearScriptControls()
+    block = AssimpAcceptance.create('block_player')
+    var blockModel = block.handle()
+    var names = {hips:'Hips',chest:'Chest',spine:'Spine',head:'Head',right_upper_arm:'UpperArm.R',left_upper_arm:'UpperArm.L',
+      right_forearm:'Forearm.R',left_forearm:'Forearm.L',right_hand:'Hand.R',left_hand:'Hand.L',
+      right_thigh:'Thigh.R',left_thigh:'Thigh.L',right_shin:'Shin.R',left_shin:'Shin.L',right_foot:'Foot.R',left_foot:'Foot.L'}
+    policyState = {}; facts.sprinting = true
+    var realFrame = {input:function(){return mapped(facts)},state:function(){return stateMap},model:function(){return blockModel},
+      bone:function(role){return names[role] || null},defaultMotion:function(){}}
+    var expected = ['slash_up','slash_down','slash_inward','slash_outward','slash_spin']
+    for (var hit=0;hit<5;hit++) {
+      facts.tick=hit+1;facts.swingGeneration=hit+1;facts.swingProgress=0
+      AssimpPlayerActions.controller(realFrame)
+      check(policyState.action===expected[hit], 'real FBX combo sequence '+hit)
+      var start=blockModel.node('Hand.R')
+      facts.swingProgress=.45
+      AssimpPlayerActions.controller(realFrame)
+      var end=blockModel.node('Hand.R')
+      var distance=Math.abs(Number(start.get('x'))-Number(end.get('x')))+Math.abs(Number(start.get('y'))-Number(end.get('y')))+Math.abs(Number(start.get('z'))-Number(end.get('z')))
+      check(distance>.1, 'real FBX hand did not move through '+expected[hit]+': '+distance)
+    }
+    blockModel.clearScriptControls()
     Assimp.character().unregister(AssimpPlayerActions.config.id)
     var characters = Assimp.character()
     characters.register('acceptance', function (frame) { frame.defaultMotion() })
@@ -89,5 +111,6 @@ AssimpAcceptance.onClient(function () {
   } finally {
     if (probe) probe.close()
     if (deer) deer.close()
+    if (block) block.close()
   }
 })

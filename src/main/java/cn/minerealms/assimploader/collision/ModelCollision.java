@@ -24,6 +24,7 @@ public final class ModelCollision {
     private final PcaObb.Limits obbLimits;
 
     public ModelCollision(List<BoneCollisionProxy> proxies) { this(proxies, PcaObb.Limits.DEFAULT); }
+    public List<BoneCollisionProxy> proxies(){return proxies;}
     public ModelCollision(List<BoneCollisionProxy> proxies, PcaObb.Limits obbLimits) {
         this.proxies = List.copyOf(proxies);
         this.obbLimits = java.util.Objects.requireNonNull(obbLimits);

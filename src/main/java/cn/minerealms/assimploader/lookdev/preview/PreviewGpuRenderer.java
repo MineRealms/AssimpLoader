@@ -114,10 +114,10 @@ public final class PreviewGpuRenderer implements AutoCloseable {
                     modelView.normal(normalMatrix).get(normal);
                     GL20.glUniformMatrix4fv(mvpUniform, false, matrix);
                     GL20.glUniformMatrix3fv(normalUniform, false, normal);
-                    float[] color = material == null ? null : material.getDiffuseColor();
+                    float[] color = cn.minerealms.assimploader.debug.MaterialDebugViews.tint(material);
                     GL20.glUniform4f(colorUniform, color == null ? 1 : color[0], color == null ? 1 : color[1],
                             color == null ? 1 : color[2], color == null ? 1 : color[3]);
-                    ResourceLocation texture = textureLocations.get(draw.meshIndex());
+                    ResourceLocation texture = ModelTextureCache.getTexture(scene, mesh);
                     RenderSystem.bindTexture(texture == null ? whiteTexture
                             : Minecraft.getInstance().getTextureManager().getTexture(texture).getId());
                     meshes.get(draw.meshIndex()).draw();

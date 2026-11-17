@@ -3,7 +3,7 @@ package cn.minerealms.assimploader.lookdev;
 import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
-import cn.minerealms.assimploader.lookdev.ui.LoadedModelsScreen;
+import cn.minerealms.assimploader.client.ui.LookDevNavigation;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -68,7 +68,7 @@ public final class LookDevKeybind {
                 continue;
             }
             try {
-                minecraft.setScreen(new LoadedModelsScreen());
+                LookDevNavigation.open(LookDevNavigation.Page.MODELS);
             } catch (Throwable t) {
                 DebugManager.error(DebugCategory.LOOKDEV, "Failed to open LookDev viewer", t);
             }

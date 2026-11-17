@@ -42,13 +42,6 @@ ordering="NONE"
 side="BOTH"
 
 [[dependencies.assimploader]]
-modId="modernui"
-mandatory=true
-versionRange="[3.11.0.1,4)"
-ordering="AFTER"
-side="CLIENT"
-
-[[dependencies.assimploader]]
 modId="kubejs"
 mandatory=false
 versionRange="[2001.6.5,2002)"

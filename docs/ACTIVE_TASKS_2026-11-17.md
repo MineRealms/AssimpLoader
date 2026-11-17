@@ -25,18 +25,21 @@ that all older expansion proposals have already been delivered.
 - [x] Inventory active GUI entry points and reuse one consistent visual system.
 - [x] Restyle character selection, motion modes and physics controls.
 - [x] Restyle loaded-model browser and preview controls.
-- [ ] Provide debug controls through the GUI.
+- [x] Provide debug controls through the GUI.
+- [x] Consolidate all active GUIs into LookDev Models / Nodes / Player / Debug navigation.
+- [x] Remove ModernUI runtime dependency; active components use independent FlatUi code.
+      Dormant historical node-editor sources retain a compile/test-only Core dependency.
 - [ ] Verify narrow layouts, text clipping, hover/focus and navigation.
 
 ## Client Debug Tools
 
-- [ ] Add client-only debug commands and persistent client configuration.
-- [ ] Draw model bounds, skeleton/joints and available collision/physics shapes.
-- [ ] Add material views: default, untextured, PBR off, normal, AO,
+- [x] Add client-only debug commands and persistent client configuration.
+- [x] Draw model bounds, skeleton/joints and available collision/physics shapes.
+- [x] Add material views: default, untextured, PBR off, normal, AO,
       roughness, metallic and other supported diagnostic channels.
-- [ ] Expose applicable shader/render-path controls with honest support limits.
-- [ ] Add a performance HUD with its own switch, independent of F3.
-- [ ] Report real frame/render/animation/physics/batch counters where available;
+- [x] Expose applicable shader/render-path controls with honest support limits.
+- [x] Add a performance HUD with its own switch, independent of F3.
+- [x] Report real frame/render/animation/physics/batch counters where available;
       show unavailable metrics explicitly rather than inventing timings.
 - [ ] Keep disabled debug tools cheap and restore GPU state after rendering.
 

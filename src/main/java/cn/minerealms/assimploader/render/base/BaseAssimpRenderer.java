@@ -72,6 +72,7 @@ public abstract class BaseAssimpRenderer {
                 : snapshot.copyMeshInstances().stream()
                 .map(instance -> new SceneTransforms.Instance(instance.mesh(), instance.transform())).toList();
         ModelInstance configured = state == null ? null : state.getModelInstance();
+        cn.minerealms.assimploader.debug.DebugGeometryRenderer.render(scene,snapshot,configured,stack,buffers);
         if(configured!=null) configured.noteRenderPass(OculusCompat.isRenderingShadowPass());
         if (configured != null && configured.hasMaterialAnimation()) {
             for (int pass = 0; pass < 2; pass++) for (SceneTransforms.Instance instance : instances) {
@@ -103,7 +104,7 @@ public abstract class BaseAssimpRenderer {
                             skinned.renderWithSnapshot(state, snapshot, instance.mesh(), stack, buffers,
                                     ModelTextureCache.getTexture(scene, instance.mesh()),
                                     Minecraft.getInstance().getTextureManager(), light, overlay,
-                                    material == null ? new float[]{1,1,1,1} : material.getDiffuseColor());
+                                    cn.minerealms.assimploader.debug.MaterialDebugViews.tint(material));
                         } catch (RuntimeException failure) {
                             ClientRenderResources.disableGpuSkinning(failure);
                             renderInstance(scene, snapshot, instance, stack, buffers, light, overlay);
@@ -119,7 +120,8 @@ public abstract class BaseAssimpRenderer {
             renderSnapshotInstances(scene, snapshot, instances, stack, buffers, light, overlay);
             return;
         }
-        if (CachedMeshRenderer.render(scene, instances, stack, buffers, light, overlay)) return;
+        if (!cn.minerealms.assimploader.debug.MaterialDebugViews.active()
+                && CachedMeshRenderer.render(scene, instances, stack, buffers, light, overlay)) return;
         renderInstances(scene, instances, stack, buffers, light, overlay);
     }
 
@@ -209,7 +211,7 @@ public abstract class BaseAssimpRenderer {
                               VertexConsumer consumer, int light, int overlay) {
         float[] uv = mesh.getTexCoords();
         int[] indices = mesh.getIndices();
-        float[] color = material == null ? new float[]{1, 1, 1, 1} : material.getDiffuseColor();
+        float[] color = cn.minerealms.assimploader.debug.MaterialDebugViews.tint(material);
         int count = vertices.length / 3;
         for (int i = 0; i + 2 < indices.length; i += 3) {
             int a = indices[i], b = indices[i + 1], c = indices[i + 2];

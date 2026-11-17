@@ -25,6 +25,12 @@ minecraft {
     runs {
         client {
             workingDirectory project.file('run')
+            if (project.hasProperty('clientLookDevSmoke')) {
+                property 'lookdevtest.enabled', 'true'
+                property 'lookdevtest.world', project.property('clientLookDevSmoke').toString()
+                if (project.hasProperty('clientVanillaPoseOnly')) property 'lookdevtest.poseOnly', 'true'
+                args '--width', '1280', '--height', '720'
+            }
             if(project.hasProperty('clientCharacterSmoke')) {
                 if(['clientBatchSmoke','clientRuntimeSmoke','clientComputeSmoke','clientHighBoneSmoke','clientDeerSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke','clientKubeJsSmoke'].any { project.hasProperty(it) })
                     throw new GradleException('clientCharacterSmoke must run independently')
@@ -178,6 +184,21 @@ minecraft {
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
+if (project.hasProperty('clientLookDevSmoke')) {
+    def resultFile = file('run/lookdev-smoke-result.json')
+    tasks.matching { it.name == 'runClient' }.configureEach {
+        doFirst {
+            if (resultFile.exists() && !resultFile.delete()) throw new GradleException('Cannot remove stale LookDev result')
+        }
+        doLast {
+            if (!resultFile.isFile()) throw new GradleException('LookDev acceptance did not produce a result')
+            def result = new groovy.json.JsonSlurper().parse(resultFile)
+            if (result.success != true) throw new GradleException("LookDev acceptance failed at ${result.stage}: ${result.failure}")
+            logger.lifecycle("LookDev acceptance ${result.run}: ${result.stages} stages passed")
+        }
+    }
+}
+
 if (project.hasProperty('clientCharacterSmoke')) {
     def resultFile = file('run/character-smoke-result.json')
     tasks.matching { it.name == 'runClient' }.configureEach {
@@ -323,16 +344,9 @@ dependencies {
         assimpNatives "org.lwjgl:lwjgl-assimp:3.3.1:natives-${nativesClassifier}"
     }
 
-    // ModernUI - hard runtime dependency, served from its own maven.
-    implementation fg.deobf("icyllis.modernui:ModernUI-Forge:${modernui_forge_version}")
-    // Core is a plain Java library. Its POM has packaging=pom, so request the jar explicitly.
-    minecraftLibrary "icyllis.modernui:ModernUI-Core:${modernui_core_version}@jar"
-    minecraftLibrary "icyllis.modernui:ModernUI-Markdown:${modernui_core_version}@jar"
-    // The Maven development adapter omits the libraries bundled by ModernUI's universal jar.
-    minecraftLibrary("com.github.ben-manes.caffeine:caffeine:3.1.7") { transitive = false }
-    minecraftLibrary("com.vladsch.flexmark:flexmark:0.64.8") {
-        exclude group: 'org.jetbrains', module: 'annotations'
-    }
+    // Dormant historical editor sources compile for reference; active LookDev is independent.
+    compileOnly "icyllis.modernui:ModernUI-Core:${modernui_core_version}@jar"
+    testRuntimeOnly "icyllis.modernui:ModernUI-Core:${modernui_core_version}@jar"
 
     // Fixed Modrinth version IDs resolve before compilation on a fresh checkout.
     // Optional mods are available in dev runs but never bundled by jarJar.

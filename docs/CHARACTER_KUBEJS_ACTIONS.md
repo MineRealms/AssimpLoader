@@ -93,8 +93,9 @@ additional use pose, define `config.poses.cast`, then use
 `{id:'example:wand', use:'cast'}`. ID and tag filters on one rule combine with AND.
 Rules are checked in order for the requested classification field.
 
-Attack keys are `[phase, pose]`, ordered from 0 to 1. A pose maps semantic roles
-to local Euler XYZ degrees. `arm`, `forearm`, `hand` target the action hand;
+Attack keys are `[phase, pose]`, ordered from 0 to 1. The demo maps semantic roles
+to model-space Euler XYZ degrees and passes `space: 'model'`, correcting imported
+bone roll through the recovered skin bind orientation. `arm`, `forearm`, `hand` target the action hand;
 `support_arm`, `support_forearm`, `support_hand` target the opposite hand.
 Left-handed playback swaps the arm roles and mirrors Y/Z rotations. Full role
 names such as `chest` and `spine` are also supported. Easing accepts `linear`,
@@ -121,14 +122,16 @@ Assimp.character().register('pack:my_player', function (frame) {
 })
 ```
 
-Use `frame.defaultAnimation()` to request the complete built-in controller,
-including its legacy full-body action selection. Use `frame.defaultMotion()`
+Use `frame.defaultAnimation()` to request the complete original player pose,
+including native held-item and attack behavior. Use `frame.defaultMotion()`
 (alias `locomotion()`) for the reusable locomotion and head-aim layer underneath
 scripted actions. Do not call both in the same tick.
 
 `Assimp.character()` supplies `register(id, callback)`, `unregister(id)`,
 `clear()`, `controllers()`, `use(id)`, `useDefault()`, `active()`, `failure()`,
 `enable(boolean)`, `profile(resource)`, `reload()` and `status()`.
+`mode()` / `mode('vanilla'|'scripted'|'clips')` and `physicsEnabled()` /
+`physicsEnabled(boolean)` expose the same independent GUI and command options.
 
 Registration/selection and profile/enable settings are allowed during top-level
 client-script loading on Forge's mod loading thread. Character handles and frame

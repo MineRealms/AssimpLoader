@@ -222,6 +222,22 @@ public final class BulletCharacterPhysics implements PoseModifier {
     }
 
     public Matrix4f bodyTransform(String id) {requireOpen();return joml(requireBody(id).body.getCenterOfMassTransform(new Transform()));}
+    public record DebugShape(Shape shape,Vector3f size,Matrix4f transform,boolean world) {}
+    public org.joml.Vector3d debugAnchor(){requireOpen();return new org.joml.Vector3d(anchorX,anchorY,anchorZ);}
+    public List<DebugShape> debugShapes(boolean includeWorld) {
+        requireOpen();var result=new ArrayList<DebugShape>();
+        for(var state:bodies.values()) {
+            var size=state.definition.size();
+            result.add(new DebugShape(state.definition.shape(),new Vector3f(size.x(),size.y(),size.z()).mul(modelScale),
+                    joml(state.body.getCenterOfMassTransform(new Transform())),false));
+        }
+        if(includeWorld)for(var state:worldBoxes.values()) {
+            var size=state.definition.halfExtents();
+            result.add(new DebugShape(Shape.BOX,new Vector3f(size.x(),size.y(),size.z()),
+                    joml(state.body.getCenterOfMassTransform(new Transform())),true));
+        }
+        return List.copyOf(result);
+    }
     public Vector3f linearVelocity(String id) {requireOpen();var value=requireBody(id).body.getLinearVelocity(new javax.vecmath.Vector3f());return new Vector3f(value.x,value.y,value.z);}
     public void applyImpulse(String id,Vector3f impulse) {requireOpen();if(impulse==null||!impulse.isFinite()||impulse.lengthSquared()>1e10f) throw new IllegalArgumentException("Invalid impulse");var body=requireBody(id).body;body.activate(true);body.applyCentralImpulse(new javax.vecmath.Vector3f(impulse.x,impulse.y,impulse.z));}
     public void applyTorqueImpulse(String id,Vector3f impulse) {requireOpen();if(impulse==null||!impulse.isFinite()||impulse.lengthSquared()>1e10f) throw new IllegalArgumentException("Invalid torque impulse");var body=requireBody(id).body;body.activate(true);body.applyTorqueImpulse(new javax.vecmath.Vector3f(impulse.x,impulse.y,impulse.z));}
