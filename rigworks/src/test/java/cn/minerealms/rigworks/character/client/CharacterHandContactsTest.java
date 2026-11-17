@@ -95,4 +95,31 @@ class CharacterHandContactsTest {
         assertEquals(before,locals,"Zero definition weight must be an exact no-op, including shear and local override keys");
         assertEquals("",contacts.statistics().rule());
     }
+
+    @Test void liveEquipmentPreviewMovesTheExistingSupportContactWithoutReinstallingTheSolver() throws Exception {
+        var scene=new AssimpModelLoader().loadModel(ROOT.resolve("block_player.fbx"),ModelImportMode.DYNAMIC);
+        CharacterProfile profile;CharacterEquipmentDefinition base;
+        try(var reader=Files.newBufferedReader(ROOT.resolve("profile.json"))){profile=CharacterProfile.read(reader);}
+        try(var reader=Files.newBufferedReader(ROOT.resolve("equipment.json"))){base=CharacterEquipmentDefinition.read(reader);}
+        var graph=new PoseGraph(scene.getRootNode(),SkinBindPose.locals(scene));
+        var target=graph.position("UpperArm.L").add(-.12f,-.25f,.3f);
+        var originalItem=base.rightHand().transform(graph.global("Hand.R"));
+        var socket=new Matrix4f(originalItem).invert().transformPosition(new Vector3f(target));
+        var rule=new CharacterGripDefinition("preview",Set.of(),Set.of(),Set.of("held"),"right",point(socket),
+                point(new Vector3f(.3f,-.5f,0)),point(new Vector3f()),CharacterProfile.Rotation.IDENTITY,2,160,1,0,false);
+        var original=new CharacterEquipmentDefinition(true,base.rightHand(),base.leftHand(),List.of(rule));
+        var current=new java.util.concurrent.atomic.AtomicReference<>(original);
+        var contacts=new CharacterHandContacts(profile,original,scene,current::get);
+        var mount=original.rightHand();
+        current.set(new CharacterEquipmentDefinition(true,new CharacterEquipmentDefinition.Mount(mount.node(),
+                new CharacterEquipmentDefinition.Position(mount.position().x()+.015f,mount.position().y(),mount.position().z()),
+                mount.rotation(),mount.scale()),original.leftHand(),original.grips()));
+        var expected=current.get().rightHand().transform(graph.global("Hand.R")).transformPosition(new Vector3f(socket));
+        assertTrue(expected.distance(target)>.01f);
+        var locals=new LinkedHashMap<>(SkinBindPose.locals(scene));
+        contacts.resolve("preview",HumanoidArm.RIGHT,new Matrix4f());
+        contacts.apply(scene,locals,0);
+        assertEquals(0,new PoseGraph(scene.getRootNode(),locals).position("Hand.L").distance(expected),2e-5);
+        assertEquals(0,contacts.statistics().error(),2e-5);
+    }
 }
