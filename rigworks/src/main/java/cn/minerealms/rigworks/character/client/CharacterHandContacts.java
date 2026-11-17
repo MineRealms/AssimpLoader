@@ -10,7 +10,7 @@ import cn.minerealms.rigworks.character.core.CharacterGripDefinition;
 import cn.minerealms.rigworks.character.core.CharacterProfile;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
@@ -32,12 +32,13 @@ public final class CharacterHandContacts implements PoseModifier {
     public record Statistics(String rule,String support,float error,boolean clamped) {}
     private record Rule(CharacterGripDefinition definition,TwoBonePoseConstraint left,TwoBonePoseConstraint right) {}
     private final CharacterProfile profile;
-    private final CharacterEquipmentDefinition equipment;
+    private final java.util.function.Supplier<CharacterEquipmentDefinition> equipmentSource;
     private final Map<String,Rule> rules=new LinkedHashMap<>();
     private final Map<HumanoidArm,Matrix4f> displays=new java.util.EnumMap<>(HumanoidArm.class);
     private final Quaternionf torsoBind;
     private final String torso;
-    private LocalPlayer observer;
+    private AbstractClientPlayer observer;
+    private CharacterEquipmentDefinition.Mount selectedMount;
     private Rule selected;
     private HumanoidArm primary;
     private float tickWeight=1;
@@ -45,7 +46,11 @@ public final class CharacterHandContacts implements PoseModifier {
     private Statistics statistics=new Statistics("","",0,false);
 
     public CharacterHandContacts(CharacterProfile profile,CharacterEquipmentDefinition equipment,AssimpScene scene) {
-        this.profile=profile;this.equipment=equipment;
+        this(profile,equipment,scene,()->equipment);
+    }
+    public CharacterHandContacts(CharacterProfile profile,CharacterEquipmentDefinition equipment,AssimpScene scene,
+                                 java.util.function.Supplier<CharacterEquipmentDefinition> equipmentSource) {
+        this.profile=profile;this.equipmentSource=java.util.Objects.requireNonNull(equipmentSource);
         var torsoBone=profile.bone("chest")==null?profile.bone("hips"):profile.bone("chest");
         if(torsoBone==null)throw new IllegalArgumentException("Grips need a chest or hips mapping");
         torso=torsoBone.node();
@@ -73,8 +78,9 @@ public final class CharacterHandContacts implements PoseModifier {
     public List<String> rules(){return cn.minerealms.assimploader.util.ReadOnlyList.copyOf(rules.keySet());}
 
     /** Resets script overrides each tick; no per-bone script callbacks or item lookups occur during solving. */
-    public void prepare(LocalPlayer player,boolean enabled) {
+    public void prepare(AbstractClientPlayer player,boolean enabled) {
         observer=player;this.enabled=enabled;selected=null;tickWeight=1;displays.clear();
+        var equipment=equipmentSource.get();
         if(!enabled||!equipment.enabled()||player.isDeadOrDying()||player.isSpectator())return;
         var using=player.isUsingItem()?player.getUsedItemHand():null;
         for(var rule:rules.values()) {
@@ -97,11 +103,17 @@ public final class CharacterHandContacts implements PoseModifier {
         return rule.items().contains(BuiltInRegistries.ITEM.getKey(item.getItem()).toString())
                 ||item.getTags().anyMatch(tag->rule.tags().contains(tag.location().toString()));
     }
-    private void display(LocalPlayer player,ItemStack item,HumanoidArm arm) {
+    private void display(AbstractClientPlayer player,ItemStack item,HumanoidArm arm) {
         var context=arm==HumanoidArm.LEFT?ItemDisplayContext.THIRD_PERSON_LEFT_HAND:ItemDisplayContext.THIRD_PERSON_RIGHT_HAND;
         var model=Minecraft.getInstance().getItemRenderer().getModel(item,player.level(),player,player.getId()+context.ordinal());
         var pose=new PoseStack();ForgeHooksClient.handleCameraTransforms(pose,model,context,arm==HumanoidArm.LEFT);
         displays.put(arm,new Matrix4f(pose.last().pose()));
+        String state = player.isUsingItem() && player.getUseItem() == item ? "using" : CrossbowItem.isCharged(item) ? "charged" : "held";
+        selectedMount = equipmentSource.get().select(arm == HumanoidArm.LEFT ? "left" : "right",
+                BuiltInRegistries.ITEM.getKey(item.getItem()).toString(),
+                item.getTags().map(tag -> tag.location().toString()).collect(java.util.stream.Collectors.toSet()), state,
+                item.getUseAnimation().name().toLowerCase(java.util.Locale.ROOT),
+                arm == HumanoidArm.LEFT ? "third_person_left_hand" : "third_person_right_hand");
     }
     /** Explicit script policy may choose a rule without duplicating its item selectors. */
     public void select(String id,boolean mainHand) {
@@ -114,6 +126,7 @@ public final class CharacterHandContacts implements PoseModifier {
     public void resolve(String id,HumanoidArm primary,Matrix4f itemDisplay) {
         Rule rule=rules.get(id);if(rule==null||!itemDisplay.isFinite())throw new IllegalArgumentException("Invalid resolved hand contact");
         this.primary=primary;displays.put(primary,new Matrix4f(itemDisplay));selected=rule;enabled=true;
+        selectedMount = null;
     }
     public void weight(double value){if(!Double.isFinite(value)||value<0||value>1)throw new IllegalArgumentException("Contact weight in [0,1] required");tickWeight=(float)value;}
     public void disable(){selected=null;}
@@ -121,8 +134,11 @@ public final class CharacterHandContacts implements PoseModifier {
     @Override public Set<String> controlledBones(){if(rules.isEmpty())return Set.of();return Set.of(node("left","upper_arm"),node("left","forearm"),node("left","hand"),node("right","upper_arm"),node("right","forearm"),node("right","hand"));}
     @Override public void apply(AssimpScene scene,Map<String,Matrix4f> locals,double delta) {
         if(!enabled||selected==null||tickWeight==0||selected.definition.weight()==0){statistics=new Statistics("","",0,false);return;}
+        var equipment=equipmentSource.get();
+        if(!equipment.enabled()){statistics=new Statistics("","",0,false);return;}
         var rule=selected.definition;String side=primary==HumanoidArm.RIGHT?"left":"right";
-        var mount=primary==HumanoidArm.LEFT?equipment.leftHand():equipment.rightHand();
+        var mount=selectedMount!=null?selectedMount:primary==HumanoidArm.LEFT?equipment.leftHand():equipment.rightHand();
+        if (mount == null) return;
         var graph=new PoseGraph(scene.getRootNode(),locals);
         String shoulder=node(side,"upper_arm"),hand=node(side,"hand");
         if(graph.isAncestor(shoulder,mount.node()))throw new IllegalArgumentException("Support arm cannot own its primary item socket");
