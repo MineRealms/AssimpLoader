@@ -1,27 +1,29 @@
 package cn.minerealms.assimploader.lookdev.ui;
 
 import cn.minerealms.assimploader.AssimpLoader;
+import cn.minerealms.assimploader.client.ui.FlatUi;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.lookdev.preview.LoadedModelCatalog;
 import cn.minerealms.assimploader.lookdev.preview.PreviewCamera;
 import cn.minerealms.assimploader.lookdev.preview.PreviewGpuRenderer;
 import cn.minerealms.assimploader.lookdev.preview.PreviewSceneData;
 import cn.minerealms.assimploader.model.AssimpScene;
+import cn.minerealms.assimploader.model.AssimpNode;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /** A render-thread Minecraft screen. Legacy ModernUI editor fragments are not instantiated. */
 public final class LoadedModelsScreen extends Screen {
-    private static final int ROW_HEIGHT = 28;
+    private static final int ROW_HEIGHT = 32, LIST_TOP = 92;
     private final PreviewCamera camera = new PreviewCamera();
     private List<LoadedModelCatalog.Entry> models = List.of();
     private List<LoadedModelCatalog.Entry> filtered = List.of();
@@ -42,6 +44,9 @@ public final class LoadedModelsScreen extends Screen {
     private boolean renderFailed;
     private boolean previewRendered;
     private String dimensions = "";
+    private List<NodeRow> nodes = List.of();
+    private int firstNode;
+    private record NodeRow(AssimpNode node, int depth) {}
 
     public LoadedModelsScreen() {
         super(Component.literal("LookDev"));
@@ -49,15 +54,15 @@ public final class LoadedModelsScreen extends Screen {
 
     @Override
     protected void init() {
-        sidebar = Math.max(112, Math.min(210, width / 3));
-        addRenderableWidget(Button.builder(Component.translatable("screen.assimploader.preview"), button -> setTab(false))
-                .bounds(84, 5, 62, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("screen.assimploader.nodes"), button -> setTab(true))
-                .bounds(149, 5, 52, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("x"), button -> onClose())
-                .bounds(width - 26, 5, 20, 20).tooltip(Tooltip.create(Component.translatable("gui.done"))).build());
+        sidebar = Math.max(132, Math.min(260, width / 3));
+        addRenderableWidget(FlatUi.choice(sidebar + 10, 10, 72, 26,
+                Component.translatable("screen.assimploader.preview"), () -> !nodesTab, button -> setTab(false)));
+        addRenderableWidget(FlatUi.choice(sidebar + 84, 10, 64, 26,
+                Component.translatable("screen.assimploader.nodes"), () -> nodesTab, button -> setTab(true)));
+        addRenderableWidget(FlatUi.icon(width - 36, 10, FlatUi.Icon.CLOSE,
+                Component.translatable("gui.done"), button -> onClose()));
         String query = search == null ? "" : search.getValue();
-        search = new EditBox(font, 8, 37, sidebar - 16, 18, Component.translatable("screen.assimploader.filter"));
+        search = FlatUi.field(font, 10, 54, sidebar - 20, 26, Component.translatable("screen.assimploader.filter"));
         search.setMaxLength(256);
         search.setHint(Component.translatable("screen.assimploader.filter"));
         search.setValue(query);
@@ -66,15 +71,15 @@ public final class LoadedModelsScreen extends Screen {
             firstRow = 0;
         });
         addRenderableWidget(search);
-        int toolX = sidebar + 8;
-        fit = addRenderableWidget(Button.builder(Component.translatable("screen.assimploader.fit"), button -> fitCamera(false))
-                .bounds(toolX, 35, 36, 20).build());
-        reset = addRenderableWidget(Button.builder(Component.translatable("screen.assimploader.reset"), button -> fitCamera(true))
-                .bounds(toolX + 40, 35, 44, 20).build());
-        zoomOut = addRenderableWidget(Button.builder(Component.literal("-"), button -> camera.zoom(-1))
-                .bounds(toolX + 88, 35, 20, 20).tooltip(Tooltip.create(Component.translatable("screen.assimploader.zoom_out"))).build());
-        zoomIn = addRenderableWidget(Button.builder(Component.literal("+"), button -> camera.zoom(1))
-                .bounds(toolX + 112, 35, 20, 20).tooltip(Tooltip.create(Component.translatable("screen.assimploader.zoom_in"))).build());
+        int toolX = sidebar + 10;
+        fit = addRenderableWidget(FlatUi.icon(toolX, 54, FlatUi.Icon.FIT,
+                Component.translatable("screen.assimploader.fit"), button -> fitCamera(false)));
+        reset = addRenderableWidget(FlatUi.icon(toolX + 30, 54, FlatUi.Icon.RESET,
+                Component.translatable("screen.assimploader.reset"), button -> fitCamera(true)));
+        zoomOut = addRenderableWidget(FlatUi.icon(toolX + 68, 54, FlatUi.Icon.MINUS,
+                Component.translatable("screen.assimploader.zoom_out"), button -> camera.zoom(-1)));
+        zoomIn = addRenderableWidget(FlatUi.icon(toolX + 98, 54, FlatUi.Icon.PLUS,
+                Component.translatable("screen.assimploader.zoom_in"), button -> camera.zoom(1)));
         refreshCatalog();
         fitCamera(false);
         updateControls();
@@ -136,12 +141,21 @@ public final class LoadedModelsScreen extends Screen {
         renderFailed = false;
         previewRendered = false;
         sceneData = selected == null ? null : new PreviewSceneData(selected.scene());
+        firstNode = 0;
+        var hierarchy = new ArrayList<NodeRow>();
+        if (selected != null) collectNodes(selected.scene().getRootNode(), 0, hierarchy);
+        nodes = List.copyOf(hierarchy);
         if (sceneData != null) {
             Vector3f size = sceneData.size();
             dimensions = String.format(Locale.ROOT, "%.3g x %.3g x %.3g", size.x, size.y, size.z);
         } else dimensions = "";
         fitCamera(true);
         if (fit != null) updateControls();
+    }
+
+    private static void collectNodes(AssimpNode node, int depth, List<NodeRow> rows) {
+        rows.add(new NodeRow(node, depth));
+        for (AssimpNode child : node.getChildren()) collectNodes(child, depth + 1, rows);
     }
 
     private void releaseRenderer() {
@@ -153,63 +167,70 @@ public final class LoadedModelsScreen extends Screen {
     }
 
     private int previewX() { return sidebar + 1; }
-    private int previewY() { return 62; }
+    private int previewY() { return 90; }
     private int previewWidth() { return Math.max(1, width - previewX()); }
     private int previewHeight() { return Math.max(1, height - previewY() - 24); }
-    private int listBottom() { return Math.max(64, height - 78); }
-    private int visibleRows() { return Math.max(1, (listBottom() - 64) / ROW_HEIGHT); }
+    private int listBottom() { return Math.max(LIST_TOP + ROW_HEIGHT, height - 82); }
+    private int visibleRows() { return Math.max(1, (listBottom() - LIST_TOP) / ROW_HEIGHT); }
+    private int visibleNodes() { return Math.max(1, (previewHeight() - 32) / 24); }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, width, height, 0xff17191c);
-        graphics.fill(0, 30, sidebar, height, 0xff222529);
-        graphics.fill(sidebar, 30, width, 61, 0xff25292d);
-        graphics.fill(sidebar, 30, sidebar + 1, height, 0xff42484c);
-        graphics.fill(previewX(), previewY(), width, height - 24, 0xff30363a);
-        graphics.drawString(font, title, 8, 11, 0xffe9edef, false);
+        graphics.fill(0, 0, width, height, FlatUi.BACKGROUND);
+        graphics.fill(0, 0, width, 46, FlatUi.SURFACE);
+        graphics.fill(0, 46, sidebar, height, FlatUi.SURFACE);
+        graphics.fill(sidebar, 46, width, 89, 0xff24282c);
+        graphics.fill(sidebar, 46, sidebar + 1, height, FlatUi.LINE);
+        graphics.fill(0, 45, width, 46, FlatUi.LINE);
+        graphics.fill(sidebar, 89, width, 90, FlatUi.LINE);
+        graphics.fill(previewX(), previewY(), width, height - 24, 0xff282d31);
+        graphics.drawString(font, "ASSIMPLOADER", 12, 11, FlatUi.ACCENT, false);
+        graphics.drawString(font, title, 12, 27, FlatUi.TEXT, false);
         renderModelList(graphics, mouseX, mouseY);
         renderSelectionInfo(graphics);
-        super.render(graphics, mouseX, mouseY, partialTick);
         graphics.flush();
         if (!nodesTab && selected != null && !renderFailed) renderPreview();
-        if (!nodesTab && renderFailed) {
-            graphics.drawCenteredString(font, Component.translatable("screen.assimploader.preview_failed"),
-                    previewX() + previewWidth() / 2, previewY() + previewHeight() / 2, 0xffe8b8a5);
-        }
+        if (nodesTab) renderNodes(graphics, mouseX, mouseY);
+        else if (renderFailed || selected == null) graphics.drawCenteredString(font,
+                renderFailed ? Component.translatable("screen.assimploader.preview_failed") : Component.literal("No model selected"),
+                previewX() + previewWidth() / 2, previewY() + previewHeight() / 2, renderFailed ? FlatUi.ERROR : FlatUi.MUTED);
+        super.render(graphics, mouseX, mouseY, partialTick);
         renderHoveredName(graphics, mouseX, mouseY);
     }
 
     private void renderModelList(GuiGraphics graphics, int mouseX, int mouseY) {
-        graphics.enableScissor(0, 62, sidebar, listBottom());
+        graphics.enableScissor(0, LIST_TOP, sidebar, listBottom());
         for (int row = 0; row < visibleRows() && firstRow + row < filtered.size(); row++) {
             LoadedModelCatalog.Entry entry = filtered.get(firstRow + row);
-            int y = 64 + row * ROW_HEIGHT;
+            int y = LIST_TOP + row * ROW_HEIGHT;
             boolean active = selected != null && entry.scene() == selected.scene();
             boolean hover = mouseX >= 0 && mouseX < sidebar && mouseY >= y && mouseY < y + ROW_HEIGHT;
-            if (active || hover) graphics.fill(3, y, sidebar - 3, y + ROW_HEIGHT - 1,
-                    active ? 0xff3b5957 : 0xff32383c);
+            if (active || hover) graphics.fill(0, y, sidebar, y + ROW_HEIGHT - 1,
+                    active ? FlatUi.SELECTED : 0xff2c3238);
+            if (active) graphics.fill(0, y, 2, y + ROW_HEIGHT - 1, FlatUi.ACCENT);
             String name = entry.name();
             int mode = name.lastIndexOf('#');
             if (mode >= 0) name = name.substring(0, mode);
             int slash = name.lastIndexOf('/');
             if (slash >= 0) name = name.substring(slash + 1);
-            graphics.drawString(font, clipped(name, sidebar - 20), 9, y + 3, 0xffe9edef, false);
-            graphics.drawString(font, entry.scene().getImportMode().name(), 9, y + 15, 0xff9ca9ae, false);
+            graphics.drawString(font, clipped(name, sidebar - 24), 12, y + 5, active ? FlatUi.ACCENT : FlatUi.TEXT, false);
+            graphics.drawString(font, entry.scene().getImportMode().name(), 12, y + 18, FlatUi.MUTED, false);
         }
-        if (filtered.isEmpty()) graphics.drawString(font, Component.translatable("screen.assimploader.models", 0), 9, 70, 0xff9ca9ae, false);
+        if (filtered.isEmpty()) graphics.drawString(font, Component.literal(models.isEmpty() ? "No loaded models" : "No matches"), 12, LIST_TOP + 8, FlatUi.MUTED, false);
         if (filtered.size() > visibleRows()) {
-            int trackHeight = Math.max(1, listBottom() - 64);
+            int trackHeight = Math.max(1, listBottom() - LIST_TOP);
             int thumb = Math.max(8, trackHeight * visibleRows() / filtered.size());
             int position = (trackHeight - thumb) * firstRow / Math.max(1, filtered.size() - visibleRows());
-            graphics.fill(sidebar - 3, 64, sidebar - 1, listBottom(), 0xff30373a);
-            graphics.fill(sidebar - 3, 64 + position, sidebar - 1, 64 + position + thumb, 0xff80948e);
+            graphics.fill(sidebar - 3, LIST_TOP, sidebar - 1, listBottom(), FlatUi.LINE);
+            graphics.fill(sidebar - 3, LIST_TOP + position, sidebar - 1, LIST_TOP + position + thumb, FlatUi.ACCENT);
         }
         graphics.disableScissor();
     }
 
     private void renderSelectionInfo(GuiGraphics graphics) {
-        int y = Math.max(64, height - 69);
-        graphics.fill(0, y - 5, sidebar, y - 4, 0xff42484c);
+        int y = Math.max(LIST_TOP + ROW_HEIGHT, height - 69);
+        graphics.fill(0, y - 8, sidebar, y - 7, FlatUi.LINE);
+        graphics.fill(sidebar, height - 24, width, height - 23, FlatUi.LINE);
         graphics.drawString(font, Component.translatable("screen.assimploader.models", models.size()), 8, y, 0xff9ca9ae, false);
         if (selected != null && sceneData != null) {
             AssimpScene scene = selected.scene();
@@ -222,6 +243,38 @@ public final class LoadedModelsScreen extends Screen {
             if (previewWidth() > 380) graphics.drawString(font, dimensions,
                     width - font.width(dimensions) - 8, height - 17, 0xff9ca9ae, false);
         }
+    }
+
+    private void renderNodes(GuiGraphics graphics, int mouseX, int mouseY) {
+        int x = previewX() + 12, y = previewY() + 11;
+        graphics.drawString(font, "Scene hierarchy", x, y, FlatUi.MUTED, false);
+        String count = Integer.toString(nodes.size());
+        graphics.drawString(font, count, width - 14 - font.width(count), y, FlatUi.MUTED, false);
+        graphics.enableScissor(previewX(), previewY() + 26, width, height - 24);
+        for (int row = 0; row < visibleNodes() && firstNode + row < nodes.size(); row++) {
+            NodeRow entry = nodes.get(firstNode + row);
+            int yy = previewY() + 30 + row * 24;
+            boolean hovered = mouseX >= previewX() && mouseX < width && mouseY >= yy && mouseY < yy + 24;
+            if (hovered) graphics.fill(previewX(), yy - 2, width, yy + 21, 0xff343c42);
+            int indent = Math.min(entry.depth() * 12, previewWidth() / 3);
+            if (entry.depth() > 0) {
+                graphics.fill(x + indent - 7, yy - 6, x + indent - 6, yy + 5, FlatUi.LINE);
+                graphics.fill(x + indent - 6, yy + 4, x + indent - 2, yy + 5, FlatUi.LINE);
+            }
+            String suffix = entry.node().getMeshIndices().length == 0 ? "" : "  [" + entry.node().getMeshIndices().length + "]";
+            graphics.drawString(font, clipped(entry.node().getName() + suffix, previewWidth() - indent - 28),
+                    x + indent, yy + 1, entry.node().getMeshIndices().length == 0 ? FlatUi.TEXT : FlatUi.ACCENT, false);
+        }
+        if (nodes.size() > visibleNodes()) {
+            int trackY = previewY() + 28, trackHeight = Math.max(1, previewHeight() - 34);
+            int thumb = Math.max(8, trackHeight * visibleNodes() / nodes.size());
+            int offset = (trackHeight - thumb) * firstNode / Math.max(1, nodes.size() - visibleNodes());
+            graphics.fill(width - 4, trackY, width - 2, trackY + trackHeight, FlatUi.LINE);
+            graphics.fill(width - 4, trackY + offset, width - 2, trackY + offset + thumb, FlatUi.ACCENT);
+        }
+        graphics.disableScissor();
+        if (nodes.isEmpty()) graphics.drawCenteredString(font, Component.literal("No scene nodes"),
+                previewX() + previewWidth() / 2, previewY() + previewHeight() / 2, FlatUi.MUTED);
     }
 
     private void renderPreview() {
@@ -243,9 +296,13 @@ public final class LoadedModelsScreen extends Screen {
     }
 
     private void renderHoveredName(GuiGraphics graphics, int x, int y) {
-        if (x < 0 || x >= sidebar || y < 64 || y >= listBottom()) return;
-        int index = firstRow + (y - 64) / ROW_HEIGHT;
-        if (index < filtered.size()) graphics.renderTooltip(font, Component.literal(filtered.get(index).name()), x, y);
+        if (nodesTab && x >= previewX() && x < width && y >= previewY() + 30 && y < height - 24) {
+            int index = firstNode + (y - previewY() - 30) / 24;
+            if (index < nodes.size()) graphics.renderTooltip(font, Component.literal(nodes.get(index).node().getName()), x, y);
+        } else if (x >= 0 && x < sidebar && y >= LIST_TOP && y < listBottom()) {
+            int index = firstRow + (y - LIST_TOP) / ROW_HEIGHT;
+            if (index < filtered.size()) graphics.renderTooltip(font, Component.literal(filtered.get(index).name()), x, y);
+        }
     }
 
     private String clipped(String value, int maxWidth) {
@@ -261,8 +318,8 @@ public final class LoadedModelsScreen extends Screen {
     public boolean mouseClicked(double x, double y, int button) {
         if (super.mouseClicked(x, y, button)) return true;
         search.setFocused(false);
-        if (button == 0 && x >= 0 && x < sidebar && y >= 64 && y < listBottom()) {
-            int index = firstRow + ((int) y - 64) / ROW_HEIGHT;
+        if (button == 0 && x >= 0 && x < sidebar && y >= LIST_TOP && y < listBottom()) {
+            int index = firstRow + ((int) y - LIST_TOP) / ROW_HEIGHT;
             if (index < filtered.size()) select(filtered.get(index));
             return true;
         }
@@ -292,7 +349,11 @@ public final class LoadedModelsScreen extends Screen {
     @Override
     public boolean mouseScrolled(double x, double y, double amount) {
         if (inPreview(x, y)) { camera.zoom(amount); return true; }
-        if (x >= 0 && x < sidebar && y >= 62 && y < listBottom()) {
+        if (nodesTab && x >= previewX() && x < width && y >= previewY() && y < height - 24) {
+            firstNode = Math.max(0, Math.min(Math.max(0, nodes.size() - visibleNodes()), firstNode - (int)Math.signum(amount) * 3));
+            return true;
+        }
+        if (x >= 0 && x < sidebar && y >= LIST_TOP && y < listBottom()) {
             firstRow = Math.max(0, Math.min(Math.max(0, filtered.size() - visibleRows()),
                     firstRow - (int) Math.signum(amount) * Math.max(1, (int) Math.abs(amount))));
             return true;
@@ -303,8 +364,8 @@ public final class LoadedModelsScreen extends Screen {
     @Override
     public boolean keyPressed(int key, int scanCode, int modifiers) {
         if (search.isFocused()) return super.keyPressed(key, scanCode, modifiers);
-        if (key == GLFW.GLFW_KEY_F) { fitCamera(false); return true; }
-        if (key == GLFW.GLFW_KEY_R) { fitCamera(true); return true; }
+        if (!nodesTab && key == GLFW.GLFW_KEY_F) { fitCamera(false); return true; }
+        if (!nodesTab && key == GLFW.GLFW_KEY_R) { fitCamera(true); return true; }
         return super.keyPressed(key, scanCode, modifiers);
     }
 
