@@ -214,6 +214,14 @@ public class SkinnedMeshVBO {
         unbind();
     }
 
+    public void render(cn.minerealms.assimploader.model.AssimpMesh mesh) {
+        var selection = MeshDrawSelection.current();
+        if (selection == null) { render(); return; }
+        bind();
+        try { selection.drawBound(mesh, false); }
+        finally { unbind(); }
+    }
+
     /**
      * Delete GPU resources
      */
