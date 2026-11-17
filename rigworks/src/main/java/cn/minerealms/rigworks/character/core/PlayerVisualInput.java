@@ -7,7 +7,8 @@ public record PlayerVisualInput(long sequence, double timeSeconds,
                                 boolean onGround, boolean crouching, boolean sprinting,
                                 boolean jumping, boolean falling, boolean swimming, boolean flying,
                                 boolean elytra, boolean riding, boolean sleeping, boolean dead,
-                                boolean usingItem, boolean swinging, SwingAction swingAction) {
+                                boolean usingItem, boolean swinging, SwingAction swingAction,
+                                PlayerActionState actionState) {
     /** Accepted game swing, not raw mouse clicks. Generation identifies retriggers while still active. */
     public record SwingAction(long generation, boolean active, float progress) {
         public SwingAction {
@@ -17,6 +18,7 @@ public record PlayerVisualInput(long sequence, double timeSeconds,
     }
 
     public PlayerVisualInput {
+        if (actionState == null) actionState = PlayerActionState.DEFAULT;
         if (sequence < 0 || !Double.isFinite(timeSeconds) || timeSeconds < 0
                 || !Double.isFinite(forwardVelocity) || !Double.isFinite(strafeVelocity)
                 || !Double.isFinite(verticalVelocity) || !Double.isFinite(Math.hypot(forwardVelocity, strafeVelocity))
@@ -32,8 +34,21 @@ public record PlayerVisualInput(long sequence, double timeSeconds,
                              boolean elytra, boolean riding, boolean sleeping, boolean dead,
                              boolean usingItem, boolean swinging) {
         this(sequence,timeSeconds,forwardVelocity,strafeVelocity,verticalVelocity,bodyYawDegrees,headYawDegrees,headPitchDegrees,
-                onGround,crouching,sprinting,jumping,falling,swimming,flying,elytra,riding,sleeping,dead,usingItem,swinging,null);
+                onGround,crouching,sprinting,jumping,falling,swimming,flying,elytra,riding,sleeping,dead,usingItem,swinging,null,null);
     }
+
+    public PlayerVisualInput(long sequence, double timeSeconds,
+                             double forwardVelocity, double strafeVelocity, double verticalVelocity,
+                             float bodyYawDegrees, float headYawDegrees, float headPitchDegrees,
+                             boolean onGround, boolean crouching, boolean sprinting,
+                             boolean jumping, boolean falling, boolean swimming, boolean flying,
+                             boolean elytra, boolean riding, boolean sleeping, boolean dead,
+                             boolean usingItem, boolean swinging, SwingAction swingAction) {
+        this(sequence,timeSeconds,forwardVelocity,strafeVelocity,verticalVelocity,bodyYawDegrees,headYawDegrees,headPitchDegrees,
+                onGround,crouching,sprinting,jumping,falling,swimming,flying,elytra,riding,sleeping,dead,usingItem,swinging,swingAction,null);
+    }
+
+    public boolean crawling() { return actionState.crawling(swimming); }
 
     public double horizontalSpeed() { return Math.hypot(forwardVelocity, strafeVelocity); }
     public static Builder builder(long sequence, double timeSeconds) { return new Builder(sequence, timeSeconds); }
@@ -46,6 +61,7 @@ public record PlayerVisualInput(long sequence, double timeSeconds,
         private boolean onGround = true, crouching, sprinting, jumping, falling, swimming, flying,
                 elytra, riding, sleeping, dead, usingItem, swinging;
         private SwingAction swingAction;
+        private PlayerActionState actionState = PlayerActionState.DEFAULT;
 
         private Builder(long sequence, double time) { this.sequence = sequence; this.time = time; }
         public Builder motion(double forward, double strafe, double vertical) {
@@ -67,13 +83,14 @@ public record PlayerVisualInput(long sequence, double timeSeconds,
         public Builder dead(boolean value) { dead = value; return this; }
         public Builder usingItem(boolean value) { usingItem = value; return this; }
         public Builder swinging(boolean value) { swinging = value; return this; }
+        public Builder actionState(PlayerActionState value) { actionState = java.util.Objects.requireNonNull(value); return this; }
         public Builder swingAction(long generation, boolean active, float progress) {
             swingAction = new SwingAction(generation,active,progress); return this;
         }
         public PlayerVisualInput build() {
             return new PlayerVisualInput(sequence, time, forward, strafe, vertical, bodyYaw, headYaw, headPitch,
                     onGround, crouching, sprinting, jumping, falling, swimming, flying, elytra, riding,
-                    sleeping, dead, usingItem, swinging, swingAction);
+                    sleeping, dead, usingItem, swinging, swingAction, actionState);
         }
     }
 }
