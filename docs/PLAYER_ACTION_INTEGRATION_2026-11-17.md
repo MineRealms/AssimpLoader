@@ -65,7 +65,16 @@ all five demo attacks against the imported FBX and verifies hand movement.
 the actual Minecraft renderer/model and Mixin in an active client world. It checks
 head pitch, crouch, walk, three swim phases, flight pitch, ride/sleep, item arm
 poses and four attack phases without mutating the real player's inputs/save.
-Its results identify uncovered cases explicitly. Run it with:
+Its results identify uncovered cases explicitly.
+
+Runtime run `1794883594421` passed. At pitch -60/+60 the visible face Y direction
+was +0.8660/-0.8660. Crouch lowered the head by 0.2275 model metres. Three swim
+phases changed arm direction by 1.2528 and leg direction by 0.5649 (unit-vector
+distance). Elytra body Y was +0.8660/0/-0.8660 at pitch -60/0/+60. The actual arm
+dispatcher selected ITEM, BOW_AND_ARROW, BLOCK and CROSSBOW_CHARGE; four attack
+phases changed arm direction by 1.0773. The real player's state was unchanged.
+
+Run it with:
 
 ```text
 gradlew runClient -PwithKubeJS -PclientLookDevSmoke=Character_BlockPlayer_Acceptance -PclientVanillaPoseOnly
