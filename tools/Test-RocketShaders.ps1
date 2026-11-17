@@ -7,6 +7,16 @@ $output = Join-Path $repoRoot 'build\rocket-shader-validation'
 $null = New-Item -ItemType Directory -Path $output -Force
 $utf8 = [Text.UTF8Encoding]::new($false)
 if (!(Test-Path -LiteralPath $Validator)) { throw "Validator not found: $Validator" }
+foreach ($relative in @('lib\pipelineSettings.glsl', 'program\assimploader_exhaust.glsl')) {
+    $directives = [IO.File]::ReadAllText((Join-Path $shaderRoot $relative))
+    foreach ($directive in [regex]::Matches($directives, 'const\s+vec4\s+(\w+ClearColor)\s*=\s*vec4\(([^)]+)\)\s*;')) {
+        $components = $directive.Groups[2].Value.Split(',')
+        if ($components.Count -ne 4) { throw "Oculus requires four literal components: $($directive.Groups[1].Value) in $relative" }
+        foreach ($component in $components) {
+            $null = [single]::Parse($component.Trim(), [Globalization.CultureInfo]::InvariantCulture)
+        }
+    }
+}
 function Expand-Includes([string]$ShaderPath, [int]$Depth = 0) {
     if ($Depth -gt 32) { throw "Shader include depth: $ShaderPath" }
     $source = [IO.File]::ReadAllText($ShaderPath)
@@ -31,19 +41,22 @@ foreach ($dimension in @('world0','world-1','world1')) {
         if ($LASTEXITCODE -ne 0) { throw "GLSL validation failed: $expanded" }
     }
 }
-foreach ($program in @('composite3','gbuffers_terrain','gbuffers_block','gbuffers_entities','gbuffers_hand')) {
-    $source = Expand-Includes (Join-Path $shaderRoot "world0\$program.fsh")
-    $source = $source.Replace('#version 130', "#version 130`n#extension GL_ARB_shading_language_420pack : enable`n#define IS_IRIS`n#define MC_VERSION 12001")
-    $expanded = Join-Path $output "$program.fsh"
-    [IO.File]::WriteAllText($expanded, $source, $utf8)
-    & $Validator -S frag $expanded
-    if ($LASTEXITCODE -ne 0) { throw "GLSL validation failed: $expanded" }
+foreach ($program in @('composite3','composite6','deferred1','gbuffers_terrain','gbuffers_block','gbuffers_entities','gbuffers_hand')) {
+    foreach ($materialMode in @(1, 3)) {
+        $source = Expand-Includes (Join-Path $shaderRoot "world0\$program.fsh")
+        $source = $source.Replace('#version 130', "#version 130`n#extension GL_ARB_shading_language_420pack : enable`n#define IS_IRIS`n#define MC_VERSION 12001")
+        $source = [regex]::Replace($source, '(?m)^(\s*#define RP_MODE )\d+(\s*//.*)$', "`${1}$materialMode`${2}")
+        $expanded = Join-Path $output "$program-rp$materialMode.fsh"
+        [IO.File]::WriteAllText($expanded, $source, $utf8)
+        & $Validator -S frag $expanded
+        if ($LASTEXITCODE -ne 0) { throw "GLSL validation failed: $expanded" }
+    }
 }
-$coreRoot = Join-Path $repoRoot 'src\main\resources\assets\assimploader\shaders'
+$coreRoot = Join-Path $repoRoot 'src\showcase\resources\assets\assimploader\shaders'
 $core = [IO.File]::ReadAllText((Join-Path $coreRoot 'core\exhaust_volume.fsh'))
 $core = $core.Replace('// ASSIMP_EXHAUST_INCLUDE', [IO.File]::ReadAllText((Join-Path $coreRoot 'include\exhaust_volume.glsl')))
 $expanded = Join-Path $output 'vanilla-volume.fsh'
 [IO.File]::WriteAllText($expanded, $core, $utf8)
 & $Validator -S frag $expanded
 if ($LASTEXITCODE -ne 0) { throw 'Vanilla GLSL validation failed.' }
-Write-Output 'Validated 12 expanded rocket shader variants.'
+Write-Output 'Validated 21 expanded shader variants, including LabPBR entity temporal paths.'
