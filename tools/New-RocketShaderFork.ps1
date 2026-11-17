@@ -27,7 +27,7 @@ if ((Get-FileHash -LiteralPath $SourceZip -Algorithm SHA256).Hash -ne $expectedH
 }
 
 $templateRoot = Join-Path $PSScriptRoot 'rocket-shader'
-$sharedSource = Join-Path $repoRoot 'src\main\resources\assets\assimploader\shaders\include\exhaust_volume.glsl'
+$sharedSource = Join-Path $repoRoot 'src\showcase\resources\assets\assimploader\shaders\include\exhaust_volume.glsl'
 $ownedFiles = @(
     $sharedSource,
     (Join-Path $templateRoot 'composite2.glsl'),
@@ -226,6 +226,7 @@ finally {
 }
 
 & $materialPatcher -Destination $Destination
+& (Join-Path $PSScriptRoot 'Patch-RocketEntityTemporal.ps1') -Destination $Destination
 
 if ((Get-FileHash -LiteralPath $SourceZip -Algorithm SHA256).Hash -ne $expectedHash) {
     throw 'Unexpected source ZIP change detected.'
