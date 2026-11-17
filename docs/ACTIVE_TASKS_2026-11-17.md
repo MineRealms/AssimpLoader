@@ -1,6 +1,6 @@
 # Active Work - 2026-11-17
 
-Status: in progress. This document tracks the current user requests, not a claim
+Status: completed for the scope below. This document tracks the current user requests, not a claim
 that all older expansion proposals have already been delivered.
 
 ## Player Animation Compatibility
@@ -51,8 +51,11 @@ that all older expansion proposals have already been delivered.
 - [x] Run focused actual-FBX and original-pose regressions, then build/test gates.
 - [x] Validate the new runtime paths with Oculus and KubeJS.
 - [x] Wait at least ten seconds after asset/stage changes before screenshots.
-- [ ] Commit coherent changes incrementally and push verified commits.
-- [ ] Leave an Oculus-enabled manual client available for user inspection.
+- [x] Commit coherent changes incrementally and push verified commits.
+- [x] Leave an Oculus-enabled manual client available for user inspection.
+      Detached manual launch on 2026-11-17; Oculus/Embeddium initialized and the
+      installed action template loaded with zero KubeJS errors. Enter a world and
+      press L; Player defaults to Vanilla, with Scripted selectable for combos.
 
 ## Scope Boundaries
 
