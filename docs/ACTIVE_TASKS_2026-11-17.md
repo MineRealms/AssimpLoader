@@ -1,5 +1,23 @@
 # Active Work - 2026-11-17
 
+## Follow-up: Module Split and Data-driven Runtime
+
+This section supersedes the old completion statement below for new requests.
+
+- [x] Correct the dates of the earliest 51 commits; preserve all later timestamps and commit contents.
+- [x] Split player integration into the independent `:rigworks` Gradle project and Mod.
+- [x] Split Showcase into a separate Mod/source set and JAR.
+- [x] Move gameplay registries, networking, commands and world writes out of the engine.
+- [x] Extract animation clock, model visibility, item contract and optional UI/diagnostic providers.
+- [x] Build three isolated artifacts and compile the combined development harness.
+- [ ] Verify the three Mods load together with Oculus and KubeJS.
+- [ ] Finish and test the generic JSON/KubeJS shader parameter bridge.
+- [ ] Close swimming, bow/crossbow contact and fishing endpoint regressions with geometric checks.
+- [ ] Deliver reusable JSON/KubeJS processor examples and clarify remaining graph work.
+
+The design and the distinction between current APIs and future work are recorded in
+`MODULE_SPLIT_AND_DATA_DRIVEN_PLAN_2026-11-17.md`.
+
 Status: completed for the scope below. This document tracks the current user requests, not a claim
 that all older expansion proposals have already been delivered.
 
