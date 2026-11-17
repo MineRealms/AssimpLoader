@@ -46,6 +46,22 @@ class CharacterProfileTest {
         assertEquals(.02, minimal.movementThreshold());
     }
 
+    @Test void nativeNeutralRotationIsOptionalNormalizedAndIndependentOfAxisCorrection() {
+        var profile = read("""
+                {"version":1,"model":"example:avatar.fbx","humanoid":{
+                 "right_upper_arm":{"node":"Arm.R","nativeRotation":[0,0,2,2]},"head":"Head"}}
+                """);
+        assertEquals(CharacterProfile.Rotation.IDENTITY, profile.bone("head").nativeRotation());
+        assertEquals(CharacterProfile.Rotation.IDENTITY, profile.bone("right_upper_arm").referenceRotation());
+        assertEquals(Math.sqrt(.5), profile.bone("right_upper_arm").nativeRotation().z(), 1e-6);
+        profile.bone("right_upper_arm").nativeRotation().quaternion().identity();
+        assertEquals(Math.sqrt(.5), profile.bone("right_upper_arm").nativeRotation().w(), 1e-6);
+        assertThrows(IllegalArgumentException.class, () -> read("""
+                {"version":1,"model":"example:avatar.fbx","humanoid":{
+                 "head":{"node":"Head","nativeRotation":[0,0,0,0]}}}
+                """));
+    }
+
     @Test void rejectsUnknownSchemaInvalidTypesAndNonFiniteOrDegenerateTransforms() {
         for (String extra : new String[]{"\"version\":2", "\"scale\":0", "\"scale\":101", "\"scale\":\"1\"",
                 "\"movementThreshold\":-1", "\"blendSeconds\":-1", "\"headLook\":{\"enabled\":\"yes\"}",
