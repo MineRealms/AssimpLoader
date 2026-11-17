@@ -18,6 +18,7 @@ Missing IDs, dependency cycles, and dependencies on later categories are rejecte
 when the candidate plan is compiled. Dependencies express ordering; they do not
 force a disabled solver to execute or override performance settings. Pose and
 Morph passes both honor the existing IK/Spring performance gates.
+Plans accept at most 512 modifiers and 64 dependencies per modifier.
 
 Physics and Spring stages are exclusive writers of their declared bones: two
 Physics stages, two Spring stages, or a Physics/Spring pair cannot declare the
@@ -72,6 +73,9 @@ tracking remains available for a later retry.
 
 `state.evaluationSchedule()` and `model.schedule()` return the same immutable
 diagnostic list. Each entry includes `id`, `category`, `after` and `bones`.
+Its immutable list implementations have public declaring classes so pinned
+Rhino can read `size`, `get`, `contains` and iterators on Java 17 without module
+reflection overrides.
 This describes the compiled ordering, including currently disabled stages; use
 performance and processor controls to inspect activation separately. Dependency
 metadata is snapshotted on compilation. Change it by replacing/reinstalling the

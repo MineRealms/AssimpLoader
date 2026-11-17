@@ -1,5 +1,7 @@
 package cn.minerealms.assimploader.animation;
 
+import cn.minerealms.assimploader.util.ReadOnlyList;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -21,9 +23,9 @@ public final class PoseEvaluationPlan {
 
     private PoseEvaluationPlan(List<Stage> stages) {
         this.stages = List.copyOf(stages);
-        diagnostic = stages.stream().map(stage -> Map.<String, Object>of("id", stage.id(),
-                "category", stage.category().name(), "after", stage.dependencies().stream().sorted().toList(),
-                "bones", stage.bones().stream().sorted().toList())).toList();
+        diagnostic = ReadOnlyList.copyOf(stages.stream().map(stage -> Map.<String, Object>of("id", stage.id(),
+                "category", stage.category().name(), "after", ReadOnlyList.copyOf(stage.dependencies().stream().sorted().toList()),
+                "bones", ReadOnlyList.copyOf(stage.bones().stream().sorted().toList()))).toList());
     }
 
     public static PoseEvaluationPlan compile(Map<String, ? extends PoseModifier> modifiers) {

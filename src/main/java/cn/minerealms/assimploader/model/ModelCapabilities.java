@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.model;
 
 import cn.minerealms.assimploader.material.PbrMaterialInputs;
+import cn.minerealms.assimploader.util.ReadOnlyList;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,8 +39,8 @@ public final class ModelCapabilities {
                 var defaults = new ArrayList<Float>();
                 for (float weight : mesh.getDefaultMorphWeights()) defaults.add(weight);
                 morphMeshes.add(Map.of("index", mesh.getIndex(), "name", mesh.getName(), "method", mesh.getMorphMethod(),
-                        "targets", mesh.getMorphTargets().stream().map(target -> target.getName()).toList(),
-                        "defaultWeights", List.copyOf(defaults)));
+                        "targets", ReadOnlyList.copyOf(mesh.getMorphTargets().stream().map(target -> target.getName()).toList()),
+                        "defaultWeights", ReadOnlyList.copyOf(defaults)));
             }
         }
         var clips = new ArrayList<Map<String, Object>>();
@@ -62,7 +63,7 @@ public final class ModelCapabilities {
             texture(textures, "metallic", inputs.metallic()); texture(textures, "occlusion", inputs.occlusion());
             texture(textures, "emissive", inputs.emissive());
             materials.add(Map.of("index", material.getIndex(), "name", material.getName(), "workflow", inputs.workflow().name(),
-                    "hasPbrInputs", inputs.hasPbrInputs(), "textures", List.copyOf(textures),
+                    "hasPbrInputs", inputs.hasPbrInputs(), "textures", ReadOnlyList.copyOf(textures),
                     "roughnessFactor", inputs.roughnessFactor(), "metallicFactor", inputs.metallicFactor(),
                     "factorProvenance", "imported_or_adapter_default", "unsupportedUv", inputs.hasUnsupportedUv()));
         }
@@ -77,16 +78,16 @@ public final class ModelCapabilities {
         inventory.put("apiVersion", 1);
         inventory.put("source", Collections.unmodifiableMap(source));
         inventory.put("mesh", Map.of("imported", imported(meshes.size()), "count", meshes.size(), "vertices", vertices,
-                "triangles", triangles, "items", List.copyOf(meshes), "attributeProvenance", "imported_or_importer_generated"));
+                "triangles", triangles, "items", ReadOnlyList.copyOf(meshes), "attributeProvenance", "imported_or_importer_generated"));
         inventory.put("skin", Map.of("imported", imported(skinned), "meshCount", skinned, "boneCount", bones.size(),
-                "bones", List.copyOf(bones), "runtime", scene.isDynamic() ? "supported_if_imported" : "requires_dynamic_import",
+                "bones", ReadOnlyList.copyOf(bones), "runtime", scene.isDynamic() ? "supported_if_imported" : "requires_dynamic_import",
                 "gpuEligibility", "not_evaluated", "sourcePresence", "unknown"));
-        inventory.put("clips", Map.of("imported", imported(clips.size()), "count", clips.size(), "items", List.copyOf(clips),
+        inventory.put("clips", Map.of("imported", imported(clips.size()), "count", clips.size(), "items", ReadOnlyList.copyOf(clips),
                 "runtime", scene.isDynamic() ? "supported_if_imported" : "requires_dynamic_import", "sourcePresence", "unknown"));
         inventory.put("morph", Map.of("imported", imported(targets), "targetCount", targets, "channelCount", morphChannels,
-                "meshes", List.copyOf(morphMeshes), "runtime", scene.isDynamic() ? "supported_if_imported" : "requires_dynamic_import",
+                "meshes", ReadOnlyList.copyOf(morphMeshes), "runtime", scene.isDynamic() ? "supported_if_imported" : "requires_dynamic_import",
                 "sourcePresence", "unknown"));
-        inventory.put("pbr", Map.of("imported", imported(pbrCount), "materialCount", pbrCount, "items", List.copyOf(materials),
+        inventory.put("pbr", Map.of("imported", imported(pbrCount), "materialCount", pbrCount, "items", ReadOnlyList.copyOf(materials),
                 "runtime", "supported_uv0_inputs_with_render_fallback", "unsupportedUv", unsupportedUv,
                 "textureResolution", "not_evaluated", "activeShader", "not_evaluated"));
         inventory.put("authoring", Map.of(

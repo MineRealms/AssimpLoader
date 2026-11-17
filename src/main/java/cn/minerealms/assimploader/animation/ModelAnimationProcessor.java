@@ -190,7 +190,7 @@ public final class ModelAnimationProcessor implements PoseModifier {
     }
     public String source(){return source;}
     public boolean isClosed(){return closed;}
-    public List<String> controls(){checkOpen();return List.copyOf(controls.keySet());}
+    public List<String> controls(){checkOpen();return cn.minerealms.assimploader.util.ReadOnlyList.copyOf(controls.keySet());}
     public void enabled(boolean value){checkOpen();enabled=value;}
     public boolean enabled(){checkOpen();return enabled;}
     public void enabled(String name,boolean value){control(name).enabled=value;}
