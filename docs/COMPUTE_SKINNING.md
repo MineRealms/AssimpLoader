@@ -3,7 +3,9 @@
 The existing Assimp scenes, immutable poses and Minecraft material draw path
 remain the inputs. The optional OpenGL 4.3 backend deforms vertices once per
 snapshot identity, retains the output in a vertex buffer, and draws it through
-the existing skinned material shader with vertex skinning disabled.
+the existing skinned material shader with vertex skinning disabled. With Oculus,
+a second compute pass scatters deformed geometry into Oculus's extended ENTITY
+vertex buffer; the shader pack still owns material shading and the final draw.
 
 ```toml
 [performance]
@@ -14,7 +16,8 @@ computeSkinningOwners = 128
 
 The default is disabled. Missing GL 4.3, incompatible scenes, a buffer exceeding
 the driver SSBO limit, or exhausted budgets retain vertex/CPU fallback. Oculus
-continues to use its existing compatible submission and posed-buffer path.
+uses the same opt-in for its extended posed-buffer path. Transparent materials
+no longer disable accelerated opaque meshes across an entire scene.
 `gpuSkinningEnabled = false` and optimization `FALLBACK` still take precedence.
 
 ## Scope And Lifetime
@@ -24,6 +27,12 @@ continues to use its existing compatible submission and posed-buffer path.
   match `MorphDeformation`. Normals use inverse-transpose skin matrices.
 - Four SSBOs: immutable 112-byte bind vertices, palette, immutable Morph deltas,
   and 32-byte output vertices. The output becomes a VBO without CPU readback.
+- Oculus additionally retains the pack-compatible extended ENTITY VBO. A
+  per-triangle scatter writes positions, normalized normals and animated UV
+  tangents; color, UV, mid-UV and PBR attributes stay resident. Constant light,
+  overlay and entity IDs are supplied through the established draw bridge.
+- Opaque materials draw before alpha-blended materials. The original material
+  RenderTypes and shader-pack programs remain responsible for blending/PBR.
 - A 128 MiB per-mesh hard limit complements the configurable total budget and
   driver limits. Counts and byte estimates are checked before allocations.
 - LRU eviction operates on owners. A client tick releases closed owners and
@@ -35,12 +44,18 @@ continues to use its existing compatible submission and posed-buffer path.
   array-buffer bindings are restored. A vertex-fetch memory barrier precedes
   drawing; the buffer-update barrier also permits explicit diagnostic readback.
 
-Inputs and shader programs currently belong to each resident owner/mesh entry.
-This makes allocation accounting and eviction explicit, but duplicates immutable
-input data across owners. No MDI, shared crowd arena, occlusion culling or worker
+Inputs currently belong to each resident owner/mesh entry, while both compute
+programs are shared with reference-counted lifetime. Immutable input data is
+still duplicated across owners. No MDI, shared crowd arena, occlusion culling or worker
 thread dispatch is claimed. Interpolation can cause a new dispatch each frame.
 Automatic selection stays disabled until representative workload measurements
 show a benefit over the existing vertex shader.
+
+For Oculus, inspect `OculusEntityBufferCache.poseStatistics()` and
+`gpuPoseStatistics()`. A changing pose should increase GPU dispatches while CPU
+VBO uploads stop after initialization. Main/shadow passes reuse the same pose.
+The extended buffers and compute inputs are charged to the configured cache
+budgets, and a compute failure returns to CPU-deformed VBO submission.
 
 ## Acceptance
 
@@ -64,6 +79,11 @@ This fixture weights all
 
 Cached-draw timestamps and warmed submission measurements from this fixture do
 not measure continuous-changing-pose Compute cost or prove an FPS improvement.
+
+The focused `OculusPoseComputeTest` checks the actual 56-byte Oculus 1.8 layout,
+including tangents crossing a 32-bit word at byte 50. Enable
+`ASSIMPLOADER_GL_TESTS=1` to compile and dispatch the real GLSL in a separate
+hidden GLFW context, checking geometry, tangents and unchanged material bytes.
 
 Synchronization follows the Khronos specifications:
 [Compute Shader](https://wikis.khronos.org/opengl/Compute_Shader),
