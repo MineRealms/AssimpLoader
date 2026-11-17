@@ -164,6 +164,21 @@ class RenderPoseInterpolationTest {
                 PoseSnapshot.capture(1, AnimationTestScenes.create(), Map.of()), .5f));
     }
 
+    @Test void reflectedNonUniformScaleStillInterpolatesAndKeepsSnapshotInputsIndependent() {
+        var scene = MorphTargetTest.fixture();
+        Matrix4f from = new Matrix4f().translation(2, 3, 4).rotateY(.3f).scale(-2, 3, .5f);
+        Matrix4f to = new Matrix4f().translation(6, 5, 2).rotateY(.8f).scale(-4, 1, 2);
+        PoseSnapshot a = PoseSnapshot.capture(1, scene, Map.of("MorphNode", from));
+        PoseSnapshot b = PoseSnapshot.capture(2, scene, Map.of("MorphNode", to));
+        Matrix4f expected = AnimationBlender.blendTransforms(from, to, .25f);
+        from.zero();
+        to.zero();
+        Matrix4f actual = PoseSnapshot.interpolate(-1, a, b, .25f).getNodeTransform("MorphNode");
+        assertTrue(expected.equals(actual, 1e-5f));
+        assertEquals(3, actual.m30(), 1e-5f);
+        assertTrue(actual.isFinite());
+    }
+
     @Test void blenderSkinAndMorphIntermediatePalettesKeepEveryVertexInsideBounds() throws Exception {
         String resource = "/assets/assimploader/models/validation/animation_probe_morph.glb";
         try (var input = getClass().getResourceAsStream(resource)) {
