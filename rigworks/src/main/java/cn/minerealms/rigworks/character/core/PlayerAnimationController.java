@@ -5,6 +5,7 @@ import cn.minerealms.assimploader.animation.AnimationState;
 import cn.minerealms.assimploader.animation.ModelInstance;
 import cn.minerealms.assimploader.animation.PoseGraph;
 import cn.minerealms.assimploader.animation.PoseModifier;
+import cn.minerealms.assimploader.animation.AnimationPoseLayer;
 import cn.minerealms.assimploader.animation.ik.LookAtModifier;
 import cn.minerealms.assimploader.model.AssimpScene;
 import org.joml.Matrix4f;
@@ -21,7 +22,8 @@ import java.util.Set;
 public final class PlayerAnimationController implements AutoCloseable {
     public enum Intent {
         IDLE, WALK, RUN, WALK_BACKWARD, STRAFE_LEFT, STRAFE_RIGHT, CROUCH, CROUCH_WALK,
-        JUMP, FALL, SWIM, FLY, ELYTRA, RIDE, SLEEP, DEAD, USE_ITEM, SWING;
+        JUMP, FALL, SWIM, FLY, ELYTRA, RIDE, SLEEP, DEAD, USE_ITEM, SWING,
+        CRAWL, CRAWL_IDLE, LADDER_UP, LADDER_DOWN, LADDER_IDLE, WATER_IDLE, LAVA, RIPTIDE, FROZEN, HURT, LAND;
         private final String key = name().toLowerCase(Locale.ROOT);
         public String key() { return key; }
     }
@@ -31,6 +33,7 @@ public final class PlayerAnimationController implements AutoCloseable {
     private record Resolved(Intent intent, String name, boolean stateBinding) {}
     private static final String HEAD_MODIFIER = "character:head-look";
     private static final String TRAVEL_MODIFIER = "character:travel-aim";
+    private static final String ACTION_LAYER = "character:upper-action";
     private static final Map<Intent, Intent[]> FALLBACKS = Map.ofEntries(
             Map.entry(Intent.IDLE, new Intent[]{Intent.IDLE}),
             Map.entry(Intent.RUN, new Intent[]{Intent.RUN, Intent.WALK, Intent.IDLE}),
@@ -58,6 +61,11 @@ public final class PlayerAnimationController implements AutoCloseable {
     private float cadenceOriginalSpeed;
     private long swingGeneration = -1;
     private Selection selection;
+    private AnimationPoseLayer upperAction;
+    private String upperClip;
+    private long upperSwing = -1;
+    private Map<String, Float> upperMask;
+    private VanillaPoseSelection compatibility = VanillaPoseSelection.ALL;
 
     public PlayerAnimationController(CharacterProfile profile, ModelInstance instance) {
         this(profile, Objects.requireNonNull(instance, "Character instance").animation());
@@ -102,6 +110,94 @@ public final class PlayerAnimationController implements AutoCloseable {
     public CharacterProfile profile() { return profile; }
     public Selection lastSelection() { return selection; }
     public boolean hasHeadLook() { return headAim != null; }
+
+    /** Production policy: authored locomotion continues under an independently masked action layer. */
+    public VanillaPoseSelection updateCompatible(PlayerVisualInput input) {
+        var base = new PlayerVisualInput(input.sequence(), input.timeSeconds(), input.forwardVelocity(), input.strafeVelocity(),
+                input.verticalVelocity(), input.bodyYawDegrees(), input.headYawDegrees(), input.headPitchDegrees(),
+                input.onGround(), input.crouching(), input.sprinting(), input.jumping(), input.falling(), input.swimming(),
+                input.flying(), input.elytra(), input.riding(), input.sleeping(), input.dead(), false, false,
+                input.swingAction() == null ? null : new PlayerVisualInput.SwingAction(input.swingAction().generation(), false, 0), input.actionState());
+        var selected = update(base);
+        if (!selected.accepted()) return compatibility;
+        boolean wholeBody = requiresNativeFallback(selected.requested(), selected.selected());
+        boolean suppressAction = input.dead() || input.sleeping() || input.actionState().riptide();
+        boolean swing = !suppressAction && input.swingAction() != null && input.swingAction().active();
+        Intent action = suppressAction ? null : input.usingItem() ? Intent.USE_ITEM : swing ? Intent.SWING
+                : input.actionState().hurtTicks() > 0 ? Intent.HURT : null;
+        Resolved resolved = action == null ? null : resolveOne(action);
+        if (resolved != null && !wholeBody && !upperBodyMask().isEmpty()) {
+            String clip = resolved.stateBinding ? animation.getStateMachine().getBindings().get(resolved.name).clip() : resolved.name;
+            boolean retrigger = action == Intent.SWING && input.swingAction().generation() != upperSwing;
+            if (upperAction == null || !clip.equals(upperClip)) {
+                upperAction = animation.setLayer(ACTION_LAYER, clip, 1, false, upperBodyMask());
+                upperClip = clip;
+            }
+            var player = upperAction.getPlayer();
+            player.setLooping(action == Intent.USE_ITEM);
+            if (retrigger) { player.stop(); player.play(); }
+            if (action == Intent.SWING) { player.synchronizePhase(input.swingAction().progress()); upperSwing = input.swingAction().generation(); }
+            else player.releaseSynchronizedPhase();
+            upperAction.setWeight(1);
+        } else clearUpperAction();
+        boolean nativeAction = action != null && upperAction == null;
+        boolean nativeLeft = nativeAction || input.actionState().leftHeld();
+        boolean nativeRight = nativeAction || input.actionState().rightHeld();
+        // A custom action owns both arms. Root/legs remain entirely owned by the locomotion clip.
+        if (upperAction != null) nativeLeft = nativeRight = false;
+        compatibility = wholeBody ? VanillaPoseSelection.ALL : new VanillaPoseSelection(true,
+                nativeAction && swing, true, input.actionState().hurtTicks() > 0 && upperAction == null ? 1 : 0,
+                0, 1, nativeLeft ? 1 : 0, nativeRight ? 1 : 0, 0, 0);
+        if (wholeBody && travelAim != null) travelAim.enabled = false;
+        return compatibility;
+    }
+
+    public VanillaPoseSelection compatibilitySelection() { return compatibility; }
+
+    /** Missing locomotion can degrade within its family; missing special poses must use native sampling. */
+    public static boolean requiresNativeFallback(Intent requested, Intent selected) {
+        if (selected == requested) return false;
+        return switch (requested) {
+            case RUN, WALK_BACKWARD, STRAFE_LEFT, STRAFE_RIGHT -> selected != Intent.WALK;
+            case IDLE, WALK -> selected == null;
+            default -> true;
+        };
+    }
+
+    private Map<String, Float> upperBodyMask() {
+        if (upperMask != null) return upperMask;
+        var mask = new java.util.LinkedHashMap<String, Float>();
+        for (String role : new String[]{"spine", "chest", "upper_chest", "left_upper_arm", "right_upper_arm"}) {
+            var bone = profile.bone(role);
+            if (bone == null) continue;
+            var node = animation.getScene().findNodeByName(bone.node());
+            if (node != null) addMask(node, mask);
+        }
+        for (String role : new String[]{"left_thigh", "right_thigh"}) {
+            var bone = profile.bone(role);
+            if (bone == null) continue;
+            var node = animation.getScene().findNodeByName(bone.node());
+            if (node != null) removeMask(node, mask);
+        }
+        var hips = profile.bone("hips");
+        if (hips != null) mask.remove(hips.node());
+        return upperMask = Map.copyOf(mask);
+    }
+
+    private static void addMask(cn.minerealms.assimploader.model.AssimpNode node, Map<String, Float> mask) {
+        mask.put(node.getName(), 1f);
+        for (var child : node.getChildren()) addMask(child, mask);
+    }
+
+    private static void removeMask(cn.minerealms.assimploader.model.AssimpNode node, Map<String, Float> mask) {
+        mask.remove(node.getName());
+        for (var child : node.getChildren()) removeMask(child, mask);
+    }
+
+    private void clearUpperAction() {
+        if (upperAction != null && !animation.isClosed()) animation.removeLayer(ACTION_LAYER);
+        upperAction = null; upperClip = null; upperSwing = -1;
+    }
 
     /** Call once per new client tick before the animation manager evaluates its next pose. */
     public Selection update(PlayerVisualInput input) {
@@ -167,10 +263,17 @@ public final class PlayerAnimationController implements AutoCloseable {
     private Intent select(PlayerVisualInput input, boolean jumpEdge, boolean swingEdge) {
         if (input.dead()) return Intent.DEAD;
         if (input.sleeping()) return Intent.SLEEP;
+        if (input.actionState().riptide()) return Intent.RIPTIDE;
         if (input.riding()) return Intent.RIDE;
         if (input.elytra()) return Intent.ELYTRA;
         if (input.swimming()) return Intent.SWIM;
+        if (input.crawling()) return input.horizontalSpeed() > profile.movementThreshold() ? Intent.CRAWL : Intent.CRAWL_IDLE;
+        if (input.actionState().climbing()) return input.verticalVelocity() > .05 ? Intent.LADDER_UP
+                : input.verticalVelocity() < -.05 ? Intent.LADDER_DOWN : Intent.LADDER_IDLE;
+        if (input.actionState().inLava()) return Intent.LAVA;
+        if (input.actionState().inWater() && !input.onGround()) return Intent.WATER_IDLE;
         if (input.flying()) return Intent.FLY;
+        if (input.actionState().frozen()) return Intent.FROZEN;
         if (input.usingItem()) return Intent.USE_ITEM;
         if (profile.timing().swingSync() && input.swingAction() != null) {
             if (input.swingAction().active()) return Intent.SWING;
@@ -179,6 +282,7 @@ public final class PlayerAnimationController implements AutoCloseable {
         if (jumpEdge && (input.onGround() || input.verticalVelocity() > .01)
                 || !input.onGround() && input.verticalVelocity() > .01) return Intent.JUMP;
         if (!input.onGround()) return Intent.FALL;
+        if (input.actionState().airPhase() == PlayerActionState.AirPhase.LANDING && resolveOne(Intent.LAND) != null) return Intent.LAND;
         boolean moving = input.horizontalSpeed() > profile.movementThreshold();
         if (input.crouching()) return moving ? Intent.CROUCH_WALK : Intent.CROUCH;
         if (!moving) return Intent.IDLE;
@@ -266,6 +370,7 @@ public final class PlayerAnimationController implements AutoCloseable {
         requireOpen(); lastSequence = -1; lastTime = -1; previousJump = previousSwing = false;
         swingGeneration = -1; releaseSwingClock(); releaseCadence();
         activeSwing = null; selection = null; if (headAim != null) headAim.enabled = false;
+        clearUpperAction(); compatibility = VanillaPoseSelection.ALL;
         if (travelAim != null) travelAim.enabled = false;
     }
 
@@ -275,6 +380,7 @@ public final class PlayerAnimationController implements AutoCloseable {
     @Override public void close() {
         if (closed) return;
         closed = true; activeSwing = null; releaseSwingClock(); releaseCadence();
+        clearUpperAction();
         if (!animation.isClosed() && headAim != null && animation.getModifier(HEAD_MODIFIER) == headAim)
             animation.removeModifier(HEAD_MODIFIER);
         if (!animation.isClosed() && travelAim != null && animation.getModifier(TRAVEL_MODIFIER) == travelAim)
