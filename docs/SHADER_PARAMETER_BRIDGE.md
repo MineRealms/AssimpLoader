@@ -37,7 +37,7 @@ There are at most 32 groups with 64 uniforms each. A uniform name has one active
 owner across all groups, because several groups may target the same program.
 Replacing or clearing a group retains disabled values for its retired names so
 that previously written GL values do not remain active. This history is bounded
-at 2,048 names; excessive renaming is rejected. `clear()` clears all script groups,
+at 2,048 active plus retired names; excessive renaming is rejected. `clear()` clears all script groups,
 so ordinary scripts should disable their own group instead.
 
 ## Evaluation And Lifetime
@@ -45,7 +45,12 @@ so ordinary scripts should disable their own group instead.
 Commands run on the client thread. Java uploads numeric snapshots when an Oculus
 program is bound; no JavaScript executes inside the draw or vertex loop. Uniform
 locations belong to the actual program object, avoiding recycled GL ID caches.
-Resource/world cleanup restores declarative defaults. Explicitly disable a group
+Retired disabled values upload first, native providers second, and active script
+groups last. Removing a script therefore allows an existing native provider to
+restore its own defaults; an actively disabled script group still overrides it.
+Rebuilding KubeJS client bindings retires old script declarations on the client
+thread, including declarations from deleted scripts. Resource/world cleanup
+restores declarative defaults. Explicitly disable a group
 on logout if its JSON defaults enable it.
 
 The hook currently targets the supported Oculus 1.8.0 program implementation.

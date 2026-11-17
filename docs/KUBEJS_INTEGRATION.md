@@ -3,7 +3,12 @@
 Player action policies, editable Mo' Bends-style presets, native attack clocks,
 procedural bone layers and character solver/physics controls are documented in
 [KubeJS player actions](CHARACTER_KUBEJS_ACTIONS.md). The complete opt-in template
-is [assimp_player_actions.js](../examples/kubejs/client_scripts/assimp_player_actions.js).
+is [rigworks_player_actions.js](../rigworks/examples/kubejs/client_scripts/rigworks_player_actions.js).
+
+After the module split, the generic `Assimp` binding belongs to AssimpLoader;
+player policy uses the optional `RigWorks` binding, and server deer controls
+belong to AssimpShowcase. See [module ownership](MODULE_SPLIT_AND_DATA_DRIVEN_PLAN_2026-11-17.md),
+[animation processors](ANIMATION_PROCESSORS.md), and [shader parameters](SHADER_PARAMETER_BRIDGE.md).
 
 Optional integration for Minecraft 1.20.1 / Forge. Development verification pins
 KubeJS `2001.6.5-build.26`, Rhino `2001.2.2-build.17`, and Architectury `9.1.12`.

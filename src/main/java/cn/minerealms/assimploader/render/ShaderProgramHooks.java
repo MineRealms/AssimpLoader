@@ -49,6 +49,7 @@ public final class ShaderProgramHooks {
         providers.put(java.util.Objects.requireNonNull(id),java.util.Objects.requireNonNull(provider));
     }
     public static void bound(Binding binding) {
+        ScriptShaderParameters.uploadRetired(binding);
         for(var provider:providers.values())provider.accept(binding);
         ScriptShaderParameters.upload(binding);
     }

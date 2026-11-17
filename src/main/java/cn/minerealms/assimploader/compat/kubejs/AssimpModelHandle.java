@@ -74,7 +74,7 @@ public final class AssimpModelHandle {
         return reloadProcessor(id,source);
     }
     /** Inline declarations compile only when this method is called; retain their ID and update numeric controls each tick. */
-    public AssimpModelHandle processor(String id,Map<String,Object> definition) {
+    public AssimpModelHandle processorDefinition(String id,Map<String,Object> definition) {
         var compiled=ModelAnimationProcessor.compile(live().getScene(),JSON.toJsonTree(java.util.Objects.requireNonNull(definition)).getAsJsonObject());
         return installProcessor(id,compiled);
     }

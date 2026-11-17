@@ -51,9 +51,11 @@ each tick with the same ID/resource is an inexpensive lookup and does not parse
 JSON, read a file, allocate players or reset playback. Changed resources must be
 applied with `reloadProcessor`. A rebuilt model instance compiles independently.
 
-`processor(id, object)` accepts an inline declaration and explicitly compiles a
+`processorDefinition(id, object)` accepts an inline declaration and explicitly compiles a
 replacement on each call. Use it at initialization or after changing a definition,
 not for per-tick weight changes. Resource declarations are the preferred route.
+Separate method names avoid Rhino's ambiguous conversion of JavaScript objects
+to overloaded Java `String` and `Map` arguments.
 
 Reload validates all bones, clips, masks, values and owned IK chains before
 replacing either installed stage. Failure preserves the previous processor and

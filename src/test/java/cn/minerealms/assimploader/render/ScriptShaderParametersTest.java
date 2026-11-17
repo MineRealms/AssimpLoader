@@ -51,4 +51,19 @@ class ScriptShaderParametersTest {
         assertFalse(registry.retired.containsKey("u_old"));
         assertEquals(4, registry.passes.get("pack:other").parameters.get("u_old").value[0]);
     }
+
+    @Test void lifetimeBudgetKeepsReloadCleanupPossibleWithoutDiscardingDisabledWrites() {
+        var registry = new ScriptShaderParameters.Registry();
+        for (int index=0;index<2048;index++)
+            registry.define("pack:a", definition("u_"+index, "float", "1"));
+        var original=registry.passes.get("pack:a");
+        assertThrows(IllegalArgumentException.class,
+                ()->registry.define("pack:b", definition("u_overflow", "float", "1")));
+        assertSame(original,registry.passes.get("pack:a"));
+        registry.reset();
+        assertEquals(2048,registry.retired.size());
+        assertTrue(registry.passes.isEmpty());
+        assertDoesNotThrow(()->registry.define("pack:b",definition("u_0","float","2")));
+        assertDoesNotThrow(registry::reset);
+    }
 }

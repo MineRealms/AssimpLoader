@@ -8,10 +8,10 @@ import org.lwjgl.opengl.GL20C;
 import java.util.Map;
 
 /** Explicit acceptance only: no user shader sources or pack files are modified. */
-final class ShaderParameterGpuChecks {
+public final class ShaderParameterGpuChecks {
     private ShaderParameterGpuChecks() {}
 
-    static Map<String,Object> verify() {
+    public static Map<String,Object> verify() {
         int previous=GL11C.glGetInteger(GL20C.GL_CURRENT_PROGRAM);
         int vertex=0,fragment=0,program=0;
         try {
@@ -34,6 +34,7 @@ final class ShaderParameterGpuChecks {
             GL20C.glAttachShader(program,vertex);GL20C.glAttachShader(program,fragment);GL20C.glLinkProgram(program);
             require(GL20C.glGetProgrami(program,GL20C.GL_LINK_STATUS)!=0,GL20C.glGetProgramInfoLog(program));
             GL20C.glUseProgram(program);
+            ScriptShaderParameters.requestReset();
             ScriptShaderParameters.define("acceptance:gpu","assimploader:shader_parameters/acceptance.json");
             ScriptShaderParameters.enabled("acceptance:gpu",true);
             ScriptShaderParameters.set("acceptance:gpu","assimpAcceptanceInt",new double[]{7});
@@ -50,8 +51,16 @@ final class ShaderParameterGpuChecks {
             ShaderProgramHooks.bound(binding);
             require(GL20C.glGetUniformi(program,location(program,"assimpAcceptanceInt"))==0,"Disabled integer uniform");
             check(program,"assimpAcceptanceVec3",new float[]{0,0,0});
+            ScriptShaderParameters.enabled("acceptance:gpu",true);
+            ShaderProgramHooks.bound(binding);
+            require(GL20C.glGetUniformi(program,location(program,"assimpAcceptanceInt"))==7,"Reenabled uniform");
+            // Binding reload may be requested off-thread; all GL writes happen on the next bind.
+            ScriptShaderParameters.requestReset();
+            ShaderProgramHooks.bound(binding);
+            require(GL20C.glGetUniformi(program,location(program,"assimpAcceptanceInt"))==0,"Reload did not retire old uniform");
+            check(program,"assimpAcceptanceVec3",new float[]{0,0,0});
             require(GL11C.glGetError()==GL11C.GL_NO_ERROR,"Uniform bridge produced an OpenGL error");
-            return Map.of("passed",true,"types",5,"disabledValues",true,"typeMismatchSkipped",true);
+            return Map.of("passed",true,"types",5,"disabledValues",true,"typeMismatchSkipped",true,"reloadRetirement",true);
         } finally {
             GL20C.glUseProgram(previous);
             if(program!=0)GL20C.glDeleteProgram(program);

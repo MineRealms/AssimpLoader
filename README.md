@@ -10,6 +10,9 @@
 loads all three in development, including Oculus by default.
 The dependency boundaries and JSON/KubeJS design are documented in
 [the split report](docs/MODULE_SPLIT_AND_DATA_DRIVEN_PLAN_2026-11-17.md).
+Current evidence and remaining limits are in [module validation](docs/MODULE_SPLIT_VALIDATION_2026-11-17.md).
+Reusable [animation processors](docs/ANIMATION_PROCESSORS.md) and
+[shader parameters](docs/SHADER_PARAMETER_BRIDGE.md) use JSON definitions with KubeJS controls.
 
 Minecraft Forge 1.20.1 的 Assimp 模型加载、动画渲染和 LookDev 预览工具。
 

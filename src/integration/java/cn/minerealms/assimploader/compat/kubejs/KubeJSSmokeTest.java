@@ -47,18 +47,23 @@ public final class KubeJSSmokeTest {
         }
         public Probe create(String name) throws Exception {
             if(!name.equals("highbone_probe")&&!name.equals("deer_showcase")&&!name.equals("block_player")) throw new IllegalArgumentException("Unknown acceptance fixture");
-            String base=name.equals("block_player")?"/assets/rigworks/models/character/block_player/block_player":"/assets/assimploader/models/validation/"+name;
+            String namespace=name.equals("block_player")?"rigworks":"assimploader";
+            String base=name.equals("block_player")?"models/character/block_player/block_player":"models/validation/"+name;
             String extension=name.equals("block_player")?".fbx":".glb";
-            try(var model=KubeJSSmokeTest.class.getResourceAsStream(base+extension);
-                var definition=KubeJSSmokeTest.class.getResourceAsStream(base+".instance.json")) {
-                if(model==null||definition==null) throw new IllegalStateException("Missing acceptance fixture");
+            var resources=Minecraft.getInstance().getResourceManager();
+            // Other mods own these assets; Java module-local class resources cannot see them after extraction.
+            try(var model=resources.open(new net.minecraft.resources.ResourceLocation(namespace,base+extension));
+                var definition=resources.open(new net.minecraft.resources.ResourceLocation(namespace,base+".instance.json"))) {
                 var scene=new AssimpModelLoader().loadModelFromMemory(base+extension,model.readAllBytes(),ModelImportMode.DYNAMIC);
                 AssimpModelLoader.registerModel(new net.minecraft.resources.ResourceLocation("assimploader","models/validation/"+name+".glb"),scene);
                 var instance=ModelInstanceDefinition.read(new InputStreamReader(definition,StandardCharsets.UTF_8)).instantiate(scene);
                 return new Probe(instance.animation());
             }
         }
-        public void success() {result="ok";AssimpLoader.LOGGER.info("[KubeJSAssimp] JavaScript assertions passed");}
+        public void success() {
+            var gpu=cn.minerealms.assimploader.client.ShaderParameterGpuChecks.verify();
+            result="ok";AssimpLoader.LOGGER.info("[KubeJSAssimp] JavaScript assertions passed; GPU shader parameters {}",gpu);
+        }
         public void failure(String error) {result=error;AssimpLoader.LOGGER.error("[KubeJSAssimp] JavaScript assertion failed: {}",error);}
     }
     public static final class Probe implements AutoCloseable {

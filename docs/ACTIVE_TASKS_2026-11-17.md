@@ -11,14 +11,20 @@ This section supersedes the old completion statement below for new requests.
 - [x] Extract animation clock, model visibility, item contract and optional UI/diagnostic providers.
 - [x] Build three isolated artifacts and compile the combined development harness.
 - [x] Verify the three Mods load together with Oculus and KubeJS.
-- [ ] Finish and test the generic JSON/KubeJS shader parameter bridge.
-- [ ] Close swimming, bow/crossbow contact and fishing endpoint regressions with geometric checks.
+- [x] Finish and test the generic JSON/KubeJS shader parameter bridge.
+- [x] Correct physical limb sides, standard/slim native retargeting, default bow/crossbow delegation and fishing endpoint math.
 - [x] Deliver reusable JSON/KubeJS processor examples and clarify remaining graph work.
 
-Checkpoint: the combined development startup and initial resource bake passed.
-`build compileIntegrationTestJava :rigworks:compileIntegrationJava` passed;
-400 tests, zero failures/errors, one skipped. The stronger native geometry probe
-found a shoulder-origin discrepancy and remains an open acceptance gate.
+The combined startup, initial bake, native geometry probe and real Rhino API
+acceptance passed. `build compileIntegrationTestJava :rigworks:compileIntegrationJava`
+passed: 402 tests, zero failures/errors, one skipped. The stronger probe found and
+then verified the fix for standard/slim shoulder origins. See
+`MODULE_SPLIT_VALIDATION_2026-11-17.md` for evidence and remaining boundaries.
+
+Automatic item-specific support-grip IK, a dependency graph compiler, imported
+capability inventory and processor-owned rigid-body arbitration remain next-stage
+engine work. Native arm geometry is verified; it is not a proof of arbitrary
+custom item mesh contact. The old handoff below is historical, not current process state.
 
 The design and the distinction between current APIs and future work are recorded in
 `MODULE_SPLIT_AND_DATA_DRIVEN_PLAN_2026-11-17.md`.

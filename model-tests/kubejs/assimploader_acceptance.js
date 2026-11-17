@@ -30,6 +30,22 @@ AssimpAcceptance.onClient(function () {
     model.pose('wave', {weight: 0.8, additive: true, bones: {B255: {rotation: [12, 3, -4], weight: 0.5}}})
     check(model.bones().contains('B255'), 'bone enumeration missing')
     model.removePose('wave')
+    model.processorDefinition('hybrid', {version: 1,
+      clips: {wave: {clip: 'Wave', weight: 0.5, mask: {B255: 1}}},
+      poses: {offset: {additive: true, bones: {B255: {rotation: [5, 0, 0]}}}}
+    })
+    check(model.processorControls('hybrid').contains('wave'), 'processor declaration did not unwrap in Rhino')
+    model.processorWeight('hybrid', 'wave', 0.75).processorPhase('hybrid', 'wave', 0.5)
+    model.processorEnabled('hybrid', 'offset', false).processorEnabled('hybrid', true)
+    model.processorReleasePhase('hybrid', 'wave')
+    var rejectedProcessor = false
+    try { model.processorDefinition('hybrid', {version: 1, clips: {bad: {clip: 'missing'}}}) }
+    catch (error) { rejectedProcessor = true }
+    check(rejectedProcessor && model.processorControls('hybrid').contains('wave'), 'processor replacement did not preserve previous state')
+    model.removeProcessor('hybrid')
+    Assimp.shaders().define('acceptance:rhino', 'assimploader:shader_parameters/acceptance.json')
+    Assimp.shaders().uniform('acceptance:rhino', 'assimpAcceptanceVec3', [0.2, 0.4, 0.6])
+    Assimp.shaders().enabled('acceptance:rhino', false)
     model.phase(0.75)
     var playback = model.playback()
     check(Math.abs(Number(playback.get('time')) / Number(playback.get('duration')) - 0.75) < 0.000001, 'base phase clock conversion failed')

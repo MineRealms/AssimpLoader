@@ -6,14 +6,19 @@ Script callbacks run once per character tick, before pose evaluation; they never
 run inside a bone, vertex, physics substep or render loop.
 
 The complete editable demo is
-[`assimp_player_actions.js`](../examples/kubejs/client_scripts/assimp_player_actions.js).
+[`rigworks_player_actions.js`](../rigworks/examples/kubejs/client_scripts/rigworks_player_actions.js).
+
+This player integration is now the independent RigWorks Mod. It uses
+`rigworks-client.toml` and `rigworks:models/character/block_player/profile.json`.
+Generic model controls remain in AssimpLoader. See [RigWorks](../rigworks/README.md)
+and [JSON animation processors](ANIMATION_PROCESSORS.md) for the current boundary.
 It contains independently authored Mo' Bends-style poses and decisions. It does
 not load or redistribute Mo' Bends classes or require its JAR.
 
 ## Enable
 
 1. Install this mod's supported KubeJS/Rhino dependencies.
-2. Put the example in `kubejs/client_scripts/assimp_player_actions.js`.
+2. Put the example in `kubejs/client_scripts/rigworks_player_actions.js`.
 3. Enable the character in `/assimploader character menu`. Select **Scripted**,
    or run `/assimploader character mode scripted`, to activate script actions.
 4. Reload client scripts with KubeJS's client-script reload workflow. Controller
@@ -109,7 +114,7 @@ it does not rotate the actual player or move their collision box.
 ## Controller API
 
 ```javascript
-Assimp.character().register('pack:my_player', function (frame) {
+RigWorks.register('pack:my_player', function (frame) {
   frame.defaultMotion() // base locomotion cadence and head look, without native action replacement
   var input = frame.input()
   var state = frame.state()
@@ -127,7 +132,7 @@ including native held-item and attack behavior. Use `frame.defaultMotion()`
 (alias `locomotion()`) for the reusable locomotion and head-aim layer underneath
 scripted actions. Do not call both in the same tick.
 
-`Assimp.character()` supplies `register(id, callback)`, `unregister(id)`,
+`RigWorks` supplies `register(id, callback)`, `unregister(id)`,
 `clear()`, `controllers()`, `use(id)`, `useDefault()`, `active()`, `failure()`,
 `enable(boolean)`, `profile(resource)`, `reload()` and `status()`.
 `mode()` / `mode('vanilla'|'scripted'|'clips')` and `physicsEnabled()` /

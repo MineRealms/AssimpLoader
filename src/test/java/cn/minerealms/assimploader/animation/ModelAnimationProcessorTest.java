@@ -52,7 +52,7 @@ class ModelAnimationProcessorTest {
                 @Override public void apply(AssimpScene scene,Map<String,Matrix4f> locals,double delta){seenByIk.set(new Matrix4f(locals.get("B255")));}
             });
             var handle=new AssimpModelHandle(state);
-            handle.processor("mixed",options(declaration())).processorPhase("mixed","wave",.35);
+            handle.processorDefinition("mixed",options(declaration())).processorPhase("mixed","wave",.35);
             var compiled=state.getModifier("kubejs:processor:mixed");
             double simulationTime=state.getSimulationTime();
             for(int index=0;index<10;index++)handle.processorWeight("mixed","offset",1).processorEnabled("mixed","offset",true);
@@ -97,7 +97,7 @@ class ModelAnimationProcessorTest {
                     {"version":1,"poses":{"pose":{"bones":{"B255":{"position":[0.2,0,0]},"B254":{"position":[0.4,0,0]}},
                     "additive":true,"mask":{"B255":1},"weight":1}}}
                     """);
-            a.processor("demo",json);b.processor("demo",json);
+            a.processorDefinition("demo",json);b.processorDefinition("demo",json);
             a.processorWeight("demo","pose",0);first.update(.05f);second.update(.05f);
             var x=first.getPoseSnapshot().copyLocalTransforms();var y=second.getPoseSnapshot().copyLocalTransforms();
             assertTrue(x.get("B254").equals(y.get("B254"),1e-5f),"Unmasked bone changed");
@@ -114,26 +114,26 @@ class ModelAnimationProcessorTest {
         var scene=scene();
         try(var state=new AnimationState("transaction",scene)) {
             state.initialize();var handle=new AssimpModelHandle(state);
-            handle.processor("demo",options(declaration()));
+            handle.processorDefinition("demo",options(declaration()));
             var previous=state.getModifier("kubejs:processor:demo");var ik=state.getModifier("kubejs:processor:demo:ik");
-            assertThrows(IllegalArgumentException.class,()->handle.processor("demo",options("{\"version\":1,\"clips\":{\"bad\":{\"clip\":\"missing\"}}}")));
+            assertThrows(IllegalArgumentException.class,()->handle.processorDefinition("demo",options("{\"version\":1,\"clips\":{\"bad\":{\"clip\":\"missing\"}}}")));
             assertSame(previous,state.getModifier("kubejs:processor:demo"));assertSame(ik,state.getModifier("kubejs:processor:demo:ik"));
             assertFalse(((ModelAnimationProcessor)previous).isClosed());
-            handle.processor("demo",options("{\"version\":1}"));
+            handle.processorDefinition("demo",options("{\"version\":1}"));
             assertTrue(((ModelAnimationProcessor)previous).isClosed());
         }
     }
 
     @Test void cleanupAndStateCloseRetireOnlyProcessorOwnedModifiers() throws Exception {
         var scene=scene();var state=new AnimationState("lifecycle",scene);state.initialize();
-        var handle=new AssimpModelHandle(state);handle.processor("demo",options(declaration()));
+        var handle=new AssimpModelHandle(state);handle.processorDefinition("demo",options(declaration()));
         var compiled=(ModelAnimationProcessor)state.getModifier("kubejs:processor:demo");
         var independent=new PoseModifier(){@Override public void apply(AssimpScene scene,Map<String,Matrix4f> locals,double delta){}};
         state.addModifier("asset_owned",independent);
         handle.clearScriptControls();
         assertTrue(compiled.isClosed());assertNull(state.getModifier("kubejs:processor:demo:ik"));
         assertSame(independent,state.getModifier("asset_owned"));
-        handle.processor("demo",options(declaration()));compiled=(ModelAnimationProcessor)state.getModifier("kubejs:processor:demo");
+        handle.processorDefinition("demo",options(declaration()));compiled=(ModelAnimationProcessor)state.getModifier("kubejs:processor:demo");
         state.close();assertTrue(compiled.isClosed());assertFalse(handle.isValid());
     }
 
@@ -141,7 +141,7 @@ class ModelAnimationProcessorTest {
         var scene=scene("animation_probe",".fbx");
         try(var state=new AnimationState("ik",scene)) {
             state.initialize();var handle=new AssimpModelHandle(state);
-            handle.processor("reach",options("""
+            handle.processorDefinition("reach",options("""
                     {"version":1,"ik":{"hand":{"chain":["Shoulder","Elbow","ToolSocket"],"target":[0.5,1.4,0.1],
                     "enabled":false,"weight":0.5,"iterations":24,"tolerance":0.01}}}
                     """));

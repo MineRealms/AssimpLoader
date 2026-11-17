@@ -81,7 +81,7 @@ default profile is the included block player. Related commands:
 ```text
 /assimploader character
 /assimploader character menu
-/assimploader character profile assimploader:models/character/block_player/profile.json
+/assimploader character profile rigworks:models/character/block_player/profile.json
 /assimploader character reload
 /assimploader character morph Expression 1
 /assimploader character ragdoll on

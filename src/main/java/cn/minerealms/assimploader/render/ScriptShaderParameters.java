@@ -40,7 +40,9 @@ public final class ScriptShaderParameters {
             Pass old=passes.get(id);
             if(old!=null)old.parameters.forEach((name,value)->{if(!replacement.parameters.containsKey(name))nextRetired.put(name,value);});
             replacement.parameters.keySet().forEach(nextRetired::remove);
-            if(nextRetired.size()>2048)throw new IllegalArgumentException("Retired uniform limit; too many distinct parameter names");
+            int names=nextRetired.size()+replacement.parameters.size();
+            for(var other:passes.entrySet())if(!other.getKey().equals(id))names+=other.getValue().parameters.size();
+            if(names>2048)throw new IllegalArgumentException("Uniform lifetime limit; too many distinct parameter names");
             // Publish only after schema, ownership and retirement budget all validate.
             retired.clear();retired.putAll(nextRetired);passes.put(id,replacement);
         }
@@ -73,21 +75,28 @@ public final class ScriptShaderParameters {
         }
     }
     private static final Registry registry=new Registry();
+    private static final java.util.concurrent.atomic.AtomicBoolean resetRequested=new java.util.concurrent.atomic.AtomicBoolean();
     private ScriptShaderParameters() {}
+    /** KubeJS rebuilds bindings on its loading thread; actual registry mutation stays on the client thread. */
+    public static void requestReset(){resetRequested.set(true);}
+    private static void applyReset(){if(resetRequested.getAndSet(false))registry.reset();}
     public static void define(String id,String resource) {
-        checkThread();
+        checkThread();applyReset();
         try(var input=Minecraft.getInstance().getResourceManager().open(new ResourceLocation(resource));
             var reader=new InputStreamReader(input,StandardCharsets.UTF_8)) {
             registry.define(id,ShaderParameterDefinition.read(reader));
         }catch(java.io.IOException error){throw new IllegalArgumentException("Cannot read shader parameters: "+resource,error);}
     }
-    public static void enabled(String id,boolean enabled){checkThread();registry.enabled(id,enabled);}
-    public static void set(String id,String name,double[] values){checkThread();registry.set(id,name,values);}
-    public static void reset(){checkThread();registry.reset();}
+    public static void enabled(String id,boolean enabled){checkThread();applyReset();registry.enabled(id,enabled);}
+    public static void set(String id,String name,double[] values){checkThread();applyReset();registry.set(id,name,values);}
+    public static void reset(){checkThread();applyReset();registry.reset();}
     public static void defaults(){registry.defaults();}
-    static void upload(ShaderProgramHooks.Binding binding) {
-        // Locations belong to the actual program object, not a recyclable GL identifier.
+    static void uploadRetired(ShaderProgramHooks.Binding binding) {
+        applyReset();
         for(var entry:registry.retired.entrySet())upload(binding,entry.getKey(),entry.getValue(),false);
+    }
+    static void upload(ShaderProgramHooks.Binding binding) {
+        // Active script declarations override native providers; retired declarations cannot suppress native defaults.
         for(var pass:registry.passes.values())for(var entry:pass.parameters.entrySet())
             upload(binding,entry.getKey(),entry.getValue(),pass.enabled);
     }

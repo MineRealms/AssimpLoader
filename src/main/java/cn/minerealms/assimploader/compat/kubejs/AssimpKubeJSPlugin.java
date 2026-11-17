@@ -9,6 +9,7 @@ public final class AssimpKubeJSPlugin extends KubeJSPlugin {
     @Override public void registerBindings(BindingsEvent event) {
         if(event.getType()==ScriptType.CLIENT) {
             // Bindings are rebuilt before each CLIENT script load, including /kubejs reload client_scripts.
+            cn.minerealms.assimploader.render.ScriptShaderParameters.requestReset();
             event.add("Assimp",new AssimpScriptApi());
         }
     }

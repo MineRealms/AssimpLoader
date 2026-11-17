@@ -57,8 +57,9 @@ RigWorks.register('my_pack:player', function (frame) {
 ```
 
 Profiles, rig definitions, physics assets and equipment sockets remain JSON
-resources. A future composed pose graph and transactional JSON reload are
-separate engine work; this module split does not claim to implement those APIs.
+resources. AssimpLoader now provides a first [JSON animation processor](../docs/ANIMATION_PROCESSORS.md)
+with cached clips, poses, masks and owned CCD IK. A full dependency graph and
+whole-script transactional reload remain separate engine work.
 
 The example defaults `nativeItemActions` to bow/crossbow. Those actions delegate
 the entire pose to the native driver, clearing script arm overrides first;
