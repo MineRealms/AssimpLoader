@@ -127,14 +127,17 @@ public final class PoseSnapshot {
     private static boolean interpolatable(Matrix4f matrix) {
         if (!matrix.isFinite() || matrix.m03() != 0 || matrix.m13() != 0 || matrix.m23() != 0 || matrix.m33() != 1)
             return false;
-        Vector3f x = matrix.getColumn(0, new Vector3f());
-        Vector3f y = matrix.getColumn(1, new Vector3f());
-        Vector3f z = matrix.getColumn(2, new Vector3f());
-        float xx = x.lengthSquared(), yy = y.lengthSquared(), zz = z.lengthSquared();
+        float xx = matrix.m00() * matrix.m00() + matrix.m01() * matrix.m01() + matrix.m02() * matrix.m02();
+        float yy = matrix.m10() * matrix.m10() + matrix.m11() * matrix.m11() + matrix.m12() * matrix.m12();
+        float zz = matrix.m20() * matrix.m20() + matrix.m21() * matrix.m21() + matrix.m22() * matrix.m22();
         if (!Float.isFinite(xx) || !Float.isFinite(yy) || !Float.isFinite(zz)
                 || xx < 1e-12f || yy < 1e-12f || zz < 1e-12f) return false;
-        x.normalize(); y.normalize(); z.normalize();
-        return Math.abs(x.dot(y)) < 1e-4f && Math.abs(x.dot(z)) < 1e-4f && Math.abs(y.dot(z)) < 1e-4f;
+        float xy = matrix.m00() * matrix.m10() + matrix.m01() * matrix.m11() + matrix.m02() * matrix.m12();
+        float xz = matrix.m00() * matrix.m20() + matrix.m01() * matrix.m21() + matrix.m02() * matrix.m22();
+        float yz = matrix.m10() * matrix.m20() + matrix.m11() * matrix.m21() + matrix.m12() * matrix.m22();
+        double xLength = Math.sqrt(xx), yLength = Math.sqrt(yy), zLength = Math.sqrt(zz);
+        return Math.abs(xy) < 1e-4 * xLength * yLength && Math.abs(xz) < 1e-4 * xLength * zLength
+                && Math.abs(yz) < 1e-4 * yLength * zLength;
     }
 
     public Map<String, Matrix4f> copyLocalTransforms() {
@@ -199,7 +202,8 @@ public final class PoseSnapshot {
                                 Map<String, Matrix4f> overrides, Map<String, Matrix4f> locals, Map<String, Matrix4f> globals,
                                 List<MeshInstance> instances) {
         if (node == null) return;
-        Matrix4f local = new Matrix4f(overrides.getOrDefault(node.getName(), node.getTransformation()));
+        Matrix4f local = overrides.get(node.getName());
+        if (local == null) local = new Matrix4f(node.getTransformation());
         locals.putIfAbsent(node.getName(), local);
         Matrix4f global = new Matrix4f(parent).mul(local);
         globals.putIfAbsent(node.getName(), global);
