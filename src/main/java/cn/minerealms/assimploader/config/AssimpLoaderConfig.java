@@ -276,7 +276,7 @@ public class AssimpLoaderConfig {
                 .comment("Maximum TBO size (number of bones)")
                 .defineInRange("maxTBOBones", 1024, 64, 16384);
 
-            computeSkinningEnabled = builder.comment("Opt-in OpenGL 4.3 skinning; vanilla custom-shader path only")
+            computeSkinningEnabled = builder.comment("Opt-in OpenGL 4.3 skinning; vanilla and Oculus ENTITY VBO paths. Falls back when unavailable.")
                     .define("computeSkinningEnabled", false);
             computeSkinningMiB = builder.comment("Total Compute skinning buffer budget in MiB")
                     .defineInRange("computeSkinningMiB", 128, 1, 1024);
