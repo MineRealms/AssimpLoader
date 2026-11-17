@@ -8,6 +8,7 @@ import cn.minerealms.assimploader.animation.PoseModifier;
 import cn.minerealms.assimploader.animation.ik.LookAtModifier;
 import cn.minerealms.assimploader.model.AssimpScene;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.Arrays;
@@ -29,6 +30,7 @@ public final class PlayerAnimationController implements AutoCloseable {
                             boolean stateBinding, boolean changed, boolean headLook) {}
     private record Resolved(Intent intent, String name, boolean stateBinding) {}
     private static final String HEAD_MODIFIER = "character:head-look";
+    private static final String TRAVEL_MODIFIER = "character:travel-aim";
     private static final Map<Intent, Intent[]> FALLBACKS = Map.ofEntries(
             Map.entry(Intent.IDLE, new Intent[]{Intent.IDLE}),
             Map.entry(Intent.RUN, new Intent[]{Intent.RUN, Intent.WALK, Intent.IDLE}),
@@ -47,6 +49,7 @@ public final class PlayerAnimationController implements AutoCloseable {
     private final String headNode;
     private final Vector3f bindForward;
     private final HeadAim headAim;
+    private final TravelAim travelAim;
     private long lastSequence = -1;
     private double lastTime = -1;
     private boolean previousJump, previousSwing, closed;
@@ -77,11 +80,23 @@ public final class PlayerAnimationController implements AutoCloseable {
             if (!bindForward.isFinite() || Math.abs(bindForward.y) > .999f)
                 throw new IllegalArgumentException("Head reference forward must have a horizontal component");
             Vector3f target = bind.getTranslation(new Vector3f()).add(new Vector3f(bindForward).mul(8));
-            headAim = new HeadAim(new LookAtModifier(headNode, localForward, target, 1, (float)Math.PI));
+            headAim = new HeadAim(headNode, new LookAtModifier(headNode, localForward, target, 1, (float)Math.PI));
             animation.addModifier(HEAD_MODIFIER, headAim);
         } else {
             headNode = null; bindForward = null; headAim = null;
         }
+        var hips = profile.bone("hips");
+        if (hips != null && head != null && scene != null && scene.getRootNode() != null
+                && scene.findNodeByName(hips.node()) != null && scene.findNodeByName(head.node()) != null) {
+            if (animation.getModifier(TRAVEL_MODIFIER) != null) throw new IllegalArgumentException("Character travel controller already installed");
+            Vector3f localForward = head.referenceRotation().quaternion().transform(profile.headLook().forward().vector());
+            Vector3f forward = new PoseGraph(scene.getRootNode(), Map.of()).global(head.node()).transformDirection(localForward);
+            forward.y = 0;
+            if (!forward.isFinite() || forward.lengthSquared() < 1e-10f)
+                throw new IllegalArgumentException("Character reference forward must have a horizontal component");
+            travelAim = new TravelAim(hips.node(), head.node(), forward.normalize());
+            animation.addModifier(TRAVEL_MODIFIER, travelAim);
+        } else travelAim = null;
     }
 
     public CharacterProfile profile() { return profile; }
@@ -111,6 +126,7 @@ public final class PlayerAnimationController implements AutoCloseable {
         boolean leavingSync = synchronizedSwing != null && !syncAction;
         if (leavingSync) releaseSwingClock();
         boolean headEnabled = updateHead(input, desired);
+        if (travelAim != null) travelAim.update(input, desired);
         boolean changed = false;
         if (resolved != null) {
             String expectedClip = resolved.stateBinding
@@ -226,7 +242,7 @@ public final class PlayerAnimationController implements AutoCloseable {
 
     private boolean updateHead(PlayerVisualInput input, Intent intent) {
         if (headAim == null) return false;
-        headAim.enabled = intent != Intent.DEAD && intent != Intent.SLEEP && intent != Intent.ELYTRA;
+        headAim.enabled = intent != Intent.DEAD && intent != Intent.SLEEP;
         if (!headAim.enabled) return false;
         float yaw = wrap((double)input.headYawDegrees() - input.bodyYawDegrees());
         yaw = Math.max(-profile.headLook().maxYaw(), Math.min(profile.headLook().maxYaw(), yaw));
@@ -234,9 +250,7 @@ public final class PlayerAnimationController implements AutoCloseable {
         Vector3f direction = new Vector3f(bindForward).rotateY(-(float)Math.toRadians(yaw));
         Vector3f right = new Vector3f(0, 1, 0).cross(direction).normalize();
         direction.rotateAxis((float)Math.toRadians(pitch), right.x, right.y, right.z);
-        Matrix4f head = animation.getPoseSnapshot().getNodeTransform(headNode);
-        if (head == null) { headAim.enabled = false; return false; }
-        headAim.look.setTarget(head.getTranslation(new Vector3f()).add(direction.mul(8)));
+        headAim.direction.set(direction);
         return true;
     }
 
@@ -252,6 +266,7 @@ public final class PlayerAnimationController implements AutoCloseable {
         requireOpen(); lastSequence = -1; lastTime = -1; previousJump = previousSwing = false;
         swingGeneration = -1; releaseSwingClock(); releaseCadence();
         activeSwing = null; selection = null; if (headAim != null) headAim.enabled = false;
+        if (travelAim != null) travelAim.enabled = false;
     }
 
     private void requireOpen() {
@@ -262,15 +277,48 @@ public final class PlayerAnimationController implements AutoCloseable {
         closed = true; activeSwing = null; releaseSwingClock(); releaseCadence();
         if (!animation.isClosed() && headAim != null && animation.getModifier(HEAD_MODIFIER) == headAim)
             animation.removeModifier(HEAD_MODIFIER);
+        if (!animation.isClosed() && travelAim != null && animation.getModifier(TRAVEL_MODIFIER) == travelAim)
+            animation.removeModifier(TRAVEL_MODIFIER);
     }
 
     private static final class HeadAim implements PoseModifier {
+        private final String node;
         private final LookAtModifier look;
+        private final Vector3f direction = new Vector3f();
         private boolean enabled;
-        private HeadAim(LookAtModifier look) { this.look = look; }
+        private HeadAim(String node, LookAtModifier look) { this.node = node; this.look = look; }
         @Override public Category category() { return Category.IK; }
         @Override public void apply(AssimpScene scene, Map<String, Matrix4f> locals, double deltaSeconds) {
-            if (enabled) look.apply(scene, locals, deltaSeconds);
+            if (enabled) {
+                var origin = new PoseGraph(scene.getRootNode(), locals).position(node);
+                look.setTarget(origin.add(new Vector3f(direction).mul(8)));
+                look.apply(scene, locals, deltaSeconds);
+            }
+        }
+    }
+
+    /** Correct the authored horizontal clip in model space so mesh, equipment and physics share the same dive. */
+    private static final class TravelAim implements PoseModifier {
+        private final String hips, head;
+        private final Vector3f forward, direction = new Vector3f();
+        private boolean enabled;
+        private TravelAim(String hips, String head, Vector3f forward) { this.hips = hips; this.head = head; this.forward = forward; }
+        private void update(PlayerVisualInput input, Intent intent) {
+            enabled = intent == Intent.ELYTRA || intent == Intent.SWIM;
+            if (!enabled) return;
+            float yaw = wrap((double) input.headYawDegrees() - input.bodyYawDegrees());
+            direction.set(forward).rotateY(-(float) Math.toRadians(yaw));
+            Vector3f right = new Vector3f(0, 1, 0).cross(direction).normalize();
+            float pitch = Math.max(-90, Math.min(90, input.headPitchDegrees()));
+            direction.rotateAxis((float) Math.toRadians(pitch), right.x, right.y, right.z);
+        }
+        @Override public Category category() { return Category.GENERAL; }
+        @Override public void apply(AssimpScene scene, Map<String, Matrix4f> locals, double deltaSeconds) {
+            if (!enabled) return;
+            var graph = new PoseGraph(scene.getRootNode(), locals);
+            Vector3f axis = graph.position(head).sub(graph.position(hips));
+            if (axis.lengthSquared() < 1e-10f) return;
+            graph.rotateModel(hips, new Quaternionf().rotationTo(axis.normalize(), direction));
         }
     }
 }
