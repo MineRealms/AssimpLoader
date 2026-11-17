@@ -366,7 +366,7 @@ public class SkinnedMeshRenderer {
         }
 
         if(computed!=null) computed.draw();
-        else vbo.render();
+        else vbo.render(mesh);
 
         if (DebugManager.isProfilingEnabled()) {
             cn.minerealms.assimploader.debug.PerformanceProfiler.end("vbo_draw");
