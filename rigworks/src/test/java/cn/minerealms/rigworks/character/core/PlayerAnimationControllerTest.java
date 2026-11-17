@@ -19,6 +19,68 @@ import static cn.minerealms.rigworks.character.core.PlayerAnimationController.In
 import static org.junit.jupiter.api.Assertions.*;
 
 class PlayerAnimationControllerTest {
+    @Test void compatibleActionsKeepTheLocomotionClockAndMaskAwayTheLegs() {
+        var profile = CharacterProfile.read(new StringReader("""
+                {"version":1,"model":"example:avatar.glb","humanoid":{"left_upper_arm":"Head"}}
+                """));
+        try (var instance = instance(); var controller = new PlayerAnimationController(profile, instance)) {
+            controller.updateCompatible(input(0).motion(3,0,0).build());
+            var walking = instance.animation().getCurrentAnimation();
+            instance.animation().update(.1f);
+            double phase = walking.getCurrentTime();
+            var nativeChannels = controller.updateCompatible(input(1).motion(3,0,0).swingAction(1,true,.3f).build());
+            assertSame(walking, instance.animation().getCurrentAnimation());
+            assertEquals(phase, walking.getCurrentTime());
+            var action = instance.animation().getLayer("character:upper-action");
+            assertNotNull(action);
+            assertEquals(java.util.Map.of("Head",1f), action.getMask());
+            assertEquals((double) .3f * action.getPlayer().getAnimation().getDuration(), action.getPlayer().getCurrentTime(), 1e-5);
+            assertEquals(0, nativeChannels.leftLeg());
+            assertEquals(0, nativeChannels.leftArm());
+            controller.updateCompatible(input(2).motion(3,0,0).usingItem(true).build());
+            assertNull(instance.animation().getLayer("character:upper-action"));
+            assertEquals(1, controller.compatibilitySelection().leftArm());
+            assertEquals(0, controller.compatibilitySelection().leftLeg());
+            assertSame(walking, instance.animation().getCurrentAnimation());
+        }
+    }
+
+    @Test void absentSpecialClipsRequestNativePoseInsteadOfWalkingUnderWater() {
+        try (var instance = instance(); var controller = new PlayerAnimationController(profile(false), instance)) {
+            assertEquals(VanillaPoseSelection.ALL,controller.updateCompatible(input(0).swimming(true).build()));
+            var crawl = new PlayerActionState("swimming", PlayerActionState.AirPhase.GROUNDED,
+                    false,false,false,false,false,false,0,"none",false,false);
+            assertEquals(VanillaPoseSelection.ALL,controller.updateCompatible(input(1).actionState(crawl).build()));
+            assertEquals(CRAWL_IDLE, controller.lastSelection().requested());
+            assertFalse(PlayerAnimationController.requiresNativeFallback(RUN,WALK));
+            assertTrue(PlayerAnimationController.requiresNativeFallback(CROUCH_WALK,WALK));
+            assertTrue(PlayerAnimationController.requiresNativeFallback(RIPTIDE,IDLE));
+        }
+    }
+
+    @Test void ladderWaterRiptideAndFrozenHaveExplicitPrioritiesAndNativeFallbacks() {
+        try (var instance = instance(); var controller = new PlayerAnimationController(profile(false), instance)) {
+            var air = PlayerActionState.AirPhase.GROUNDED;
+            var ladder = new PlayerActionState("standing",air,true,false,false,false,false,false,0,"none",false,false);
+            assertEquals(VanillaPoseSelection.ALL,controller.updateCompatible(input(0).motion(0,0,1).actionState(ladder).build()));
+            assertEquals(LADDER_UP,controller.lastSelection().requested());
+            controller.updateCompatible(input(1).motion(0,0,-1).actionState(ladder).build());
+            assertEquals(LADDER_DOWN,controller.lastSelection().requested());
+            controller.updateCompatible(input(2).actionState(ladder).build());
+            assertEquals(LADDER_IDLE,controller.lastSelection().requested());
+            var water = new PlayerActionState("standing",air,false,true,false,false,false,false,0,"none",false,false);
+            controller.updateCompatible(input(3).onGround(false).actionState(water).build());
+            assertEquals(WATER_IDLE,controller.lastSelection().requested());
+            var frozen = new PlayerActionState("standing",air,false,false,false,false,false,true,0,"none",false,false);
+            controller.updateCompatible(input(4).actionState(frozen).build());
+            assertEquals(FROZEN,controller.lastSelection().requested());
+            var spin = new PlayerActionState("spin_attack",air,false,true,false,false,true,true,0,"none",false,false);
+            controller.updateCompatible(input(5).actionState(spin).swimming(true).usingItem(true).build());
+            assertEquals(RIPTIDE,controller.lastSelection().requested());
+            assertEquals(VanillaPoseSelection.ALL,controller.compatibilitySelection());
+        }
+    }
+
     @Test void staleSwingProgressWithoutAnActiveGameActionCannotLeaveIdleOrPinTheClip() {
         try (var instance = instance(); var controller = new PlayerAnimationController(profile(false),instance)) {
             var state = instance.animation();
