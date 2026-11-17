@@ -6,6 +6,7 @@ import cn.minerealms.assimploader.model.AssimpScene;
 import com.google.gson.JsonParser;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -40,10 +41,29 @@ class ScriptPoseModifierTest {
         var delta=new Matrix4f(base).invert().mul(locals.get("Forearm.R")).getUnnormalizedRotation(new Quaternionf());
         assertEquals(Math.PI/8,delta.angle(),1e-5);
     }
+    @Test void modelSpaceArmAndKneeRotationsSurviveActualImportedBoneRolls() throws Exception {
+        var scene=scene();
+        var bind=new PoseGraph(scene.getRootNode(),java.util.Map.of());
+        for(String side:new String[]{"L","R"}) {
+            var locals=new HashMap<String,Matrix4f>();
+            pose(scene,"{\"space\":\"model\",\"bones\":{\"UpperArm."+side+"\":{\"rotation\":[-90,0,0]}}}").apply(scene,locals,.05);
+            var graph=new PoseGraph(scene.getRootNode(),locals);
+            Vector3f expected=bind.position("Hand."+side).sub(bind.position("UpperArm."+side)).rotateX(-(float)Math.PI/2);
+            Vector3f actual=graph.position("Hand."+side).sub(graph.position("UpperArm."+side));
+            assertTrue(expected.distance(actual)<1e-4,side+" arm did not rotate about model X: "+actual);
+            assertTrue(actual.z>.2,side+" hand should reach in front of the visible face: "+actual+" bind="+bind.position("Hand."+side).sub(bind.position("UpperArm."+side)));
+            locals.clear();
+            pose(scene,"{\"space\":\"model\",\"bones\":{\"Shin."+side+"\":{\"rotation\":[90,0,0]}}}").apply(scene,locals,.05);
+            graph=new PoseGraph(scene.getRootNode(),locals);
+            expected=bind.position("Foot."+side).sub(bind.position("Shin."+side)).rotateX((float)Math.PI/2);
+            actual=graph.position("Foot."+side).sub(graph.position("Shin."+side));
+            assertTrue(expected.distance(actual)<1e-4,side+" knee did not rotate about model X");
+        }
+    }
     @Test void rejectsUnknownBonesOptionsAndInvalidTransforms() throws Exception {
         var scene=scene();
         for(String json:new String[]{"{\"bones\":{\"typo\":{}}}","{\"bones\":{},\"stage\":\"physics\"}",
-                "{\"bones\":{},\"weight\":2}","{\"bones\":{\"Head\":{\"scale\":[0,1,1]}}}",
+                "{\"bones\":{},\"weight\":2}","{\"bones\":{},\"space\":\"world\"}","{\"bones\":{\"Head\":{\"scale\":[0,1,1]}}}",
                 "{\"bones\":{\"Head\":{\"rotation\":[1,2]}}}","{\"bones\":{},\"typo\":true}"})
             assertThrows(IllegalArgumentException.class,()->pose(scene,json));
     }

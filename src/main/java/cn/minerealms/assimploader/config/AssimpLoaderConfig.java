@@ -72,6 +72,7 @@ public class AssimpLoaderConfig {
      * Client-side configuration
      */
     public static class ClientConfig {
+        public final DebugViewConfig debugView;
         // Debug
         public final ForgeConfigSpec.BooleanValue debugEnabled;
         public final ForgeConfigSpec.BooleanValue profilingEnabled;
@@ -146,6 +147,7 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.BooleanValue devLookdevEnabled;
 
         public ClientConfig(ForgeConfigSpec.Builder builder) {
+            debugView = new DebugViewConfig(builder);
             character = new CharacterConfig(builder);
             builder.comment("Client visual inputs; never changes server collision or hit authority").push("visual");
             visualMode=builder.defineEnum("mode",ClientVisualPolicy.Mode.HOST_CONTROLLED);
@@ -400,12 +402,37 @@ public class AssimpLoaderConfig {
         }
     }
 
+    public enum MaterialView { DEFAULT, UNTEXTURED, ALBEDO, NORMAL, AO, ROUGHNESS, METALLIC, EMISSION }
+
+    public static final class DebugViewConfig {
+        public final ForgeConfigSpec.BooleanValue enabled, hud, bounds, skeleton, collision, worldCollision, axes, attachments;
+        public final ForgeConfigSpec.EnumValue<MaterialView> material;
+        public final ForgeConfigSpec.IntValue hudScale;
+        DebugViewConfig(ForgeConfigSpec.Builder builder) {
+            builder.comment("Client visual diagnostics; HUD has its own switch and does not depend on F3").push("debugView");
+            enabled=builder.define("enabled",false);
+            hud=builder.define("hud",false);
+            bounds=builder.define("bounds",true);
+            skeleton=builder.define("skeleton",false);
+            collision=builder.define("collision",false);
+            worldCollision=builder.define("worldCollision",false);
+            axes=builder.define("axes",false);
+            attachments=builder.define("attachments",false);
+            material=builder.defineEnum("material",MaterialView.DEFAULT);
+            hudScale=builder.defineInRange("hudScale",1,1,3);
+            builder.pop();
+        }
+    }
+
+    public enum CharacterAnimationMode { VANILLA, SCRIPTED, CLIPS }
+
     /** Optional local-player display. Server simulation never reads these client settings. */
     public static final class CharacterConfig {
         public final ForgeConfigSpec.BooleanValue enabled;
         public final ForgeConfigSpec.ConfigValue<String> profile;
         public final ForgeConfigSpec.BooleanValue groundPlacement;
         public final ForgeConfigSpec.BooleanValue effects;
+        public final ForgeConfigSpec.EnumValue<CharacterAnimationMode> animationMode;
         public final ForgeConfigSpec.BooleanValue physicsEnabled, physicsWorldCollision, ragdollOnDeath;
         public final ForgeConfigSpec.IntValue physicsSampleTicks, physicsRadius;
 
@@ -420,6 +447,8 @@ public class AssimpLoaderConfig {
                     .define("groundPlacement", true);
             effects = builder.comment("Enable effects declared by the character instance definition")
                     .define("effects", false);
+            animationMode = builder.comment("VANILLA: original player poses; SCRIPTED: KubeJS over original locomotion; CLIPS: profile animation clips")
+                    .defineEnum("animationMode", CharacterAnimationMode.VANILLA);
             physicsEnabled=builder.comment("Enable the profile's isolated client Bullet world; reload the character after changing")
                     .define("physicsEnabled",true);
             physicsWorldCollision=builder.comment("Use bounded collision proxies from already loaded client blocks")

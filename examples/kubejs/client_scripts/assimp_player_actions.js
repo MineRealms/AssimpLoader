@@ -143,7 +143,7 @@ var AssimpPlayerActions = (function () {
       bones[String(bone)] = { rotation: [rotation[0], rotation[1] * sign, rotation[2] * sign], weight: weight }
       any = true
     }
-    if (any) frame.model().pose(id, { bones: bones, additive: !!additive })
+    if (any) frame.model().pose(id, { bones: bones, additive: !!additive, space: 'model' })
     else frame.model().removePose(id)
   }
   function clear(frame) {

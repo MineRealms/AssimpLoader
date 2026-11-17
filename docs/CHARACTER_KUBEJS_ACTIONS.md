@@ -14,8 +14,8 @@ not load or redistribute Mo' Bends classes or require its JAR.
 
 1. Install this mod's supported KubeJS/Rhino dependencies.
 2. Put the example in `kubejs/client_scripts/assimp_player_actions.js`.
-3. Enable the character in `/assimploader character menu`, or set the demo's
-   `config.autoEnable = true` to select its block-player profile automatically.
+3. Enable the character in `/assimploader character menu`. Select **Scripted**,
+   or run `/assimploader character mode scripted`, to activate script actions.
 4. Reload client scripts with KubeJS's client-script reload workflow. Controller
    registration replaces the same ID, and the latest registered ID is selected.
 
@@ -24,12 +24,20 @@ It controls the current local third-person character. It never changes server
 collision, inventory, damage, reach or movement. First-person arms and remote
 players remain outside this renderer's current scope.
 
+The default **Vanilla** mode samples the original `PlayerRenderer` and
+`PlayerModel` behavior, including Forge arm poses, swimming strokes/kicks and
+flight pitch. **Scripted** uses this native locomotion/head baseline through
+`frame.defaultMotion()`, then overlays editable actions. **Clips** retains the
+older profile-driven FBX state controller for authored clip characters.
+`/assimploader character physics on|off` independently switches RigPhysics.
+Mode and physics changes rebuild the local binding and clear previous controls.
+
 ## Included Actions
 
 | Action | Source / behavior |
 |---|---|
-| Idle, walk, sprint, crouch, crouch-walk | Existing Blender clips, movement cadence and grounded foot IK |
-| Jump, fall, swim, flight, elytra, ride, sleep, death | Existing state selection and Blender clips |
+| Idle, walk, sprint, crouch, crouch-walk | Original Minecraft PlayerModel locomotion, retargeted to the rig |
+| Jump, fall, swim, flight, elytra, ride, sleep, death | Original model and renderer poses/root rotation; vanilla has no separate jump/fall clip |
 | Climb, sprint-jump, sitting on nonliving vehicles | Script posture overlays with forward-bending knees |
 | Sword | Five editable slashes, reset window, guarded stance, sprint stance, configurable spin gate |
 | Empty hand | Alternating punches and fist guard |
@@ -178,11 +186,16 @@ model.pose('gesture', {
   },
   weight: 1,
   additive: false,
+  space: 'model',
   stage: 'pre_ik'
 })
 ```
 
-Rotation is bind/rest-relative local Euler XYZ in degrees. Translation is in
+Rotation is bind/rest-relative Euler XYZ in degrees. `space:'local'` is the
+default imported bone-local basis; `space:'model'` converts anatomical model
+axes through the skin's reference pose, including imported bone roll. The demo
+uses model space. Skin inverse-bind matrices recover neutral transforms even
+when an FBX node tree was saved in a posed animation. Translation is in
 the **imported node's local units**, so do not assume every imported bone uses
 metres. `additive:false` replaces the specified bone's rest-relative pose;
 `true` adds to the current composed pose. Existing translation/scale can be

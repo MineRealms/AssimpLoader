@@ -4,6 +4,7 @@ import cn.minerealms.assimploader.model.AssimpScene;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.LinkedHashMap;
@@ -18,7 +19,7 @@ public final class ScriptPoseModifier implements PoseModifier {
     private final Category stage;
 
     public ScriptPoseModifier(AssimpScene scene, JsonObject options) {
-        keys(options, Set.of("bones", "weight", "additive", "stage"));
+        keys(options, Set.of("bones", "weight", "additive", "stage", "space"));
         float weight = weight(options, "weight", 1);
         additive = options.has("additive") && options.get("additive").getAsBoolean();
         String requested = options.has("stage") ? options.get("stage").getAsString() : "pre_ik";
@@ -30,6 +31,10 @@ public final class ScriptPoseModifier implements PoseModifier {
         if (!options.has("bones") || !options.get("bones").isJsonObject())
             throw new IllegalArgumentException("Pose requires a bones object");
         JsonObject entries = options.getAsJsonObject("bones");
+        String space = options.has("space") ? options.get("space").getAsString() : "local";
+        if (!space.equals("local") && !space.equals("model")) throw new IllegalArgumentException("Pose space must be local or model");
+        Map<String, Matrix4f> rest = SkinBindPose.locals(scene);
+        PoseGraph bind = new PoseGraph(scene.getRootNode(), rest);
         if (entries.size() > 256) throw new IllegalArgumentException("Script pose exceeds 256 bones");
         Map<String, Bone> parsed = new LinkedHashMap<>();
         entries.entrySet().forEach(entry -> {
@@ -42,8 +47,14 @@ public final class ScriptPoseModifier implements PoseModifier {
             Vector3f scale = vector(bone, "scale", new Vector3f(1));
             if (scale.x <= 0 || scale.y <= 0 || scale.z <= 0)
                 throw new IllegalArgumentException("Pose scale must be positive");
-            Matrix4f delta = new Matrix4f().translation(position).rotateXYZ(rotation.x, rotation.y, rotation.z).scale(scale);
-            parsed.put(entry.getKey(), new Bone(new Matrix4f(node.getTransformation()), delta, weight * weight(bone, "weight", 1)));
+            Quaternionf angles = new Quaternionf().rotationXYZ(rotation.x, rotation.y, rotation.z);
+            if (space.equals("model")) {
+                // Express anatomical joint rotations in each imported bone's bind axes, including its roll.
+                Quaternionf basis = bind.global(entry.getKey()).getUnnormalizedRotation(new Quaternionf()).normalize();
+                angles = new Quaternionf(basis).invert().mul(angles).mul(basis).normalize();
+            }
+            Matrix4f delta = new Matrix4f().translation(position).rotate(angles).scale(scale);
+            parsed.put(entry.getKey(), new Bone(new Matrix4f(rest.getOrDefault(entry.getKey(), node.getTransformation())), delta, weight * weight(bone, "weight", 1)));
         });
         bones = java.util.Collections.unmodifiableMap(parsed);
     }

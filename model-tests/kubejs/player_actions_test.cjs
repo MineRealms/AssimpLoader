@@ -45,6 +45,7 @@ assert.equal(f.defaultTicks, 1)
 assert(!f.poses.has('player:action'))
 assert.equal(f.run({ swingActive: true, swingGeneration: 1, swingProgress: 0.2, swingItem: sword }), 'slash_up')
 const initial = f.poses.get('player:action').bones.right_upper_arm.rotation
+assert.equal(f.poses.get('player:action').space, 'model', 'semantic rotations must account for imported bone rolls')
 assert(!Object.keys(f.poses.get('player:action').bones).some(name => /thigh|shin/.test(name)), 'attack overwrote legs')
 f.run({ tick: 2, swingActive: true, swingGeneration: 1, swingProgress: 0.8, swingItem: sword })
 assert.equal(f.state.get('actionPhase'), 0.8)

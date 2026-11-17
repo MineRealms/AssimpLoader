@@ -60,6 +60,8 @@ public final class LocalPlayerCharacter {
 
     private static volatile Settings settings = new Settings(false, DEFAULT_PROFILE, true, false);
     private static Settings appliedSettings;
+    private static AssimpLoaderConfig.CharacterAnimationMode appliedMode;
+    private static boolean appliedPhysics;
     private static Binding active;
     private static LocalPlayer observedPlayer;
     private static Object observedLevel;
@@ -85,6 +87,7 @@ public final class LocalPlayerCharacter {
         final AssimpScene scene;
         final AnimationState animation;
         final PlayerAnimationController controller;
+        final VanillaPlayerPoseDriver vanilla;
         final BulletCharacterPhysics physics;
         final CharacterPhysicsClientBinding physicsBinding;
         final CharacterRigDefinition.Installed rig;
@@ -100,6 +103,7 @@ public final class LocalPlayerCharacter {
             if (animation == null) throw new IllegalArgumentException("Character needs a skeleton, animation or instance definition");
             try {
                 controller = new PlayerAnimationController(profile, animation);
+                vanilla = new VanillaPlayerPoseDriver(profile, animation);
                 var resources=Minecraft.getInstance().getResourceManager();
                 if (profile.equipmentDefinition() != null) {
                     try (var reader = resources.openAsReader(new ResourceLocation(profile.equipmentDefinition()))) {
@@ -131,7 +135,8 @@ public final class LocalPlayerCharacter {
                             value -> settings.groundPlacement(), value -> settings.effects());
                 }
                 scripts=new CharacterScriptRuntime.Session(animation,rig);
-                controller.update(inputs.sample(player));
+                if (animationMode() == AssimpLoaderConfig.CharacterAnimationMode.CLIPS) controller.update(inputs.sample(player));
+                else vanilla.update(player, true);
             } catch (IOException | RuntimeException exception) {
                 ClientAnimationManager.getInstance().release(animationOwner);
                 throw new IllegalArgumentException("Cannot initialize character solver/physics",exception);
@@ -140,6 +145,7 @@ public final class LocalPlayerCharacter {
 
         @Override public void close() {
             scripts.close();
+            vanilla.close();
             controller.close();
             ClientAnimationManager.getInstance().release(animationOwner);
         }
@@ -151,6 +157,20 @@ public final class LocalPlayerCharacter {
     public static CharacterProfile currentProfile() { return active == null ? null : active.profile; }
     public static BulletCharacterPhysics currentPhysics() { return active == null ? null : active.physics; }
     public static CharacterRigDefinition.Installed currentRig() { return active == null ? null : active.rig; }
+    public static VanillaPlayerPoseDriver currentVanillaDriver() { return active == null ? null : active.vanilla; }
+    public static AssimpLoaderConfig.CharacterAnimationMode animationMode() {
+        return AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.character.animationMode::get,
+                AssimpLoaderConfig.CharacterAnimationMode.VANILLA);
+    }
+    public static boolean physicsEnabled() {
+        return AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.character.physicsEnabled::get, true);
+    }
+    public static void setAnimationMode(AssimpLoaderConfig.CharacterAnimationMode mode) {
+        var config=AssimpLoaderConfig.CLIENT.character.animationMode;config.set(mode);config.save();reload();
+    }
+    public static void setPhysicsEnabled(boolean enabled) {
+        var config=AssimpLoaderConfig.CLIENT.character.physicsEnabled;config.set(enabled);config.save();reload();
+    }
     public static Settings settings() { return settings; }
     public static void configure(Settings value) {
         java.util.Objects.requireNonNull(value);
@@ -196,8 +216,11 @@ public final class LocalPlayerCharacter {
         Minecraft minecraft = Minecraft.getInstance();
         Settings current = settings;
         boolean resourceChanged = appliedSettings == null || appliedSettings.enabled() != current.enabled()
-                || !appliedSettings.profile().equals(current.profile());
+                || !appliedSettings.profile().equals(current.profile()) || appliedMode != animationMode()
+                || appliedPhysics != physicsEnabled();
         appliedSettings = current;
+        appliedMode = animationMode();
+        appliedPhysics = physicsEnabled();
         if (resourceChanged || observedPlayer != minecraft.player || observedLevel != minecraft.level) {
             observedPlayer = minecraft.player;
             observedLevel = minecraft.level;
@@ -214,7 +237,18 @@ public final class LocalPlayerCharacter {
         if (active == null || minecraft.isPaused()) return;
         try {
             var input=active.inputs.sample(active.player);
-            if(!active.scripts.run(active.player,active.profile,active.controller,input))active.controller.update(input);
+            switch (animationMode()) {
+                case VANILLA -> {
+                    active.scripts.reset();active.controller.reset();active.vanilla.update(active.player,true);
+                }
+                case SCRIPTED -> {
+                    active.controller.reset();active.vanilla.disable();
+                    if(!active.scripts.run(active.player,active.profile,active.controller,input))active.vanilla.update(active.player,true);
+                }
+                case CLIPS -> {
+                    active.scripts.reset();active.vanilla.disable();active.controller.update(input);
+                }
+            }
             if(active.physicsBinding!=null)active.physicsBinding.update(active.player,active.profile.modelYawDegrees());
             // The existing NORMAL-priority ClientAnimationManager tick advances simulation exactly once.
             ClientAnimationManager.getInstance().markRendered(active.animation, 0);
@@ -341,6 +375,8 @@ public final class LocalPlayerCharacter {
         event.getDispatcher().register(Commands.literal("assimploader").then(Commands.literal("character")
                 .executes(context -> {
                     context.getSource().sendSuccess(() -> Component.literal(diagnostics().toString()), false);
+                    context.getSource().sendSuccess(() -> Component.literal("Mode="+animationMode()+" RigPhysics="+physicsEnabled()
+                            +" controller="+CharacterScriptRuntime.active()+" scriptFailure="+CharacterScriptRuntime.failure()),false);
                     if(currentPhysics()!=null)context.getSource().sendSuccess(()->Component.literal(currentPhysics().statistics().toString()),false);
                     return 1;
                 }).then(Commands.literal("menu").executes(context -> {
@@ -348,6 +384,10 @@ public final class LocalPlayerCharacter {
                     return 1;
                 })).then(Commands.literal("enable").executes(context -> {setPersistentEnabled(true);return 1;}))
                 .then(motionCommands())
+                .then(modeCommands())
+                .then(Commands.literal("physics")
+                    .then(Commands.literal("on").executes(context->{setPhysicsEnabled(true);return 1;}))
+                    .then(Commands.literal("off").executes(context->{setPhysicsEnabled(false);return 1;})))
                 .then(Commands.literal("disable").executes(context -> {setPersistentEnabled(false);return 1;}))
                 .then(Commands.literal("profile").then(Commands.argument("resource",net.minecraft.commands.arguments.ResourceLocationArgument.id()).executes(context->{
                     var config=AssimpLoaderConfig.CLIENT.character.profile;
@@ -377,6 +417,18 @@ public final class LocalPlayerCharacter {
     private static void setPersistentEnabled(boolean enabled) {
         var config=AssimpLoaderConfig.CLIENT.character.enabled;config.set(enabled);config.save();
         refreshConfiguration();reload();
+    }
+
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<net.minecraft.commands.CommandSourceStack> modeCommands() {
+        var command=Commands.literal("mode");
+        for(var mode:AssimpLoaderConfig.CharacterAnimationMode.values()) {
+            command.then(Commands.literal(mode.name().toLowerCase(java.util.Locale.ROOT)).executes(context->{
+                setAnimationMode(mode);
+                context.getSource().sendSuccess(()->Component.literal("Character animation mode: "+mode),false);
+                return 1;
+            }));
+        }
+        return command;
     }
 
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<net.minecraft.commands.CommandSourceStack> motionCommands() {

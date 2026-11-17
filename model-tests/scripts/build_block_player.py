@@ -226,6 +226,7 @@ for name in ["idle", "walk", "run", "crouch", "crouch_walk", "jump", "fall", "sw
     track = rig.animation_data.nla_tracks.new()
     track.name = name
     strip = track.strips.new(name, 1, action)
+    strip.extrapolation = "NOTHING"
     track.mute = True
 rig.animation_data.action = actions["idle"]
 scene.frame_set(1)
@@ -253,6 +254,10 @@ bpy.context.view_layer.objects.active = rig
 rig.animation_data.action = None
 for track in rig.animation_data.nla_tracks:
     track.mute = False
+# Export the default node transforms outside all strips, with a genuinely neutral rig.
+for bone in rig.pose.bones:
+    bone.matrix_basis.identity()
+scene.frame_set(0)
 bpy.ops.export_scene.fbx(filepath=str(ASSET / "block_player.fbx"), use_selection=True,
     object_types={"ARMATURE", "MESH"}, add_leaf_bones=False, bake_anim=True,
     bake_anim_use_all_actions=False, bake_anim_use_nla_strips=True,

@@ -40,6 +40,7 @@ public final class CharacterSmokeTest {
     private static AnimationState previous;
     private static BulletCharacterPhysics previousPhysics;
     private static LocalPlayerCharacter.Settings oldSettings;
+    private static cn.minerealms.assimploader.config.AssimpLoaderConfig.CharacterAnimationMode oldMode;
     private static CameraType oldCamera;
     private static boolean oldPause,oldGui;
     private static Vector3f standingHead;
@@ -96,6 +97,8 @@ public final class CharacterSmokeTest {
     }
     private static void prepare(Minecraft mc) {
         oldSettings=LocalPlayerCharacter.settings();oldCamera=mc.options.getCameraType();
+        oldMode=LocalPlayerCharacter.animationMode();
+        LocalPlayerCharacter.setAnimationMode(cn.minerealms.assimploader.config.AssimpLoaderConfig.CharacterAnimationMode.CLIPS);
         oldPause=mc.options.pauseOnLostFocus;oldGui=mc.options.hideGui;
         mc.options.pauseOnLostFocus=false;mc.options.hideGui=true;mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
         pending=true;var server=mc.getSingleplayerServer();require(server!=null,"Needs an integrated test world");
@@ -219,6 +222,7 @@ public final class CharacterSmokeTest {
         KeyMapping.releaseAll();
         if(oldMain!=null && mc.player!=null) {equip(mc,oldMain,oldOff);mc.player.setMainArm(oldArm);}
         if(oldSettings!=null)LocalPlayerCharacter.configure(oldSettings);
+        if(oldMode!=null)LocalPlayerCharacter.setAnimationMode(oldMode);
         LocalPlayerCharacter.reload();
         if(oldCamera!=null)mc.options.setCameraType(oldCamera);
         mc.options.pauseOnLostFocus=oldPause;mc.options.hideGui=oldGui;

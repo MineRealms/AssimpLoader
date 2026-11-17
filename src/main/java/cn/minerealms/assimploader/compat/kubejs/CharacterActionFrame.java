@@ -47,14 +47,16 @@ public final class CharacterActionFrame {
 
     /** Retains built-in locomotion cadence and head aim while scripts provide the action overlay. */
     public void defaultMotion() {
-        check();var i=observation;
+        check();var vanilla=LocalPlayerCharacter.currentVanillaDriver();
+        if(vanilla!=null){vanilla.update(player,false);return;}
+        var i=observation;
         controller.update(new PlayerVisualInput(i.sequence(),i.timeSeconds(),i.forwardVelocity(),i.strafeVelocity(),i.verticalVelocity(),
                 i.bodyYawDegrees(),i.headYawDegrees(),i.headPitchDegrees(),i.onGround(),i.crouching(),i.sprinting(),i.jumping(),
                 i.falling(),i.swimming(),i.flying(),i.elytra(),i.riding(),i.sleeping(),i.dead(),false,false,
                 i.swingAction()==null?null:new PlayerVisualInput.SwingAction(i.swingAction().generation(),false,0)));
     }
     public void locomotion(){defaultMotion();}
-    public void defaultAnimation(){check();controller.update(observation);}
+    public void defaultAnimation(){check();var vanilla=LocalPlayerCharacter.currentVanillaDriver();if(vanilla!=null)vanilla.update(player,true);else controller.update(observation);}
     public List<String> morphs(){check();return rig==null?List.of():new ArrayList<>(rig.morphs().names());}
     public void morph(String name,double weight){checkRig();rig.morphs().setWeight(name,number(weight));}
     public List<String> ikChains(){check();return rig==null?List.of():new ArrayList<>(rig.ik().keySet());}

@@ -24,6 +24,11 @@ public final class CharacterScriptApi {
     public List<String> controllers() {return CharacterScriptRuntime.controllers();}
     public String active() {return CharacterScriptRuntime.active();}
     public String failure() {return CharacterScriptRuntime.failure();}
+    public String mode(){return LocalPlayerCharacter.animationMode().name().toLowerCase(java.util.Locale.ROOT);}
+    public CharacterScriptApi mode(String mode){checkThread();LocalPlayerCharacter.setAnimationMode(
+            cn.minerealms.assimploader.config.AssimpLoaderConfig.CharacterAnimationMode.valueOf(mode.toUpperCase(java.util.Locale.ROOT)));return this;}
+    public boolean physicsEnabled(){return LocalPlayerCharacter.physicsEnabled();}
+    public CharacterScriptApi physicsEnabled(boolean enabled){checkThread();LocalPlayerCharacter.setPhysicsEnabled(enabled);return this;}
     public CharacterScriptApi enable(boolean enabled) {
         var s=LocalPlayerCharacter.settings();
         LocalPlayerCharacter.configure(new LocalPlayerCharacter.Settings(enabled,s.profile(),s.groundPlacement(),s.effects()));return this;
@@ -37,7 +42,7 @@ public final class CharacterScriptApi {
         checkThread();var d=LocalPlayerCharacter.diagnostics();var s=LocalPlayerCharacter.settings();
         return Map.of("enabled",s.enabled(),"profile",s.profile(),"status",d.status().name(),
                 "model",d.model(),"failure",d.failure(),"controller",active()==null?"":active(),
-                "scriptFailure",failure());
+                "scriptFailure",failure(),"mode",mode(),"physicsEnabled",physicsEnabled());
     }
     static void checkThread() {
         if(!Minecraft.getInstance().isSameThread())throw new IllegalStateException("Character scripts require the client thread");

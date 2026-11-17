@@ -346,8 +346,8 @@ dependencies {
         if (!project.hasProperty('withoutOptionalMods')) runtimeOnly mapped
     }
 
-    // Explicit developer verification only; never bundled or enabled in normal runs.
-    if (project.hasProperty('withOculus')) {
+    // Development clients include Oculus by default; never bundled into the mod.
+    if (!project.hasProperty('withoutOculus')) {
         runtimeOnly fg.deobf('maven.modrinth:oculus:iQ1SwGc3') // Oculus 1.8.0 / MC 1.20.1
         runtimeOnly fg.deobf('maven.modrinth:embeddium:UTbfe5d1') // Embeddium 0.3.31
     }

@@ -8,6 +8,7 @@
     "vehicle.VehicleServerMovementGuard"
   ],
   "client": [
+    "character.PlayerRendererPoseAccess",
     "visibility.ShowcaseFrustumMixin",
     "visibility.ShowcaseViewportMixin",
     "visibility.WorldBatchFlushMixin",
