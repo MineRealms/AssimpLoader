@@ -6,6 +6,9 @@
   "refmap": "assimploader.refmap.json",
   "mixins": [],
   "client": [
+    "render.VertexBufferSelectionAccess",
+    "camera.WorldEditCameraAccess",
+    "camera.WorldEditCameraMixin",
     "visibility.ShowcaseFrustumMixin",
     "visibility.ShowcaseViewportMixin",
     "visibility.WorldBatchFlushMixin"
