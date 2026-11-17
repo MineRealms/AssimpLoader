@@ -26,10 +26,11 @@ public final class OculusEntityDrawBridge {
         if (failed || !RenderSystem.isOnRenderThread() || !OculusCompat.isIntegrationEnabled()
                 || !OculusCompat.isShadersActive()) return false;
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null || minecraft.player == null || minecraft.screen != null
-                || minecraft.getOverlay() != null) return false;
+        if (minecraft.level == null || minecraft.player == null || minecraft.getOverlay() != null) return false;
         try {
             Api bridge = api();
+            // Chat and world editors still render the level. The actual Oculus pass flags
+            // exclude inventory/offscreen GUI previews without disabling resident world VBOs.
             if (bridge == null || !bridge.isRenderingLevel.getBoolean(null)
                     || !bridge.renderWithExtendedVertexFormat.getBoolean(null)
                     || !Boolean.TRUE.equals(bridge.useExtendedVertexFormat.invoke(bridge.worldRenderingSettings))) return false;
@@ -51,7 +52,7 @@ public final class OculusEntityDrawBridge {
         return beginPhase(true);
     }
 
-    /** Temporarily selects Iris' world-entity shader phase for a direct cached draw. */
+    /** Selects the entity phase while preserving an enclosing first-person hand pass. */
     public static AutoCloseable beginEntity() {
         return beginPhase(false);
     }
@@ -86,6 +87,8 @@ public final class OculusEntityDrawBridge {
             if (pipeline == null) throw new IllegalStateException("Oculus world pipeline is unavailable");
             Object previous = bridge.getPhase.invoke(pipeline);
             Object requested = blockEntity ? bridge.blockEntityPhase : bridge.entityPhase;
+            if (!blockEntity && (previous == bridge.handSolidPhase || previous == bridge.handTranslucentPhase))
+                return NO_PHASE_CHANGE;
             if (previous == requested) return NO_PHASE_CHANGE;
             bridge.setPhase.invoke(pipeline, requested);
             return () -> {
@@ -165,6 +168,8 @@ public final class OculusEntityDrawBridge {
             Class<?> phaseType = getPhase.getReturnType();
             Object blockEntityPhase = phaseType.getField("BLOCK_ENTITIES").get(null);
             Object entityPhase = phaseType.getField("ENTITIES").get(null);
+            Object handSolidPhase = phaseType.getField("HAND_SOLID").get(null);
+            Object handTranslucentPhase = phaseType.getField("HAND_TRANSLUCENT").get(null);
             Field overridePhase = Class.forName("net.irisshaders.iris.pipeline.IrisRenderingPipeline", false, loader)
                     .getDeclaredField("overridePhase");
             if (!overridePhase.trySetAccessible()) throw new IllegalAccessException("Cannot inspect Oculus override phase");
@@ -184,6 +189,7 @@ public final class OculusEntityDrawBridge {
                     .getDeclaredField("lastApplied");
             if (!lastAppliedShader.trySetAccessible()) throw new IllegalAccessException("Cannot invalidate Oculus shader binding");
             api = new Api(settings, useExtended, getManager, getPipeline, getPhase, setPhase, blockEntityPhase, entityPhase,
+                    handSolidPhase, handTranslucentPhase,
                     overridePhase, entityFormat, isRenderingLevel, renderWithExtended,
                     capturedType.getMethod("getCurrentRenderedEntity"),
                     capturedType.getMethod("getCurrentRenderedBlockEntity"),
@@ -202,7 +208,7 @@ public final class OculusEntityDrawBridge {
 
     private record Api(Object worldRenderingSettings, Method useExtendedVertexFormat,
                        Method manager, Method pipeline, Method getPhase, Method setPhase,
-                       Object blockEntityPhase, Object entityPhase,
+                       Object blockEntityPhase, Object entityPhase, Object handSolidPhase, Object handTranslucentPhase,
                        Field overridePhase, Field entityFormat, Field isRenderingLevel, Field renderWithExtendedVertexFormat,
                        Method getRenderedEntity, Method getRenderedBlockEntity, Method getRenderedItem,
                        Object capturedRenderingState, Method clearActiveUniforms, Method clearActiveSamplers,
