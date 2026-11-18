@@ -166,4 +166,4 @@ This run excluded optional shader mods and did not reopen the world from disk.
 Expanded Oculus run `1794832541673` subsequently passed ten stages including
 actual disk save/reopen and nine delayed images. It additionally verified the
 256-bone Showcase's Morph 0/1/0 in main and shadow passes. See the separate
-[Oculus validation and JFR report](OCULUS_ANIMATION_VALIDATION_2026-11-16.md).
+[Oculus validation and JFR report](../history/OCULUS_ANIMATION_VALIDATION_2026-11-16.md).
