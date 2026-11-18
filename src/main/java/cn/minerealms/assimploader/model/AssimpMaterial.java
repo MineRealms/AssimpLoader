@@ -44,6 +44,16 @@ public class AssimpMaterial {
         this.blendAlpha = readBlendAlpha(aiMaterial);
     }
 
+    /** Detached material variant; the shared imported material remains immutable. */
+    public AssimpMaterial(AssimpMaterial source, float[] color, String albedo, String normal, String specular,
+                          PbrMaterialInputs inputs, boolean blend) {
+        this.index = source.index; this.name = source.name;
+        this.diffuseColor = color.clone(); this.specularColor = source.specularColor.clone();
+        this.ambientColor = source.ambientColor.clone();
+        this.diffuseTexture = albedo; this.normalTexture = normal; this.specularTexture = specular;
+        this.pbrInputs = java.util.Objects.requireNonNull(inputs); this.blendAlpha = blend;
+    }
+
     // ------------------------------------------------------------------ native readers
 
     private static String readName(AIMaterial aiMaterial) {
