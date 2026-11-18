@@ -53,7 +53,7 @@ weight semantics without creating a GL context. `AnimationSmokeTest` additionall
 uses the Blender GLB with a mixed-weight skinned shape key, rejects CPU fallback
 in the accelerated column, compares silhouettes, checks unit-4 binding restoration
 and exercises resource recreation. Results and limits are recorded in the
-[implementation report](EXPANSION_IMPLEMENTATION_2026-11-16.md).
+[implementation report](../history/EXPANSION_IMPLEMENTATION_2026-11-16.md).
 
 Assimp reference: [attachment stream contract](https://github.com/assimp/assimp/blob/v5.2.5/include/assimp/mesh.h)
 and [glTF delta conversion](https://github.com/assimp/assimp/blob/v5.2.5/code/AssetLib/glTF2/glTF2Importer.cpp).
