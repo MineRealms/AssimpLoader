@@ -15,7 +15,7 @@ public final class FlatUi {
     public static final int BACKGROUND = 0xff181a1d, SURFACE = 0xff202327, FIELD = 0xff111417;
     public static final int LINE = 0xff373c42, TEXT = 0xffe5e9ed, MUTED = 0xff9da6b0;
     public static final int ACCENT = 0xff58d5bd, SELECTED = 0xff203c38, ERROR = 0xffff8e8e;
-    public enum Icon { CLOSE, RELOAD, FIT, RESET, PLUS, MINUS, PREVIOUS, NEXT }
+    public enum Icon { CLOSE, RELOAD, FIT, RESET, PLUS, MINUS, PREVIOUS, NEXT, MOVE, ROTATE, SCALE, OPEN, IMPORT, EXPORT, SAVE, UNDO, REDO, PLAY, PAUSE }
 
     private FlatUi() {}
 
@@ -44,6 +44,12 @@ public final class FlatUi {
 
     public static Button icon(int x, int y, Icon icon, Component tooltip, Button.OnPress action) {
         Button button = new FlatButton(x, y, 26, 26, tooltip, action, () -> false, icon);
+        button.setTooltip(Tooltip.create(tooltip));
+        return button;
+    }
+
+    public static Button tool(int x, int y, Icon icon, Component tooltip, BooleanSupplier selected, Button.OnPress action) {
+        Button button = new FlatButton(x, y, 26, 26, tooltip, action, selected, icon);
         button.setTooltip(Tooltip.create(tooltip));
         return button;
     }
@@ -122,8 +128,33 @@ public final class FlatUi {
 
         private void drawIcon(GuiGraphics g, int x, int y, int color) {
             switch (icon) {
+                case OPEN -> {g.fill(x-7,y-4,x+6,y+6,color);g.fill(x-6,y-6,x-1,y-3,color);g.fill(x-5,y-2,x+7,y+5,FIELD);}
+                case SAVE -> {g.fill(x-6,y-6,x+6,y+6,color);g.fill(x-3,y-5,x+3,y-1,FIELD);g.fill(x-4,y+1,x+4,y+5,FIELD);}
+                case IMPORT, EXPORT -> {int s=icon==Icon.IMPORT?1:-1;g.fill(x,y-6,x+1,y+4,color);for(int i=0;i<4;i++)g.fill(x-i,y+s*(3-i),x+i+1,y+s*(3-i)+1,color);g.fill(x-6,y+6,x+7,y+7,color);}
+                case UNDO, REDO -> {int s=icon==Icon.UNDO?-1:1;g.fill(x-5,y-2,x+6,y-1,color);g.fill(x+s*5,y-1,x+s*5+1,y+5,color);for(int i=0;i<4;i++){int xx=x+s*(-5+i);g.fill(xx,y-2-i,xx+1,y-1+i,color);}}
+                case PLAY -> {for(int i=0;i<8;i++)g.fill(x-3+i,y-5+i/2,x-2+i,y+6-i/2,color);}
+                case PAUSE -> {g.fill(x-5,y-5,x-2,y+6,color);g.fill(x+2,y-5,x+5,y+6,color);}
                 case PLUS -> { g.fill(x - 5, y, x + 6, y + 1, color); g.fill(x, y - 5, x + 1, y + 6, color); }
                 case MINUS -> g.fill(x - 5, y, x + 6, y + 1, color);
+                case MOVE -> {
+                    g.fill(x - 6, y, x + 7, y + 1, color); g.fill(x, y - 6, x + 1, y + 7, color);
+                    for (int i = 0; i < 3; i++) {
+                        g.fill(x - i, y - 6 + i, x + i + 1, y - 5 + i, color);
+                        g.fill(x - i, y + 6 - i, x + i + 1, y + 7 - i, color);
+                        g.fill(x - 6 + i, y - i, x - 5 + i, y + i + 1, color);
+                        g.fill(x + 6 - i, y - i, x + 7 - i, y + i + 1, color);
+                    }
+                }
+                case ROTATE -> {
+                    g.fill(x - 4, y - 6, x + 4, y - 5, color); g.fill(x - 6, y - 4, x - 5, y + 4, color);
+                    g.fill(x - 4, y + 5, x + 4, y + 6, color); g.fill(x + 5, y, x + 6, y + 4, color);
+                    g.fill(x + 4, y - 7, x + 5, y - 2, color); g.fill(x, y - 3, x + 5, y - 2, color);
+                }
+                case SCALE -> {
+                    g.fill(x - 6, y + 2, x - 1, y + 7, color);
+                    for (int i = -2; i <= 5; i++) g.fill(x + i, y - i, x + i + 1, y - i + 1, color);
+                    g.fill(x + 1, y - 6, x + 7, y - 5, color); g.fill(x + 6, y - 6, x + 7, y, color);
+                }
                 case CLOSE -> { for (int i = -4; i <= 4; i++) { g.fill(x + i, y + i, x + i + 1, y + i + 1, color); g.fill(x - i, y + i, x - i + 1, y + i + 1, color); } }
                 case PREVIOUS, NEXT -> { int sign = icon == Icon.NEXT ? 1 : -1; for (int i = 0; i < 5; i++) { int dx = sign * (2 - i); g.fill(x + dx, y - i, x + dx + 1, y - i + 1, color); g.fill(x + dx, y + i, x + dx + 1, y + i + 1, color); } }
                 case FIT -> { for (int sx : new int[]{-1, 1}) for (int sy : new int[]{-1, 1}) { int xx = x + sx * 5, yy = y + sy * 5; g.fill(xx, Math.min(yy, yy - sy * 3), xx + 1, Math.max(yy, yy - sy * 3) + 1, color); g.fill(Math.min(xx, xx - sx * 3), yy, Math.max(xx, xx - sx * 3) + 1, yy + 1, color); } }
