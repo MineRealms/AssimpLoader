@@ -1,5 +1,9 @@
 package cn.minerealms.assimploader.workbench.io;
 
+import cn.minerealms.assimploader.workbench.model.ModelTransform;
+import cn.minerealms.assimploader.workbench.model.WorkbenchDocument;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -7,6 +11,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.util.Map;
 import java.util.zip.ZipFile;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -52,6 +58,56 @@ class WorkbenchProjectStoreTest {
         store.discardDraft(imported.documentPath());assertTrue(store.readDraft(imported.documentPath()).isEmpty());
     }
 
+    @Test void importingProjectDirectoryOpensSavedConfigurationWithoutCreatingAnotherAssetProject() throws Exception {
+        var store=new WorkbenchProjectStore(temp.resolve("projects"));var imported=store.importAsset(createGltf(temp.resolve("source")));
+        var extension=new JsonObject();extension.addProperty("preset","author-edited");
+        var edited=imported.document().withTransform(ModelTransform.IDENTITY.withScale(2,3,4)).withExtension("rigworks",extension);
+        store.save(imported.documentPath(),edited);
+        var opened=store.importAsset(imported.directory());
+        assertEquals(imported.documentPath(),opened.documentPath());assertEquals(edited,opened.document());
+        assertEquals(1,store.listProjects().size());
+    }
+
+    @Test void draftWithAnOldSavedBaseCannotReplaceNewFormalConfigurationEvenWhenWrittenLater() throws Exception {
+        var store=new WorkbenchProjectStore(temp.resolve("projects"));Path file=createProject(store);
+        var base=store.read(file);var draft=base.withTransform(ModelTransform.IDENTITY.withPosition(1,0,0));
+        var formal=base.withTransform(ModelTransform.IDENTITY.withPosition(7,0,0));
+        store.save(file,formal);store.saveDraft(file,base,draft);
+        var result=store.readRecovery(file,formal);
+        assertTrue(result.document().isEmpty());assertTrue(result.issues().get(0).contains("saved version"));
+        assertEquals(formal,store.read(file));assertTrue(Files.isRegularFile(file.resolveSibling("draft.workbench.json")));
+    }
+
+    @Test void oldDraftTimestampIsRejectedEvenIfFormalWasRewrittenWithTheSameContent() throws Exception {
+        var store=new WorkbenchProjectStore(temp.resolve("projects"));Path file=createProject(store);var base=store.read(file);
+        store.saveDraft(file,base.withTransform(ModelTransform.IDENTITY.withPosition(1,0,0)));
+        Files.setLastModifiedTime(file.resolveSibling("draft.workbench.json"),FileTime.fromMillis(1000));
+        Files.setLastModifiedTime(file,FileTime.fromMillis(2000));
+        var result=store.readRecovery(file,base);
+        assertTrue(result.document().isEmpty());assertTrue(result.issues().get(0).contains("older"));
+    }
+
+    @Test void invalidOptionalDraftLeavesTheFormalProjectReadableAndReportsTheProblem() throws Exception {
+        var store=new WorkbenchProjectStore(temp.resolve("projects"));var imported=store.importAsset(createGltf(temp.resolve("source")));
+        Files.writeString(imported.documentPath().resolveSibling("draft.workbench.json"),"{broken");
+        var opened=store.open(imported.documentPath());var result=store.readRecovery(opened.documentPath(),opened.document());
+        assertEquals(imported.document(),opened.document());assertTrue(result.document().isEmpty());
+        assertTrue(result.issues().get(0).contains("Invalid recovery"));assertTrue(store.readDraft(opened.documentPath()).isEmpty());
+    }
+
+    @Test void legacyOrWrongAssetDraftIsRetainedForManualInspectionInsteadOfReplacingSavedData() throws Exception {
+        var store=new WorkbenchProjectStore(temp.resolve("projects"));Path file=createProject(store);var base=store.read(file);
+        var draft=base.withTransform(ModelTransform.IDENTITY.withPosition(1,0,0));Path recovery=file.resolveSibling("draft.workbench.json");
+        Files.writeString(recovery,WorkbenchCodec.write(draft));
+        assertTrue(store.readRecovery(file,base).issues().get(0).contains("Legacy"));
+        store.saveDraft(file,base,draft);
+        var changed=JsonParser.parseString(Files.readString(recovery)).getAsJsonObject();changed.addProperty("asset_id","other:asset");
+        Files.writeString(recovery,changed.toString());
+        var result=store.readRecovery(file,base);
+        assertTrue(result.document().isEmpty());assertTrue(result.issues().get(0).contains("another asset"));
+        assertTrue(Files.isRegularFile(recovery));
+    }
+
     @Test void pathEscapeAndExternalSaveAreRejected() throws Exception {
         Path project=temp.resolve("project");Files.createDirectories(project);
         for(String invalid:new String[]{"../outside.fbx","/outside.fbx","C:/outside.fbx","..\\outside.fbx"})
@@ -73,6 +129,13 @@ class WorkbenchProjectStoreTest {
         var store=new WorkbenchProjectStore(temp.resolve("projects"));
         var error=assertThrows(java.io.IOException.class,()->store.importAsset(source.getParent()));
         assertTrue(error.getMessage().contains("multiple models"));
+    }
+
+    private static Path createProject(WorkbenchProjectStore store) throws Exception {
+        Path file=store.root().resolve("test").resolve(WorkbenchProjectStore.PROJECT_FILE);
+        store.save(file,new WorkbenchDocument(1,"test:asset","assets/model.fbx","",ModelTransform.IDENTITY,
+                Map.of(),Map.of(),Map.of(),WorkbenchDocument.AnimationPreview.DEFAULT,new JsonObject()));
+        return file;
     }
 
     private static Path createGltf(Path directory) throws Exception {

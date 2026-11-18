@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class WorkbenchRecovery {
     interface DraftIo {
         void save(WorkbenchDocument document) throws IOException;
+        default void save(WorkbenchDocument savedBase,WorkbenchDocument document) throws IOException {save(document);}
         void discard() throws IOException;
     }
 
@@ -20,6 +21,7 @@ public final class WorkbenchRecovery {
     public WorkbenchRecovery(WorkbenchProjectStore store, Path projectFile) {
         this(new DraftIo() {
             @Override public void save(WorkbenchDocument document) throws IOException {store.saveDraft(projectFile,document);}
+            @Override public void save(WorkbenchDocument savedBase,WorkbenchDocument document) throws IOException {store.saveDraft(projectFile,savedBase,document);}
             @Override public void discard() throws IOException {store.discardDraft(projectFile);}
         });
     }
@@ -31,9 +33,13 @@ public final class WorkbenchRecovery {
 
     /** Call on an IO worker, using the generation captured with the immutable document. */
     public boolean save(long expectedGeneration, WorkbenchDocument document) throws IOException {
+        return save(expectedGeneration,null,document);
+    }
+
+    public boolean save(long expectedGeneration, WorkbenchDocument savedBase, WorkbenchDocument document) throws IOException {
         synchronized(lock) {
             if(expectedGeneration!=generation.get())return false;
-            io.save(document);
+            if(savedBase==null)io.save(document);else io.save(savedBase,document);
             if(expectedGeneration!=generation.get()) {
                 io.discard();
                 return false;

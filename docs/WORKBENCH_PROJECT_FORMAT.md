@@ -49,16 +49,30 @@ decision when source metadata does not describe the intended Minecraft size.
 
 The shared `WorkbenchSession` maintains immutable drafts and bounded undo/redo.
 Begin/commit a transaction around a drag; cancel restores its starting document.
-`markSaved` records a successful save, and `revert` returns to that saved version.
+`markSaved(persisted)` records the exact snapshot written by an asynchronous save,
+and `revert` returns to that version. Newer edits and an active drag remain in
+memory and stay dirty. First-save asset copying rebases source identity and
+inherited texture paths throughout the same session, including undo/redo and an
+active transaction, instead of replacing the session with an older snapshot.
 Neither drag updates nor undo import FBX, write JSON or allocate GPU buffers.
 
 ## Persistence And Portability
 
 JSON writes use a temporary sibling followed by an atomic move when supported.
-The store also exposes explicit `saveDraft`, `readDraft` and `discardDraft` APIs;
-`open` reads the saved project. The screen separately restores an available draft
-into its edit session and reports `Recovered unsaved draft`; the saved file is
-not replaced by recovery.
+The store also exposes `saveDraft`, `readRecovery`, `readDraft` and `discardDraft`.
+`saveDraft(file, savedBase, draft)` records a SHA-256 of the canonical saved base
+under the draft-only `_recovery` field. `readRecovery` returns an optional draft
+and diagnostics: the saved base hash and asset identity must match, and the draft
+must not be older than the formal file. Corrupt, stale and legacy drafts without
+this saved-version reference are left on disk for inspection and skipped. They
+cannot prevent opening a valid formal project. The compatibility `readDraft`
+method returns only an accepted optional draft.
+
+`open` reads the formal project; the screen separately applies an accepted draft
+to its edit session and reports `Recovered unsaved draft`. Recovery never replaces
+the formal file. Importing a directory containing `project.workbench.json` opens
+that project and preserves its configuration instead of making a new default
+asset project.
 
 `WorkbenchSession.revert` only resets memory. The screen's explicit Revert/Discard
 also invalidates old recovery generations and deletes the recovery file on the

@@ -24,15 +24,29 @@ class WorkbenchRecoveryTest {
     @Test void aQueuedAutosaveCannotRecreateAnExplicitlyDiscardedDraft() throws Exception {
         var store=new WorkbenchProjectStore(temp.resolve("projects"));
         Path file=store.root().resolve("asset/project.workbench.json");
+        store.save(file,document());
+        var draft=document().withTransform(ModelTransform.IDENTITY.withPosition(1,0,0));
         var recovery=new WorkbenchRecovery(store,file);
         long queuedGeneration=recovery.generation();
-        assertTrue(recovery.save(queuedGeneration,document()));
+        assertTrue(recovery.save(queuedGeneration,document(),draft));
         recovery.invalidatePendingWrites();recovery.discard();
 
         assertFalse(recovery.save(queuedGeneration,document().withTransform(ModelTransform.IDENTITY.withPosition(3,0,0))));
         assertTrue(store.readDraft(file).isEmpty());
-        assertTrue(recovery.save(recovery.generation(),document()));
-        assertEquals(document(),store.readDraft(file).orElseThrow());
+        assertTrue(recovery.save(recovery.generation(),document(),draft));
+        assertEquals(draft,store.readDraft(file).orElseThrow());
+    }
+
+    @Test void sessionSavedBaseIsPassedToDiskInsteadOfRebindingToANewerExternalSave() throws Exception {
+        var capturedBase=new AtomicReference<WorkbenchDocument>();var capturedDraft=new AtomicReference<WorkbenchDocument>();
+        var recovery=new WorkbenchRecovery(new WorkbenchRecovery.DraftIo() {
+            @Override public void save(WorkbenchDocument document){fail("Missing session baseline");}
+            @Override public void save(WorkbenchDocument base,WorkbenchDocument document){capturedBase.set(base);capturedDraft.set(document);}
+            @Override public void discard(){}
+        });
+        var base=document();var draft=base.withTransform(ModelTransform.IDENTITY.withPosition(4,0,0));
+        assertTrue(recovery.save(recovery.generation(),base,draft));
+        assertSame(base,capturedBase.get());assertSame(draft,capturedDraft.get());
     }
 
     @Test void invalidationDuringDiskWriteRemovesItsResultBeforeCompleting() throws Exception {

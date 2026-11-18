@@ -5,6 +5,9 @@ import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.workbench.model.SceneMetadata;
 import cn.minerealms.assimploader.workbench.model.WorkbenchDocument;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.io.IOException;
@@ -33,12 +36,17 @@ import java.util.zip.ZipOutputStream;
 /** Blocking file service. Call import/open/export on a bounded worker, never from render(). */
 public final class WorkbenchProjectStore {
     public static final String PROJECT_FILE="project.workbench.json";
+    private static final String DRAFT_FILE="draft.workbench.json";
+    private static final Gson DRAFT_JSON=new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final Set<String> MODEL_EXTENSIONS=Set.of("fbx","gltf","glb","obj","dae","ply","stl","blend","3ds");
     private static final long MAX_BUNDLE_BYTES=2L*1024*1024*1024;
     private final Path root;
 
     public record Project(Path directory, Path documentPath, AssimpScene scene,
                           WorkbenchDocument document, SceneMetadata metadata) {}
+    public record Recovery(Optional<WorkbenchDocument> document, List<String> issues) {
+        public Recovery {document=java.util.Objects.requireNonNull(document);issues=List.copyOf(issues);}
+    }
 
     public WorkbenchProjectStore(Path projectsRoot) {
         root=projectsRoot.toAbsolutePath().normalize();
@@ -57,6 +65,7 @@ public final class WorkbenchProjectStore {
     public Project importAsset(Path input) throws IOException {
         Path requested=input.toAbsolutePath().normalize();
         if(Files.isRegularFile(requested)&&requested.getFileName().toString().endsWith(".workbench.json"))return open(requested);
+        if(Files.isDirectory(requested)&&Files.isRegularFile(requested.resolve(PROJECT_FILE)))return open(requested);
         Path model=selectModel(requested);
         AssimpScene sourceScene=new AssimpModelLoader().loadModel(model,ModelImportMode.DYNAMIC);
         Files.createDirectories(root);
@@ -147,23 +156,66 @@ public final class WorkbenchProjectStore {
         catch(RuntimeException invalid){throw new IOException("Invalid workbench project: "+invalid.getMessage(),invalid);}
     }
     public void save(Path file,WorkbenchDocument document) throws IOException {
+        writeAtomic(checkedSavePath(file,document),WorkbenchCodec.write(document));
+    }
+    private Path checkedSavePath(Path file,WorkbenchDocument document) throws IOException {
         Path absolute=file.toAbsolutePath().normalize();
         if(!absolute.startsWith(root))throw new IOException("Project save must stay inside configured project directory");
         Files.createDirectories(absolute.getParent());
         if(!absolute.getParent().toRealPath().startsWith(root.toRealPath()))throw new IOException("Project save escapes through symbolic link");
         resolvePortable(absolute.getParent(),document.sourcePath());
-        writeAtomic(absolute,WorkbenchCodec.write(document));
+        return absolute;
     }
 
     public void saveDraft(Path projectFile,WorkbenchDocument document) throws IOException {
-        save(projectFile.resolveSibling("draft.workbench.json"),document);
+        saveDraft(projectFile,read(projectFile),document);
+    }
+    /** The base comes from the edit session, so external edits cannot silently become this draft's base. */
+    public void saveDraft(Path projectFile,WorkbenchDocument savedBase,WorkbenchDocument document) throws IOException {
+        if(!sameAsset(savedBase,document))throw new IOException("Recovery draft belongs to another asset");
+        Path draft=checkedSavePath(projectFile.resolveSibling(DRAFT_FILE),document);
+        JsonObject json=WorkbenchCodec.toJson(document),recovery=new JsonObject();
+        recovery.addProperty("version",1);recovery.addProperty("base_sha256",documentHash(savedBase));json.add("_recovery",recovery);
+        String encoded=DRAFT_JSON.toJson(json)+"\n";
+        if(encoded.getBytes(StandardCharsets.UTF_8).length>WorkbenchCodec.MAX_BYTES)throw new IOException("Recovery JSON exceeds 4 MiB");
+        writeAtomic(draft,encoded);
     }
     public Optional<WorkbenchDocument> readDraft(Path projectFile) throws IOException {
-        Path draft=projectFile.resolveSibling("draft.workbench.json");
-        return Files.isRegularFile(draft)?Optional.of(read(draft)):Optional.empty();
+        if(!Files.exists(projectFile.resolveSibling(DRAFT_FILE),LinkOption.NOFOLLOW_LINKS))return Optional.empty();
+        return readRecovery(projectFile,read(projectFile)).document();
+    }
+    /** A bad optional recovery file must never prevent opening its valid formal project. */
+    public Recovery readRecovery(Path projectFile,WorkbenchDocument saved) {
+        Path draft=projectFile.resolveSibling(DRAFT_FILE);
+        if(!Files.exists(draft,LinkOption.NOFOLLOW_LINKS))return new Recovery(Optional.empty(),List.of());
+        try {
+            if(!Files.isRegularFile(draft,LinkOption.NOFOLLOW_LINKS))throw new IOException("Recovery entry is not a regular file");
+            if(Files.size(draft)>WorkbenchCodec.MAX_BYTES)throw new IOException("Recovery JSON exceeds 4 MiB");
+            var json=JsonParser.parseString(Files.readString(draft,StandardCharsets.UTF_8)).getAsJsonObject();
+            if(!json.has("_recovery"))return ignoredDraft("Legacy recovery draft has no saved-version reference; saved project kept");
+            var reference=json.getAsJsonObject("_recovery");
+            if(reference.get("version").getAsInt()!=1)throw new IOException("Unsupported recovery metadata version");
+            if(!documentHash(saved).equals(reference.get("base_sha256").getAsString()))
+                return ignoredDraft("Stale recovery draft references another saved version; saved project kept");
+            if(Files.getLastModifiedTime(projectFile).compareTo(Files.getLastModifiedTime(draft))>0)
+                return ignoredDraft("Recovery draft is older than the saved project; saved project kept");
+            WorkbenchDocument document=WorkbenchCodec.fromJson(json);
+            if(!sameAsset(saved,document))return ignoredDraft("Recovery draft belongs to another asset; saved project kept");
+            return new Recovery(document.equals(saved)?Optional.empty():Optional.of(document),List.of());
+        } catch(IOException|RuntimeException invalid) {
+            return ignoredDraft("Invalid recovery draft ignored; saved project kept: "+invalid.getMessage());
+        }
+    }
+    private static Recovery ignoredDraft(String issue) {return new Recovery(Optional.empty(),List.of(issue));}
+    private static boolean sameAsset(WorkbenchDocument a,WorkbenchDocument b) {
+        return a.assetId().equals(b.assetId())&&a.sourcePath().equals(b.sourcePath())&&a.contentHash().equals(b.contentHash());
+    }
+    private static String documentHash(WorkbenchDocument document) {
+        try {return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(WorkbenchCodec.write(document).getBytes(StandardCharsets.UTF_8)));}
+        catch(NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}
     }
     public void discardDraft(Path projectFile) throws IOException {
-        Path draft=projectFile.toAbsolutePath().normalize().resolveSibling("draft.workbench.json");
+        Path draft=projectFile.toAbsolutePath().normalize().resolveSibling(DRAFT_FILE);
         if(!draft.startsWith(root))throw new IOException("Draft must stay inside configured project directory");
         if(Files.exists(draft)&&!draft.toRealPath().startsWith(root.toRealPath()))throw new IOException("Draft escapes through symbolic link");
         Files.deleteIfExists(draft);
