@@ -1,6 +1,6 @@
 # PBR Texture Support for Oculus Integration
 
-> Historical design. Use the [current Oculus PBR guide](OCULUS_PBR_USAGE.md) and [asset specification](PBR_ASSET_SPEC.md) for implemented FBX/glTF conversion, the optional loader bridge, LabPBR channels and runtime verification. The APIs and assumptions below are retained as historical notes. CNC/CCB was subsequently removed at the user's request; current fixtures are the CIWS, PBR probe and portal in [Model Showcase](MODEL_SHOWCASE.md).
+> Historical design. Use the [current Oculus PBR guide](../guides/OCULUS_PBR_USAGE.md) and [asset specification](../guides/PBR_ASSET_SPEC.md) for implemented FBX/glTF conversion, the optional loader bridge, LabPBR channels and runtime verification. The APIs and assumptions below are retained as historical notes. CNC/CCB was subsequently removed at the user's request; current fixtures are the CIWS, PBR probe and portal in [Model Showcase](../showcase/MODEL_SHOWCASE.md).
 
 ## Overview
 
