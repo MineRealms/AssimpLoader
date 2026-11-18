@@ -44,7 +44,6 @@ configurations {
     integrationTestCompileOnly.extendsFrom showcaseCompileOnly
     integrationTestRuntimeOnly.extendsFrom showcaseRuntimeOnly
 }
-evaluationDependsOn(':rigworks')
 
 minecraft {
     mappings channel: 'official', version: '1.20.1'
@@ -54,50 +53,14 @@ minecraft {
             workingDirectory project.file(project.findProperty('clientGameDir') ?: 'run')
             if (project.hasProperty('clientUsername')) args '--username', project.property('clientUsername').toString()
             if (project.hasProperty('clientServer')) args '--quickPlayMultiplayer', project.property('clientServer').toString()
-            if (project.hasProperty('clientCharacterSyncRole')) {
-                property 'charactersynctest.role', project.property('clientCharacterSyncRole').toString()
-                property 'charactersynctest.world', (project.findProperty('clientCharacterSyncWorld') ?: 'Character_Config_Sync_Acceptance').toString()
-                property 'charactersynctest.port', (project.findProperty('clientCharacterSyncPort') ?: '25575').toString()
-                property 'charactersynctest.coordination', project.file(project.findProperty('clientCharacterSyncCoordination') ?: 'build/character-sync-coordination').absolutePath
-                args '--width', '1280', '--height', '900'
-            }
             if (project.hasProperty('clientWorkbenchSmoke')) {
                 property 'workbenchtest.enabled', 'true'
-                if (project.hasProperty('clientCharacterSyncRole')) property 'workbenchtest.afterSync', 'true'
                 property 'workbenchtest.world', project.property('clientWorkbenchSmoke').toString()
                 if (project.hasProperty('clientWorkbenchAsset')) property 'workbenchtest.asset', project.file(project.property('clientWorkbenchAsset')).absolutePath
-                if (!project.hasProperty('clientCharacterSyncRole')) args '--width', '1280', '--height', '900'
+                args '--width', '1280', '--height', '900'
             }
             if (project.hasProperty('clientWorld')) {
                 args '--quickPlaySingleplayer', project.property('clientWorld').toString()
-            }
-            if (project.hasProperty('clientVanillaCompatibilitySmoke')) {
-                property 'vanillaCompatibilityTest.enabled', 'true'
-                property 'vanillaCompatibilityTest.world', project.property('clientVanillaCompatibilitySmoke').toString()
-                args '--width', '1280', '--height', '900'
-            }
-            if (project.hasProperty('clientCharacterClipSmoke')) {
-                property 'charactercliptest.enabled', 'true'
-                property 'charactercliptest.world', project.property('clientCharacterClipSmoke').toString()
-                if (project.hasProperty('clientCharacterGpuSmoke')) property 'charactercliptest.requireOculusGpu', 'true'
-                args '--width', '1280', '--height', '900'
-            }
-            if (project.hasProperty('clientEquipmentWorkbenchSmoke')) {
-                property 'equipmentworkbenchtest.enabled', 'true'
-                if (!project.hasProperty('clientCharacterClipSmoke')) args '--width', '1280', '--height', '900'
-            }
-            if (project.hasProperty('clientLookDevSmoke')) {
-                property 'lookdevtest.enabled', 'true'
-                property 'lookdevtest.world', project.property('clientLookDevSmoke').toString()
-                if (project.hasProperty('clientVanillaPoseOnly')) property 'lookdevtest.poseOnly', 'true'
-                args '--width', '1280', '--height', '720'
-            }
-            if(project.hasProperty('clientCharacterSmoke')) {
-                if(['clientBatchSmoke','clientRuntimeSmoke','clientComputeSmoke','clientHighBoneSmoke','clientDeerSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke','clientKubeJsSmoke'].any { project.hasProperty(it) })
-                    throw new GradleException('clientCharacterSmoke must run independently')
-                property 'charactertest.enabled','true'
-                property 'charactertest.world',project.property('clientCharacterSmoke').toString()
-                args '--width','1280','--height','900'
             }
             if (project.hasProperty('clientBatchSmoke')) {
                 if (['clientRuntimeSmoke','clientComputeSmoke','clientHighBoneSmoke','clientDeerSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke','clientKubeJsSmoke'].any { project.hasProperty(it) }) {
@@ -212,10 +175,6 @@ minecraft {
                 assimpshowcase {
                     source sourceSets.showcase
                 }
-                rigworks {
-                    source project(':rigworks').sourceSets.main
-                    source project(':rigworks').sourceSets.integration
-                }
             }
         }
 
@@ -232,7 +191,6 @@ minecraft {
                     source sourceSets.main
                 }
                 assimpshowcase { source sourceSets.showcase }
-                rigworks { source project(':rigworks').sourceSets.main }
             }
         }
 
@@ -255,44 +213,13 @@ minecraft {
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
-if (project.hasProperty('clientLookDevSmoke')) {
-    def resultFile = file('run/lookdev-smoke-result.json')
-    tasks.matching { it.name == 'runClient' }.configureEach {
-        doFirst {
-            if (resultFile.exists() && !resultFile.delete()) throw new GradleException('Cannot remove stale LookDev result')
-        }
-        doLast {
-            if (!resultFile.isFile()) throw new GradleException('LookDev acceptance did not produce a result')
-            def result = new groovy.json.JsonSlurper().parse(resultFile)
-            if (result.success != true) throw new GradleException("LookDev acceptance failed at ${result.stage}: ${result.failure}")
-            logger.lifecycle("LookDev acceptance ${result.run}: ${result.stages} stages passed")
-        }
-    }
-}
 
-if (project.hasProperty('clientCharacterSmoke')) {
-    def resultFile = file('run/character-smoke-result.json')
-    tasks.matching { it.name == 'runClient' }.configureEach {
-        doFirst {
-            if (resultFile.exists() && !resultFile.delete())
-                throw new GradleException('Cannot remove stale character acceptance result')
-        }
-        doLast {
-            if (!resultFile.isFile()) throw new GradleException('Character acceptance did not produce a result')
-            def result = new groovy.json.JsonSlurper().parse(resultFile)
-            if (result.success != true) throw new GradleException("Character acceptance failed at stage ${result.stage}: ${result.failure}")
-            logger.lifecycle("Character acceptance ${result.run}: ${result.stages} stages passed")
-        }
-    }
-}
 
 if (project.hasProperty('clientKubeJsSmoke') || project.hasProperty('clientKubeJsWorldSmoke')) {
     def serverSmoke = project.hasProperty('clientKubeJsWorldSmoke')
     def smokeSource = file(serverSmoke ? 'model-tests/kubejs/assimploader_server_acceptance.js' : 'model-tests/kubejs/assimploader_acceptance.js')
     def smokeTarget = file(serverSmoke ? 'run/kubejs/server_scripts/assimploader_acceptance.generated.js' : 'run/kubejs/client_scripts/assimploader_acceptance.generated.js')
-    def smokePayload = {
-        serverSmoke ? smokeSource.bytes : (file('rigworks/examples/kubejs/client_scripts/rigworks_player_actions.js').getText('UTF-8') + '\n' + smokeSource.getText('UTF-8')).getBytes('UTF-8')
-    }
+    def smokePayload = { smokeSource.bytes }
     def prepareScript = tasks.register('prepareKubeJsSmoke') {
         doLast {
             byte[] payload = smokePayload()
@@ -518,8 +445,6 @@ mixin {
     config "mixins.assimploader.json"
     add sourceSets.showcase, 'assimpshowcase.refmap.json'
     config 'mixins.assimpshowcase.json'
-    config 'mixins.rigworks.json'
-    config 'mixins.rigworks.kubejs.json'
 }
 
 tasks.register('showcaseJar', Jar) {
@@ -532,18 +457,10 @@ tasks.register('showcaseJar', Jar) {
 reobf { showcaseJar {} }
 tasks.named('showcaseJar').configure { finalizedBy 'reobfShowcaseJar' }
 
-// Only the development acceptance harness may depend on both content mods.
-sourceSets.integrationTest.compileClasspath += project(':rigworks').sourceSets.main.output + project(':rigworks').sourceSets.integration.output
-sourceSets.integrationTest.runtimeClasspath += project(':rigworks').sourceSets.main.output + project(':rigworks').sourceSets.integration.output
 sourceSets.test.compileClasspath += sourceSets.showcase.output
 sourceSets.test.runtimeClasspath += sourceSets.showcase.output
-tasks.named('build').configure { dependsOn 'showcaseJar', ':rigworks:build' }
+tasks.named('build').configure { dependsOn 'showcaseJar', 'integrationTestClasses' }
 apply from: 'gradle/module-boundaries.gradle'
-// ForgeGradle 6 resolves source-set build task names in the run's owning project.
-tasks.register('integrationClasses') { dependsOn ':rigworks:integrationClasses' }
-tasks.matching { it.name in ['runClient', 'prepareRunClient', 'runServer', 'prepareRunServer'] }.configureEach {
-    dependsOn ':rigworks:classes'
-}
 
 jar.finalizedBy('reobfJar')
 

@@ -1,1 +1,0 @@
-cn.minerealms.rigworks.compat.RigWorksKubeJSPlugin client

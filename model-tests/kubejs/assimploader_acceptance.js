@@ -1,5 +1,4 @@
 // Generated into client_scripts only by -PclientKubeJsSmoke.
-RigWorks.register('acceptance_top_level', function (frame) { frame.defaultMotion() })
 AssimpAcceptance.onClient(function () {
   function check(value, message) { if (!value) throw new Error(message) }
   function stage(schedule, id) {
@@ -12,15 +11,11 @@ AssimpAcceptance.onClient(function () {
   function near(actual, expected, message) { check(Math.abs(Number(actual) - expected) < 0.00001, message + ': ' + actual) }
   var probe = null
   var deer = null
-  var block = null
   var morph = null
   try {
     check(Assimp.apiVersion() === 1, 'Assimp client binding missing')
-    check(RigWorks.controllers().contains('acceptance_top_level'), 'top-level client script registration failed')
-    RigWorks.unregister('acceptance_top_level')
     probe = AssimpAcceptance.create('highbone_probe')
     var model = probe.handle()
-    check(RigWorks.controllers().contains(AssimpPlayerActions.config.id), 'canonical player demo did not load in Rhino')
     check(model.isValid(), 'new handle invalid')
     var capabilities = model.capabilities()
     check(Number(capabilities.get('apiVersion')) === 1, 'capability inventory unavailable in Rhino')
@@ -130,48 +125,6 @@ AssimpAcceptance.onClient(function () {
     var playback = model.playback()
     check(Math.abs(Number(playback.get('time')) / Number(playback.get('duration')) - 0.75) < 0.000001, 'base phase clock conversion failed')
     model.releasePhase().playback(1, true)
-    // Exercise the actual template in Rhino against a real native model handle.
-    var mapped = function (values) { return {get: function (key) { return values[key] }} }
-    var sword = mapped({id: 'minecraft:diamond_sword', attackType: 'sword', tags: [], useAnimation: 'none'})
-    var empty = mapped({id: 'minecraft:air', attackType: 'fist', tags: [], useAnimation: 'none'})
-    var facts = {tick: 1, time: 0.05, swingGeneration: 1, swingActive: true, swingProgress: 0.6,
-      swingArm: 'right', primaryArm: 'right', swingHand: 'main', swingItem: sword, mainItem: sword, offItem: empty, onGround: true}
-    var policyState = {}, stateMap = {get: function (key) { return policyState[key] }, put: function (key, value) { policyState[key] = value }}
-    var frame = {input: function () { return mapped(facts) }, state: function () { return stateMap }, model: function () { return model },
-      bone: function (role) { return role === 'cape' ? null : 'B255' }, defaultMotion: function () {}}
-    AssimpPlayerActions.controller(frame)
-    check(policyState.action === 'slash_up' && policyState.actionPhase === 0.6, 'real Rhino demo action dispatch or native phase failed')
-    facts.tick = 2; facts.swingGeneration = 2; facts.swingProgress = 0
-    AssimpPlayerActions.controller(frame)
-    check(policyState.action === 'slash_down' && policyState.actionPhase === 0, 'real Rhino rapid combo retrigger failed')
-    model.clearScriptControls()
-    block = AssimpAcceptance.create('block_player')
-    var blockModel = block.handle()
-    var names = {hips:'Hips',chest:'Chest',spine:'Spine',head:'Head',right_upper_arm:'UpperArm.R',left_upper_arm:'UpperArm.L',
-      right_forearm:'Forearm.R',left_forearm:'Forearm.L',right_hand:'Hand.R',left_hand:'Hand.L',
-      right_thigh:'Thigh.R',left_thigh:'Thigh.L',right_shin:'Shin.R',left_shin:'Shin.L',right_foot:'Foot.R',left_foot:'Foot.L'}
-    policyState = {}; facts.sprinting = true
-    var realFrame = {input:function(){return mapped(facts)},state:function(){return stateMap},model:function(){return blockModel},
-      bone:function(role){return names[role] || null},defaultMotion:function(){}}
-    var expected = ['slash_up','slash_down','slash_inward','slash_outward','slash_spin']
-    for (var hit=0;hit<5;hit++) {
-      facts.tick=hit+1;facts.swingGeneration=hit+1;facts.swingProgress=0
-      AssimpPlayerActions.controller(realFrame)
-      check(policyState.action===expected[hit], 'real FBX combo sequence '+hit)
-      var start=blockModel.node('Hand.R')
-      facts.swingProgress=.45
-      AssimpPlayerActions.controller(realFrame)
-      var end=blockModel.node('Hand.R')
-      var distance=Math.abs(Number(start.get('x'))-Number(end.get('x')))+Math.abs(Number(start.get('y'))-Number(end.get('y')))+Math.abs(Number(start.get('z'))-Number(end.get('z')))
-      check(distance>.1, 'real FBX hand did not move through '+expected[hit]+': '+distance)
-    }
-    blockModel.clearScriptControls()
-    RigWorks.unregister(AssimpPlayerActions.config.id)
-    var characters = RigWorks
-    characters.register('acceptance', function (frame) { frame.defaultMotion() })
-    check(characters.controllers().contains('acceptance'), 'Rhino Consumer controller registration missing')
-    check(String(characters.active()) === 'acceptance', 'registered controller was not selected')
-    characters.useDefault().unregister('acceptance')
     model.morph(0, [1])
     var active = model.bounds()
     model.morph(0, [0])
@@ -207,7 +160,6 @@ AssimpAcceptance.onClient(function () {
   } finally {
     if (probe) probe.close()
     if (deer) deer.close()
-    if (block) block.close()
     if (morph) morph.close()
   }
 })

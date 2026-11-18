@@ -1,7 +1,7 @@
 tasks.register('verifyModuleBoundaries') {
     group = 'verification'
     description = 'Verify independent mod contents and one-way source dependencies'
-    dependsOn 'reobfJarJar', 'reobfShowcaseJar', ':rigworks:reobfJar'
+    dependsOn 'reobfJarJar', 'reobfShowcaseJar'
     doLast {
         fileTree('src/main/java').matching { include '**/*.java' }.each { source ->
             def text = source.getText('UTF-8')
@@ -12,17 +12,11 @@ tasks.register('verifyModuleBoundaries') {
                     text =~ /\b(setBlock|addFreshEntity|sendToServer)\s*\(/)
                 throw new GradleException("Engine contains a gameplay server entry: ${source}")
         }
-        fileTree('rigworks/src/main/java').matching { include '**/*.java' }.each { source ->
-            if (source.getText('UTF-8') =~ /cn\.minerealms\.(assimpshowcase|assimploader\.(showcase|deer|vehicle|rocket|example))\./)
-                throw new GradleException("RigWorks references Showcase: ${source}")
-        }
         def archives = [
                 [task: tasks.named('jarJar').get(), id: 'assimploader',
                  forbidden: ['cn/minerealms/rigworks/', 'cn/minerealms/assimpshowcase/', 'models/character/', 'models/showcase/', 'models/validation/', 'SmokeTest.class', 'assimpshowcase.refmap.json']],
                 [task: tasks.named('showcaseJar').get(), id: 'assimpshowcase',
-                 forbidden: ['cn/minerealms/rigworks/', 'cn/minerealms/assimploader/', 'SmokeTest.class', 'assimploader.refmap.json']],
-                [task: project(':rigworks').tasks.named('jar').get(), id: 'rigworks',
-                 forbidden: ['cn/minerealms/assimpshowcase/', 'cn/minerealms/assimploader/', 'SmokeTest.class']]
+                 forbidden: ['cn/minerealms/rigworks/', 'cn/minerealms/assimploader/', 'SmokeTest.class', 'assimploader.refmap.json']]
         ]
         archives.each { spec ->
             def artifact = spec.task.archiveFile.get().asFile

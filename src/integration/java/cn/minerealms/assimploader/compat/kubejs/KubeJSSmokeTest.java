@@ -48,10 +48,10 @@ public final class KubeJSSmokeTest {
             });
         }
         public Probe create(String name) throws Exception {
-            if(!name.equals("highbone_probe")&&!name.equals("deer_showcase")&&!name.equals("block_player")&&!name.equals("animation_probe_morph")) throw new IllegalArgumentException("Unknown acceptance fixture");
-            String namespace=name.equals("block_player")?"rigworks":"assimploader";
-            String base=name.equals("block_player")?"models/character/block_player/block_player":"models/validation/"+name;
-            String extension=name.equals("block_player")?".fbx":".glb";
+            if(!name.equals("highbone_probe")&&!name.equals("deer_showcase")&&!name.equals("animation_probe_morph")) throw new IllegalArgumentException("Unknown acceptance fixture");
+            String namespace="assimploader";
+            String base="models/validation/"+name;
+            String extension=".glb";
             var resources=Minecraft.getInstance().getResourceManager();
             // Other mods own these assets; Java module-local class resources cannot see them after extraction.
             try(var model=resources.open(new net.minecraft.resources.ResourceLocation(namespace,base+extension))) {
@@ -70,10 +70,7 @@ public final class KubeJSSmokeTest {
         public void success() {
             var gpu=cn.minerealms.assimploader.client.ShaderParameterGpuChecks.verify();
             checks.add("shaderParameters",new com.google.gson.Gson().toJsonTree(gpu));
-            // Reloading the fixture manager clears global CLIENT handlers; this must be the final acceptance step.
-            var reload=cn.minerealms.rigworks.character.client.KubeJSReloadRuntimeProbe.verify();
-            checks.add("clientReload",new com.google.gson.Gson().toJsonTree(reload));
-            result="ok";AssimpLoader.LOGGER.info("[KubeJSAssimp] JavaScript assertions passed; GPU shader parameters {}; reload {}",gpu,reload);
+            result="ok";AssimpLoader.LOGGER.info("[KubeJSAssimp] JavaScript assertions passed; GPU shader parameters {}",gpu);
         }
         public void failure(String error) {result=error;AssimpLoader.LOGGER.error("[KubeJSAssimp] JavaScript assertion failed: {}",error);}
     }

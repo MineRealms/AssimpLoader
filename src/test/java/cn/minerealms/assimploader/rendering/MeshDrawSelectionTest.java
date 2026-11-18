@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class MeshDrawSelectionTest {
     @Test void masksAreIsolatedFromCallerMutationAndNestedConsumers() throws Exception {
-        var scene = new AssimpModelLoader().loadModel(Path.of("rigworks/src/main/resources/assets/rigworks/models/character/block_player/block_player.fbx"), ModelImportMode.DYNAMIC);
+        var scene = new AssimpModelLoader().loadModel(Path.of("src/showcase/resources/assets/assimploader/models/validation/highbone_probe.glb"), ModelImportMode.DYNAMIC);
         var mesh = scene.getMeshes().get(0);
         int[] source = {0, 2};
         var left = new MeshDrawSelection(Map.of(mesh, source));
