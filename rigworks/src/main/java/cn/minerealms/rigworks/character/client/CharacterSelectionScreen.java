@@ -52,7 +52,7 @@ public final class CharacterSelectionScreen extends Screen {
                 LocalPlayerCharacter::handContactsEnabled,button->LocalPlayerCharacter.setHandContactsEnabled(!LocalPlayerCharacter.handContactsEnabled())))
                 .setTooltip(Tooltip.create(Component.literal("Support-hand contacts from equipment JSON")));
         addRenderableWidget(FlatUi.icon(left + panelWidth - 26, controlsY, FlatUi.Icon.RELOAD,
-                Component.literal("Reload character"), button -> LocalPlayerCharacter.reload()));
+                Component.literal("Reload character"), button -> LocalPlayerCharacter.reloadSaved()));
 
         var modes = cn.minerealms.rigworks.RigWorksConfig.CharacterAnimationMode.values();
         int modeWidth = (panelWidth - 4) / modes.length;
