@@ -87,11 +87,11 @@ per stage. It exercised actual player rendering, physics owner cleanup, script
 execution/failure fallback, NORMAL/AO textures, independent F3-off HUD and all
 LookDev pages. No GL error or visible-widget bounds/overlap failure was detected.
 
-![Models workspace](screenshots/lookdev-models.png)
+![Models workspace](../screenshots/lookdev-models.png)
 
-![Compact rendering controls](screenshots/lookdev-rendering-compact.png)
+![Compact rendering controls](../screenshots/lookdev-rendering-compact.png)
 
-![Independent HUD and world diagnostics](screenshots/lookdev-world-debug-hud.png)
+![Independent HUD and world diagnostics](../screenshots/lookdev-world-debug-hud.png)
 
 `gradlew runClient -PwithKubeJS -PclientLookDevSmoke=Character_BlockPlayer_Acceptance`
 uses the existing dedicated acceptance world, exercises mode and physics changes,
