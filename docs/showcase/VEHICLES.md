@@ -56,7 +56,7 @@ FBX 源文件保持宽 2、长 4.5、高 2.5 的基准单位。`ArmoredCarEntity
 | `Wheel_Rear_Left_SteerPivot` | 后左轮滚动中心 |
 | `Wheel_Rear_Right_SteerPivot` | 后右轮滚动中心 |
 
-渲染器在导入场景的全局坐标中绕轮心旋转，因此不会把 FBX 单位缩放或辅助根节点的轴当作轮轴。静态车身与备胎保持绑定变换。每个材质连接 UV0 上的 Base Color、OpenGL Normal、Roughness 和 Metallic；源 AO 图片单独保存，普通 Blender FBX 没有可靠 AO 插槽，不能据图片存在宣称它参与采样。完整规范见 [PBR 资产规范](PBR_ASSET_SPEC.md)。
+渲染器在导入场景的全局坐标中绕轮心旋转，因此不会把 FBX 单位缩放或辅助根节点的轴当作轮轴。静态车身与备胎保持绑定变换。每个材质连接 UV0 上的 Base Color、OpenGL Normal、Roughness 和 Metallic；源 AO 图片单独保存，普通 Blender FBX 没有可靠 AO 插槽，不能据图片存在宣称它参与采样。完整规范见 [PBR 资产规范](../guides/PBR_ASSET_SPEC.md)。
 
 Oculus 光影使用首次生成并持久上传的扩展 ENTITY 顶点；行驶时更新矩阵、光照和实体材质 ID。轮子不需要每帧重建切线和几何。没有光影时使用现有网格 GPU 缓存；不支持的材质或格式保留普通提交路径。
 
