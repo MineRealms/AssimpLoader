@@ -34,6 +34,18 @@ final class CharacterVisualOverrides {
         }catch(IOException|RuntimeException error){AssimpLoader.LOGGER.warn("Invalid local character configuration {}",file,error);}
         return CONFIGS.get(profile);
     }
+    static CharacterVisualConfig readFresh(String profile) {
+        READ.remove(profile);CONFIGS.remove(profile);return load(profile);
+    }
+    static CharacterVisualConfig readNewer(String profile,Path project)throws IOException {
+        Path file=profileFile(profile);
+        if(project==null||!Files.exists(file,LinkOption.NOFOLLOW_LINKS)
+                ||Files.getLastModifiedTime(file).compareTo(Files.getLastModifiedTime(project))<=0)return null;
+        return readFresh(profile);
+    }
+    static synchronized void invalidate() {
+        READ.clear();CONFIGS.clear();ASSETS.clear();assetsRead=false;
+    }
     static void save(String profile,CharacterVisualConfig config)throws IOException {
         new ResourceLocation(profile);write(profileFile(profile),config.json());
         CONFIGS.put(profile,config);READ.add(profile);
