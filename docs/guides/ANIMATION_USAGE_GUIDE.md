@@ -2,7 +2,7 @@
 
 ## 概述
 
-本页保留动画集成的示例设计，代码片段不是可直接复制的完整 Mod。当前实现与验证边界见 [加载修复](LOADING_FIXES.md) 和 [修复与验收](FIXES_2026-11-13.md)；美术导出的单位、UV、PBR、层级和枢轴要求见 [资产接入规范](PBR_ASSET_SPEC.md)。每个方块/物品应使用独立动画状态，不修改共享缓存场景。
+本页保留动画集成的示例设计，代码片段不是可直接复制的完整 Mod。当前实现与验证边界见 [加载修复](../reference/LOADING_FIXES.md) 和 [修复与验收](../history/FIXES_2026-11-13.md)；美术导出的单位、UV、PBR、层级和枢轴要求见 [资产接入规范](PBR_ASSET_SPEC.md)。每个方块/物品应使用独立动画状态，不修改共享缓存场景。
 
 ## 系统架构
 
@@ -54,7 +54,7 @@ assets/assimploader/models/your_model.fbx
 <root>/assimploader/models/your_model.fbx
 ```
 
-客户端执行 `/assimploader reload`，或配置 `hotreload.autoReloadEnabled` 开启监听。资源包修改可按 F3+T；注册代码仍需重启。详见 [加载与重载](LOADING_FIXES.md)。有动画的 geometry JSON 必须使用 `"mode": "dynamic"`。
+客户端执行 `/assimploader reload`，或配置 `hotreload.autoReloadEnabled` 开启监听。资源包修改可按 F3+T；注册代码仍需重启。详见 [加载与重载](../reference/LOADING_FIXES.md)。有动画的 geometry JSON 必须使用 `"mode": "dynamic"`。
 
 ### 3. 创建方块 (Block)
 
