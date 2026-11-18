@@ -189,8 +189,24 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
                     metadata.skinned(),metadata.embeddedTextures(),metadata.sourceFormat(),metadata.sourceGenerator());
             status="Opened saved project; recovery draft ignored";
         }
-        opened.recovery().document().ifPresent(draft->{session.set(draft);status="Recovered unsaved draft";syncClock();rebuildWidgets();});
-        refreshIssues();
+        opened.recovery().document().ifPresent(draft->{session.set(draft);status="Recovered unsaved draft";});
+        notifyProjectOpened();syncClock();refreshIssues();refreshRows();rebuildWidgets();
+    }
+    private void notifyProjectOpened(){
+        try{
+            var context=context();
+            for(var extension:WorkbenchExtensions.available(context)){
+                try{extension.opened(context);}
+                catch(RuntimeException|LinkageError failure){openedExtensionFailed(extension.id(),failure);}
+            }
+        }catch(RuntimeException|LinkageError failure){openedExtensionFailed("extension discovery",failure);}
+    }
+    private void openedExtensionFailed(String id,Throwable failure){
+        String issue="Project opened; "+id+" extension failed: "+failure.getMessage();
+        var all=new ArrayList<>(metadata.issues());all.add(issue);
+        metadata=new SceneMetadata(metadata.nodes(),metadata.meshes(),metadata.materials(),metadata.clips(),metadata.bounds(),all,
+                metadata.skinned(),metadata.embeddedTextures(),metadata.sourceFormat(),metadata.sourceGenerator());
+        status=issue;AssimpLoader.LOGGER.warn("Workbench extension failed while opening a project: {}",id,failure);
     }
     private void load(WorkbenchProjectStore.Project project){load(project.scene(),project.metadata(),project,project.document(),project.document().assetId());}
     private void load(AssimpScene scene,SceneMetadata meta,WorkbenchProjectStore.Project project,WorkbenchDocument document,String name){

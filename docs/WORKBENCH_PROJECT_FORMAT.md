@@ -91,6 +91,12 @@ exact immutable persisted document. Failure completes exceptionally; a mismatche
 session or an incompatible busy operation is rejected. `context.projectPath()`
 returns the formal JSON path, or `null` before the first project copy exists.
 
+After open/import has selected the formal document or an accepted recovery draft,
+`Extension.opened(context)` may stage newer consumer-specific configuration in the
+same edit session. Such changes remain dirty until saved. A callback failure is
+reported as a diagnostic without preventing the valid project from opening. The
+hook is not invoked while rebasing the first asset copy during Save.
+
 This API saves the project without invoking extension application, so a consumer
 can apply the returned snapshot after success without a save/apply cycle. The
 generic toolbar Save separately calls extension application against that saved
