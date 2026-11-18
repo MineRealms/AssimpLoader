@@ -61,7 +61,7 @@ and absence of its cached GPU buffers.
 
 Enable entity shadows in the selected pack for this strict runner. A completed
 run needs its `SUCCESS` marker. The cache is motivated by the stable JFR interval
-in [the preceding profile](OCULUS_ANIMATION_VALIDATION_2026-11-16.md), where repeated
+in [the preceding profile](../history/OCULUS_ANIMATION_VALIDATION_2026-11-16.md), where repeated
 vertex submission dominated attributed Java execution samples. Reuse counters
 show avoided encodes/uploads; they do not establish a general FPS increase.
 
