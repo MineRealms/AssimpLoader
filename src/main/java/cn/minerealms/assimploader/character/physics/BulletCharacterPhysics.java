@@ -105,6 +105,7 @@ public final class BulletCharacterPhysics implements PoseModifier {
     @Override public Category category() {return Category.PHYSICS;}
     @Override public Set<String> controlledBones() {return Set.copyOf(feedback.stream().map(value->value.definition.bone()).toList());}
     public CharacterPhysicsDefinition definition() {return definition;}
+    public boolean isClosed() {return closed;}
     public Statistics statistics() {return new Statistics(bodies.size(),joints.size(),worldBoxes.size(),lastSubsteps,totalSubsteps,accumulator,droppedSeconds,resets,ragdoll,closed);}
 
     /** Root is rigid model-to-anchor space; uniform visual scale is supplied at construction. */
