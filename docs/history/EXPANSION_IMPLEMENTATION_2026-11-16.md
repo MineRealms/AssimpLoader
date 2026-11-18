@@ -94,7 +94,7 @@ GPU Morph 是独立批次；最终测试数和客户端结果见本文的 GPU �
 | `trails` | 起止挂点、容量、寿命和 RGBA |
 | `particles` | 挂点、粒子注册 ID、速率和速度 |
 
-完整资产配置见 [GLB sidecar](../src/main/resources/assets/assimploader/models/validation/animation_probe_morph.instance.json)。Spring 参数见[运行时说明](SPRING_AND_COLLISION_RUNTIME.md)。没有 JSON 地面采样器或自动实体行为注册；这些需要调用方按实际世界和资产接入 Java API。
+完整资产配置见 [GLB sidecar](../../src/main/resources/assets/assimploader/models/validation/animation_probe_morph.instance.json)。Spring 参数见[运行时说明](../reference/SPRING_AND_COLLISION_RUNTIME.md)。没有 JSON 地面采样器或自动实体行为注册；这些需要调用方按实际世界和资产接入 Java API。
 
 ## 宿主扩展入口
 
@@ -181,9 +181,9 @@ Minecraft 1.20.1 / Forge 47.1.3 / Java 17.0.18，RTX 4060 / OpenGL 4.6 / NVIDIA 
 
 ## 后续增量：性能策略与鹿资产
 
-新增 [运行时性能模式](RUNTIME_PERFORMANCE_MODES.md)：`QUALITY/BALANCED/PERFORMANCE/CUSTOM`、远距离/历史不可见实例分频、错峰求值、累计播放时间、资产级开关、实例粒子总预算和拖尾容量限制。`/assimploader performance` 提供只读计数。当前没有渲染插值，分频可能产生可见步进；从未收到绘制观察的实例保守保持近距离频率。
+新增 [运行时性能模式](../reference/RUNTIME_PERFORMANCE_MODES.md)：`QUALITY/BALANCED/PERFORMANCE/CUSTOM`、远距离/历史不可见实例分频、错峰求值、累计播放时间、资产级开关、实例粒子总预算和拖尾容量限制。`/assimploader performance` 提供只读计数。当前没有渲染插值，分频可能产生可见步进；从未收到绘制观察的实例保守保持近距离频率。
 
-新增 [鹿展示](DEER_SHOWCASE.md) 和用户 Blender 工程的转换产物：174 部件合成一个蒙皮网格、35 骨、原有 10 动作加 `ik_probe`，含四腿目标/极向控制、独立可编辑预览和无约束的导出骨架。GLB 内嵌贴图，另提供烘焙 FBX。运行时 JSON 定义 6 处 Spring、躯干碰撞体、14 个骨骼命中代理及挂点；并注册独立 `assimploader:deer_showcase` 生物。
+新增 [鹿展示](../showcase/DEER_SHOWCASE.md) 和用户 Blender 工程的转换产物：174 部件合成一个蒙皮网格、35 骨、原有 10 动作加 `ik_probe`，含四腿目标/极向控制、独立可编辑预览和无约束的导出骨架。GLB 内嵌贴图，另提供烘焙 FBX。运行时 JSON 定义 6 处 Spring、躯干碰撞体、14 个骨骼命中代理及挂点；并注册独立 `assimploader:deer_showcase` 生物。
 
 数值验证包含 GLB/FBX 各 33 组 Blender 参考姿态，覆盖全部 11 个动作的节点位置及变形几何范围，误差阈值 0.3 毫米；真实鹿模型运行时 IK 抬蹄、骨骼/网格射线查询、Spring 有限值和独立状态均有测试。鹿原始动作转换最大矩阵误差约 `7.2e-7`，Blender IK 最大目标误差约 `0.058 mm`，IK 烘焙矩阵误差约 `1.2e-6`。这不代表任意模型或复杂地面足部解算已经验收。
 
@@ -193,23 +193,23 @@ Minecraft 1.20.1 / Forge 47.1.3 / Java 17.0.18，RTX 4060 / OpenGL 4.6 / NVIDIA 
 
 ## 后续增量：数值世界验收与高骨数
 
-`4d1191a` 新增 [PCA OBB](PCA_OBB_COLLISION.md)：有界协方差采样、全顶点保守投影、静态/姿态缓存和超预算整体拒绝。7 项针对退化、离群点、射线及缓存的测试通过。
+`4d1191a` 新增 [PCA OBB](../reference/PCA_OBB_COLLISION.md)：有界协方差采样、全顶点保守投影、静态/姿态缓存和超预算整体拒绝。7 项针对退化、离群点、射线及缓存的测试通过。
 
-`5485f43` 新增 [256 骨骼 Blender 样本与验证](../model-tests/highbone_validation.md)：256 个实际带权骨、6144 导入顶点和活动 Morph。运行 `1794830936198` 四轮 CPU/GPU 掩码差异均为零，归零和重载严格恢复，确认使用 TBO 并禁止 fallback。该夹具的平均 CPU 提交约 2.32-2.57 ms、GPU 提交约 0.318-0.393 ms；单次预热 GPU timestamp 区间约 15.36-18.432 微秒，不作为游戏 FPS 或通用加速比。
+`5485f43` 新增 [256 骨骼 Blender 样本与验证](../../model-tests/highbone_validation.md)：256 个实际带权骨、6144 导入顶点和活动 Morph。运行 `1794830936198` 四轮 CPU/GPU 掩码差异均为零，归零和重载严格恢复，确认使用 TBO 并禁止 fallback。该夹具的平均 CPU 提交约 2.32-2.57 ms、GPU 提交约 0.318-0.393 ms；单次预热 GPU timestamp 区间约 15.36-18.432 微秒，不作为游戏 FPS 或通用加速比。
 
-[世界实例运行说明](WORLD_INSTANCE_RUNTIME.md) 记录 JSON 脚贴地、有限躯干校正、tick 锚点、世界拖尾、实体卸载清理和动态视觉边界。运行 `1794831654168` 完成 9 阶段，8 张延时截图；每次检查全部 4176 个变形顶点及模型边缘坐标。高低地面四蹄最大误差 7.162 mm，受控移动 2.587 格、寻路实际移动 1.046 格并自动选择 walk，7 格传送、重载、NBT 重建及移除后旧实例关闭均通过。274 项测试中 273 项通过，1 项可选基准跳过，零失败/错误。
+[世界实例运行说明](../reference/WORLD_INSTANCE_RUNTIME.md) 记录 JSON 脚贴地、有限躯干校正、tick 锚点、世界拖尾、实体卸载清理和动态视觉边界。运行 `1794831654168` 完成 9 阶段，8 张延时截图；每次检查全部 4176 个变形顶点及模型边缘坐标。高低地面四蹄最大误差 7.162 mm，受控移动 2.587 格、寻路实际移动 1.046 格并自动选择 walk，7 格传送、重载、NBT 重建及移除后旧实例关闭均通过。274 项测试中 273 项通过，1 项可选基准跳过，零失败/错误。
 
 后续 [Oculus 世界与 JFR 验证](OCULUS_ANIMATION_VALIDATION_2026-11-16.md) 完成运行 `1794832541673` 的 10 阶段和 9 张延时截图：同一存档完整保存/退出/重开、旧状态释放，以及 256 骨骼 Showcase 的 Morph 0→1→0 主/阴影通道均通过。最终 275 项测试，274 项通过，1 项可选基准跳过。稳定 22 秒 JFR 切片中，548 个含模组栈的 Java 样本有 496 个归因到顶点提交入口及其 Minecraft/Iris 后代调用，CPU 蒙皮为 14 个；优先处理重复提交而不是直接新增 Native 蒙皮后端。
 
 以上结果更新前文历史缺口：PCA OBB、高骨数 GPU、世界地形/移动/特效/卸载、磁盘重开和这套 Oculus 光影的动画/Morph 主/阴影通道已经有实测证据。仍未覆盖渲染插值、Compute/MDI/Hi-Z、全身刚体/布料以及自有完整后处理栈，也不泛化为任意光影兼容证明。
 
-进一步新增 [Oculus 姿态缓冲缓存](OCULUS_POSE_BUFFER_CACHE.md)，复用现有 ENTITY draw bridge 和同一姿态的 CPU 变形数据；主/阴影绘制复用 VBO，新姿态仅更新已有动态缓冲。可配置总 MiB/实例数、LRU 淘汰、超预算预检回退、关闭/重载释放。运行 `1794833212718` 完成 11 阶段与 10 张延时截图：重开后的一个区间为 4221 次缓存绘制、626 次上传、3595 次复用；1 MiB/1 实例测试实际保留 516096 字节，删除后旧实例 GPU 缓冲已释放。这不是固定 FPS 提升或 Native/Compute 已完成的声明。
+进一步新增 [Oculus 姿态缓冲缓存](../reference/OCULUS_POSE_BUFFER_CACHE.md)，复用现有 ENTITY draw bridge 和同一姿态的 CPU 变形数据；主/阴影绘制复用 VBO，新姿态仅更新已有动态缓冲。可配置总 MiB/实例数、LRU 淘汰、超预算预检回退、关闭/重载释放。运行 `1794833212718` 完成 11 阶段与 10 张延时截图：重开后的一个区间为 4221 次缓存绘制、626 次上传、3595 次复用；1 MiB/1 实例测试实际保留 516096 字节，删除后旧实例 GPU 缓冲已释放。这不是固定 FPS 提升或 Native/Compute 已完成的声明。
 
 ## 后续增量：渲染插值和 Compute
 
-`2086f25` 新增 [只读渲染插值](RENDER_POSE_INTERPOLATION.md)。资产通过 `performance.renderInterpolation` 显式开启；默认关闭，`PERFORMANCE` 模式绕过。管理器每个 tick 更新视觉时钟，包括降频跳过的 tick；实体、Showcase、普通绘制和 Oculus 姿态缓存消费同一相位快照。局部 TRS、Morph 和中间姿态边界重新计算，碰撞与特效继续使用仿真快照。鹿 sidecar 已开启，普通资产保持默认行为。
+`2086f25` 新增 [只读渲染插值](../reference/RENDER_POSE_INTERPOLATION.md)。资产通过 `performance.renderInterpolation` 显式开启；默认关闭，`PERFORMANCE` 模式绕过。管理器每个 tick 更新视觉时钟，包括降频跳过的 tick；实体、Showcase、普通绘制和 Oculus 姿态缓存消费同一相位快照。局部 TRS、Morph 和中间姿态边界重新计算，碰撞与特效继续使用仿真快照。鹿 sidecar 已开启，普通资产保持默认行为。
 
-新增 [可选 Compute 蒙皮](COMPUTE_SKINNING.md)：GL 4.3 SSBO、最多八权重、Morph 先于蒙皮，结果作为 VBO 留在 GPU。按 owner/mesh 与快照身份缓存，支持总显存/实例数配置、LRU、关闭/重载释放和失败后回退。Oculus 保留原有兼容路径。本次不是 MDI、Hi-Z 或通用 GPU 场景调度的交付。
+新增 [可选 Compute 蒙皮](../reference/COMPUTE_SKINNING.md)：GL 4.3 SSBO、最多八权重、Morph 先于蒙皮，结果作为 VBO 留在 GPU。按 owner/mesh 与快照身份缓存，支持总显存/实例数配置、LRU、关闭/重载释放和失败后回退。Oculus 保留原有兼容路径。本次不是 MDI、Hi-Z 或通用 GPU 场景调度的交付。
 
 初次 Compute 实机运行 `1794835563300` 的四阶段均通过：6144 顶点、256 个实际带权骨骼，位置分量最大误差 `4.7683716e-7`、法线分量 `1.1920929e-7`；CPU/GPU 轮廓差异均为零，Morph 归零和资源重建恢复一致。最终运行 `1794836019101` 再次通过四阶段，并通过四个非零 SSBO 范围绑定恢复、1 MiB 预算缩减及实例关闭释放检查；日志 `build/compute-final-validation.log`。该夹具不证明八个同时权重或持续变化大规模场景的性能收益。
 
@@ -219,7 +219,7 @@ Minecraft 1.20.1 / Forge 47.1.3 / Java 17.0.18，RTX 4060 / OpenGL 4.6 / NVIDIA 
 
 ## 后续增量：KubeJS 与蹄底支撑
 
-`c215d3e` 新增 [KubeJS 集成](KUBEJS_INTEGRATION.md)。依赖为可选安装，未打包
+`c215d3e` 新增 [KubeJS 集成](../guides/KUBEJS_INTEGRATION.md)。依赖为可选安装，未打包
 KubeJS/Rhino/Architectury。客户端 `Assimp` 支持复用实际 owner 的状态、动画混合、
 层、Morph、已有 IK/LookAt 目标、性能参数、挂点和模型空间射线查询；服务端
 `AssimpServer` 操作展示鹿现有的同步状态、贴地和特效字段。模型别名复用同一播放实例，
@@ -229,7 +229,7 @@ KubeJS/Rhino/Architectury。客户端 `Assimp` 支持复用实际 owner 的状�
 真实 `EntityEvents.spawned` 的状态/贴地/特效断言通过。没有宣称任意生物替换、
 服务器端网格伤害或服务器动画模拟已经接入。
 
-`21f41c2` 修复 [行走蹄底支撑](WORLD_INSTANCE_RUNTIME.md)：原世界测试将禁重力鹿
+`21f41c2` 修复 [行走蹄底支撑](../reference/WORLD_INSTANCE_RUNTIME.md)：原世界测试将禁重力鹿
 抬高 0.12 m，切换到未启用待机 IK 的行走状态后仍保留高度。现在进入行走时恢复重力，
 并以 JSON 的 `groundBody.supportStates` 和 `contacts` 支撑点修正视觉身体高度。
 鹿每 tick 变换 24 个蹄底局部点，进行四次地面采样；运行时不扫描蒙皮顶点或回读 GPU。
@@ -255,8 +255,8 @@ KubeJS/Rhino/Architectury。客户端 `Assimp` 支持复用实际 owner 的状�
 
 ## 代码入口
 
-- [实例与配置](../src/main/java/cn/minerealms/assimploader/animation/ModelInstance.java)、[定义解析](../src/main/java/cn/minerealms/assimploader/animation/ModelInstanceDefinition.java)、[资源继承](../src/main/java/cn/minerealms/assimploader/animation/InstanceDefinitionResources.java)
-- [状态与姿态](../src/main/java/cn/minerealms/assimploader/animation/AnimationState.java)、[快照](../src/main/java/cn/minerealms/assimploader/animation/PoseSnapshot.java)、[客户端所有者](../src/main/java/cn/minerealms/assimploader/animation/ClientAnimationManager.java)
-- [IK](../src/main/java/cn/minerealms/assimploader/animation/ik/ChainIkModifier.java)、[脚贴地](../src/main/java/cn/minerealms/assimploader/animation/ik/FootPlacementModifier.java)、[Spring](../src/main/java/cn/minerealms/assimploader/animation/physics/SpringBoneModifier.java)、[模型查询](../src/main/java/cn/minerealms/assimploader/collision/ModelCollision.java)
-- [共享绘制](../src/main/java/cn/minerealms/assimploader/render/base/BaseAssimpRenderer.java)、[实体扩展](../src/main/java/cn/minerealms/assimploader/render/base/ConfiguredEntityRenderer.java)、[世界粒子适配](../src/main/java/cn/minerealms/assimploader/client/MinecraftAttachmentParticles.java)
-- [Morph 语义](MORPH_TARGETS.md)、[受控客户端验证](../src/main/java/cn/minerealms/assimploader/client/AnimationSmokeTest.java)、[性能探针](../src/test/java/cn/minerealms/assimploader/animation/RuntimePerformanceProbeTest.java)
+- [实例与配置](../../src/main/java/cn/minerealms/assimploader/animation/ModelInstance.java)、[定义解析](../../src/main/java/cn/minerealms/assimploader/animation/ModelInstanceDefinition.java)、[资源继承](../../src/main/java/cn/minerealms/assimploader/animation/InstanceDefinitionResources.java)
+- [状态与姿态](../../src/main/java/cn/minerealms/assimploader/animation/AnimationState.java)、[快照](../../src/main/java/cn/minerealms/assimploader/animation/PoseSnapshot.java)、[客户端所有者](../../src/main/java/cn/minerealms/assimploader/animation/ClientAnimationManager.java)
+- [IK](../../src/main/java/cn/minerealms/assimploader/animation/ik/ChainIkModifier.java)、[脚贴地](../../src/main/java/cn/minerealms/assimploader/animation/ik/FootPlacementModifier.java)、[Spring](../../src/main/java/cn/minerealms/assimploader/animation/physics/SpringBoneModifier.java)、[模型查询](../../src/main/java/cn/minerealms/assimploader/collision/ModelCollision.java)
+- [共享绘制](../../src/main/java/cn/minerealms/assimploader/render/base/BaseAssimpRenderer.java)、[实体扩展](../../src/main/java/cn/minerealms/assimploader/render/base/ConfiguredEntityRenderer.java)、[世界粒子适配](../../src/main/java/cn/minerealms/assimploader/client/MinecraftAttachmentParticles.java)
+- [Morph 语义](../reference/MORPH_TARGETS.md)、[受控客户端验证](../../src/main/java/cn/minerealms/assimploader/client/AnimationSmokeTest.java)、[性能探针](../../src/test/java/cn/minerealms/assimploader/animation/RuntimePerformanceProbeTest.java)
