@@ -110,9 +110,11 @@ animation-state close. A processor retains no Minecraft entity or animation-stat
 reference. Different instances have independent clip clocks, weights and targets.
 `resetDynamics` resets private clip clocks, preserving runtime control values.
 
-Enable the resource pack rooted at `examples/animation_processors`, then install
-`examples/kubejs/client_scripts/assimp_animation_processor.js` into the game's
-client scripts. The example registers `example:hybrid_player` with RigWorks. Use
+The block-player example now lives in the independent
+[RigWorks examples](https://github.com/MineRealms/RigWorks/blob/main/examples/kubejs/README.md).
+Enable its `examples/animation_processors` resource pack, then install
+`examples/kubejs/client_scripts/assimp_animation_processor.js` from that repository.
+The example registers `example:hybrid_player` with RigWorks. Use
 the Blender block-player profile and Scripted mode. It retains original native
 poses, mixes a masked baked walking clip, adds a configurable sword guard, and
 exposes an opt-in left-hand IK contact. It clears its influence during native
@@ -135,5 +137,5 @@ Imported resource facts are available through [capabilities](MODEL_CAPABILITIES_
 Owned CCD chains do not add joint hinge/angle limits; the existing constrained
 rig solvers remain separate. A declared IK target is an input, not an automatic
 two-handed item contact solution. RigWorks provides a separate optional
-[item contact policy](RIGWORKS_HAND_CONTACTS.md) built on the engine's constrained
+[item contact policy](https://github.com/MineRealms/RigWorks/blob/main/docs/guides/RIGWORKS_HAND_CONTACTS.md) built on the engine's constrained
 two-bone solver. Humanoid mapping and native player observations belong to RigWorks.
