@@ -6,6 +6,7 @@ import cn.minerealms.assimploader.animation.ClientAnimationManager;
 import cn.minerealms.assimploader.animation.ModelInstance;
 import cn.minerealms.rigworks.character.core.CharacterProfile;
 import cn.minerealms.rigworks.character.core.CharacterEquipmentDefinition;
+import cn.minerealms.rigworks.character.core.CharacterVisualConfig;
 import cn.minerealms.rigworks.character.core.PlayerAnimationController;
 import cn.minerealms.assimploader.character.physics.BulletCharacterPhysics;
 import cn.minerealms.assimploader.character.physics.CharacterPhysicsAsset;
@@ -20,6 +21,7 @@ import cn.minerealms.assimploader.render.AttachmentTrailRenderer;
 import cn.minerealms.assimploader.render.ClientRenderResources;
 import cn.minerealms.assimploader.render.base.BaseAssimpRenderer;
 import cn.minerealms.assimploader.rendering.OculusEntityBufferCache;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -58,6 +60,10 @@ public final class LocalPlayerCharacter {
     public record Diagnostics(Status status, String profile, String model, String requestedAnimation,
                               String selectedAnimation, long renderedPasses, long fallbacks, String failure) {}
 
+    public record RenderView(net.minecraft.client.player.AbstractClientPlayer player, CharacterProfile profile,
+                             AssimpScene scene, AnimationState animation, CharacterEquipmentDefinition equipment,
+                             cn.minerealms.assimploader.animation.PoseSnapshot snapshot) {}
+
     private static volatile Settings settings = new Settings(false, DEFAULT_PROFILE, true, false);
     private static Settings appliedSettings;
     private static cn.minerealms.rigworks.RigWorksConfig.CharacterAnimationMode appliedMode;
@@ -80,9 +86,11 @@ public final class LocalPlayerCharacter {
 
     private LocalPlayerCharacter() {}
 
-    private static final class Binding implements AutoCloseable {
+    private static final class Binding implements AutoCloseable, CharacterEquipmentEditorSession.Target {
         final Object animationOwner = new Object();
         final LocalPlayer player;
+        final Object level;
+        final String profileId, configuredProfile;
         final CharacterProfile profile;
         final AssimpScene scene;
         final AnimationState animation;
@@ -91,13 +99,23 @@ public final class LocalPlayerCharacter {
         final BulletCharacterPhysics physics;
         final CharacterPhysicsClientBinding physicsBinding;
         final CharacterRigDefinition.Installed rig;
-        final CharacterEquipmentDefinition equipment;
+        final CharacterEquipmentDefinition resourceEquipment;
+        final CharacterEquipmentOverrides equipmentOverrides;
+        final String rigSource, physicsSource, modelHash;
+        final long generation=AssimpModelLoader.getCacheGeneration();
+        CharacterVisualConfig.Transform visualRoot;
+        CharacterVisualConfig.Options visualOptions;
+        CharacterEquipmentDefinition equipment;
         final CharacterHandContacts contacts;
         final CharacterScriptRuntime.Session scripts;
+        final OwnerAvatarSession avatar;
         final MinecraftPlayerInputSampler inputs = new MinecraftPlayerInputSampler();
 
-        Binding(LocalPlayer player, CharacterProfile profile, AssimpScene scene) {
+        Binding(LocalPlayer player, CharacterProfile profile, AssimpScene scene, String configuredProfile, CharacterVisualConfig shared) {
             this.player = player;
+            this.level = player.level();
+            this.configuredProfile = configuredProfile;
+            this.profileId = new ResourceLocation(configuredProfile).toString();
             this.profile = profile;
             this.scene = scene;
             animation = ClientAnimationManager.getInstance().getOrCreateAnimationState(animationOwner, profile.model(), scene);
@@ -106,26 +124,31 @@ public final class LocalPlayerCharacter {
                 controller = new PlayerAnimationController(profile, animation);
                 vanilla = new VanillaPlayerPoseDriver(profile, animation);
                 var resources=Minecraft.getInstance().getResourceManager();
-                if (profile.equipmentDefinition() != null) {
+                modelHash=CharacterVisualSharing.cachedModelHash(resources,profile.model());
+                if(modelHash==null)throw new IOException("Model identity is not ready");
+                if(shared!=null&&!modelHash.equals(shared.modelHash()))throw new IOException("Shared character model hash mismatch");
+                visualRoot=shared==null?CharacterVisualConfig.Transform.IDENTITY:shared.transform();
+                visualOptions=shared==null?new CharacterVisualConfig.Options(handContactsEnabled(),physicsEnabled(),settings.groundPlacement(),settings.effects()):shared.options();
+                if(shared!=null)resourceEquipment=shared.equipment();
+                else if (profile.equipmentDefinition() != null) {
                     try (var reader = resources.openAsReader(new ResourceLocation(profile.equipmentDefinition()))) {
-                        equipment = CharacterEquipmentDefinition.read(reader);
+                        resourceEquipment = CharacterEquipmentDefinition.read(reader);
                     }
-                } else equipment = CharacterEquipmentDefinition.defaults(profile);
-                for (var mount : new CharacterEquipmentDefinition.Mount[]{equipment.rightHand(), equipment.leftHand()}) {
-                    if (mount != null && scene.findNodeByName(mount.node()) == null)
-                        throw new IllegalArgumentException("Unknown equipment node: " + mount.node());
-                }
-                if(profile.solverDefinition()!=null) {
-                    try(var reader=resources.openAsReader(new ResourceLocation(profile.solverDefinition()))) {
-                        rig=CharacterRigDefinition.read(reader).install(animation);
-                    }
-                } else rig=null;
-                contacts=equipment.grips().isEmpty()?null:new CharacterHandContacts(profile,equipment,scene);
+                } else resourceEquipment = CharacterEquipmentDefinition.defaults(profile);
+                validateEquipmentNodes(resourceEquipment);
+                equipmentOverrides=new CharacterEquipmentOverrides(net.minecraftforge.fml.loading.FMLPaths.CONFIGDIR.get(),profileId);
+                equipment=shared!=null?shared.equipment():equipmentOverrides.loadOrDefault(resourceEquipment, candidate->{
+                    validateEquipmentNodes(candidate);
+                    if(!candidate.grips().isEmpty())new CharacterHandContacts(profile,candidate,scene);
+                },(path,error)->AssimpLoader.LOGGER.warn("Ignoring invalid character equipment override {}; retaining resource equipment",path,error));
+                validateEquipmentNodes(equipment);
+                rigSource=shared!=null?shared.rig():profile.solverDefinition()==null?null:CharacterVisualConfig.canonicalResource(CharacterVisualSharing.resource(resources,profile.solverDefinition()));
+                rig=rigSource==null?null:CharacterRigDefinition.read(new StringReader(rigSource)).install(animation);
+                physicsSource=shared!=null?shared.physics():profile.physicsDefinition()==null?null:CharacterVisualConfig.canonicalResource(CharacterVisualSharing.resource(resources,profile.physicsDefinition()));
+                contacts=equipment.grips().isEmpty()?null:new CharacterHandContacts(profile,equipment,scene,()->equipment);
                 if(contacts!=null)animation.addModifier("rigworks:hand_contacts",contacts);
-                if(profile.physicsDefinition()!=null && AssimpLoaderConfig.getOrDefault(cn.minerealms.rigworks.RigWorksConfig.CLIENT.physicsEnabled::get,true)) {
-                    try(var reader=resources.openAsReader(new ResourceLocation(profile.physicsDefinition()))) {
-                        physics=new BulletCharacterPhysics(CharacterPhysicsAsset.read(reader,scene),scene,(float)profile.scale());
-                    }
+                if(physicsSource!=null && visualOptions.physics()) {
+                    physics=new BulletCharacterPhysics(CharacterPhysicsAsset.read(new StringReader(physicsSource),scene),scene,(float)profile.scale());
                     physicsBinding=new CharacterPhysicsClientBinding(physics);
                     try {
                         physicsBinding.update(player,profile.modelYawDegrees());
@@ -135,10 +158,14 @@ public final class LocalPlayerCharacter {
                 if (animation.getModelInstance() != null) {
                     MinecraftInstanceWorldBinding.bind(animation.getModelInstance(), player,
                             value -> rotationScale(value.yBodyRot, profile),
-                            value -> settings.groundPlacement(), value -> settings.effects());
+                            value -> visualOptions.groundPlacement(), value -> visualOptions.effects());
                 }
                 scripts=new CharacterScriptRuntime.Session(animation,rig);
-                if (animationMode() == cn.minerealms.rigworks.RigWorksConfig.CharacterAnimationMode.CLIPS) controller.update(inputs.sample(player));
+                avatar=new OwnerAvatarSession(player,profileId,profile,animation,rig,contacts,
+                        ()->{controller.reset();vanilla.update(player,true);},
+                        ()->vanilla.update(player,controller.updateCompatible(inputs.sample(player))));
+                if (animationMode() == cn.minerealms.rigworks.RigWorksConfig.CharacterAnimationMode.CLIPS)
+                    vanilla.update(player, controller.updateCompatible(inputs.sample(player)));
                 else vanilla.update(player, true);
             } catch (IOException | RuntimeException exception) {
                 ClientAnimationManager.getInstance().release(animationOwner);
@@ -146,7 +173,49 @@ public final class LocalPlayerCharacter {
             }
         }
 
+        private void validateEquipmentNodes(CharacterEquipmentDefinition definition) {
+            var mounts = new java.util.ArrayList<CharacterEquipmentDefinition.Mount>();
+            mounts.add(definition.rightHand()); mounts.add(definition.leftHand()); mounts.addAll(definition.sockets().values());
+            for (var rule : definition.overrides()) if (rule.mount() != null) mounts.add(rule.mount());
+            for(var mount:mounts)
+                if(mount!=null&&scene.findNodeByName(mount.node())==null)
+                    throw new IllegalArgumentException("Unknown equipment node: "+mount.node());
+        }
+        @Override public boolean valid() {
+            var client=Minecraft.getInstance();
+            return active==this && settings.enabled() && settings.profile().equals(configuredProfile)
+                    && client.player==player && client.level==level && !player.isRemoved() && !animation.isClosed();
+        }
+        @Override public String profileId(){return profileId;}
+        @Override public CharacterEquipmentDefinition resource(){return resourceEquipment;}
+        @Override public CharacterEquipmentDefinition equipment(){return equipment;}
+        @Override public CharacterEquipmentOverrides overrides(){return equipmentOverrides;}
+        @Override public void edited(){var config=currentVisualConfig();if(config!=null)CharacterVisualSharing.stage(profileId,config);}
+        @Override public void saved(){
+            var config=currentVisualConfig();
+            try {if(config!=null)CharacterVisualSharing.save(profileId,config);}
+            catch(java.io.IOException error){AssimpLoader.LOGGER.error("Cannot persist complete character configuration {}",profileId,error);}
+            CharacterVisualSharing.changed();
+        }
+        @Override public void equipment(CharacterEquipmentDefinition value) {
+            if(!Minecraft.getInstance().isSameThread())throw new IllegalStateException("Equipment preview requires the client thread");
+            if(!valid())throw new IllegalStateException("Character binding changed while editing equipment");
+            validateEquipmentNodes(value);
+            if(!value.grips().equals(equipment.grips()))throw new IllegalArgumentException("Transform editing cannot replace grip rules");
+            if((!java.util.Objects.equals(node(value.leftHand()),node(equipment.leftHand()))
+                    ||!java.util.Objects.equals(node(value.rightHand()),node(equipment.rightHand())))&&!value.grips().isEmpty())
+                new CharacterHandContacts(profile,value,scene);
+            equipment=value;
+        }
+        private static String node(CharacterEquipmentDefinition.Mount mount){return mount==null?null:mount.node();}
+        @Override public net.minecraft.world.phys.Vec3 focus(net.minecraft.world.entity.HumanoidArm arm,float partialTick) {
+            var transform=equipmentTransform(this,arm,partialTick);
+            var origin=CharacterWorkbenchPose.position(player,partialTick);
+            return transform==null?origin.add(0,player.getBbHeight()*.5,0):origin.add(transform.m30(),transform.m31(),transform.m32());
+        }
+
         @Override public void close() {
+            avatar.close();
             scripts.close();
             vanilla.close();
             controller.close();
@@ -158,20 +227,72 @@ public final class LocalPlayerCharacter {
     public static AnimationState currentAnimation() { return active == null ? null : active.animation; }
     public static ModelInstance currentInstance() { return active == null ? null : active.animation.getModelInstance(); }
     public static CharacterProfile currentProfile() { return active == null ? null : active.profile; }
+    public static CharacterVisualConfig currentVisualConfig() {
+        var binding=active;
+        return binding==null||binding.animation.isClosed()?null:new CharacterVisualConfig(binding.profile,binding.equipment,
+                binding.visualRoot,binding.modelHash,binding.rigSource,binding.physicsSource,binding.visualOptions);
+    }
+    /** Root and socket edits only update matrices; structural rig/action edits replace the animation owner. */
+    public static void applyVisualConfig(CharacterVisualConfig config) {
+        var binding=active;
+        if(binding!=null&&binding.profile.equals(config.profile())&&binding.modelHash.equals(config.modelHash())
+                &&java.util.Objects.equals(binding.rigSource,config.rig())&&java.util.Objects.equals(binding.physicsSource,config.physics())
+                &&binding.equipment.grips().equals(config.equipment().grips())&&binding.visualOptions.physics()==config.options().physics()) {
+            binding.equipment(config.equipment());binding.visualRoot=config.transform();binding.visualOptions=config.options();
+            failure="";status=Status.READY;CharacterPackageClient.applicationReady(binding.player.getUUID());
+        } else reloadVisual();
+    }
     public static BulletCharacterPhysics currentPhysics() { return active == null ? null : active.physics; }
     public static CharacterRigDefinition.Installed currentRig() { return active == null ? null : active.rig; }
     public static VanillaPlayerPoseDriver currentVanillaDriver() { return active == null ? null : active.vanilla; }
     public static CharacterHandContacts currentHandContacts(){return active==null?null:active.contacts;}
+    public static boolean isWorldRender() { return worldRender; }
+    /** Observation only: first person, GUI, world and shadow consumers share completed playback. */
+    public static RenderView view(net.minecraft.client.player.AbstractClientPlayer player, float partialTick) {
+        if (player != Minecraft.getInstance().player) return RemotePlayerCharacters.view(player, partialTick);
+        var binding = active;
+        if (!settings.enabled() || binding == null || binding.player != player || binding.animation.isClosed()) return null;
+        return new RenderView(player, binding.profile, binding.scene, binding.animation, binding.equipment,
+                CharacterWorkbenchPose.pose(binding.animation, partialTick));
+    }
+
+    static void renderEquipmentLayers(RenderView view, PoseStack poses, net.minecraft.client.renderer.MultiBufferSource buffers,
+                                      int light, float partialTick) {
+        if (AssimpLoaderConfig.getOrDefault(cn.minerealms.rigworks.RigWorksConfig.CLIENT.equipmentLayers::get, true))
+            CharacterEquipmentLayers.render(view.player(), view.profile(), view.equipment(), view.snapshot(), poses, buffers, light, partialTick);
+    }
+    static CharacterEquipmentEditorSession.Target equipmentEditorTarget(){return active;}
     public static boolean handContactsEnabled(){return AssimpLoaderConfig.getOrDefault(cn.minerealms.rigworks.RigWorksConfig.CLIENT.handContacts::get,false);}
-    public static void setHandContactsEnabled(boolean value){var config=cn.minerealms.rigworks.RigWorksConfig.CLIENT.handContacts;config.set(value);config.save();}
+    public static void setHandContactsEnabled(boolean value){
+        cn.minerealms.rigworks.RigWorksConfig.update(edit->edit.set(cn.minerealms.rigworks.RigWorksConfig.CLIENT.handContacts,value));
+        var visual=currentVisualConfig();if(visual!=null)CharacterVisualSharing.preview(settings.profile(),visual.withOptions(
+                new CharacterVisualConfig.Options(value,visual.options().physics(),visual.options().groundPlacement(),visual.options().effects())));
+    }
     /** Item socket in the rendered model frame, with double precision world translation kept outside the matrix. */
     public static Matrix4f equipmentTransform(net.minecraft.world.entity.HumanoidArm arm, float partialTick) {
         var binding = active;
         if (!settings.enabled() || binding == null || binding.animation.isClosed() || !binding.equipment.enabled()) return null;
+        return equipmentTransform(binding,arm,partialTick);
+    }
+    private static Matrix4f equipmentTransform(Binding binding,net.minecraft.world.entity.HumanoidArm arm,float partialTick) {
         var mount = arm == net.minecraft.world.entity.HumanoidArm.LEFT ? binding.equipment.leftHand() : binding.equipment.rightHand();
         if (mount == null) return null;
-        float yaw = Mth.rotLerp(partialTick, binding.player.yBodyRotO, binding.player.yBodyRot);
-        return rotationScale(yaw, binding.profile).mul(mount.transform(binding.animation.getRenderPose(partialTick)));
+        float yaw = CharacterWorkbenchPose.yaw(Mth.rotLerp(partialTick, binding.player.yBodyRotO, binding.player.yBodyRot));
+        return rotationScale(yaw, binding.profile).mul(mount.transform(CharacterWorkbenchPose.pose(binding.animation, partialTick)));
+    }
+
+    /** Wrist frame before item offsets, in world-relative metres with imported bone scale removed. */
+    public static Matrix4f equipmentBoneTransform(net.minecraft.world.entity.HumanoidArm arm, float partialTick) {
+        var binding = active;
+        if (binding == null || binding.animation.isClosed()) return null;
+        var mount = arm == net.minecraft.world.entity.HumanoidArm.LEFT ? binding.equipment.leftHand() : binding.equipment.rightHand();
+        if (mount == null) return null;
+        var bone = CharacterWorkbenchPose.pose(binding.animation, partialTick).getNodeTransform(mount.node());
+        if (bone == null) return null;
+        var frame = new Matrix4f().translationRotate(bone.getTranslation(new org.joml.Vector3f()),
+                bone.getUnnormalizedRotation(new org.joml.Quaternionf()).normalize());
+        float yaw = CharacterWorkbenchPose.yaw(Mth.rotLerp(partialTick, binding.player.yBodyRotO, binding.player.yBodyRot));
+        return rotationScale(yaw, binding.profile).mul(frame);
     }
     public static cn.minerealms.rigworks.RigWorksConfig.CharacterAnimationMode animationMode() {
         return AssimpLoaderConfig.getOrDefault(cn.minerealms.rigworks.RigWorksConfig.CLIENT.animationMode::get,
@@ -181,10 +302,13 @@ public final class LocalPlayerCharacter {
         return AssimpLoaderConfig.getOrDefault(cn.minerealms.rigworks.RigWorksConfig.CLIENT.physicsEnabled::get, true);
     }
     public static void setAnimationMode(cn.minerealms.rigworks.RigWorksConfig.CharacterAnimationMode mode) {
-        var config=cn.minerealms.rigworks.RigWorksConfig.CLIENT.animationMode;config.set(mode);config.save();reload();
+        cn.minerealms.rigworks.RigWorksConfig.update(edit->edit.set(cn.minerealms.rigworks.RigWorksConfig.CLIENT.animationMode,mode));reload();
     }
     public static void setPhysicsEnabled(boolean enabled) {
-        var config=cn.minerealms.rigworks.RigWorksConfig.CLIENT.physicsEnabled;config.set(enabled);config.save();reload();
+        cn.minerealms.rigworks.RigWorksConfig.update(edit->edit.set(cn.minerealms.rigworks.RigWorksConfig.CLIENT.physicsEnabled,enabled));
+        var visual=currentVisualConfig();if(visual!=null)CharacterVisualSharing.preview(settings.profile(),visual.withOptions(
+                new CharacterVisualConfig.Options(visual.options().handContacts(),enabled,visual.options().groundPlacement(),visual.options().effects())));
+        else reload();
     }
     public static Settings settings() { return settings; }
     public static void configure(Settings value) {
@@ -215,8 +339,22 @@ public final class LocalPlayerCharacter {
     public static void reload() {
         request++;
         retire();
+        CharacterEquipmentLayers.clear();
+        CharacterFirstPersonArms.clear();
         failure = "";
         status = settings.enabled() ? Status.WAITING_FOR_PLAYER : Status.DISABLED;
+    }
+
+    /** A configuration replacement keeps this owner's usable previous binding until initialization succeeds. */
+    public static void reloadVisual() {
+        if(!hasUsableBinding()){reload();return;}
+        request++;failure="";status=Status.WAITING_FOR_PLAYER;
+    }
+    static boolean hasUsableBinding() {
+        var client=Minecraft.getInstance();
+        return settings.enabled()&&active!=null&&active.player==client.player&&active.level==client.level
+                &&active.configuredProfile.equals(settings.profile())&&!active.animation.isClosed()
+                &&active.scene==active.animation.getScene()&&active.generation==AssimpModelLoader.getCacheGeneration();
     }
 
     private static void retire() {
@@ -247,27 +385,34 @@ public final class LocalPlayerCharacter {
         if (status == Status.WAITING_FOR_PLAYER) startLoad(minecraft.player);
         if (status == Status.LOADING && System.nanoTime() - loadingStarted > TimeUnit.SECONDS.toNanos(60)) {
             request++;
-            fail("Character loading timed out; use /assimploader character reload to retry", null);
+            failLoad("Character loading timed out; use /assimploader character reload to retry", null);
         }
         if (active == null || minecraft.isPaused()) return;
+        if (CharacterWorkbenchPose.frozen()) {
+            ClientAnimationManager.getInstance().markRendered(active.animation, 0);
+            return;
+        }
         try {
             var input=active.inputs.sample(active.player);
-            if(active.contacts!=null)active.contacts.prepare(active.player,handContactsEnabled()
+            if(active.contacts!=null)active.contacts.prepare(active.player,active.visualOptions.handContacts()
                     &&(active.physics==null||!active.physics.statistics().ragdoll()));
             switch (animationMode()) {
                 case VANILLA -> {
-                    active.scripts.reset();active.controller.reset();active.vanilla.update(active.player,true);
+                    active.avatar.reset();active.scripts.reset();active.controller.reset();active.vanilla.update(active.player,true);
                 }
                 case SCRIPTED -> {
-                    active.controller.reset();active.vanilla.disable();
-                    if(!active.scripts.run(active.player,active.profile,active.controller,input)) {
-                        if(active.contacts!=null)active.contacts.prepare(active.player,handContactsEnabled()
+                    active.vanilla.disable();
+                    boolean handled;
+                    if(active.avatar.present()) {active.scripts.reset();handled=active.avatar.run(input);}
+                    else {active.avatar.reset();active.controller.reset();handled=active.scripts.run(active.player,active.profile,active.controller,input);}
+                    if(!handled) {
+                        if(active.contacts!=null)active.contacts.prepare(active.player,active.visualOptions.handContacts()
                                 &&(active.physics==null||!active.physics.statistics().ragdoll()));
                         active.vanilla.update(active.player,true);
                     }
                 }
                 case CLIPS -> {
-                    active.scripts.reset();active.vanilla.disable();active.controller.update(input);
+                    active.avatar.reset();active.scripts.reset();active.vanilla.update(active.player, active.controller.updateCompatible(input));
                 }
             }
             if(active.physicsBinding!=null)active.physicsBinding.update(active.player,active.profile.modelYawDegrees());
@@ -290,7 +435,9 @@ public final class LocalPlayerCharacter {
         try {
             ResourceLocation profileLocation = new ResourceLocation(requestedProfile);
             CharacterProfile profile;
-            try (var reader = manager.openAsReader(profileLocation)) {
+            CharacterVisualConfig shared=CharacterVisualSharing.forProfile(requestedProfile);
+            if(shared!=null)profile=shared.profile();
+            else try (var reader = manager.openAsReader(profileLocation)) {
                 char[] text = new char[65537];
                 int size = 0, read;
                 while (size < text.length && (read = reader.read(text, size, text.length - size)) != -1) size += read;
@@ -299,27 +446,42 @@ public final class LocalPlayerCharacter {
             }
             ResourceLocation model = new ResourceLocation(profile.model());
             AsyncModelLoader.decodeAsync("character:" + model + "@" + generation,
-                    () -> AssimpModelLoader.loadCachedResource(manager, model, ModelImportMode.DYNAMIC))
+                    () -> {
+                        String hash=CharacterVisualSharing.modelHash(manager,profile.model());
+                        if(shared!=null&&!hash.equals(shared.modelHash()))throw new IOException("Character asset hash differs from shared configuration: "+model);
+                        return CharacterVisualSharing.loadModel(manager,model);
+                    })
                     .whenComplete((scene, exception) -> minecraft.execute(() -> {
                         if (token != request || !settings.enabled() || !settings.profile().equals(requestedProfile)
                                 || minecraft.player != player || minecraft.level != level) return;
                         if (generation != AssimpModelLoader.getCacheGeneration()) { reload(); return; }
-                        if (exception != null) { fail("Cannot load character model " + model, exception); return; }
+                        if (exception != null) { failLoad("Cannot load character model " + model, exception); return; }
                         try {
                             if (scene == null || scene.getMeshes().isEmpty()) throw new IOException("Character model contains no meshes");
                             ClientRenderResources.checkGeneration();
-                            Binding replacement = new Binding(player, profile, scene);
+                            Binding replacement = new Binding(player, profile, scene, requestedProfile, shared);
                             retire();
                             active = replacement;
                             failure = "";
                             status = Status.READY;
+                            CharacterPackageClient.applicationReady(player.getUUID());
                             AssimpLoader.LOGGER.info("Local character ready: {} ({})", model, settings.profile());
                         } catch (IOException | RuntimeException initializationFailure) {
-                            fail("Cannot initialize character " + model, initializationFailure);
+                            failLoad("Cannot initialize character " + model, initializationFailure);
                         }
                     }));
         } catch (IOException | RuntimeException exception) {
-            fail("Cannot load character profile " + settings.profile(), exception);
+            failLoad("Cannot load character profile " + settings.profile(), exception);
+        }
+    }
+
+    private static void failLoad(String message,Throwable exception) {
+        if(hasUsableBinding()) {
+            failure=message+"; previous verified character configuration retained";status=Status.READY;fallbacks++;
+            CharacterPackageClient.applicationFailed(active.player.getUUID(),message);
+            if(exception==null)AssimpLoader.LOGGER.warn(failure);else AssimpLoader.LOGGER.warn(failure,exception);
+        }else {
+            fail(message,exception);
         }
     }
 
@@ -328,6 +490,7 @@ public final class LocalPlayerCharacter {
         failure = message;
         status = Status.FAILED;
         fallbacks++;
+        var player=Minecraft.getInstance().player;if(player!=null)CharacterPackageClient.applicationFailed(player.getUUID(),message);
         if (exception == null) AssimpLoader.LOGGER.warn(message);
         else AssimpLoader.LOGGER.warn(message, exception);
     }
@@ -342,8 +505,8 @@ public final class LocalPlayerCharacter {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void renderPlayer(RenderPlayerEvent.Pre event) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (!settings.enabled() || !worldRender || active == null || event.getEntity() != minecraft.player
-                || active.player != minecraft.player || minecraft.options.getCameraType().isFirstPerson()
+        if (!settings.enabled() || active == null || event.getEntity() != minecraft.player
+                || active.player != minecraft.player || worldRender && minecraft.options.getCameraType().isFirstPerson()
                 || active.player.isInvisible() || active.player.isSpectator() || active.player.isRemoved()) return;
         ClientRenderResources.checkGeneration();
         if (active == null || active.animation.isClosed()) return;
@@ -351,23 +514,34 @@ public final class LocalPlayerCharacter {
         var poses = event.getPoseStack();
         poses.pushPose();
         try {
-            float yaw = Mth.rotLerp(event.getPartialTick(), binding.player.yBodyRotO, binding.player.yBodyRot);
+            if (worldRender) {
+                var offset = VanillaPlayerPoseDriver.renderOffset(binding.player);
+                poses.translate(offset.x, offset.y, offset.z);
+            }
+            if (worldRender && CharacterWorkbenchPose.frozen()) {
+                var display = CharacterWorkbenchPose.position(binding.player, event.getPartialTick());
+                var actual = CharacterWorkbenchPose.interpolatedPosition(binding.player, event.getPartialTick());
+                poses.translate(display.x - actual.x, display.y - actual.y, display.z - actual.z);
+            }
+            float yaw = CharacterWorkbenchPose.yaw(Mth.rotLerp(event.getPartialTick(), binding.player.yBodyRotO, binding.player.yBodyRot));
             poses.mulPose(Axis.YP.rotationDegrees(binding.profile.modelYawDegrees() - yaw));
             float scale = (float) binding.profile.scale();
             poses.scale(scale, scale, scale);
+            applyVisualRoot(poses,binding.visualRoot);
             int overlay = LivingEntityRenderer.getOverlayCoords(binding.player, 0);
-            var snapshot = binding.animation.getRenderPose(event.getPartialTick());
+            var snapshot = CharacterWorkbenchPose.pose(binding.animation, event.getPartialTick());
             if (!OculusEntityBufferCache.renderPosed(binding.animation, snapshot, poses, event.getPackedLight(), overlay, false)) {
                 RENDERER.renderScene(binding.scene, binding.animation, poses, event.getMultiBufferSource(),
                         event.getPackedLight(), overlay, event.getPartialTick());
             }
             CharacterHeldItemRenderer.render(binding.player, binding.equipment, snapshot, poses,
                     event.getMultiBufferSource(), event.getPackedLight(), overlay);
+            renderEquipmentLayers(new RenderView(binding.player, binding.profile, binding.scene, binding.animation,
+                    binding.equipment, snapshot), poses, event.getMultiBufferSource(), event.getPackedLight(), event.getPartialTick());
             if (binding.animation.getModelInstance() != null) {
                 var world = rotationScale(yaw, binding.profile);
-                world.setTranslation((float) Mth.lerp(event.getPartialTick(), binding.player.xo, binding.player.getX()),
-                        (float) Mth.lerp(event.getPartialTick(), binding.player.yo, binding.player.getY()),
-                        (float) Mth.lerp(event.getPartialTick(), binding.player.zo, binding.player.getZ()));
+                var displayPosition = CharacterWorkbenchPose.position(binding.player, event.getPartialTick());
+                world.setTranslation((float) displayPosition.x, (float) displayPosition.y, (float) displayPosition.z);
                 AttachmentTrailRenderer.render(binding.animation.getModelInstance(), poses, event.getMultiBufferSource(),
                         event.getPackedLight(), world);
             }
@@ -381,7 +555,14 @@ public final class LocalPlayerCharacter {
     }
 
     private static Matrix4f rotationScale(float bodyYaw, CharacterProfile profile) {
-        return new Matrix4f().rotateY((float) Math.toRadians(profile.modelYawDegrees() - bodyYaw)).scale((float) profile.scale());
+        var matrix=new Matrix4f().rotateY((float) Math.toRadians(profile.modelYawDegrees() - bodyYaw)).scale((float) profile.scale());
+        if(active!=null&&active.profile==profile)matrix.mul(active.visualRoot.matrix());
+        return matrix;
+    }
+    static void applyVisualRoot(PoseStack poses,CharacterVisualConfig.Transform root) {
+        poses.translate(root.x(),root.y(),root.z());
+        poses.mulPose(new org.joml.Quaternionf().rotationXYZ((float)Math.toRadians(root.rx()),(float)Math.toRadians(root.ry()),(float)Math.toRadians(root.rz())));
+        poses.scale(root.sx(),root.sy(),root.sz());
     }
 
     @SubscribeEvent public static void logout(ClientPlayerNetworkEvent.LoggingOut event) {
@@ -405,6 +586,8 @@ public final class LocalPlayerCharacter {
                     Minecraft.getInstance().execute(() -> cn.minerealms.assimploader.client.ui.LookDevNavigation.open(cn.minerealms.assimploader.client.ui.LookDevNavigation.Page.PLAYER));
                     return 1;
                 })).then(Commands.literal("enable").executes(context -> {setPersistentEnabled(true);return 1;}))
+                .then(Commands.literal("behavior_reload").executes(context->{CharacterAvatarBehavior.refresh();return 1;}))
+                .then(Commands.literal("share").executes(context->{CharacterVisualSharing.shareCurrent();context.getSource().sendSuccess(()->Component.literal(CharacterVisualSharing.status()),false);return 1;}))
                 .then(motionCommands())
                 .then(modeCommands())
                 .then(Commands.literal("physics")
@@ -415,8 +598,8 @@ public final class LocalPlayerCharacter {
                     .then(Commands.literal("off").executes(context->{setHandContactsEnabled(false);return 1;})))
                 .then(Commands.literal("disable").executes(context -> {setPersistentEnabled(false);return 1;}))
                 .then(Commands.literal("profile").then(Commands.argument("resource",net.minecraft.commands.arguments.ResourceLocationArgument.id()).executes(context->{
-                    var config=cn.minerealms.rigworks.RigWorksConfig.CLIENT.profile;
-                    config.set(net.minecraft.commands.arguments.ResourceLocationArgument.getId(context,"resource").toString());config.save();
+                    cn.minerealms.rigworks.RigWorksConfig.update(edit->edit.set(cn.minerealms.rigworks.RigWorksConfig.CLIENT.profile,
+                            net.minecraft.commands.arguments.ResourceLocationArgument.getId(context,"resource").toString()));
                     refreshConfiguration();reload();return 1;
                 })))
                 .then(Commands.literal("ragdoll")
@@ -440,7 +623,7 @@ public final class LocalPlayerCharacter {
     }
 
     private static void setPersistentEnabled(boolean enabled) {
-        var config=cn.minerealms.rigworks.RigWorksConfig.CLIENT.enabled;config.set(enabled);config.save();
+        cn.minerealms.rigworks.RigWorksConfig.update(edit->edit.set(cn.minerealms.rigworks.RigWorksConfig.CLIENT.enabled,enabled));
         refreshConfiguration();reload();
     }
 
@@ -488,7 +671,11 @@ public final class LocalPlayerCharacter {
         @SubscribeEvent public static void registerReload(RegisterClientReloadListenersEvent event) {
             event.registerReloadListener((ResourceManagerReloadListener) manager -> Minecraft.getInstance().execute(LocalPlayerCharacter::reload));
         }
-        @SubscribeEvent public static void loaded(ModConfigEvent.Loading event) { changed(event); }
+        @SubscribeEvent public static void loaded(ModConfigEvent.Loading event) {
+            if (event.getConfig().getSpec() == cn.minerealms.rigworks.RigWorksConfig.CLIENT_SPEC)
+                cn.minerealms.rigworks.RigWorksConfig.attachClient(event.getConfig(),Minecraft.getInstance()::execute);
+            changed(event);
+        }
         @SubscribeEvent public static void reloaded(ModConfigEvent.Reloading event) { changed(event); }
         private static void changed(ModConfigEvent event) {
             if (event.getConfig().getSpec() == cn.minerealms.rigworks.RigWorksConfig.CLIENT_SPEC) refreshConfiguration();
