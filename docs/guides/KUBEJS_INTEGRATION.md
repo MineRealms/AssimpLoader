@@ -2,13 +2,13 @@
 
 Player action policies, editable Mo' Bends-style presets, native attack clocks,
 procedural bone layers and character solver/physics controls are documented in
-[KubeJS player actions](CHARACTER_KUBEJS_ACTIONS.md). The complete opt-in template
-is [rigworks_player_actions.js](../rigworks/examples/kubejs/client_scripts/rigworks_player_actions.js).
+[KubeJS player actions](https://github.com/MineRealms/RigWorks/blob/main/docs/guides/CHARACTER_KUBEJS_ACTIONS.md). The complete opt-in template
+is [rigworks_player_actions.js](https://github.com/MineRealms/RigWorks/blob/main/examples/kubejs/client_scripts/rigworks_player_actions.js).
 
 After the module split, the generic `Assimp` binding belongs to AssimpLoader;
 player policy uses the optional `RigWorks` binding, and server deer controls
-belong to AssimpShowcase. See [module ownership](MODULE_SPLIT_AND_DATA_DRIVEN_PLAN_2026-11-17.md),
-[animation processors](ANIMATION_PROCESSORS.md), and [shader parameters](SHADER_PARAMETER_BRIDGE.md).
+belong to AssimpShowcase. See [module ownership](../history/MODULE_SPLIT_AND_DATA_DRIVEN_PLAN_2026-11-17.md),
+[animation processors](../reference/ANIMATION_PROCESSORS.md), and [shader parameters](../reference/SHADER_PARAMETER_BRIDGE.md).
 
 Optional integration for Minecraft 1.20.1 / Forge. Development verification pins
 KubeJS `2001.6.5-build.26`, Rhino `2001.2.2-build.17`, and Architectury `9.1.12`.
@@ -99,7 +99,7 @@ and calls from another thread fail with an explanatory error. A renderer's own
 world binding may reapply synchronized entity settings each tick, so control
 those settings through the server API when applicable.
 
-The [held Morph example](../examples/kubejs/client_scripts/assimp_held_morph.js)
+The [held Morph example](../../examples/kubejs/client_scripts/assimp_held_morph.js)
 handles owner changes, resource reload and logout, and only changes Morph when
 crouching changes. It targets the existing 256-bone Showcase item.
 
@@ -124,7 +124,7 @@ Showcase deer. `auto` restores the movement-driven state selection. This API
 does not add a server animation simulator, arbitrary-entity replacement,
 authoritative mesh damage or a new custom packet protocol.
 
-The [server example](../examples/kubejs/server_scripts/assimp_deer.js) is opt-in.
+The [server example](../../examples/kubejs/server_scripts/assimp_deer.js) is opt-in.
 Examples are not installed into an existing pack automatically.
 
 ## Verification
