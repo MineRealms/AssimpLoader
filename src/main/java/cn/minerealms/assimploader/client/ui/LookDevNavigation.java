@@ -11,14 +11,15 @@ import java.util.function.Supplier;
 
 /** One workspace navigation shared by every active AssimpLoader GUI. */
 public final class LookDevNavigation {
-    public enum Page { MODELS, NODES, PLAYER, DEBUG }
+    public enum Page { MODELS, WORKBENCH, NODES, PLAYER, DEBUG }
     private static final java.util.Map<Page,Supplier<Screen>> extensions = new java.util.EnumMap<>(Page.class);
     private static Workspace workspace;
     private static final class Workspace {
         final LoadedModelsScreen models = new LoadedModelsScreen();
+        final Screen workbench = new cn.minerealms.assimploader.workbench.client.ModelWorkbenchScreen();
         final Screen player = extensions.containsKey(Page.PLAYER) ? extensions.get(Page.PLAYER).get() : null;
         final DebugSettingsScreen debug = new DebugSettingsScreen(null);
-        boolean contains(Screen screen) { return screen == models || screen == player || screen == debug; }
+        boolean contains(Screen screen) { return screen == models || screen == workbench || screen == player || screen == debug; }
     }
     private LookDevNavigation(){}
     public static void registerPage(Page page,Supplier<Screen> factory) {
@@ -31,6 +32,7 @@ public final class LookDevNavigation {
         if (workspace == null || !workspace.contains(minecraft.screen)) workspace = new Workspace();
         Screen target = switch (page) {
             case MODELS, NODES -> workspace.models;
+            case WORKBENCH -> workspace.workbench;
             case PLAYER -> workspace.player;
             case DEBUG -> workspace.debug;
         };
@@ -45,7 +47,7 @@ public final class LookDevNavigation {
         var pages=java.util.Arrays.stream(Page.values()).filter(page->page!=Page.PLAYER || extensions.containsKey(page)).toList();
         int start=78,cell=(host.width-start-44-6)/pages.size(),index=0;
         for(var page:pages) {
-            String label=switch(page){case MODELS->"Models";case NODES->"Nodes";case PLAYER->"Player";case DEBUG->"Debug";};
+            String label=switch(page){case MODELS->"Models";case WORKBENCH->"Edit";case NODES->"Nodes";case PLAYER->"Player";case DEBUG->"Debug";};
             add.accept(FlatUi.choice(start+index++*(cell+2),10,cell,26,Component.literal(label),()->selected==page,
                     button->{if(selected!=page)open(page);}));
         }
