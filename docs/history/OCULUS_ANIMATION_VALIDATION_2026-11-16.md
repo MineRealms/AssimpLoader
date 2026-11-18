@@ -16,7 +16,7 @@ The runner requires the active shader API and both main/shadow render passes for
 the deer. Its first three stages also require new main and shadow invocations of
 the 256-bone Showcase after applying Morph weights 0, 1 and 0. Rendering retains
 the shader pack's CPU/vanilla vertex submission path. The direct TBO GPU result
-in [the high-bone report](../model-tests/highbone_validation.md) is separate.
+in [the high-bone report](../../model-tests/highbone_validation.md) is separate.
 
 Run `1794832216685` passed the original nine terrain/effects/movement/teleport/
 reload/NBT/navigation/removal stages with JFR enabled. Run `1794832541673` passed
