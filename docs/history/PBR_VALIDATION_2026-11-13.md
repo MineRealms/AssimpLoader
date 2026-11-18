@@ -1,6 +1,6 @@
 # Oculus PBR 与传送门实机验收
 
-日期：2026-11-13，北京时间。记录基于 `feat/oculus-injector` / `ab9318e` 的修复与实机验收。本文接续[首轮修复报告](FIXES_2026-11-13.md)，美术制作入口为 [PBR 资产规范](PBR_ASSET_SPEC.md)，游戏配置见 [PBR 使用说明](OCULUS_PBR_USAGE.md)。
+日期：2026-11-13，北京时间。记录基于 `feat/oculus-injector` / `ab9318e` 的修复与实机验收。本文接续[首轮修复报告](FIXES_2026-11-13.md)，美术制作入口为 [PBR 资产规范](../guides/PBR_ASSET_SPEC.md)，游戏配置见 [PBR 使用说明](../guides/OCULUS_PBR_USAGE.md)。
 
 ## 已完成
 
@@ -14,7 +14,7 @@
 
 ## 原创低面数传送门
 
-文件在 [`model-tests/portal/`](../model-tests/portal/)，包括可编辑 `.blend`、嵌入贴图的 FBX/GLB、PNG、预览和 manifest。生成脚本为 [`build_portal_pbr.py`](../model-tests/scripts/build_portal_pbr.py)。
+文件在 [`model-tests/portal/`](../../model-tests/portal)，包括可编辑 `.blend`、嵌入贴图的 FBX/GLB、PNG、预览和 manifest。生成脚本为 [`build_portal_pbr.py`](../../model-tests/scripts/build_portal_pbr.py)。
 
 | 项目 | 实际内容 |
 | --- | --- |
@@ -87,14 +87,14 @@ SHA-256：`D3D0F79F68A3BE09663E9FD282DCE776EA7AE62FD2D75166B8899F64323DB720`。
 
 | 场景 | 图片 |
 | --- | --- |
-| 探针 PBR 开 | [probe-on](images/pbr/probe-on-20261113.png) |
-| 探针 PBR 关 | [probe-off](images/pbr/probe-off-20261113.png) |
-| 光影关 | [shaders-off](images/pbr/shaders-off-20261113.png) |
-| CIWS | [ciws](images/pbr/ciws-20261113.png) |
-| 刀 | [knife](images/pbr/knife-20261113.png) |
-| 传送门 PBR 开，最终近景 | [portal-on](images/pbr/portal-on-20261113.png) |
-| 传送门 PBR 关，同一光影 | [portal-off](images/pbr/portal-off-20261113.png) |
-| 传送门资源重载后 | [portal-reload](images/pbr/portal-reload-20261113.png) |
+| 探针 PBR 开 | [probe-on](../images/pbr/probe-on-20261113.png) |
+| 探针 PBR 关 | [probe-off](../images/pbr/probe-off-20261113.png) |
+| 光影关 | [shaders-off](../images/pbr/shaders-off-20261113.png) |
+| CIWS | [ciws](../images/pbr/ciws-20261113.png) |
+| 刀 | [knife](../images/pbr/knife-20261113.png) |
+| 传送门 PBR 开，最终近景 | [portal-on](../images/pbr/portal-on-20261113.png) |
+| 传送门 PBR 关，同一光影 | [portal-off](../images/pbr/portal-off-20261113.png) |
+| 传送门资源重载后 | [portal-reload](../images/pbr/portal-reload-20261113.png) |
 
 最终展示使用 Forge 47.4.10 + F3Tweaker + 修复后的 Rosetta，run ID `1794559831218`，16:52:56 完成全部十张截图，日志标记 `SUCCESS ... keepOpen=true`。世界光影、八套材质和两次资源重载检查通过。使用更近的传送门视角和最终 alpha0.18 能量膜；上表三张传送门图片来自这次运行。
 
