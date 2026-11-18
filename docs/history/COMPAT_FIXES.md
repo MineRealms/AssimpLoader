@@ -1,6 +1,6 @@
 # Optional Compatibility Fixes
 
-PBR follow-up (2026-11-13): the custom dynamic loader is now implemented and has run with Oculus shaders. See [current usage](OCULUS_PBR_USAGE.md) and [runtime verification](PBR_VALIDATION_2026-11-13.md). The [source investigation](OCULUS_PBR_RESEARCH_2026-11-13.md) records the initial findings before implementation.
+PBR follow-up (2026-11-13): the custom dynamic loader is now implemented and has run with Oculus shaders. See [current usage](../guides/OCULUS_PBR_USAGE.md) and [runtime verification](PBR_VALIDATION_2026-11-13.md). The [source investigation](OCULUS_PBR_RESEARCH_2026-11-13.md) records the initial findings before implementation.
 
 Owner: `loading_lifecycle`. Implementation is ready for the parent's unified Gradle build. No Gradle command was run by this owner.
 
