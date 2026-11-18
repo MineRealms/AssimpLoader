@@ -1,6 +1,6 @@
 # Blender / AssimpLoader Test Assets
 
-All asset paths below are relative to [`model-tests/`](../model-tests/) in the repository root. Documentation is maintained under `docs/`.
+All asset paths below are relative to [`model-tests/`](../../model-tests) in the repository root. Documentation is maintained under `docs/`.
 
 ## PBR Assets
 
@@ -24,7 +24,7 @@ remain useful for geometry, color and scalar-material checks.
 
 See the [asset authoring and FBX contract](PBR_ASSET_SPEC.md),
 [PBR usage](OCULUS_PBR_USAGE.md) and
-[world verification](PBR_VALIDATION_2026-11-13.md) for actual game results.
+[world verification](../history/PBR_VALIDATION_2026-11-13.md) for actual game results.
 
 Generated and checked on 2026-11-13 with Blender 5.3.0. These are visual game assets, with no firing, damage or other weapon behavior.
 
