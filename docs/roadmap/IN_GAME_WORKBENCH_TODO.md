@@ -2,8 +2,8 @@
 
 更新日期：2026-11-18。
 
-**状态：第一版通用工作台、项目存储和 RigWorks 扩展已落地，已通过本轮构建、双客户端分享与基本工作台运行验收。** 详见 [验收记录](RIGWORKS_SHARING_VALIDATION_2026-11-18.md)。
-`[x]` 表示当前源码已有对应实现，不表示所有模型、分辨率、光影和双客户端场景均已通过。使用方法见 [模型工作台指南](MODEL_WORKBENCH.md)。
+**状态：第一版通用工作台、项目存储和 RigWorks 扩展已落地，已通过本轮构建、双客户端分享与基本工作台运行验收。** 详见 [验收记录](https://github.com/MineRealms/RigWorks/blob/main/docs/history/RIGWORKS_SHARING_VALIDATION_2026-11-18.md)。
+`[x]` 表示当前源码已有对应实现，不表示所有模型、分辨率、光影和双客户端场景均已通过。使用方法见 [模型工作台指南](../guides/MODEL_WORKBENCH.md)。
 
 ## 目标与边界
 
@@ -140,4 +140,4 @@
 - `workbench/model/WorkbenchDocument`、`WorkbenchSession`、`SceneMetadata`。
 - `workbench/io/WorkbenchProjectStore`、`WorkbenchCodec`、`WorkbenchRecovery`。
 - `lookdev/preview/PreviewGpuRenderer` 与 `RigWorksWorkbenchExtension`。
-- [使用指南](MODEL_WORKBENCH.md)、[项目格式](WORKBENCH_PROJECT_FORMAT.md)、[装备工作台](EQUIPMENT_TRANSFORM_WORKBENCH.md)、[角色同步](CHARACTER_CONFIGURATION_SYNC.md)。
+- [使用指南](../guides/MODEL_WORKBENCH.md)、[项目格式](../reference/WORKBENCH_PROJECT_FORMAT.md)、[装备工作台](https://github.com/MineRealms/RigWorks/blob/main/docs/guides/EQUIPMENT_TRANSFORM_WORKBENCH.md)、[角色同步](https://github.com/MineRealms/RigWorks/blob/main/docs/guides/CHARACTER_CONFIGURATION_SYNC.md)。
