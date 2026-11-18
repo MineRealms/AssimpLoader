@@ -1,0 +1,104 @@
+{
+  "materials": [
+    {
+      "albedo": {
+        "namespace": "assimploader",
+        "path": "runtime/material_6"
+      },
+      "ready": true,
+      "normalImage": false,
+      "specularImage": true,
+      "normalTextureId": 0,
+      "specularTextureId": 137,
+      "normalSource": "none",
+      "specularSource": "converted:BLENDER_FBX",
+      "failed": false
+    },
+    {
+      "albedo": {
+        "namespace": "assimploader",
+        "path": "runtime/material_7"
+      },
+      "ready": true,
+      "normalImage": true,
+      "specularImage": true,
+      "normalTextureId": 0,
+      "specularTextureId": 0,
+      "normalSource": "converted:BLENDER_FBX",
+      "specularSource": "prepacked:lusia.fbm/skin_basecolor_s.png",
+      "failed": false
+    },
+    {
+      "albedo": {
+        "namespace": "assimploader",
+        "path": "runtime/material_15"
+      },
+      "ready": true,
+      "normalImage": false,
+      "specularImage": true,
+      "normalTextureId": 0,
+      "specularTextureId": 155,
+      "normalSource": "none",
+      "specularSource": "converted:BLENDER_FBX",
+      "failed": false
+    },
+    {
+      "albedo": {
+        "namespace": "assimploader",
+        "path": "runtime/material_8"
+      },
+      "ready": true,
+      "normalImage": true,
+      "specularImage": true,
+      "normalTextureId": 0,
+      "specularTextureId": 0,
+      "normalSource": "converted:BLENDER_FBX",
+      "specularSource": "prepacked:lusia.fbm/uniform_01_basecolor_s.png",
+      "failed": false
+    },
+    {
+      "albedo": {
+        "namespace": "assimploader",
+        "path": "runtime/material_9"
+      },
+      "ready": true,
+      "normalImage": true,
+      "specularImage": true,
+      "normalTextureId": 0,
+      "specularTextureId": 0,
+      "normalSource": "converted:BLENDER_FBX",
+      "specularSource": "prepacked:lusia.fbm/uniform_02_basecolor_s.png",
+      "failed": false
+    },
+    {
+      "albedo": {
+        "namespace": "assimploader",
+        "path": "runtime/material_10"
+      },
+      "ready": true,
+      "normalImage": true,
+      "specularImage": true,
+      "normalTextureId": 0,
+      "specularTextureId": 0,
+      "normalSource": "converted:BLENDER_FBX",
+      "specularSource": "prepacked:lusia.fbm/cape_basecolor_s.png",
+      "failed": false
+    }
+  ],
+  "previewPbrTextureCount": 10,
+  "socketUndoRedo": true,
+  "triangles": 27380,
+  "skeleton": true,
+  "project": "workbench:lusia_23f6e7efdeab",
+  "extensions": [
+    "rigworks"
+  ],
+  "characterPreviewPbrTextureCount": 10,
+  "passed": true,
+  "failure": "",
+  "screenshots": [
+    "workbench-1794982003428-desktop.png",
+    "workbench-1794982003428-compact.png",
+    "workbench-1794982003428-rigworks.png"
+  ]
+}
