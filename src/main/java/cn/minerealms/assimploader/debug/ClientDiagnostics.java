@@ -16,8 +16,10 @@ public final class ClientDiagnostics {
         providers.put(java.util.Objects.requireNonNull(id),new Provider(java.util.Objects.requireNonNull(physics),java.util.Objects.requireNonNull(text)));
     }
     public static List<BulletCharacterPhysics> physics() {
-        return providers.values().stream().map(provider->provider.physics.get()).filter(java.util.Objects::nonNull).toList();
+        return providers.values().stream().map(provider->provider.physics.get()).filter(java.util.Objects::nonNull)
+                .filter(physics->!physics.isClosed()).toList();
     }
+    public static void unregister(String id) {providers.remove(id);}
     public static List<String> lines() {
         return providers.values().stream().flatMap(provider->provider.text.get().stream()).limit(8).toList();
     }
