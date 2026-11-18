@@ -64,7 +64,17 @@ public final class ModelTextureCache {
 
     public static AssimpMaterial material(AssimpScene scene, AssimpMesh mesh) {
         int index = mesh.getMaterialIndex();
+        AssimpMaterial override=cn.minerealms.assimploader.workbench.client.WorkbenchRuntime.material(scene,index);
+        if(override!=null)return override;
         return index >= 0 && index < scene.getMaterials().size() ? scene.getMaterials().get(index) : null;
+    }
+
+    /** Release only an editor-owned variant, including an obsolete pending texture upload. */
+    public static void releaseMaterial(AssimpScene scene, AssimpMaterial material) {
+        RenderSystem.assertOnRenderThread();
+        SceneTextures textures = CACHE.get(scene);
+        Entry entry = textures == null ? null : textures.materials.remove(material);
+        if (entry != null) entry.close(Minecraft.getInstance().getTextureManager());
     }
 
     public static ResourceLocation getEmbeddedTexture(AssimpScene scene, int index) {
@@ -89,6 +99,14 @@ public final class ModelTextureCache {
     public record TextureStatus(ResourceLocation albedo, boolean ready, boolean normalImage, boolean specularImage,
                                 int normalTextureId, int specularTextureId, String normalSource,
                                 String specularSource, boolean failed) {}
+
+    /** Immutable prepared images also serve previews that do not use the Oculus pipeline. */
+    public static cn.minerealms.assimploader.material.LabPbrPacker.PackedTextures packedTextures(AssimpScene scene,AssimpMaterial material) {
+        RenderSystem.assertOnRenderThread();
+        SceneTextures textures=CACHE.get(scene);
+        Entry entry=textures==null?null:textures.materials.get(material);
+        return entry==null||entry.texture==null?null:entry.texture.maps();
+    }
 
     public static ResourceLocation resolveResource(ResourceLocation source, String texturePath) {
         if (texturePath == null || texturePath.isBlank() || texturePath.startsWith("*")) return null;
