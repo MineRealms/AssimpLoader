@@ -1,6 +1,6 @@
 # AssimpLoader Cleanup & Configuration System - Summary
 
-> Historical cleanup record. The original cleanup kept CNC/CCB; it was subsequently removed at the user's request. Current examples are the CIWS, knife, probes and portal described in [Model Showcase](MODEL_SHOWCASE.md). The file lists and completion claims below describe that earlier cleanup, not a new verification result. For current reload behavior, use [Model Hot-Reload](Hot_Reload_System.md).
+> Historical cleanup record. The original cleanup kept CNC/CCB; it was subsequently removed at the user's request. Current examples are the CIWS, knife, probes and portal described in [Model Showcase](../showcase/MODEL_SHOWCASE.md). The file lists and completion claims below describe that earlier cleanup, not a new verification result. For current reload behavior, use [Model Hot-Reload](Hot_Reload_System.md).
 
 ## Completed Tasks
 
