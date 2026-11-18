@@ -4,7 +4,7 @@ import cn.minerealms.assimploader.character.physics.BulletCharacterPhysics;
 import cn.minerealms.assimploader.character.physics.CharacterPhysicsDefinition;
 import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import net.minecraft.core.BlockPos;
-import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Matrix4f;
@@ -21,7 +21,7 @@ final class CharacterPhysicsClientBinding {
     private BlockPos sampledAt;
     private long nextSample;
     CharacterPhysicsClientBinding(BulletCharacterPhysics physics){this.physics=physics;}
-    void update(LocalPlayer player,float modelYaw) {
+    void update(AbstractClientPlayer player,float modelYaw) {
         var config=cn.minerealms.rigworks.RigWorksConfig.CLIENT;
         physics.setFrame(new Matrix4f().rotateY((float)Math.toRadians(modelYaw-player.yBodyRot)),player.getX(),player.getY(),player.getZ());
         boolean world=AssimpLoaderConfig.getOrDefault(config.physicsWorldCollision::get,true);
@@ -57,7 +57,7 @@ final class CharacterPhysicsClientBinding {
                     new Vec3((float)box.world.getXsize()*.5f,(float)box.world.getYsize()*.5f,(float)box.world.getZsize()*.5f),Rotation.IDENTITY,4,65535));
         }
         physics.setWorldBoxes(boxes);
-        Boolean override=LocalPlayerCharacter.ragdollOverride();
+        Boolean override=player==net.minecraft.client.Minecraft.getInstance().player?LocalPlayerCharacter.ragdollOverride():null;
         physics.setRagdollEnabled(override!=null?override:!player.isAlive() && AssimpLoaderConfig.getOrDefault(config.ragdollOnDeath::get,true));
     }
 }
