@@ -1,6 +1,6 @@
 # 文档索引
 
-最后整理：2026-11-16。项目说明、使用指南、资产规范、验收记录和历史报告统一位于 `docs/`。仓库根目录仅保留简短 README 导航与 LICENSE；工具要求的 `.claude/skills/mc-debug.md` 保持原位。
+最后整理：2026-11-18。项目说明、使用指南、资产规范、验收记录和历史报告统一位于 `docs/`。仓库根目录仅保留简短 README 导航与 LICENSE；工具要求的 `.claude/skills/mc-debug.md` 保持原位。
 
 ## 当前入口
 
@@ -8,10 +8,18 @@
 | --- | --- |
 | [项目说明](PROJECT_OVERVIEW.md) | 依赖、构建和当前模块状态 |
 | [快速开始](QUICK_START.md) | 构建、安装与示例检查 |
+| [开发客户端](DEVELOPMENT_CLIENT.md) | ModernUI、F3Tweaker、KubeJS 运行依赖及导入玩家模型验收 |
 | [模型扩展实施报告](EXPANSION_IMPLEMENTATION_2026-11-16.md)、[架构评估](EXPANSION_ARCHITECTURE_ASSESSMENT_2026-11-16.md) | 实例、分层/IK、Morph、Spring、碰撞、挂点特效、CPU 基准和 GPU 验证边界 |
 | [运行时性能模式](RUNTIME_PERFORMANCE_MODES.md)、[鹿展示与 Blender 工程](DEER_SHOWCASE.md) | 全局/资产预算、距离更新频率、四腿 IK 烘焙、Spring 和碰撞代理 |
 | [KubeJS 集成](KUBEJS_INTEGRATION.md) | 可选客户端模型控制、性能参数、挂点/命中查询，以及服务端鹿状态同步；附脚本示例 |
 | [GPU Batch Policy](GPU_BATCH_POLICY.md), [Validation](GPU_BATCH_VALIDATION_2026-11-16.md) | GPU instancing, MDI, current-frame Hi-Z, budgets and crowd acceptance |
+| [Player Rendering Fixes](PLAYER_RENDERING_FIXES_2026-11-17.md) | Mixed materials, Oculus GPU deformation, CPU skinning reuse and local temporal shader fixes |
+| [Custom Rig Calibration](CUSTOM_RIG_NATIVE_CALIBRATION.md) | Imported clips, native player state layers, hand sockets and Blender/IK responsibilities |
+| [原版动作兼容](PLAYER_VANILLA_ACTIONS.md)、[装备与人物视图](RIGWORKS_EQUIPMENT_VIEWS.md) | 原版状态观测、动作分层与回退、命名挂点及物品规则、装备层、第一人称手臂和验证边界 |
+| [Equipment Transform Workbench](EQUIPMENT_TRANSFORM_WORKBENCH.md) | In-world left/right hand calibration, orbit camera and persistent equipment JSON |
+| [角色配置同步](CHARACTER_CONFIGURATION_SYNC.md)、[专用动作脚本](AVATAR_BEHAVIOR_RUNTIME.md)、[同步与工作台验收](RIGWORKS_SHARING_VALIDATION_2026-11-18.md) | 默认分享、版本冲突、JSON/JS 分发、按玩家隔离执行、压缩缓存及真实双客户端验证 |
+| [游戏内模型工作台](MODEL_WORKBENCH.md)、[项目格式](WORKBENCH_PROJECT_FORMAT.md) | `/lookdev` → Edit；导入、GPU 骨骼预览、变换/材质/挂点、时间轴、保存和项目 ZIP；含 RigWorks 扩展与共享边界 |
+| [游戏内模型工作台 TODO](IN_GAME_WORKBENCH_TODO.md) | 按源码区分已实现与剩余工作；含资源包导出、通用世界视口、通用节点/材质同步等未完成项 |
 | [渲染性能图表与评估](benchmarks/README.md) | 六组图表、历史实测、经验数据、内存/降频计算和管线技术评估 |
 | [自定义玩家角色缺口评估](CUSTOM_PLAYER_GAP_ASSESSMENT_2026-11-17.md) | 对照 cleanroom 规格，区分 FBX/GLB 玩家换模与 PMX/VMD 完整角色系统 |
 | [Client Visual Authority](CLIENT_VISUAL_AUTHORITY.md) | Local visual alignment and server collision authority |
@@ -40,7 +48,7 @@
 | 导入与动画 | [加载修复](LOADING_FIXES.md)、[动画指南](ANIMATION_USAGE_GUIDE.md)、[骨骼分析](SKELETAL_ANIMATION_ANALYSIS.md) | 已补完整父层级、多 root 和绑定姿态；复杂动画仍需样本实机检查 |
 | IK | [集成计划](IK_SYSTEM_INTEGRATION_PLAN.md)、[控制器](IK_PHASE4_CONTROLLERS.md)、[预设](IK_PHASE5_PRESETS.md) | 已有 JUnit 覆盖，游戏内约束效果未在本次验收 |
 | 热重载 | [加载生命周期](LOADING_FIXES.md)、[渲染资源](RENDERING_INTEGRATION.md) | 当前实现替换/删除恢复和 GPU 清理；旧设计保留历史资料 |
-| LookDev | [当前预览](LOOKDEV_PREVIEW.md)、[集成与验收](LOOKDEV_INTEGRATION.md) | 所有已加载场景，静止姿态 GPU 预览；节点页留空 |
+| LookDev / 工作台 | [当前预览](LOOKDEV_PREVIEW.md)、[模型工作台](MODEL_WORKBENCH.md)、[项目格式](WORKBENCH_PROJECT_FORMAT.md) | Models 浏览已加载场景，Edit 提供独立动画与配置编辑；旧 Nodes 页仍不是材质节点编辑器 |
 | 节点/GLSL | [GLSL 设计](LOOKDEV_GLSL_INTEGRATION_GUIDE.md)、[Transformer 状态](GLSL_TRANSFORMER_INTEGRATION_STATUS.md) | 旧编辑器未启用，不能视为当前可用材质工作流 |
 | Photon | [用户资料](archive/PHOTON_USER_GUIDE.md)、[网格桥接](archive/PHOTON_MESH_INTEGRATION_GUIDE.md) | 当前依赖是 Photon 1.1.17/LDLib，不能据历史文档认定路径追踪已实现 |
 | Oculus | [当前使用](OCULUS_PBR_USAGE.md)、[实机验收](PBR_VALIDATION_2026-11-13.md)、[源码调查](OCULUS_PBR_RESEARCH_2026-11-13.md) | 自有动态 loader 已接入；资源、磁盘和嵌入贴图可用，已检查光影开关和资源重载 |
