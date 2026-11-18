@@ -68,7 +68,7 @@ public final class CharacterVisualSharing {
     }
     public static CharacterVisualConfig forProfile(String profile) {
         if(profile.equals(draftProfile)&&draft!=null)return draft;
-        var saved=CharacterVisualOverrides.load(profile);if(saved!=null){stage(profile,saved);return saved;}
+        var saved=CharacterVisualOverrides.load(profile);if(saved!=null)return saved;
         var player=Minecraft.getInstance().player;var state=player==null?null:ACCEPTED.get(player.getUUID());
         return state!=null&&state.appearance.profile().equals(profile)?state.config:null;
     }
@@ -93,6 +93,12 @@ public final class CharacterVisualSharing {
                 :AssimpModelLoader.loadCachedFile(AssimpModelLoader.canonicalIdentity(id),file,cn.minerealms.assimploader.core.ModelImportMode.DYNAMIC,true);
     }
     static void stage(String profile,CharacterVisualConfig config){new ResourceLocation(profile);draftProfile=profile;draft=java.util.Objects.requireNonNull(config);}
+    static CharacterVisualConfig newerSaved(String profile,java.nio.file.Path project)throws IOException {
+        return CharacterVisualOverrides.readNewer(profile,project);
+    }
+    static void refreshSaved() {
+        draft=null;draftProfile=null;CharacterVisualOverrides.invalidate();MODEL_HASHES.clear();changed();
+    }
     public static void discardPreview() {
         draft=null;draftProfile=null;LocalPlayerCharacter.reload();
     }
