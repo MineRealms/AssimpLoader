@@ -62,5 +62,5 @@ and resource reload. Capture views are held only while taking screenshots.
 
 Look for `[VehicleSmoke] SUCCESS` in `logs/armored-car-client.log` and inspect
 `run/screenshots/assimp-vehicle-*.png`. The client stays open after completion;
-W/S/A/D drive, Space brakes, and Shift dismounts. See [vehicles](VEHICLES.md) for
+W/S/A/D drive, Space brakes, and Shift dismounts. See [vehicles](../showcase/VEHICLES.md) for
 the asset, wheel-pivot and physics contracts.
