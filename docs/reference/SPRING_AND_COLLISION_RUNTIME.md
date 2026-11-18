@@ -93,4 +93,4 @@ and normals, nearest BVH hits across branches, defensive copies and invalid inpu
 The tests above cover math and imported scenes. The controlled client preview
 also exercises a Spring-modified Blender FBX with CPU/GPU silhouette comparison;
 world collision and character locomotion are separate integration checks. See the
-[implementation report](EXPANSION_IMPLEMENTATION_2026-11-16.md) for run IDs and scope.
+[implementation report](../history/EXPANSION_IMPLEMENTATION_2026-11-16.md) for run IDs and scope.
