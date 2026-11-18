@@ -8,12 +8,12 @@
 
 | 内容 | 文件或数据 |
 |---|---|
-| 可编辑源文件 | [animation_probe.blend](../model-tests/animation_probe.blend) |
-| 生成与导出脚本 | [create_animation_probe.py](../model-tests/create_animation_probe.py) |
-| Blender 预览 | [animation_probe.png](../model-tests/animation_probe.png) |
-| FBX | [animation_probe.fbx](../src/main/resources/assets/assimploader/models/validation/animation_probe.fbx)，168188 字节 |
-| 资产清单 | [animation_probe.json](../model-tests/animation_probe.json) |
-| Blender 独立参考值 | [animation_probe_reference.json](../src/test/resources/fixtures/animation_probe_reference.json) |
+| 可编辑源文件 | [animation_probe.blend](../../model-tests/animation_probe.blend) |
+| 生成与导出脚本 | [create_animation_probe.py](../../model-tests/create_animation_probe.py) |
+| Blender 预览 | [animation_probe.png](../../model-tests/animation_probe.png) |
+| FBX | [animation_probe.fbx](../../src/main/resources/assets/assimploader/models/validation/animation_probe.fbx)，168188 字节 |
+| 资产清单 | [animation_probe.json](../../model-tests/animation_probe.json) |
+| Blender 独立参考值 | [animation_probe_reference.json](../../src/test/resources/fixtures/animation_probe_reference.json) |
 | 骨骼 | `Shoulder`、`Elbow` 两个变形骨骼；`ToolSocket` 为非变形挂点节点 |
 | 动作 | `Idle`、`Reach`、`Fold`；24 FPS，每段 2 秒 |
 | 网格 | 8 个网格；同时包含刚性单骨骼权重、双骨骼混合权重和非蒙皮底座 |
@@ -29,7 +29,7 @@
 
 ## 自动测试
 
-新增 [BlenderAnimationProbeTest](../src/test/java/cn/minerealms/assimploader/animation/BlenderAnimationProbeTest.java) 的 4 项测试：
+新增 [BlenderAnimationProbeTest](../../src/test/java/cn/minerealms/assimploader/animation/BlenderAnimationProbeTest.java) 的 4 项测试：
 
 - 通过实际 Assimp 导入 FBX，保留三个动作、变形权重和非变形挂点。
 - 绑定姿态下，所有带权重网格的 CPU 蒙皮顶点与节点变换后的原始几何吻合。
@@ -40,7 +40,7 @@
 
 ## 客户端结果
 
-验收入口：[AnimationSmokeTest](../src/main/java/cn/minerealms/assimploader/client/AnimationSmokeTest.java)，仅在 `-PclientAnimationSmoke` 时启用。它从游戏资源加载 FBX，为同一共享场景创建两个独立实例，分别绘制 CPU 与显式 GPU palette 路径。GPU 失败不会通过 CPU 回退掩盖。
+验收入口：[AnimationSmokeTest](../../src/main/java/cn/minerealms/assimploader/client/AnimationSmokeTest.java)，仅在 `-PclientAnimationSmoke` 时启用。它从游戏资源加载 FBX，为同一共享场景创建两个独立实例，分别绘制 CPU 与显式 GPU palette 路径。GPU 失败不会通过 CPU 回退掩盖。
 
 每阶段先计算并冻结目标姿态，随后渲染至少 10 秒，让异步贴图完成加载；四个离屏目标均为 `384x384`。黄色十字为 `ToolSocket` 加局部偏移后的屏幕投影。
 
@@ -58,11 +58,11 @@
 
 运行编号：`1794818859753`。共 5 张截图，最短截图间隔 **10.186 秒**：
 
-- [独立动作](../run/screenshots/assimp-animation-1794818859753-independent.png)
-- [过渡中点](../run/screenshots/assimp-animation-1794818859753-crossfade.png)
-- [过渡中断](../run/screenshots/assimp-animation-1794818859753-interrupted.png)
-- [停止](../run/screenshots/assimp-animation-1794818859753-stopped.png)
-- [资源重载](../run/screenshots/assimp-animation-1794818859753-reloaded.png)
+- [独立动作](../../run/screenshots/assimp-animation-1794818859753-independent.png)
+- [过渡中点](../../run/screenshots/assimp-animation-1794818859753-crossfade.png)
+- [过渡中断](../../run/screenshots/assimp-animation-1794818859753-interrupted.png)
+- [停止](../../run/screenshots/assimp-animation-1794818859753-stopped.png)
+- [资源重载](../../run/screenshots/assimp-animation-1794818859753-reloaded.png)
 
 已人工检查独立动作和过渡中点画面。截图保存在开发运行目录，后续运行日志可能覆盖；上述结果是本次验收记录。ModernUI 的既有字体资源路径告警仍存在。
 
