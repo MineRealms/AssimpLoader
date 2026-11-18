@@ -5,8 +5,8 @@
 First production backend for configured entities: shared static/skinned geometry,
 per-instance transforms/light/overlay/tint/bone palettes, instanced submission,
 Multi-Draw Indirect, and optional current-frame GPU Hi-Z occlusion. All are client
-visual operations. See [configuration and limits](GPU_BATCH_POLICY.md) and
-[client/server responsibilities](CLIENT_VISUAL_AUTHORITY.md).
+visual operations. See [configuration and limits](../reference/GPU_BATCH_POLICY.md) and
+[client/server responsibilities](../reference/CLIENT_VISUAL_AUTHORITY.md).
 
 Default batch mode is OFF. Hi-Z is separately disabled by default. Shader packs,
 unsupported drivers, transparent/animated materials, active Morph and unsupported
