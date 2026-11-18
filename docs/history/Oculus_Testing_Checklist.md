@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document is a manual test plan, not a record that every listed configuration has passed. Current completed checks and screenshots are recorded in [PBR Validation](PBR_VALIDATION_2026-11-13.md); setup and limitations are in [Oculus PBR Usage](OCULUS_PBR_USAGE.md). CNC/CCB was removed at the user's request, so tests below use the current showcase fixtures.
+This document is a manual test plan, not a record that every listed configuration has passed. Current completed checks and screenshots are recorded in [PBR Validation](PBR_VALIDATION_2026-11-13.md); setup and limitations are in [Oculus PBR Usage](../guides/OCULUS_PBR_USAGE.md). CNC/CCB was removed at the user's request, so tests below use the current showcase fixtures.
 
 ## Test Environment Setup
 
@@ -33,7 +33,7 @@ This document is a manual test plan, not a record that every listed configuratio
 
 ### Test Models
 
-Use the assets listed in [Model Showcase](MODEL_SHOWCASE.md):
+Use the assets listed in [Model Showcase](../showcase/MODEL_SHOWCASE.md):
 
 | Fixture | World/item ID | Purpose |
 |---|---|---|
@@ -171,7 +171,7 @@ Run this only when investigating a concrete performance issue; it is not require
 
 ### Test 5.2: Conventional Texture Paths
 - [ ] Use a copy of the PBR probe and explicitly pack `body_n.png`/`body_s.png` as LabPBR siblings of the referenced `body.png`
-- [ ] Keep raw Blender normal/roughness/metallic filenames separate; follow [PBR Asset Specification](PBR_ASSET_SPEC.md)
+- [ ] Keep raw Blender normal/roughness/metallic filenames separate; follow [PBR Asset Specification](../guides/PBR_ASSET_SPEC.md)
 - [ ] Place block in world
 - [ ] Verify all textures are loaded
 - [ ] Check logs for PBR texture registration
