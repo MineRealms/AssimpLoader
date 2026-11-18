@@ -2,6 +2,8 @@
 
 更新：2026-11-13。本文描述本仓库当前实现，适用于导出给 AssimpLoader 的美术资产。游戏内光影设置见 [Oculus PBR 使用](OCULUS_PBR_USAGE.md)，实际画面见 [PBR 验收](../history/PBR_VALIDATION_2026-11-13.md)。
 
+需要 Agent 操作建模软件时，使用 [Agent 工作流](AGENT_ASSET_WORKFLOW.md) 和 [三种 DCC 导出工具](DCC_EXPORTERS.md)。导出器生成基础交付数据，PBR 识别约定仍以本文为准。
+
 ## 1. 推荐交付方式
 
 优先使用 **Blender 导出的二进制 FBX，正确连接并嵌入 PNG 贴图**，或自包含 GLB。模型能显示不代表 PBR 数据已接入；底色、法线、粗糙度、金属度必须分别检查。

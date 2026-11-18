@@ -39,6 +39,8 @@
 
 KubeJS 的具体操作见 **[动画、骨骼、混合、IK 与烘焙动画教程](docs/guides/KUBEJS_ANIMATION_GUIDE.md)**，附 [可运行脚本 Demo](examples/kubejs/README.md)，从实例取得到重载、清理和性能约束逐步说明。
 
+用 Agent 整理并导入资产，见 **[Agent 自动化工作流](docs/guides/AGENT_ASSET_WORKFLOW.md)** 和 [可复用 Skill](skills/assimploader-asset-pipeline/SKILL.md)。配套 [Blender / Maya / 3ds Max 一键导出](docs/guides/DCC_EXPORTERS.md) 可交付 FBX、图片及初始配置；新脚本按需求未做运行验证。
+
 本仓库维护通用引擎及独立的 AssimpShowcase 示例模组；`build` 分别生成引擎 `-all.jar` 和 `assimpshowcase-1.0.0.jar`。引擎不依赖 RigWorks，单独克隆即可构建。
 
 [RigWorks](https://github.com/MineRealms/RigWorks) 负责玩家换模、原版动作重定向、装备编辑与角色配置同步。其他模组可以使用同一套引擎 API 和工作台扩展接口。
@@ -46,6 +48,7 @@ KubeJS 的具体操作见 **[动画、骨骼、混合、IK 与烘焙动画教程
 | 从这里开始 | 文档 |
 | --- | --- |
 | 美术资产与 FBX | [PBR 接入规范](docs/guides/PBR_ASSET_SPEC.md) · [大型模型](docs/guides/LARGE_MODELS.md) |
+| Agent 与 DCC 导出 | [自动化指南](docs/guides/AGENT_ASSET_WORKFLOW.md) · [三种软件导出](docs/guides/DCC_EXPORTERS.md) · [Skill](skills/assimploader-asset-pipeline/SKILL.md) |
 | 材质与光影 | [Oculus PBR](docs/guides/OCULUS_PBR_USAGE.md) · [渲染集成](docs/reference/RENDERING_INTEGRATION.md) |
 | 动画与脚本 | [动画指南](docs/guides/ANIMATION_USAGE_GUIDE.md) · [处理器](docs/reference/ANIMATION_PROCESSORS.md) · [KubeJS](docs/guides/KUBEJS_INTEGRATION.md) |
 | 编辑器扩展 | [工作台](docs/guides/MODEL_WORKBENCH.md) · [项目格式](docs/reference/WORKBENCH_PROJECT_FORMAT.md) |

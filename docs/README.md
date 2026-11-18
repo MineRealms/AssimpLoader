@@ -9,6 +9,8 @@
 | [快速开始](guides/QUICK_START.md) | 构建、安装、模型接入与热重载 |
 | [开发客户端](guides/DEVELOPMENT_CLIENT.md) | 可选模组、启动参数与运行目录 |
 | [PBR 资产规范](guides/PBR_ASSET_SPEC.md) | FBX/GLB、UV、法线、金属/粗糙度、玻璃、单位与枢轴 |
+| [Agent 自动化工作流](guides/AGENT_ASSET_WORKFLOW.md) · [Skill](../skills/assimploader-asset-pipeline/SKILL.md) | 环境询问、MCP、场景编辑、导出及游戏应用 |
+| [Blender / Maya / 3ds Max 导出](guides/DCC_EXPORTERS.md) | 统一任务、应用内一键导出、资源包/角色草稿和交付清单 |
 | [Oculus PBR](guides/OCULUS_PBR_USAGE.md) | 动态材质、LabPBR 与光影设置 |
 | [模型工作台](guides/MODEL_WORKBENCH.md) | 导入、编辑、预览、保存、恢复与扩展 |
 | [LookDev](guides/LOOKDEV_PREVIEW.md) | 已加载模型列表与 GPU 预览 |
