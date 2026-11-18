@@ -125,4 +125,4 @@ are independent, editable equivalents, not redistributed decompiled classes.
   classifications, action extensions and cleanup passed.
 - Final `gradlew test build`: successful; 378 tests discovered, zero failures or
   errors, one pre-existing optional skip. 377 tests executed successfully.
-- See [LookDev guide](LOOKDEV_DEBUG.md) and [player integration report](PLAYER_ACTION_INTEGRATION_2026-11-17.md).
+- See [LookDev guide](LOOKDEV_DEBUG.md) and [player integration report](https://github.com/MineRealms/RigWorks/blob/main/docs/history/PLAYER_ACTION_INTEGRATION_2026-11-17.md).
