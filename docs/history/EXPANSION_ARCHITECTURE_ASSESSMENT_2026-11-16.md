@@ -117,12 +117,12 @@ GPU vertex skinning 已是有效的基础路线。Compute 的具体价值是将 
 
 代码依据（以下均为当前 AssimpLoader 源码，性能表是静态成本分析）：
 
-- [实例动画状态](../src/main/java/cn/minerealms/assimploader/animation/AnimationState.java)、[物品动画管理](../src/main/java/cn/minerealms/assimploader/animation/ClientAnimationManager.java)、[层级和 palette](../src/main/java/cn/minerealms/assimploader/animation/BoneHierarchyBuilder.java)。
-- [混合器](../src/main/java/cn/minerealms/assimploader/animation/AnimationBlender.java)、[状态机](../src/main/java/cn/minerealms/assimploader/animation/AnimationStateMachine.java)、[共享绘制分派](../src/main/java/cn/minerealms/assimploader/render/base/BaseAssimpRenderer.java)。
-- [CPU 变形](../src/main/java/cn/minerealms/assimploader/rendering/CpuSkinning.java)、[GPU 权重上传](../src/main/java/cn/minerealms/assimploader/rendering/SkinnedMeshVBO.java)、[骨骼 GPU 路径](../src/main/java/cn/minerealms/assimploader/rendering/SkinnedMeshRenderer.java)、[TBO 上传](../src/main/java/cn/minerealms/assimploader/render/BoneMatrixTBO.java)。
-- [Oculus 持久几何缓存](../src/main/java/cn/minerealms/assimploader/rendering/OculusEntityBufferCache.java)、[GPU 能力检测](../src/main/java/cn/minerealms/assimploader/render/GLCapabilityDetector.java)、[CPU 计时器](../src/main/java/cn/minerealms/assimploader/debug/PerformanceProfiler.java)、[图形资源释放](../src/main/java/cn/minerealms/assimploader/render/ClientRenderResources.java)。
+- [实例动画状态](../../src/main/java/cn/minerealms/assimploader/animation/AnimationState.java)、[物品动画管理](../../src/main/java/cn/minerealms/assimploader/animation/ClientAnimationManager.java)、[层级和 palette](../../src/main/java/cn/minerealms/assimploader/animation/BoneHierarchyBuilder.java)。
+- [混合器](../../src/main/java/cn/minerealms/assimploader/animation/AnimationBlender.java)、[状态机](../../src/main/java/cn/minerealms/assimploader/animation/AnimationStateMachine.java)、[共享绘制分派](../../src/main/java/cn/minerealms/assimploader/render/base/BaseAssimpRenderer.java)。
+- [CPU 变形](../../src/main/java/cn/minerealms/assimploader/rendering/CpuSkinning.java)、[GPU 权重上传](../../src/main/java/cn/minerealms/assimploader/rendering/SkinnedMeshVBO.java)、[骨骼 GPU 路径](../../src/main/java/cn/minerealms/assimploader/rendering/SkinnedMeshRenderer.java)、[TBO 上传](../../src/main/java/cn/minerealms/assimploader/render/BoneMatrixTBO.java)。
+- [Oculus 持久几何缓存](../../src/main/java/cn/minerealms/assimploader/rendering/OculusEntityBufferCache.java)、[GPU 能力检测](../../src/main/java/cn/minerealms/assimploader/render/GLCapabilityDetector.java)、[CPU 计时器](../../src/main/java/cn/minerealms/assimploader/debug/PerformanceProfiler.java)、[图形资源释放](../../src/main/java/cn/minerealms/assimploader/render/ClientRenderResources.java)。
 
-- [AssimpLoader 当前架构概况](PROJECT_OVERVIEW.md)、[当前渲染合同](RENDERING_INTEGRATION.md)、[载具物理边界](VEHICLES.md)、[尾焰实机验收与边界](ROCKET_VALIDATION_2026-11-14.md)。
+- [AssimpLoader 当前架构概况](PROJECT_OVERVIEW.md)、[当前渲染合同](../reference/RENDERING_INTEGRATION.md)、[载具物理边界](../showcase/VEHICLES.md)、[尾焰实机验收与边界](ROCKET_VALIDATION_2026-11-14.md)。
 - CustomSteve 参考：[清理文档入口](../../Reverse/customsteve-1.21.11-rc-hf4-analysis/docs/cleanroom/README.md)、[Native 合同](../../Reverse/customsteve-1.21.11-rc-hf4-analysis/docs/cleanroom/02-native-contracts.md)、[架构路线](../../Reverse/customsteve-1.21.11-rc-hf4-analysis/docs/cleanroom/03-architecture-and-roadmap.md)。
 - [Assimp morph mesh 输入](https://github.com/assimp/assimp/blob/master/include/assimp/mesh.h)（只说明数据结构；实际文件格式和绑定版本仍要逐项验证）。
 - [OpenGL multi draw indirect 扩展](https://registry.khronos.org/OpenGL/extensions/ARB/ARB_multi_draw_indirect.txt)；批量提交能力需对比当前上下文，不代表驱动/Shader 能自动兼容。
