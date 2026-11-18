@@ -1,6 +1,6 @@
 # Oculus/Iris PBR 集成指南
 
-> 历史设计，保留用于追溯。当前实现与正确贴图约定见 [PBR 使用说明](../OCULUS_PBR_USAGE.md)，实际截图和验证见[实机验收](../PBR_VALIDATION_2026-11-13.md)。当前已实现自有动态纹理的 Oculus loader。下文旧 LabPBR 表格把 `_s` 的 B/A、G 通道和法线 Y 方向写错，不能照此制作贴图；旧“完全打通”也不是当前验收证据。
+> 历史设计，保留用于追溯。当前实现与正确贴图约定见 [PBR 使用说明](../guides/OCULUS_PBR_USAGE.md)，实际截图和验证见[实机验收](../history/PBR_VALIDATION_2026-11-13.md)。当前已实现自有动态纹理的 Oculus loader。下文旧 LabPBR 表格把 `_s` 的 B/A、G 通道和法线 Y 方向写错，不能照此制作贴图；旧“完全打通”也不是当前验收证据。
 
 ## 渲染管线兼容性分析
 
