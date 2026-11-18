@@ -1,4 +1,4 @@
-﻿# Node Editor 与 Photon 集成技术文档
+# Node Editor 与 Photon 集成技术文档
 
 ## 1. 系统概述
 
