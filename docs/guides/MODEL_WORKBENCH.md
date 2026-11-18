@@ -149,7 +149,7 @@ Revert/Discard 在有界 IO 队列清理恢复文件，使排队或写入中的�
 
 手动修改项目 JSON 后，重新 Open 会读取磁盘。手动修改 `config/rigworks/characters/` 中的角色 JSON 后，使用角色页的 Reload 图标、`/assimploader character reload` 或 F3+T 清除旧配置和预览缓存并重新加载。重开角色配置未修改的项目时，较新的角色配置文件优先于较旧的项目快照；较新的项目文件则保留项目参数。尚未保存的角色编辑优先保留；只改通用材质等内容的草稿仍可合并较新的角色配置。
 
-角色应用成功、加载就绪后，**Equipment transform** 进入正常世界中的双手校准。它冻结人物视觉姿态，显示真实持物和绑定点，使用世界及光影照明；这与通用 Edit 的独立视口不同。详见 [装备变换工作台](EQUIPMENT_TRANSFORM_WORKBENCH.md)。
+角色应用成功、加载就绪后，**Equipment transform** 进入正常世界中的双手校准。它冻结人物视觉姿态，显示真实持物和绑定点，使用世界及光影照明；这与通用 Edit 的独立视口不同。详见 [装备变换工作台](https://github.com/MineRealms/RigWorks/blob/main/docs/guides/EQUIPMENT_TRANSFORM_WORKBENCH.md)。
 
 ## 共享边界
 
@@ -161,10 +161,10 @@ RigWorks 分享完整角色配置：比例/根变换、骨骼和动作映射、�
 - 相机、选中项、撤销历史和未确认草稿。
 - FBX、图片及模型资源文件；接收端仍需匹配资源和内容哈希。
 
-本地预览、保存项目、下载网络包和服务器接受版本是不同阶段。开关、缓存与状态说明见 [角色配置同步](CHARACTER_CONFIGURATION_SYNC.md)。
+本地预览、保存项目、下载网络包和服务器接受版本是不同阶段。开关、缓存与状态说明见 [角色配置同步](https://github.com/MineRealms/RigWorks/blob/main/docs/guides/CHARACTER_CONFIGURATION_SYNC.md)。
 
 ## 当前边界
 
 当前没有网格/UV/权重/关键帧创作、节点材质图、完整通用世界视口、资源包导出、通用节点/材质网络同步，以及高级 IK、次级运动和 LOD 面板。复杂资产继续在 Blender 等 DCC 软件制作，再到工作台配置。
 
-详见 [项目格式](WORKBENCH_PROJECT_FORMAT.md) 和 [后续 TODO](IN_GAME_WORKBENCH_TODO.md)。
+详见 [项目格式](../reference/WORKBENCH_PROJECT_FORMAT.md) 和 [后续 TODO](../roadmap/IN_GAME_WORKBENCH_TODO.md)。
