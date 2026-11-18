@@ -148,7 +148,7 @@ This is not full multiple-scattering GI or CFD.
 - Real Oculus client acceptance completed at 20:35:23 on 2026-11-14. After resource
   reload, GPU target10 contained 22,935 pixels accepting multiple history frames,
   with a maximum of 16 frames; target8 retained finite HDR radiance. All11 captures
-  checked GL_NO_ERROR. See [runtime evidence](ROCKET_VALIDATION_2026-11-14.md).
+  checked GL_NO_ERROR. See [runtime evidence](../history/ROCKET_VALIDATION_2026-11-14.md).
 - The subsequently synchronized 2.5-radius LOD bound and out-of-engine-interval
   history rejection pass syntax validation but were not rerun in the client at
   the user's request. The runtime figures above describe the preceding version.
