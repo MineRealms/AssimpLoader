@@ -1,6 +1,6 @@
 # PBR 资产制作与 FBX 接入规范
 
-更新：2026-11-13。本文描述本仓库当前实现，适用于导出给 AssimpLoader 的美术资产。游戏内光影设置见 [Oculus PBR 使用](OCULUS_PBR_USAGE.md)，实际画面见 [PBR 验收](PBR_VALIDATION_2026-11-13.md)。
+更新：2026-11-13。本文描述本仓库当前实现，适用于导出给 AssimpLoader 的美术资产。游戏内光影设置见 [Oculus PBR 使用](OCULUS_PBR_USAGE.md)，实际画面见 [PBR 验收](../history/PBR_VALIDATION_2026-11-13.md)。
 
 ## 1. 推荐交付方式
 
@@ -154,9 +154,9 @@ assets/demo/models/portal/body_s.png
 }
 ```
 
-需要独立旋转或动画时改为 `"mode": "dynamic"`。JSON 还需被方块 blockstate 或物品引用，Mod 也需注册相应内容与渲染器；仅复制 FBX 不会自动增加方块。接入示例见 [快速开始](QUICK_START.md) 和 [世界展示](MODEL_SHOWCASE.md)。
+需要独立旋转或动画时改为 `"mode": "dynamic"`。JSON 还需被方块 blockstate 或物品引用，Mod 也需注册相应内容与渲染器；仅复制 FBX 不会自动增加方块。接入示例见 [快速开始](QUICK_START.md) 和 [世界展示](../showcase/MODEL_SHOWCASE.md)。
 
-资源包模型、图片和 display transforms 修改可按 `F3+T`。外部覆盖目录及监听由配置决定，见 [加载与重载](LOADING_FIXES.md)；Java 注册、材质解析或渲染代码修改需要重启客户端。
+资源包模型、图片和 display transforms 修改可按 `F3+T`。外部覆盖目录及监听由配置决定，见 [加载与重载](../reference/LOADING_FIXES.md)；Java 注册、材质解析或渲染代码修改需要重启客户端。
 
 ## 8. 美术交付清单
 
@@ -186,8 +186,8 @@ assets/demo/models/portal/body_s.png
 
 ## 实现依据
 
-- [`AssimpMaterial`](../src/main/java/cn/minerealms/assimploader/model/AssimpMaterial.java)：来源识别、材质槽、标量与 Alpha。
-- [`AssimpScene`](../src/main/java/cn/minerealms/assimploader/model/AssimpScene.java)、[`AssimpMesh`](../src/main/java/cn/minerealms/assimploader/model/AssimpMesh.java)：元数据、节点、UV 与几何。
-- [`PbrTexturePreparation`](../src/main/java/cn/minerealms/assimploader/render/PbrTexturePreparation.java)、[`LabPbrPacker`](../src/main/java/cn/minerealms/assimploader/material/LabPbrPacker.java)：伴随图优先级和通道转换。
-- [`ModelTextureCache`](../src/main/java/cn/minerealms/assimploader/render/ModelTextureCache.java)：输入路径、图片限制和资源生命周期。
-- [`build_portal_pbr.py`](../model-tests/scripts/build_portal_pbr.py)：本次实际验证的 Blender 制作与导出脚本。
+- [`AssimpMaterial`](../../src/main/java/cn/minerealms/assimploader/model/AssimpMaterial.java)：来源识别、材质槽、标量与 Alpha。
+- [`AssimpScene`](../../src/main/java/cn/minerealms/assimploader/model/AssimpScene.java)、[`AssimpMesh`](../../src/main/java/cn/minerealms/assimploader/model/AssimpMesh.java)：元数据、节点、UV 与几何。
+- [`PbrTexturePreparation`](../../src/main/java/cn/minerealms/assimploader/render/PbrTexturePreparation.java)、[`LabPbrPacker`](../../src/main/java/cn/minerealms/assimploader/material/LabPbrPacker.java)：伴随图优先级和通道转换。
+- [`ModelTextureCache`](../../src/main/java/cn/minerealms/assimploader/render/ModelTextureCache.java)：输入路径、图片限制和资源生命周期。
+- [`build_portal_pbr.py`](../../model-tests/scripts/build_portal_pbr.py)：本次实际验证的 Blender 制作与导出脚本。
