@@ -1,6 +1,6 @@
 # AssimpLoader Configuration System Design
 
-> Historical configuration design. Consult [Config User Guide](CONFIG_USER_GUIDE.md), [Model Hot-Reload](Hot_Reload_System.md) and the current config class for implemented behavior. CNC/CCB was subsequently removed at the user's request; current fixtures are the CIWS, probes and portal listed in [Model Showcase](MODEL_SHOWCASE.md).
+> Historical configuration design. Consult [Config User Guide](../guides/CONFIG_USER_GUIDE.md), [Model Hot-Reload](../history/Hot_Reload_System.md) and the current config class for implemented behavior. CNC/CCB was subsequently removed at the user's request; current fixtures are the CIWS, probes and portal listed in [Model Showcase](../showcase/MODEL_SHOWCASE.md).
 
 ## Overview
 This document outlines the comprehensive configuration system for AssimpLoader, replacing hardcoded flags and constants with a flexible, user-configurable system.
