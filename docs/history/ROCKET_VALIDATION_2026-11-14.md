@@ -62,17 +62,17 @@ screenshots and readback numbers below describe the preceding accepted version.
 
 | Check | Screenshot |
 | --- | --- |
-| 35 percent nominal mass-flow request | [Low flow](images/rocket/flow-low.png) |
-| Nominal kerolox | [Nominal](images/rocket/flow-nominal.png) |
-| Compression cones and bright pinch | [Close-up](images/rocket/flow-closeup.png) |
-| Heated nozzle, local lighting and gas | [Night](images/rocket/flow-night.png) |
-| Camera yaw +18 degrees / pitch -10 degrees | [Off axis](images/rocket/flow-off-axis.png) |
-| Valve closed, residual flow and smoke | [Shutdown](images/rocket/flow-shutdown.png) |
-| Negligible flow, persistent hot wall | [Cooling](images/rocket/flow-cooled.png) |
-| Water-rich, soot-free profile | [Hydrolox](images/rocket/flow-hydrolox.png) |
-| Denser soot-rich profile | [Solid](images/rocket/flow-solid.png) |
-| Same density field with shaders disabled | [Vanilla](images/rocket/flow-vanilla.png) |
-| Shader re-enable and F3+T-equivalent reload | [Restored](images/rocket/flow-reloaded.png) |
+| 35 percent nominal mass-flow request | [Low flow](../images/rocket/flow-low.png) |
+| Nominal kerolox | [Nominal](../images/rocket/flow-nominal.png) |
+| Compression cones and bright pinch | [Close-up](../images/rocket/flow-closeup.png) |
+| Heated nozzle, local lighting and gas | [Night](../images/rocket/flow-night.png) |
+| Camera yaw +18 degrees / pitch -10 degrees | [Off axis](../images/rocket/flow-off-axis.png) |
+| Valve closed, residual flow and smoke | [Shutdown](../images/rocket/flow-shutdown.png) |
+| Negligible flow, persistent hot wall | [Cooling](../images/rocket/flow-cooled.png) |
+| Water-rich, soot-free profile | [Hydrolox](../images/rocket/flow-hydrolox.png) |
+| Denser soot-rich profile | [Solid](../images/rocket/flow-solid.png) |
+| Same density field with shaders disabled | [Vanilla](../images/rocket/flow-vanilla.png) |
+| Shader re-enable and F3+T-equivalent reload | [Restored](../images/rocket/flow-reloaded.png) |
 
 Visual inspection confirms the nozzle attachment, camera rotation, blue-white
 compression structure, moving density supports, surface illumination and residual
@@ -152,9 +152,9 @@ generate/select the local shader fork, then run:
 ```
 
 The harness intentionally modifies that disposable world and leaves the client open.
-Commands and data format: [Rocket exhaust](ROCKET_EXHAUST.md).
-Equations: [Flow model](ROCKET_FLOW_MODEL.md).
-Pass/history layout: [Temporal rendering](ROCKET_TEMPORAL.md).
+Commands and data format: [Rocket exhaust](../showcase/ROCKET_EXHAUST.md).
+Equations: [Flow model](../showcase/ROCKET_FLOW_MODEL.md).
+Pass/history layout: [Temporal rendering](../showcase/ROCKET_TEMPORAL.md).
 
 ## Earlier Baseline
 
