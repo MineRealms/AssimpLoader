@@ -1,6 +1,6 @@
 # Oculus PBR 材质
 
-本页描述当前实现。此前的接口和像素约定调查见 [源码调查](OCULUS_PBR_RESEARCH_2026-11-13.md) 与 [FBX 材质映射](FBX_PBR_PIPELINE_RESEARCH.md)。实际截图、测试和调试记录见[PBR 实机验收](PBR_VALIDATION_2026-11-13.md)。不能仅根据纹理 ID 或构建成功推断画面正确。
+本页描述当前实现。此前的接口和像素约定调查见 [源码调查](../history/OCULUS_PBR_RESEARCH_2026-11-13.md) 与 [FBX 材质映射](../history/FBX_PBR_PIPELINE_RESEARCH.md)。实际截图、测试和调试记录见[PBR 实机验收](../history/PBR_VALIDATION_2026-11-13.md)。不能仅根据纹理 ID 或构建成功推断画面正确。
 
 美术制作、FBX 导出参数及建模数据保留要求见 [PBR 资产接入规范](PBR_ASSET_SPEC.md)。
 
