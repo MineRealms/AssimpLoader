@@ -23,6 +23,8 @@ import org.joml.Vector3f;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 
 /** The player-specific editor is an engine workbench extension, with no dependency in the other direction. */
@@ -37,6 +39,17 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
     @Override public boolean handlesApplication(){return true;}
     @Override public boolean supports(WorkbenchExtensions.Context context){return context.scene()!=null&&(context.scene().hasSkeleton()||context.session().document().extensions().has(KEY));}
     @Override public Screen open(WorkbenchExtensions.Context context){return new Editor(context);}
+    @Override public void opened(WorkbenchExtensions.Context context) {
+        if(context.session().dirty())return;
+        var extension=context.session().document().extensions().getAsJsonObject(KEY);if(extension==null)return;
+        try {
+            var fresh=CharacterVisualSharing.newerSaved(extension.get("profileId").getAsString(),context.projectPath());
+            if(fresh!=null) {
+                extension.add("visual",com.google.gson.JsonParser.parseString(fresh.json()));
+                context.session().edit(document->document.withExtension(KEY,extension));
+            }
+        }catch(IOException error){throw new IllegalArgumentException("Cannot refresh saved character configuration",error);}
+    }
     @Override public void apply(WorkbenchExtensions.Context context) {
         var extension=context.session().document().extensions().getAsJsonObject(KEY);if(extension==null)return;
         try {
@@ -69,7 +82,7 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
         private String profileId,status="Reading character asset identity";
         private Page page=Page.ROOT;
         private int panel,role,action,drag=-1,previewDelay,scroll,maxScroll;
-        private boolean ready,failed,playing;
+        private boolean ready,failed,playing,saving;
         private double clock;
         private long lastFrame;
         private WorkbenchDocument preview;
@@ -96,7 +109,7 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
                 int cell=(w-6)/2;
                 addRenderableWidget(FlatUi.button(x,height-75,cell,24,Component.literal("Save"),b->save(false)));
                 addRenderableWidget(FlatUi.button(x+cell+6,height-75,cell,24,Component.literal("Apply"),b->save(true)));
-                addRenderableWidget(FlatUi.button(x,height-46,w,24,Component.literal("Equipment transform"),b->{save(true);EquipmentTransformScreen.open(this);}));
+                addRenderableWidget(FlatUi.button(x,height-46,w,24,Component.literal("Equipment transform"),b->save(true).thenRun(()->EquipmentTransformScreen.open(this))));
             }else if(!failed)load();
             fit();lastFrame=System.nanoTime();
         }
@@ -108,6 +121,10 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
                 var saved=context.session().document().extensions().getAsJsonObject(KEY);
                 if(saved!=null) {
                     profileId=saved.get("profileId").getAsString();visual=CharacterVisualConfig.parse(saved.get("visual").toString());
+                    if(!context.session().dirty()) {
+                        var fresh=CharacterVisualSharing.newerSaved(profileId,context.projectPath());
+                        if(fresh!=null)visual=fresh;
+                    }
                 }
                 ResourceLocation model=visual==null?context.scene().getSourceResource():new ResourceLocation(visual.profile().model());
                 if(model==null)model=new ResourceLocation("rigworks","models/workbench/"+stem(context)+"/model.fbx");
@@ -201,13 +218,27 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
             addRenderableWidget(FlatUi.toggle(x,y,w,24,Component.literal("Display other characters"),CharacterVisualSharing::remoteEnabled,b->CharacterVisualSharing.remoteEnabled(!CharacterVisualSharing.remoteEnabled())));y+=40;
             String[] names={"Hand contacts","Rig physics","Ground placement","Character effects"};
             for(int i=0;i<4;i++){int index=i;addRenderableWidget(FlatUi.toggle(x,y,w,24,Component.literal(names[i]),()->options()[index],b->{var a=options();a[index]=!a[index];update(visual.withOptions(new CharacterVisualConfig.Options(a[0],a[1],a[2],a[3])));}));y+=30;}
-            addRenderableWidget(FlatUi.button(x,y,w,24,Component.literal("Share saved configuration"),b->{save(true);CharacterVisualSharing.share(profileId,visual);}));
+            addRenderableWidget(FlatUi.button(x,y,w,24,Component.literal("Share saved configuration"),b->save(true).thenRun(CharacterVisualSharing::shareCurrent)));
         }
         private boolean[] options(){var o=visual.options();return new boolean[]{o.handContacts(),o.physics(),o.groundPlacement(),o.effects()};}
         private void store(){var value=new JsonObject();value.addProperty("profileId",profileId);value.add("visual",CharacterVisualConfig.parseBounded(visual.json()));context.session().edit(document->document.withExtension(KEY,value));}
-        private void save(boolean apply) {
-            try {store();context.session().commitTransaction();if(apply)activate(profileId,visual);else CharacterVisualSharing.save(profileId,visual);status=apply?"Character applied":"Character configuration saved";}
-            catch(IOException|RuntimeException error){status=error.getMessage();}
+        private CompletableFuture<Void> save(boolean apply) {
+            if(saving)return CompletableFuture.failedFuture(new IllegalStateException("Character save is already running"));
+            try {
+                store();context.session().commitTransaction();saving=true;status="Saving character project";
+                return context.saveProject().handle((saved,error)->{
+                    saving=false;
+                    if(error!=null){status="Save failed: "+error.getMessage();throw new CompletionException(error);}
+                    try {
+                        var extension=saved.extensions().getAsJsonObject(KEY);
+                        String id=extension.get("profileId").getAsString();
+                        var persisted=CharacterVisualConfig.parse(extension.get("visual").toString());
+                        if(apply)activate(id,persisted);else CharacterVisualSharing.save(id,persisted);
+                        status=context.session().dirty()?"Saved; newer edits are unsaved":apply?"Character saved and applied":"Character project saved";
+                        return null;
+                    }catch(IOException|RuntimeException failure){status=failure.getMessage();throw new CompletionException(failure);}
+                });
+            }catch(RuntimeException error){saving=false;status=error.getMessage();return CompletableFuture.failedFuture(error);}
         }
         private void updatePreview() {
             var root=visual.transform();float scale=(float)visual.profile().scale();
@@ -237,7 +268,7 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
         @Override public boolean mouseDragged(double x,double y,int button,double dx,double dy){if(drag>=0){if(drag==0&&!hasShiftDown())camera.orbit(dx,dy);else camera.pan(dx,dy,height-66);return true;}return super.mouseDragged(x,y,button,dx,dy);}
         @Override public boolean mouseReleased(double x,double y,int button){if(drag>=0){drag=-1;return true;}return super.mouseReleased(x,y,button);}
         @Override public boolean mouseScrolled(double x,double y,double delta){if(viewport(x,y)){if(hasShiftDown())camera.pan(0,delta*12,height-66);else camera.zoom(delta);return true;}if(x>=width-panel&&y>=73&&y<height-82){scroll=(int)Math.max(0,Math.min(maxScroll,scroll-delta*26));rebuildWidgets();return true;}return super.mouseScrolled(x,y,delta);}
-        @Override public void onClose(){context.session().commitTransaction();minecraft.setScreen(context.parent());}
+        @Override public void onClose(){if(saving){status="Wait for character save to finish";return;}context.session().commitTransaction();minecraft.setScreen(context.parent());}
         @Override public void removed(){if(renderer!=null){renderer.close();renderer=null;}}
         @Override public boolean isPauseScreen(){return false;}
     }
