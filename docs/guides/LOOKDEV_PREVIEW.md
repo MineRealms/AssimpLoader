@@ -38,4 +38,4 @@
 
 OpenGL 状态、鼠标交互和真实画面仍需要客户端验收；这些纯数据测试不构成 GPU 兼容认证。
 
-本轮主线已在 Windows x64 / RTX 4060 / OpenGL 4.6 客户端执行七场景截图及一次完整资源重载，检查实际贴图和视角输入。复现方法和证据路径见 [集成记录](LOOKDEV_INTEGRATION.md#real-client-smoke)。这不替代其他驱动、交叠透明或光影包的验证。
+本轮主线已在 Windows x64 / RTX 4060 / OpenGL 4.6 客户端执行七场景截图及一次完整资源重载，检查实际贴图和视角输入。复现方法和证据路径见 [集成记录](../history/LOOKDEV_INTEGRATION.md#real-client-smoke)。这不替代其他驱动、交叠透明或光影包的验证。
