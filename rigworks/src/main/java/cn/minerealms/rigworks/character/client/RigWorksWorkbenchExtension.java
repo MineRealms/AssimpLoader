@@ -103,11 +103,11 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
         private void load() {
             ready=false;failed=true;
             try {
+                String currentProfile=LocalPlayerCharacter.settings().profile();
+                CharacterVisualConfig currentVisual=LocalPlayerCharacter.currentVisualConfig();
                 var saved=context.session().document().extensions().getAsJsonObject(KEY);
                 if(saved!=null) {
                     profileId=saved.get("profileId").getAsString();visual=CharacterVisualConfig.parse(saved.get("visual").toString());
-                } else if(LocalPlayerCharacter.currentAnimation()!=null&&LocalPlayerCharacter.currentAnimation().getScene()==context.scene()) {
-                    profileId=LocalPlayerCharacter.settings().profile();visual=LocalPlayerCharacter.currentVisualConfig();
                 }
                 ResourceLocation model=visual==null?context.scene().getSourceResource():new ResourceLocation(visual.profile().model());
                 if(model==null)model=new ResourceLocation("rigworks","models/workbench/"+stem(context)+"/model.fbx");
@@ -119,6 +119,8 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
                     try {
                         String hash=CharacterVisualSharing.cachedModelHash(Minecraft.getInstance().getResourceManager(),id.toString());
                         if(hash==null)throw new IllegalStateException("Model changed during import; reopen the character panel");
+                        var inherited=CharacterWorkbenchInheritance.resolve(profileId,visual,currentProfile,currentVisual,hash);
+                        if(inherited!=null){profileId=inherited.profileId();visual=inherited.visual();}
                         if(visual==null) {
                             var mapping=new LinkedHashMap<String,CharacterProfile.HumanoidBone>();
                             for(String name:ROLES){String candidate=suggest(nodes,name);if(candidate!=null)mapping.put(name,new CharacterProfile.HumanoidBone(candidate,CharacterProfile.Rotation.IDENTITY));}
@@ -127,9 +129,12 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
                             var profile=new CharacterProfile(id.toString(),scale,mapping,actions,null,.15,.05,CharacterProfile.HeadLook.defaults());
                             visual=new CharacterVisualConfig(profile,CharacterEquipmentDefinition.defaults(profile),CharacterVisualConfig.Transform.IDENTITY,hash,null,null);
                             profileId="rigworks:workbench/"+stem(context)+"/profile.json";
-                        }else visual=new CharacterVisualConfig(visual.profile(),visual.equipment(),visual.transform(),hash,visual.rig(),visual.physics(),visual.options());
-                        ready=true;failed=false;status="";updatePreview();rebuildWidgets();
-                    }catch(RuntimeException failure){status=failure.getMessage();}
+                        }
+                        if(!id.toString().equals(visual.profile().model()))
+                            CharacterVisualSharing.registerAsset(new ResourceLocation(visual.profile().model()),context.scene());
+                        ready=true;failed=false;status=inherited!=null&&inherited.repaired()?"Recovered source character setup; saved transforms retained":"";
+                        updatePreview();rebuildWidgets();
+                    }catch(IOException|RuntimeException failure){status=failure.getMessage();}
                 }));
             }catch(IOException|RuntimeException error){status=error.getMessage();}
         }
