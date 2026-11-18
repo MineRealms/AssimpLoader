@@ -1,6 +1,6 @@
 # AssimpLoader Configuration Guide
 
-> 2026-11-13: See [current fixes and verification](FIXES_2026-11-13.md) for active behavior. The node editor is inactive. Shader injection, compressed PLY, example-registration toggling and the texture MB budget remain reserved compatibility fields; their presence does not enable those features. `modelCacheSize` applies to unpinned file models; JSON models stay pinned until reload. GPU presets use available features, with `LOW` disabling bone TBO and `FALLBACK` selecting vanilla/CPU rendering. Current config comments describe these boundaries.
+> 2026-11-13: See [current fixes and verification](../history/FIXES_2026-11-13.md) for active behavior. The node editor is inactive. Shader injection, compressed PLY, example-registration toggling and the texture MB budget remain reserved compatibility fields; their presence does not enable those features. `modelCacheSize` applies to unpinned file models; JSON models stay pinned until reload. GPU presets use available features, with `LOW` disabling bone TBO and `FALLBACK` selecting vanilla/CPU rendering. Current config comments describe these boundaries.
 
 This guide explains all configuration options available in AssimpLoader and how to use them effectively.
 
@@ -304,7 +304,7 @@ Configure the hot-reload development system.
           textures/  - Relative images referenced by this model
   ```
 - **Resource identity**: Preserve `<namespace>/models/...`; the legacy `models/...` layout means namespace `assimploader`. The full path must match the JSON model resource. The command does not register new blocks or items.
-- **F3+T**: Set `rendering.externalModelDirectory` to the same root if overrides must load during resource rebake. Otherwise, run `/assimploader reload` again after F3+T. See [Model Hot-Reload](Hot_Reload_System.md).
+- **F3+T**: Set `rendering.externalModelDirectory` to the same root if overrides must load during resource rebake. Otherwise, run `/assimploader reload` again after F3+T. See [Model Hot-Reload](../history/Hot_Reload_System.md).
 
 ### `hotreload.autoReloadEnabled`
 - **Type**: Boolean
@@ -414,7 +414,7 @@ Tools for mod development and testing.
 - **Type**: Boolean
 - **Default**: `true`
 - **Description**: Reserved legacy option; it is not a switch for current showcase registry entries
-- **Migration**: CNC/CCB was removed at the user's request. Use CIWS, knife, probe or portal IDs from [Model Showcase](MODEL_SHOWCASE.md); this option does not restore old IDs.
+- **Migration**: CNC/CCB was removed at the user's request. Use CIWS, knife, probe or portal IDs from [Model Showcase](../showcase/MODEL_SHOWCASE.md); this option does not restore old IDs.
 
 ### `dev.lookdevEnabled`
 - **Type**: Boolean
