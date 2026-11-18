@@ -118,6 +118,20 @@ public record WorkbenchDocument(int version, String assetId, String sourcePath, 
     public WorkbenchDocument withAnimation(AnimationPreview value) {return copy(transform,nodes,materials,sockets,value,extensions);}
     public WorkbenchDocument withExtension(String name, JsonObject value) {var extra=extensions();if(value==null)extra.remove(name);else extra.add(name,value.deepCopy());return copy(transform,nodes,materials,sockets,animation,extra);}
     public WorkbenchDocument withSource(String path,String hash) {return new WorkbenchDocument(version,assetId,path,hash,transform,nodes,materials,sockets,animation,extensions);}
+    /** Only inherited texture references follow a source copy; explicit user replacements remain intact. */
+    public WorkbenchDocument rebaseAsset(WorkbenchDocument sourceDefaults,WorkbenchDocument importedDefaults) {
+        var mapped=new LinkedHashMap<Integer,MaterialOverride>();
+        materials.forEach((index,material)-> {
+            var source=sourceDefaults.materials().get(index);var imported=importedDefaults.materials().get(index);
+            if(source==null||imported==null){mapped.put(index,material);return;}
+            var paths=new LinkedHashMap<>(material.textures());
+            paths.replaceAll((slot,path)->path.equals(source.textures().get(slot))?imported.textures().getOrDefault(slot,path):path);
+            mapped.put(index,new MaterialOverride(material.r(),material.g(),material.b(),material.a(),material.metallic(),material.roughness(),
+                    material.emission(),material.alphaMode(),material.cutoff(),material.doubleSided(),paths));
+        });
+        return new WorkbenchDocument(version,importedDefaults.assetId(),importedDefaults.sourcePath(),importedDefaults.contentHash(),
+                transform,nodes,mapped,sockets,animation,extensions);
+    }
     public List<String> validateReferences(SceneMetadata metadata) {
         var issues=new ArrayList<String>();
         var paths=metadata.nodes().stream().map(SceneMetadata.NodeInfo::path).collect(Collectors.toSet());
