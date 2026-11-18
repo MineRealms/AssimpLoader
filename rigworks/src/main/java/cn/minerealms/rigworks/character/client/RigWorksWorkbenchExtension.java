@@ -40,7 +40,7 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
     @Override public boolean supports(WorkbenchExtensions.Context context){return context.scene()!=null&&(context.scene().hasSkeleton()||context.session().document().extensions().has(KEY));}
     @Override public Screen open(WorkbenchExtensions.Context context){return new Editor(context);}
     @Override public void opened(WorkbenchExtensions.Context context) {
-        if(context.session().dirty())return;
+        if(hasCharacterEdits(context))return;
         var extension=context.session().document().extensions().getAsJsonObject(KEY);if(extension==null)return;
         try {
             var fresh=CharacterVisualSharing.newerSaved(extension.get("profileId").getAsString(),context.projectPath());
@@ -49,6 +49,9 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
                 context.session().edit(document->document.withExtension(KEY,extension));
             }
         }catch(IOException error){throw new IllegalArgumentException("Cannot refresh saved character configuration",error);}
+    }
+    private static boolean hasCharacterEdits(WorkbenchExtensions.Context context) {
+        return !Objects.equals(context.session().document().extensions().get(KEY),context.session().savedDocument().extensions().get(KEY));
     }
     @Override public void apply(WorkbenchExtensions.Context context) {
         var extension=context.session().document().extensions().getAsJsonObject(KEY);if(extension==null)return;
@@ -121,7 +124,7 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
                 var saved=context.session().document().extensions().getAsJsonObject(KEY);
                 if(saved!=null) {
                     profileId=saved.get("profileId").getAsString();visual=CharacterVisualConfig.parse(saved.get("visual").toString());
-                    if(!context.session().dirty()) {
+                    if(!hasCharacterEdits(context)) {
                         var fresh=CharacterVisualSharing.newerSaved(profileId,context.projectPath());
                         if(fresh!=null)visual=fresh;
                     }
@@ -149,6 +152,7 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
                         }
                         if(!id.toString().equals(visual.profile().model()))
                             CharacterVisualSharing.registerAsset(new ResourceLocation(visual.profile().model()),context.scene());
+                        store();
                         ready=true;failed=false;status=inherited!=null&&inherited.repaired()?"Recovered source character setup; saved transforms retained":"";
                         updatePreview();rebuildWidgets();
                     }catch(IOException|RuntimeException failure){status=failure.getMessage();}
@@ -233,6 +237,8 @@ public final class RigWorksWorkbenchExtension implements WorkbenchExtensions.Ext
                         var extension=saved.extensions().getAsJsonObject(KEY);
                         String id=extension.get("profileId").getAsString();
                         var persisted=CharacterVisualConfig.parse(extension.get("visual").toString());
+                        var asset=context.parent() instanceof ModelWorkbenchScreen owner?owner.scene():context.scene();
+                        CharacterVisualSharing.registerAsset(new ResourceLocation(persisted.profile().model()),asset);
                         if(apply)activate(id,persisted);else CharacterVisualSharing.save(id,persisted);
                         status=context.session().dirty()?"Saved; newer edits are unsaved":apply?"Character saved and applied":"Character project saved";
                         return null;
