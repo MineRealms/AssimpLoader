@@ -1,6 +1,6 @@
 # Model Hot-Reload System
 
-This guide describes the current client implementation. Model parsing runs on workers; complete replacement batches are published to the shared model repository. See [loading and lifecycle details](LOADING_FIXES.md) and the [PBR asset specification](PBR_ASSET_SPEC.md) for material requirements.
+This guide describes the current client implementation. Model parsing runs on workers; complete replacement batches are published to the shared model repository. See [loading and lifecycle details](../reference/LOADING_FIXES.md) and the [PBR asset specification](../guides/PBR_ASSET_SPEC.md) for material requirements.
 
 ## Configure the Model Directory
 
@@ -59,7 +59,7 @@ The command:
 
 A failed required import leaves the previous batch intact. Deleting an override restores the scene saved when that override was first applied, or removes the entry if it existed only as an external model. A scene initially loaded through `rendering.externalModelDirectory` can itself be that saved original; F3+T performs a fresh lookup against the current files and packs. A successful command reports the number of imported **variants**, which can exceed the file count.
 
-The command does not create block/item registry entries or JSON wrappers for arbitrary new files. Replace a model that already has a registered renderer, or use [LookDev](LOOKDEV_PREVIEW.md) to inspect loaded scenes.
+The command does not create block/item registry entries or JSON wrappers for arbitrary new files. Replace a model that already has a registered renderer, or use [LookDev](../guides/LOOKDEV_PREVIEW.md) to inspect loaded scenes.
 
 ## F3+T and Persistent Overrides
 
@@ -87,7 +87,7 @@ This is a polling watcher, not a guarantee that an editor has finished writing e
 - Keep embedded images or relative texture references valid. For file imports, external textures must remain inside the model file's directory or its descendants; do not reference an absolute authoring-machine path or `../` outside that directory.
 - Keep glTF `.bin` and other required side files with their model. Reload imports complete scenes, including animation data supported by the selected format and import mode.
 - STATIC import pretransforms geometry. Use a DYNAMIC JSON model when node hierarchy, pivots or animation must remain available.
-- For PBR conventions, raw Blender maps and LabPBR `_n`/`_s` files have different meanings. Follow the [PBR specification](PBR_ASSET_SPEC.md); a grayscale roughness image is not a ready-to-use `_s` texture.
+- For PBR conventions, raw Blender maps and LabPBR `_n`/`_s` files have different meanings. Follow the [PBR specification](../guides/PBR_ASSET_SPEC.md); a grayscale roughness image is not a ready-to-use `_s` texture.
 
 ## Troubleshooting
 
