@@ -240,7 +240,7 @@ GPU 蒙皮比 CPU 蒙皮快 10-100 倍，所以即使大量方块也应该保持
 
 ## 参考文档
 
-- [动画系统使用指南](ANIMATION_USAGE_GUIDE.md)
+- [动画系统使用指南](../guides/ANIMATION_USAGE_GUIDE.md)
 - [骨骼动画分析](SKELETAL_ANIMATION_ANALYSIS.md)
 - [动画系统完整功能](ANIMATION_SYSTEM_COMPLETE.md)
 
