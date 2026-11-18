@@ -40,8 +40,8 @@ public final class CharacterSelectionScreen extends Screen {
         int toggleWidth = Math.max(64, (panelWidth - 44) / 3);
         addRenderableWidget(FlatUi.toggle(left, controlsY, toggleWidth, 26, Component.literal("Character"),
                 () -> LocalPlayerCharacter.settings().enabled(), button -> {
-                    var setting = cn.minerealms.rigworks.RigWorksConfig.CLIENT.enabled;
-                    setting.set(!LocalPlayerCharacter.settings().enabled()); setting.save();
+                    cn.minerealms.rigworks.RigWorksConfig.update(edit->edit.set(cn.minerealms.rigworks.RigWorksConfig.CLIENT.enabled,
+                            !LocalPlayerCharacter.settings().enabled()));
                     LocalPlayerCharacter.refreshConfiguration(); LocalPlayerCharacter.reload();
                 })).setTooltip(Tooltip.create(Component.literal("Enable custom character")));
         addRenderableWidget(FlatUi.toggle(left + toggleWidth + 6, controlsY, toggleWidth, 26, Component.literal("Rig physics"),
@@ -93,6 +93,8 @@ public final class CharacterSelectionScreen extends Screen {
                 Component.literal("Previous profiles"), button -> scroll(-visibleRows)));
         next = addRenderableWidget(FlatUi.icon(left + 30, footerY - 1, FlatUi.Icon.NEXT,
                 Component.literal("Next profiles"), button -> scroll(visibleRows)));
+        addRenderableWidget(FlatUi.button(left + panelWidth - 172, footerY - 1, 90, 26,
+                Component.literal("Equipment"), button -> EquipmentTransformScreen.open(this)));
         addRenderableWidget(FlatUi.button(left + panelWidth - 76, footerY - 1, 76, 26,
                 Component.translatable("gui.done"), button -> onClose()));
         updateRows(); updateApply();
@@ -105,8 +107,7 @@ public final class CharacterSelectionScreen extends Screen {
     private void applyProfile() {
         ResourceLocation selected = ResourceLocation.tryParse(profile.getValue());
         if (selected == null) return;
-        var setting = cn.minerealms.rigworks.RigWorksConfig.CLIENT.profile;
-        setting.set(selected.toString()); setting.save();
+        cn.minerealms.rigworks.RigWorksConfig.update(edit->edit.set(cn.minerealms.rigworks.RigWorksConfig.CLIENT.profile,selected.toString()));
         LocalPlayerCharacter.refreshConfiguration(); LocalPlayerCharacter.reload();
     }
 
@@ -145,7 +146,7 @@ public final class CharacterSelectionScreen extends Screen {
         graphics.fill(left, footerY - 10, left + panelWidth, footerY - 9, FlatUi.LINE);
         var diagnostics = LocalPlayerCharacter.diagnostics();
         String status = diagnostics.status() + (diagnostics.selectedAnimation().isBlank() ? "" : "  /  " + diagnostics.selectedAnimation());
-        graphics.drawString(font, FlatUi.clip(font, status, Math.max(0, panelWidth - 150)), left + 66, footerY + 8,
+        graphics.drawString(font, FlatUi.clip(font, status, Math.max(0, panelWidth - 246)), left + 66, footerY + 8,
                 diagnostics.status() == LocalPlayerCharacter.Status.FAILED ? FlatUi.ERROR : FlatUi.MUTED, false);
         if (!compact && !diagnostics.failure().isBlank()) graphics.drawString(font,
                 FlatUi.clip(font, diagnostics.failure(), panelWidth), left, height - 17, FlatUi.ERROR, false);
