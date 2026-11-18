@@ -12,7 +12,7 @@
 
 ## 1. CPU 绘制提交
 
-**历史实测。** 来源为运行 `1794843724825` 的 [GPU 批处理验收](../GPU_BATCH_VALIDATION_2026-11-16.md)，保留表格见 [gpu_batch.csv](data/gpu_batch.csv)。RTX 4060、OpenGL 4.6、Java 17；CPU 硬件现查为 Xeon E5-2697 v2，本轮没有重测。该硬件档次也作为后文经验数据的参考。
+**历史实测。** 来源为运行 `1794843724825` 的 [GPU 批处理验收](../history/GPU_BATCH_VALIDATION_2026-11-16.md)，保留表格见 [gpu_batch.csv](data/gpu_batch.csv)。RTX 4060、OpenGL 4.6、Java 17；CPU 硬件现查为 Xeon E5-2697 v2，本轮没有重测。该硬件档次也作为后文经验数据的参考。
 
 ![CPU 绘制提交](charts/01_cpu_submission.png)
 
@@ -159,4 +159,4 @@ frameBytes = 4096 × 4 + 64 + meshInstances × (168 + bones × 64)
 py -3.10 tools/plot_render_benchmarks.py
 ```
 
-依赖 Python、Matplotlib、NumPy。本机 Python 3.10 环境已有这些依赖。输出为 `charts/` 中六张 PNG 与对应 SVG，可分别用于文档预览和矢量导出。历史逐帧原始记录和更完整验收限制见 [GPU 验收报告](../GPU_BATCH_VALIDATION_2026-11-16.md)、[Compute 说明](../COMPUTE_SKINNING.md)、[Oculus 缓存](../OCULUS_POSE_BUFFER_CACHE.md)、[插值说明](../RENDER_POSE_INTERPOLATION.md) 与 [运行时性能模式](../RUNTIME_PERFORMANCE_MODES.md)。
+依赖 Python、Matplotlib、NumPy。本机 Python 3.10 环境已有这些依赖。输出为 `charts/` 中六张 PNG 与对应 SVG，可分别用于文档预览和矢量导出。历史逐帧原始记录和更完整验收限制见 [GPU 验收报告](../history/GPU_BATCH_VALIDATION_2026-11-16.md)、[Compute 说明](../reference/COMPUTE_SKINNING.md)、[Oculus 缓存](../reference/OCULUS_POSE_BUFFER_CACHE.md)、[插值说明](../reference/RENDER_POSE_INTERPOLATION.md) 与 [运行时性能模式](../reference/RUNTIME_PERFORMANCE_MODES.md)。
