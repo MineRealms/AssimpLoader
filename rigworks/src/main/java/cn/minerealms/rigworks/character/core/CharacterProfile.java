@@ -19,7 +19,9 @@ public record CharacterProfile(String model, double scale, Map<String, HumanoidB
                                double blendSeconds, double movementThreshold, HeadLook headLook,
                                String solverDefinition, float modelYawDegrees, String equipmentDefinition, Timing timing) {
     private static final Set<String> ANIMATIONS = Set.of("idle", "walk", "run", "walk_backward", "strafe_left", "strafe_right",
-            "crouch", "crouch_walk", "jump", "fall", "swim", "fly", "elytra", "ride", "sleep", "dead", "use_item", "swing");
+            "crouch", "crouch_walk", "jump", "fall", "swim", "fly", "elytra", "ride", "sleep", "dead", "use_item", "swing",
+            "crawl", "crawl_idle", "ladder_up", "ladder_down", "ladder_idle", "water_idle", "lava",
+            "riptide", "frozen", "hurt", "land");
 
     public record Rotation(float x, float y, float z, float w) {
         public static final Rotation IDENTITY = new Rotation(0, 0, 0, 1);
@@ -31,9 +33,12 @@ public record CharacterProfile(String model, double scale, Map<String, HumanoidB
         public Quaternionf quaternion() { return new Quaternionf(x, y, z, w); }
     }
 
-    /** Local bone-axis correction metadata, not an automatic whole-rig retarget operation. */
-    public record HumanoidBone(String node, Rotation referenceRotation) {
-        public HumanoidBone { name(node, "Humanoid node"); Objects.requireNonNull(referenceRotation); }
+    /** Axis correction and optional bind-local post-rotation used only by native pose candidates. */
+    public record HumanoidBone(String node, Rotation referenceRotation, Rotation nativeRotation) {
+        public HumanoidBone {
+            name(node, "Humanoid node"); Objects.requireNonNull(referenceRotation); Objects.requireNonNull(nativeRotation);
+        }
+        public HumanoidBone(String node, Rotation referenceRotation) { this(node, referenceRotation, Rotation.IDENTITY); }
     }
 
     public record Direction(float x, float y, float z) {
@@ -117,6 +122,38 @@ public record CharacterProfile(String model, double scale, Map<String, HumanoidB
     public String animation(String intent) { return animations.getOrDefault(intent, intent); }
     public HumanoidBone bone(String role) { return humanoid.get(role); }
 
+    public JsonObject toJson() {
+        JsonObject root = new JsonObject();
+        root.addProperty("version", 1); root.addProperty("model", model); root.addProperty("scale", scale);
+        JsonObject bones = new JsonObject();
+        humanoid.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+            JsonObject bone = new JsonObject(); bone.addProperty("node", entry.getValue().node());
+            bone.add("referenceRotation", rotation(entry.getValue().referenceRotation()));
+            bone.add("nativeRotation", rotation(entry.getValue().nativeRotation())); bones.add(entry.getKey(), bone);
+        });
+        root.add("humanoid", bones);
+        JsonObject clips = new JsonObject();
+        animations.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> clips.addProperty(entry.getKey(), entry.getValue()));
+        root.add("animations", clips);
+        if (physicsDefinition != null) root.addProperty("physicsDefinition", physicsDefinition);
+        if (solverDefinition != null) root.addProperty("solverDefinition", solverDefinition);
+        if (equipmentDefinition != null) root.addProperty("equipmentDefinition", equipmentDefinition);
+        root.addProperty("blendSeconds", blendSeconds); root.addProperty("movementThreshold", movementThreshold);
+        root.addProperty("modelYawDegrees", modelYawDegrees);
+        JsonObject look = new JsonObject(); look.addProperty("enabled", headLook.enabled());
+        JsonArray forward = new JsonArray(); forward.add(headLook.forward.x); forward.add(headLook.forward.y); forward.add(headLook.forward.z);
+        look.add("forward", forward); look.addProperty("maxYaw", headLook.maxYaw); look.addProperty("maxPitch", headLook.maxPitch);
+        root.add("headLook", look);
+        JsonObject clock = new JsonObject(); clock.addProperty("swingSync", timing.swingSync); clock.addProperty("movementSync", timing.movementSync);
+        clock.addProperty("walkStride", timing.walkStride); clock.addProperty("runStride", timing.runStride); clock.addProperty("crouchStride", timing.crouchStride);
+        clock.addProperty("minRate", timing.minRate); clock.addProperty("maxRate", timing.maxRate); root.add("timing", clock);
+        return root;
+    }
+
+    private static JsonArray rotation(Rotation value) {
+        JsonArray array = new JsonArray(); array.add(value.x); array.add(value.y); array.add(value.z); array.add(value.w); return array;
+    }
+
     public static CharacterProfile read(Reader source) {
         Objects.requireNonNull(source, "Character profile reader");
         JsonElement value = JsonParser.parseReader(source);
@@ -135,13 +172,18 @@ public record CharacterProfile(String model, double scale, Map<String, HumanoidB
                 humanoid.put(entry.getKey(), new HumanoidBone(value.getAsString(), Rotation.IDENTITY));
             else {
                 if (!value.isJsonObject()) throw new IllegalArgumentException("Humanoid binding must be a node string or object: " + entry.getKey());
-                JsonObject bone = value.getAsJsonObject(); keys(bone, "node", "referenceRotation");
+                JsonObject bone = value.getAsJsonObject(); keys(bone, "node", "referenceRotation", "nativeRotation");
                 Rotation rotation = Rotation.IDENTITY;
                 if (bone.has("referenceRotation")) {
                     JsonArray values = array(bone, "referenceRotation", 4);
                     rotation = new Rotation(finite(values.get(0)), finite(values.get(1)), finite(values.get(2)), finite(values.get(3)));
                 }
-                humanoid.put(entry.getKey(), new HumanoidBone(text(bone, "node", null), rotation));
+                Rotation nativeRotation = Rotation.IDENTITY;
+                if (bone.has("nativeRotation")) {
+                    JsonArray values = array(bone, "nativeRotation", 4);
+                    nativeRotation = new Rotation(finite(values.get(0)), finite(values.get(1)), finite(values.get(2)), finite(values.get(3)));
+                }
+                humanoid.put(entry.getKey(), new HumanoidBone(text(bone, "node", null), rotation, nativeRotation));
             }
         });
         Map<String, String> animations = new LinkedHashMap<>();
