@@ -111,8 +111,8 @@ palette packing. Verified results follow.
   produced with a minimum inter-capture interval of 10.149 seconds. The client
   exited normally and no Java process remained after verification.
 - Capture run: `1794817677901`, under `run/screenshots/`. Inspected the
-  [textured scene](../run/screenshots/assimp-smoke-1794817677901-probe_textured.png)
-  and [item views](../run/screenshots/assimp-smoke-1794817677901-items.png).
+  [textured scene](../../run/screenshots/assimp-smoke-1794817677901-probe_textured.png)
+  and [item views](../../run/screenshots/assimp-smoke-1794817677901-items.png).
   The existing ModernUI invalid-font-resource warnings remain in the log.
 - This existing smoke covers showcase scenes, GUI items, view input and resource
   reload. It does not itself exercise a skinned crossfade asset in the live game.
