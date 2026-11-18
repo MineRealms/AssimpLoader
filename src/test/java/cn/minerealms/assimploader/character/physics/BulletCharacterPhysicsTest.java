@@ -21,6 +21,22 @@ import static cn.minerealms.assimploader.character.physics.CharacterPhysicsDefin
 import static org.junit.jupiter.api.Assertions.*;
 
 class BulletCharacterPhysicsTest {
+    @Test void diagnosticProvidersNeverExposeRetiredPhysicsActors() {
+        var physics=actor(definition(Vec3.ZERO,List.of(sphere("ball",null,Mode.DYNAMIC,Vec3.ZERO,1,65535)),List.of()));
+        String provider="physics-lifecycle-test";
+        try {
+            cn.minerealms.assimploader.debug.ClientDiagnostics.register(provider,()->physics,List::of);
+            assertFalse(physics.isClosed());
+            assertTrue(cn.minerealms.assimploader.debug.ClientDiagnostics.physics().contains(physics));
+            physics.close();
+            assertTrue(physics.isClosed());
+            assertFalse(cn.minerealms.assimploader.debug.ClientDiagnostics.physics().contains(physics));
+        }finally {
+            cn.minerealms.assimploader.debug.ClientDiagnostics.unregister(provider);
+            physics.close();
+        }
+    }
+
     @Test void gravityUsesFixedBulletStepsAndWorldsAreIndependent() {
         var def=definition(new Vec3(0,-10,0),List.of(sphere("ball",null,Mode.DYNAMIC,new Vec3(0,2,0),1,65535)),List.of());
         try(var a=actor(def);var b=actor(def)) {
