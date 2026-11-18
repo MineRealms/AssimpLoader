@@ -335,6 +335,10 @@ public final class LocalPlayerCharacter {
                 AssimpLoaderConfig.getOrDefault(config.effects::get, false));
     }
 
+    /** Explicit reload replaces staged previews with current author files. */
+    public static void reloadSaved() {
+        refreshConfiguration();CharacterVisualSharing.refreshSaved();reload();
+    }
     /** Client-thread reset. A stale native decode may finish, but cannot publish or revive this owner. */
     public static void reload() {
         request++;
@@ -615,8 +619,7 @@ public final class LocalPlayerCharacter {
                         currentRig().morphs().setWeight(name,FloatArgumentType.getFloat(context,"weight"));return 1;
                     }))))
                 .then(Commands.literal("reload").executes(context -> {
-                    refreshConfiguration();
-                    reload();
+                    reloadSaved();
                     context.getSource().sendSuccess(() -> Component.literal("Character resources will reload on the next client tick"), false);
                     return 1;
                 }))));
@@ -669,7 +672,7 @@ public final class LocalPlayerCharacter {
     @Mod.EventBusSubscriber(modid = cn.minerealms.rigworks.RigWorks.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
     public static final class Registration {
         @SubscribeEvent public static void registerReload(RegisterClientReloadListenersEvent event) {
-            event.registerReloadListener((ResourceManagerReloadListener) manager -> Minecraft.getInstance().execute(LocalPlayerCharacter::reload));
+            event.registerReloadListener((ResourceManagerReloadListener) manager -> Minecraft.getInstance().execute(LocalPlayerCharacter::reloadSaved));
         }
         @SubscribeEvent public static void loaded(ModConfigEvent.Loading event) {
             if (event.getConfig().getSpec() == cn.minerealms.rigworks.RigWorksConfig.CLIENT_SPEC)
