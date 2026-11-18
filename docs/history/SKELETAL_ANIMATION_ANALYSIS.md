@@ -1,6 +1,6 @@
 # Skeletal Animation Rendering Analysis
 
-> Historical analysis. CNC/CCB was subsequently removed at the user's request. The unchecked CNC animation task below remains a historical test gap, not a passed result. Current showcase assets are listed in [Model Showcase](MODEL_SHOWCASE.md); CIWS node pivots are not evidence of complex skeletal skinning coverage.
+> Historical analysis. CNC/CCB was subsequently removed at the user's request. The unchecked CNC animation task below remains a historical test gap, not a passed result. Current showcase assets are listed in [Model Showcase](../showcase/MODEL_SHOWCASE.md); CIWS node pivots are not evidence of complex skeletal skinning coverage.
 
 ## Executive Summary
 
