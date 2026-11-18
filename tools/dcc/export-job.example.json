@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "namespace": "myassets",
+  "asset_id": "my_character",
+  "output_dir": "./exported/myassets-pack",
+  "roots": [],
+  "bake_animation": false,
+  "clips": [],
+  "frame_step": 1,
+  "triangulate": true,
+  "embed_textures": true,
+  "overwrite": false,
+  "overwrite_configs": false,
+  "character": {
+    "enabled": true,
+    "auto_humanoid": true,
+    "scale": 1,
+    "model_yaw_degrees": 180,
+    "humanoid": {},
+    "animations": {}
+  }
+}
