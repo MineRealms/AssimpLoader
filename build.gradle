@@ -51,7 +51,41 @@ minecraft {
 
     runs {
         client {
-            workingDirectory project.file('run')
+            workingDirectory project.file(project.findProperty('clientGameDir') ?: 'run')
+            if (project.hasProperty('clientUsername')) args '--username', project.property('clientUsername').toString()
+            if (project.hasProperty('clientServer')) args '--quickPlayMultiplayer', project.property('clientServer').toString()
+            if (project.hasProperty('clientCharacterSyncRole')) {
+                property 'charactersynctest.role', project.property('clientCharacterSyncRole').toString()
+                property 'charactersynctest.world', (project.findProperty('clientCharacterSyncWorld') ?: 'Character_Config_Sync_Acceptance').toString()
+                property 'charactersynctest.port', (project.findProperty('clientCharacterSyncPort') ?: '25575').toString()
+                property 'charactersynctest.coordination', project.file(project.findProperty('clientCharacterSyncCoordination') ?: 'build/character-sync-coordination').absolutePath
+                args '--width', '1280', '--height', '900'
+            }
+            if (project.hasProperty('clientWorkbenchSmoke')) {
+                property 'workbenchtest.enabled', 'true'
+                if (project.hasProperty('clientCharacterSyncRole')) property 'workbenchtest.afterSync', 'true'
+                property 'workbenchtest.world', project.property('clientWorkbenchSmoke').toString()
+                if (project.hasProperty('clientWorkbenchAsset')) property 'workbenchtest.asset', project.file(project.property('clientWorkbenchAsset')).absolutePath
+                if (!project.hasProperty('clientCharacterSyncRole')) args '--width', '1280', '--height', '900'
+            }
+            if (project.hasProperty('clientWorld')) {
+                args '--quickPlaySingleplayer', project.property('clientWorld').toString()
+            }
+            if (project.hasProperty('clientVanillaCompatibilitySmoke')) {
+                property 'vanillaCompatibilityTest.enabled', 'true'
+                property 'vanillaCompatibilityTest.world', project.property('clientVanillaCompatibilitySmoke').toString()
+                args '--width', '1280', '--height', '900'
+            }
+            if (project.hasProperty('clientCharacterClipSmoke')) {
+                property 'charactercliptest.enabled', 'true'
+                property 'charactercliptest.world', project.property('clientCharacterClipSmoke').toString()
+                if (project.hasProperty('clientCharacterGpuSmoke')) property 'charactercliptest.requireOculusGpu', 'true'
+                args '--width', '1280', '--height', '900'
+            }
+            if (project.hasProperty('clientEquipmentWorkbenchSmoke')) {
+                property 'equipmentworkbenchtest.enabled', 'true'
+                if (!project.hasProperty('clientCharacterClipSmoke')) args '--width', '1280', '--height', '900'
+            }
             if (project.hasProperty('clientLookDevSmoke')) {
                 property 'lookdevtest.enabled', 'true'
                 property 'lookdevtest.world', project.property('clientLookDevSmoke').toString()
@@ -305,6 +339,9 @@ configurations {
 fg.configureMinecraftLibraryConfiguration(configurations.assimpNatives)
 
 repositories {
+    if (project.hasProperty('f3TweakerJar')) {
+        flatDir { dirs file(project.property('f3TweakerJar')).parentFile }
+    }
     exclusiveContent {
         forRepository { mavenCentral() }
         filter {
@@ -386,6 +423,22 @@ dependencies {
     // Dormant historical editor sources compile for reference; active LookDev is independent.
     compileOnly "icyllis.modernui:ModernUI-Core:${modernui_core_version}@jar"
     testRuntimeOnly "icyllis.modernui:ModernUI-Core:${modernui_core_version}@jar"
+    localRuntime fg.deobf("icyllis.modernui:ModernUI-Forge:${modernui_forge_version}")
+    for (module in ['ModernUI-Core', 'ModernUI-Markdown']) {
+        minecraftLibrary("icyllis.modernui:${module}:${modernui_core_version}") {
+            exclude group: 'org.slf4j', module: 'slf4j-api'
+            exclude group: 'org.apache.logging.log4j'
+            exclude group: 'com.google.code.findbugs', module: 'jsr305'
+            exclude group: 'org.jetbrains', module: 'annotations'
+            exclude group: 'com.ibm.icu', module: 'icu4j'
+            exclude group: 'it.unimi.dsi', module: 'fastutil'
+        }
+    }
+    if (project.hasProperty('f3TweakerJar')) {
+        def devJar = file(project.property('f3TweakerJar'))
+        if (!devJar.isFile()) throw new GradleException("F3Tweaker JAR does not exist: ${devJar}")
+        localRuntime fg.deobf("local.dev:${devJar.name.replaceFirst(/\.jar$/, '')}:local")
+    }
 
     // Fixed Modrinth version IDs resolve before compilation on a fresh checkout.
     // Optional mods are available in dev runs but never bundled by jarJar.
