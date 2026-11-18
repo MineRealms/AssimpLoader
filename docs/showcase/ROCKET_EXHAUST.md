@@ -146,8 +146,8 @@ General adapters, battlefield clustering and flying vehicles are outside this de
 
 The patcher requires a new destination and the exact inspected source ZIP. The
 opt-in runtime harness expects an existing disposable world copy and leaves the
-client open. [Runtime evidence](ROCKET_VALIDATION_2026-11-14.md) and
-[Oculus source/pass research](ROCKET_SHADER_RESEARCH.md) distinguish verified paths.
+client open. [Runtime evidence](../history/ROCKET_VALIDATION_2026-11-14.md) and
+[Oculus source/pass research](../history/ROCKET_SHADER_RESEARCH.md) distinguish verified paths.
 
 Primary references: [NASA rocket thrust/nozzle equations](https://www.grc.nasa.gov/www/k-12/airplane/rktthsum.html),
 [PBRT participating-media phase functions](https://pbr-book.org/4ed/Volume_Scattering/Phase_Functions),
