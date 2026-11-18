@@ -1,6 +1,6 @@
 # Blender / FBX 到 Oculus PBR 的源码调查
 
-> 本文记录实现前的调查状态。后续已接入动态 loader，当前使用方法见 [PBR 材质](OCULUS_PBR_USAGE.md)，构建和实际光影截图见[实机验收](PBR_VALIDATION_2026-11-13.md)。下文的“当前未实现”指调查时的状态。
+> 本文记录实现前的调查状态。后续已接入动态 loader，当前使用方法见 [PBR 材质](../guides/OCULUS_PBR_USAGE.md)，构建和实际光影截图见[实机验收](PBR_VALIDATION_2026-11-13.md)。下文的“当前未实现”指调查时的状态。
 
 日期：2026-11-13。目标是让 Blender 资产通过 AssimpLoader 在 Minecraft Java 1.20.1 中获得光影包的法线、反射和材质表现。本次为源码调查和文档更正，没有实现新的动态 PBR loader，也没有启用 Oculus 进行画面验收。
 
@@ -82,12 +82,12 @@ assets/minecraft/optifine/texture.properties
 
 并行核对了本机 Blender 5.3 导出器和本项目实际 Assimp native revision：Roughness 图通过 `ShininessExponent` 进入 Assimp SHININESS，Metallic 图通过 `ReflectionFactor` 进入 METALNESS；当前 Java snapshot 均未保存。Blender 的 scalar shininess 采用 `100 * (1 - roughness)^2`，但图像仍是原图，不能套用 scalar 换算到整张图片。完整映射和源码位置见 [FBX 材质链路调查](FBX_PBR_PIPELINE_RESEARCH.md)。
 
-1. **完整材质输入**：[AssimpMaterial](../src/main/java/cn/minerealms/assimploader/model/AssimpMaterial.java) 当前读取 DIFFUSE / NORMALS / SPECULAR。没有完整保存 baseColor、metallic、roughness、AO、emissive、工作流和 UV 集信息。FBX specular 与 LabPBR `_s` 不能因名称相似而直接绑定。对不能从 FBX 无歧义恢复的参数，使用明确的 sidecar 或预打包贴图约定。
-2. **材质级纹理身份**：[ModelTextureCache](../src/main/java/cn/minerealms/assimploader/render/ModelTextureCache.java) 当前按 scene + diffuse path 缓存。相同底色、不同 PBR 图像/参数需要不同 base texture 对象，因为 Oculus 按 base GL id 关联 holder。
-3. **动态 loader**：[OculusPBRSupport](../src/main/java/cn/minerealms/assimploader/compat/OculusPBRSupport.java) 当前只查询现成 loader。应创建自有 `AssimpPbrTexture extends DynamicTexture`，仅注册该精确 class；可用反射 Proxy 实现接口以保持软依赖，不能覆盖全局 DynamicTexture loader。
+1. **完整材质输入**：[AssimpMaterial](../../src/main/java/cn/minerealms/assimploader/model/AssimpMaterial.java) 当前读取 DIFFUSE / NORMALS / SPECULAR。没有完整保存 baseColor、metallic、roughness、AO、emissive、工作流和 UV 集信息。FBX specular 与 LabPBR `_s` 不能因名称相似而直接绑定。对不能从 FBX 无歧义恢复的参数，使用明确的 sidecar 或预打包贴图约定。
+2. **材质级纹理身份**：[ModelTextureCache](../../src/main/java/cn/minerealms/assimploader/render/ModelTextureCache.java) 当前按 scene + diffuse path 缓存。相同底色、不同 PBR 图像/参数需要不同 base texture 对象，因为 Oculus 按 base GL id 关联 holder。
+3. **动态 loader**：[OculusPBRSupport](../../src/main/java/cn/minerealms/assimploader/compat/OculusPBRSupport.java) 当前只查询现成 loader。应创建自有 `AssimpPbrTexture extends DynamicTexture`，仅注册该精确 class；可用反射 Proxy 实现接口以保持软依赖，不能覆盖全局 DynamicTexture loader。
 4. **真实状态**：现有 `prepareTexture()` 用 holder 两字段非 null 判成功，默认 1x1 纹理也会通过。`OculusCompat.isPBRSupported()` 的两个绑定 id 也不证明当前材质找到两张图。应分别报告 loader 可用、各通道找到/转换成功、光影是否实际采样，不能合成一个“PBR 成功”。
 5. **配置含义**：关闭当前 PBR 开关只会停止主动 warm-up；Oculus 仍可自动处理资源 SimpleTexture 的 `_n/_s`。要实现模组材质自身的禁用，需要在自有 loader 中明确退回默认通道；不能声称关闭所有资源包 PBR。
-6. **法线与切线**：当前 [BaseAssimpRenderer](../src/main/java/cn/minerealms/assimploader/render/base/BaseAssimpRenderer.java) 把三角形提交为四顶点退化 QUADS。Oculus `mixin/vertices/MixinBufferBuilder.java:216` 的 TRIANGLES 分支保留每顶点平滑法线，而第 228 行 QUADS 分支重写面法线。接入时应评估标准 NEW_ENTITY + TRIANGLES RenderType，验证方向、镜像 UV、平滑面和切线符号。
+6. **法线与切线**：当前 [BaseAssimpRenderer](../../src/main/java/cn/minerealms/assimploader/render/base/BaseAssimpRenderer.java) 把三角形提交为四顶点退化 QUADS。Oculus `mixin/vertices/MixinBufferBuilder.java:216` 的 TRIANGLES 分支保留每顶点平滑法线，而第 228 行 QUADS 分支重写面法线。接入时应评估标准 NEW_ENTITY + TRIANGLES RenderType，验证方向、镜像 UV、平滑面和切线符号。
 
 `render/PBRShaderIntegration.java` 是无调用者的旧占位结构，不能作为已经实现上述链路的依据。普通 OpenGL 自有 shader 不会因绑定了几张图而自动获得 Oculus 世界光影效果。
 
