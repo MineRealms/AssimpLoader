@@ -39,7 +39,7 @@ does not substitute for those additional runtime configurations.
 
 ## Implemented Data Controls
 
-[Animation processors](ANIMATION_PROCESSORS.md) compile resource JSON once per
+[Animation processors](../reference/ANIMATION_PROCESSORS.md) compile resource JSON once per
 instance. KubeJS controls activation, weights, clip phase and IK targets.
 Native player motion precedes processor skeletal clips/poses; owned CCD chains
 run in the IK stage, before existing physics. Invalid replacements preserve the
@@ -47,7 +47,7 @@ installed processor. Instance close, script retirement and explicit removal
 clean up both installed stages. Inline declarations use `processorDefinition`
 to avoid Rhino overload ambiguity.
 
-[Shader parameters](SHADER_PARAMETER_BRIDGE.md) declare types, defaults, disabled
+[Shader parameters](../reference/SHADER_PARAMETER_BRIDGE.md) declare types, defaults, disabled
 values and ranges in JSON. Commands run outside draw callbacks. The bridge
 checks actual GL uniform types, caches locations per program object and retires
 removed declarations on KubeJS reload. Native providers can restore their own
@@ -56,7 +56,7 @@ values after retirement. It does not create shader-pack passes or inject GLSL.
 Player templates now use `RigWorks`, profiles use the `rigworks:` namespace,
 and player config lives in `rigworks-client.toml`. Existing Showcase registry
 and resource IDs remain `assimploader:*` for world compatibility. See
-[RigWorks migration](../rigworks/README.md). Example scripts are opt-in.
+[RigWorks migration](../../rigworks/README.md). Example scripts are opt-in.
 
 ## Evidence
 
