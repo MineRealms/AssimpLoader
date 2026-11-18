@@ -124,8 +124,8 @@ must clear deleted controllers. Both have regression coverage.
 
 - Contacts: LookDev Player **Contacts**, `character.handContacts`, or
   `/assimploader character contacts on|off`.
-- [Contact schema and script API](RIGWORKS_HAND_CONTACTS.md).
-- [Native channel composition](RIGWORKS_NATIVE_CHANNELS.md).
-- [Modifier dependencies](POSE_EVALUATION_PLAN.md).
-- [Imported capabilities and processor Morph](MODEL_CAPABILITIES_AND_CLIP_MORPHS.md).
-- [KubeJS reload behavior](KUBEJS_RELOAD_LIFECYCLE.md).
+- [Contact schema and script API](https://github.com/MineRealms/RigWorks/blob/main/docs/guides/RIGWORKS_HAND_CONTACTS.md).
+- [Native channel composition](https://github.com/MineRealms/RigWorks/blob/main/docs/guides/RIGWORKS_NATIVE_CHANNELS.md).
+- [Modifier dependencies](../reference/POSE_EVALUATION_PLAN.md).
+- [Imported capabilities and processor Morph](../reference/MODEL_CAPABILITIES_AND_CLIP_MORPHS.md).
+- [KubeJS reload behavior](../reference/KUBEJS_RELOAD_LIFECYCLE.md).
