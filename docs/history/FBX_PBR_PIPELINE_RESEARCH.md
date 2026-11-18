@@ -2,7 +2,7 @@
 
 Date: 2026-11-13. Source inspection only; no production code or runtime configuration changed.
 
-> Historical snapshot before implementation. The missing-slot and dynamic-loader limitations below have since been addressed. Use the current [asset authoring contract](PBR_ASSET_SPEC.md), [PBR usage](OCULUS_PBR_USAGE.md) and [runtime verification](PBR_VALIDATION_2026-11-13.md). The proposed material sidecar was not implemented.
+> Historical snapshot before implementation. The missing-slot and dynamic-loader limitations below have since been addressed. Use the current [asset authoring contract](../guides/PBR_ASSET_SPEC.md), [PBR usage](../guides/OCULUS_PBR_USAGE.md) and [runtime verification](PBR_VALIDATION_2026-11-13.md). The proposed material sidecar was not implemented.
 
 ## Checked Sources
 
