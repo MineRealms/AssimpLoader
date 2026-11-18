@@ -49,6 +49,18 @@ public abstract class BaseAssimpRenderer {
         return AssimpRenderTypes.entity(location, material != null && material.isTransparent());
     }
 
+    /** A scoped index mask shares pose/deformation resources with the full character. */
+    public void renderSelected(AssimpScene scene, AnimationState state, PoseSnapshot snapshot,
+                               cn.minerealms.assimploader.rendering.MeshDrawSelection selection, PoseStack stack,
+                               MultiBufferSource buffers, int light, int overlay, float partialTick) {
+        try (var ignored = selection.activate()) {
+            if (!cn.minerealms.assimploader.rendering.OculusEntityBufferCache.renderPosed(state, snapshot, stack, light, overlay, false))
+                try(var transform=cn.minerealms.assimploader.workbench.client.WorkbenchRuntime.transform(scene,stack)) {
+                    renderSnapshotScene(scene, state, cn.minerealms.assimploader.workbench.client.WorkbenchRuntime.pose(scene,validateSnapshot(scene, snapshot)), stack, buffers, light, overlay);
+                }
+        }
+    }
+
     protected void renderMeshList(AssimpScene scene, PoseStack stack, MultiBufferSource buffers,
                                   int light, int overlay, String modelName, boolean first) {
         renderScene(scene, null, stack, buffers, light, overlay);
@@ -68,11 +80,20 @@ public abstract class BaseAssimpRenderer {
                             MultiBufferSource buffers, int light, int overlay, float partialTick) {
         ClientRenderResources.checkGeneration();
         PoseSnapshot snapshot = snapshotForScene(scene, state, partialTick);
+        try(var transform=cn.minerealms.assimploader.workbench.client.WorkbenchRuntime.transform(scene,stack)) {
+            renderSnapshotScene(scene, state, cn.minerealms.assimploader.workbench.client.WorkbenchRuntime.pose(scene,snapshot), stack, buffers, light, overlay);
+        }
+    }
+
+    private void renderSnapshotScene(AssimpScene scene, AnimationState state, PoseSnapshot snapshot, PoseStack stack,
+                                     MultiBufferSource buffers, int light, int overlay) {
         List<SceneTransforms.Instance> instances = snapshot == null ? SceneTransforms.instances(scene)
                 : snapshot.copyMeshInstances().stream()
                 .map(instance -> new SceneTransforms.Instance(instance.mesh(), instance.transform())).toList();
+        instances=cn.minerealms.assimploader.workbench.client.WorkbenchRuntime.instances(scene,instances);
         ModelInstance configured = state == null ? null : state.getModelInstance();
-        cn.minerealms.assimploader.debug.DebugGeometryRenderer.render(scene,snapshot,configured,stack,buffers);
+        if (cn.minerealms.assimploader.rendering.MeshDrawSelection.current() == null)
+            cn.minerealms.assimploader.debug.DebugGeometryRenderer.render(scene,snapshot,configured,stack,buffers);
         if(configured!=null) configured.noteRenderPass(OculusCompat.isRenderingShadowPass());
         if (configured != null && configured.hasMaterialAnimation()) {
             for (int pass = 0; pass < 2; pass++) for (SceneTransforms.Instance instance : instances) {
@@ -88,18 +109,22 @@ public abstract class BaseAssimpRenderer {
         if (snapshot != null && scene.hasSkeleton()
                 && optimization != AssimpLoaderConfig.OptimizationLevel.FALLBACK
                 && AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.gpuSkinningEnabled::get, true)
-                && !OculusCompat.shouldAvoidCustomShaders()
-                && SceneTransforms.isOpaque(scene)) {
+                && !OculusCompat.shouldAvoidCustomShaders()) {
             var skinned = ClientRenderResources.getSkinnedRenderer();
             if (skinned != null) {
                 // A palette already contains scene parent transforms, so skinned meshes do not
                 // receive their scene-node transform a second time.
-                for (SceneTransforms.Instance instance : instances) {
+                // A small glass overlay must not disable GPU skinning for the opaque body.
+                for (int pass = 0; pass < 2; pass++) for (SceneTransforms.Instance instance : instances) {
+                    var material = ModelTextureCache.material(scene, instance.mesh());
+                    boolean transparent = material != null && material.isTransparent();
+                    if (transparent != (pass == 1)) continue;
+                    var selection = cn.minerealms.assimploader.rendering.MeshDrawSelection.current();
+                    if (selection != null && !selection.contains(instance.mesh())) continue;
                     Matrix4f[] palette = snapshot.getBoneTransforms(instance.mesh());
-                    if (instance.mesh().hasBones() && palette != null
+                    if (!transparent && instance.mesh().hasBones() && palette != null
                             && (!snapshot.hasActiveMorphs(instance.mesh()) || skinned.supportsMorph(instance.mesh()))
                             && skinned.isInitialized() && skinned.supports(palette.length)) {
-                        var material = ModelTextureCache.material(scene, instance.mesh());
                         try {
                             skinned.renderWithSnapshot(state, snapshot, instance.mesh(), stack, buffers,
                                     ModelTextureCache.getTexture(scene, instance.mesh()),
@@ -121,6 +146,7 @@ public abstract class BaseAssimpRenderer {
             return;
         }
         if (!cn.minerealms.assimploader.debug.MaterialDebugViews.active()
+                && cn.minerealms.assimploader.rendering.MeshDrawSelection.current() == null
                 && CachedMeshRenderer.render(scene, instances, stack, buffers, light, overlay)) return;
         renderInstances(scene, instances, stack, buffers, light, overlay);
     }
@@ -155,6 +181,8 @@ public abstract class BaseAssimpRenderer {
     private void renderInstance(AssimpScene scene, PoseSnapshot snapshot, SceneTransforms.Instance instance,
                                  PoseStack stack, MultiBufferSource buffers, int light, int overlay, MaterialAnimation.Sample sample) {
         AssimpMesh mesh = instance.mesh();
+        var selection = cn.minerealms.assimploader.rendering.MeshDrawSelection.current();
+        if (selection != null && !selection.contains(mesh)) return;
         AssimpMaterial material = ModelTextureCache.material(scene, mesh);
         ResourceLocation texture = getTextureLocation(scene, mesh, getModelName());
         RenderType type = sample != null && sample.alpha() < 1 ? AssimpRenderTypes.entity(texture == null ? ModelTextureCache.WHITE : texture, true)
@@ -211,9 +239,12 @@ public abstract class BaseAssimpRenderer {
                               VertexConsumer consumer, int light, int overlay) {
         float[] uv = mesh.getTexCoords();
         int[] indices = mesh.getIndices();
+        var selection = cn.minerealms.assimploader.rendering.MeshDrawSelection.current();
+        int[] selected = selection == null ? null : selection.triangles(mesh);
         float[] color = cn.minerealms.assimploader.debug.MaterialDebugViews.tint(material);
         int count = vertices.length / 3;
-        for (int i = 0; i + 2 < indices.length; i += 3) {
+        for (int triangle = 0, total = selected == null ? indices.length / 3 : selected.length; triangle < total; triangle++) {
+            int i = (selected == null ? triangle : selected[triangle]) * 3;
             int a = indices[i], b = indices[i + 1], c = indices[i + 2];
             if (a < 0 || b < 0 || c < 0 || a >= count || b >= count || c >= count) continue;
             addVertex(consumer, stack.last().pose(), stack.last().normal(), vertices, normals, uv,
