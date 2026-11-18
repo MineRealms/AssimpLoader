@@ -1,6 +1,6 @@
 # LookDev Integration Contract
 
-> Historical integration handoff. CNC/CCB was subsequently removed at the user's request. References below to `ccb` in an earlier smoke run are retained as history, not a current fixture list. Current assets are listed in [Model Showcase](MODEL_SHOWCASE.md); current preview behavior is in [LookDev Preview](LOOKDEV_PREVIEW.md).
+> Historical integration handoff. CNC/CCB was subsequently removed at the user's request. References below to `ccb` in an earlier smoke run are retained as history, not a current fixture list. Current assets are listed in [Model Showcase](../showcase/MODEL_SHOWCASE.md); current preview behavior is in [LookDev Preview](../guides/LOOKDEV_PREVIEW.md).
 
 LookDev owner has implemented `LoadedModelsScreen`, selected-scene `PreviewGpuRenderer` VBO/EBO/shader resources, pure camera/catalog/draw-plan utilities, and six focused tests. `L` and `/lookdev` now open the native Screen. Old ModernUI fragments stay dormant and are not instantiated; Nodes tab is empty.
 
