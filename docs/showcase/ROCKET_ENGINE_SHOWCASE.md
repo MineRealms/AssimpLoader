@@ -95,7 +95,7 @@ The staging run checks the original triangle count and writes a geometry manifes
 fallback dimensions. Java compilation and game rendering are verified by the main
 task; the asset-preparation script does not prove shader behavior or a frame rate.
 
-See [PBR authoring](PBR_ASSET_SPEC.md), [large-model visibility](LARGE_MODELS.md) and
+See [PBR authoring](../guides/PBR_ASSET_SPEC.md), [large-model visibility](../guides/LARGE_MODELS.md) and
 [Showcase placement](MODEL_SHOWCASE.md) for shared contracts.
 
 Engine state, profile commands, volumetric rendering and physical-approximation
