@@ -19,6 +19,7 @@
 | [Equipment Transform Workbench](EQUIPMENT_TRANSFORM_WORKBENCH.md) | In-world left/right hand calibration, orbit camera and persistent equipment JSON |
 | [角色配置同步](CHARACTER_CONFIGURATION_SYNC.md)、[专用动作脚本](AVATAR_BEHAVIOR_RUNTIME.md)、[同步与工作台验收](RIGWORKS_SHARING_VALIDATION_2026-11-18.md) | 默认分享、版本冲突、JSON/JS 分发、按玩家隔离执行、压缩缓存及真实双客户端验证 |
 | [游戏内模型工作台](MODEL_WORKBENCH.md)、[项目格式](WORKBENCH_PROJECT_FORMAT.md) | `/lookdev` → Edit；导入、GPU 骨骼预览、变换/材质/挂点、时间轴、保存和项目 ZIP；含 RigWorks 扩展与共享边界 |
+| [工作台保存与角色继承修复](WORKBENCH_PERSISTENCE_FIXES_2026-11-18.md) | 保存后重开、外部 JSON Reload、原角色动作继承及实机验证 |
 | [游戏内模型工作台 TODO](IN_GAME_WORKBENCH_TODO.md) | 按源码区分已实现与剩余工作；含资源包导出、通用世界视口、通用节点/材质同步等未完成项 |
 | [渲染性能图表与评估](benchmarks/README.md) | 六组图表、历史实测、经验数据、内存/降频计算和管线技术评估 |
 | [自定义玩家角色缺口评估](CUSTOM_PLAYER_GAP_ASSESSMENT_2026-11-17.md) | 对照 cleanroom 规格，区分 FBX/GLB 玩家换模与 PMX/VMD 完整角色系统 |
