@@ -1,8 +1,0 @@
-{
-  "version": 1,
-  "id": "example:avatar",
-  "profile": "example:models/avatar/profile.json",
-  "controller": "example:avatar",
-  "scripts": ["controller.js"],
-  "mappings": "mappings.json"
-}
