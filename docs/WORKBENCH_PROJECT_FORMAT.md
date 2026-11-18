@@ -81,6 +81,24 @@ rejects stale queued writes and removes the result of a write invalidated while
 in progress. Cleanup failure leaves the session and window intact and reports an
 error. Project opening checks for unsaved edits before IO and before replacement.
 
+## Extension Save Contract
+
+`WorkbenchExtensions.Context.saveProject()` delegates to its owning
+`ProjectSaver.saveProject(expectedSession)`. Call it on the client thread after
+writing the latest extension state into `context.session()`. Its future completes
+on that thread after the atomic write and saved-baseline update, returning the
+exact immutable persisted document. Failure completes exceptionally; a mismatched
+session or an incompatible busy operation is rejected. `context.projectPath()`
+returns the formal JSON path, or `null` before the first project copy exists.
+
+This API saves the project without invoking extension application, so a consumer
+can apply the returned snapshot after success without a save/apply cycle. The
+generic toolbar Save separately calls extension application against that saved
+snapshot. Edits made after JSON writing begins remain dirty; neither the callback
+nor the saved baseline claims that those newer edits reached disk. If only
+recovery-file cleanup fails after a successful formal write, the baseline still
+advances and the screen reports the cleanup warning.
+
 `exportZip` exports the supplied draft and copied assets as a portable project;
 it does not register new Minecraft block/item IDs or claim to be an automatically
 installable resource pack. Runtime asset application and module-specific exports

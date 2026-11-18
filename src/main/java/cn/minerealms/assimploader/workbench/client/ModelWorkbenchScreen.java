@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -36,12 +37,15 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 /** A lightweight asset editor, sharing the engine's imported scenes and immutable edit document. */
-public final class ModelWorkbenchScreen extends Screen {
+public final class ModelWorkbenchScreen extends Screen implements WorkbenchExtensions.ProjectSaver {
     private static final ThreadPoolExecutor IO=new ThreadPoolExecutor(1,1,30,TimeUnit.SECONDS,new ArrayBlockingQueue<>(4),r->{Thread t=new Thread(r,"AssimpLoader-workbench");t.setDaemon(true);return t;},new ThreadPoolExecutor.AbortPolicy());
     private enum Section { ASSETS, NODES, MATERIALS, SOCKETS }
-    private enum Operation { NORMAL, RECOVERY, DISCARD }
+    private enum Operation { NORMAL, RECOVERY, DISCARD, SAVE }
     private record Row(String label,String key,int depth,int index) {}
     private record Label(String text,int x,int y) {}
+    private record OpenedProject(WorkbenchProjectStore.Project project,WorkbenchProjectStore.Recovery recovery) {}
+    private record ImportedProject(WorkbenchProjectStore.Project project,WorkbenchDocument sourceDefaults) {}
+    private record SavedProject(WorkbenchDocument document,String warning) {}
     private final PreviewCamera camera=new PreviewCamera();
     private final WorkbenchGizmo gizmo=new WorkbenchGizmo();
     private final Vector3f focus=new Vector3f();
@@ -169,16 +173,24 @@ public final class ModelWorkbenchScreen extends Screen {
     private boolean allowReplace(){if(session!=null&&session.dirty()){status="Save or revert current edits before switching projects";return false;}return !busy;}
     public void importPath(Path input){
         if(!allowReplace())return;
-        task("Importing "+input.getFileName(),()->{try{return store.importAsset(input);}catch(Exception e){throw new RuntimeException(e);}},this::load);
+        task("Importing "+input.getFileName(),()->{try{return withRecovery(store.importAsset(input));}catch(Exception e){throw new RuntimeException(e);}},this::loadOpened);
     }
     public void open(Path input){
         if(!allowReplace())return;
-        task("Opening project",()->{try{var p=store.open(input);return new Object[]{p,store.readDraft(p.documentPath())};}catch(Exception e){throw new RuntimeException(e);}},result->{
-            if(!allowReplace())return;
-            var p=(WorkbenchProjectStore.Project)result[0];load(p);
-            @SuppressWarnings("unchecked") var recovery=(java.util.Optional<WorkbenchDocument>)result[1];
-            if(recovery.isPresent()&&!recovery.get().equals(session.document())){session.set(recovery.get());status="Recovered unsaved draft";refreshIssues();syncClock();rebuildWidgets();}
-        });
+        task("Opening project",()->{try{return withRecovery(store.open(input));}catch(Exception e){throw new RuntimeException(e);}},this::loadOpened);
+    }
+    private OpenedProject withRecovery(WorkbenchProjectStore.Project project){return new OpenedProject(project,store.readRecovery(project.documentPath(),project.document()));}
+    private void loadOpened(OpenedProject opened){
+        if(!allowReplace())return;
+        load(opened.project());
+        if(!opened.recovery().issues().isEmpty()){
+            var all=new ArrayList<>(metadata.issues());all.addAll(opened.recovery().issues());
+            metadata=new SceneMetadata(metadata.nodes(),metadata.meshes(),metadata.materials(),metadata.clips(),metadata.bounds(),all,
+                    metadata.skinned(),metadata.embeddedTextures(),metadata.sourceFormat(),metadata.sourceGenerator());
+            status="Opened saved project; recovery draft ignored";
+        }
+        opened.recovery().document().ifPresent(draft->{session.set(draft);status="Recovered unsaved draft";syncClock();rebuildWidgets();});
+        refreshIssues();
     }
     private void load(WorkbenchProjectStore.Project project){load(project.scene(),project.metadata(),project,project.document(),project.document().assetId());}
     private void load(AssimpScene scene,SceneMetadata meta,WorkbenchProjectStore.Project project,WorkbenchDocument document,String name){
@@ -286,8 +298,8 @@ public final class ModelWorkbenchScreen extends Screen {
         if(save!=null)save.active=session!=null&&!busy;if(undo!=null)undo.active=session!=null&&session.canUndo();if(redo!=null)redo.active=session!=null&&session.canRedo();
         long current=AssimpModelLoader.getCacheGeneration();if(generation!=current){releaseRenderer();generation=current;rendered=failed=false;status="Resources reloaded";}
         if(++autosaveTicks>=100){autosaveTicks=0;if(project!=null&&session.dirty()&&session.revision()!=draftRevision&&!busy){
-            var doc=session.document();var pending=recovery;long revision=session.revision(),epoch=pending.generation();
-            task("Saving recovery",()->{try{return pending.save(epoch,doc);}catch(Exception e){throw new RuntimeException(e);}},written->{if(written){draftRevision=revision;status="Recovery draft saved";}},Operation.RECOVERY);
+            var doc=session.document();var base=session.savedDocument();var pending=recovery;long revision=session.revision(),epoch=pending.generation();
+            task("Saving recovery",()->{try{return pending.save(epoch,base,doc);}catch(Exception e){throw new RuntimeException(e);}},written->{if(written){draftRevision=revision;status="Recovery draft saved";}},Operation.RECOVERY);
         }}
     }
     @Override public void render(GuiGraphics g,int mx,int my,float partial){
@@ -395,17 +407,56 @@ public final class ModelWorkbenchScreen extends Screen {
     @Override public void onFilesDrop(List<Path> paths){if(!paths.isEmpty())importPath(paths.get(0));}
     private void pathDialog(boolean importing){commit();minecraft.setScreen(new PathScreen(this,importing));}
     public void save(){
-        if(session==null||busy)return;commit();animationEdit();WorkbenchDocument snapshot=session.document();
-        if(project==null){var source=scene;var resources=minecraft.getResourceManager();task("Creating project",()->{try{return WorkbenchAssets.importLoaded(store,source,resources);}catch(Exception e){throw new RuntimeException(e);}},p->{
-            var mapped=new java.util.LinkedHashMap<>(snapshot.materials());
-            for(var entry:snapshot.materials().entrySet()){
-                var m=entry.getValue();var original=WorkbenchDocument.MaterialOverride.from(source.getMaterials().get(entry.getKey()));var imported=p.document().materials().get(entry.getKey());
-                var paths=new java.util.LinkedHashMap<>(m.textures());paths.replaceAll((slot,path)->path.equals(original.textures().get(slot))?imported.textures().getOrDefault(slot,path):path);
-                mapped.put(entry.getKey(),new WorkbenchDocument.MaterialOverride(m.r(),m.g(),m.b(),m.a(),m.metallic(),m.roughness(),m.emission(),m.alphaMode(),m.cutoff(),m.doubleSided(),paths));
-            }
-            var merged=new WorkbenchDocument(1,p.document().assetId(),p.document().sourcePath(),p.document().contentHash(),snapshot.transform(),snapshot.nodes(),mapped,snapshot.sockets(),snapshot.animation(),snapshot.extensions());
-            load(p);session.set(merged);save();});return;}
-        var file=project.documentPath();task("Saving project",()->{try{store.save(file,snapshot);store.discardDraft(file);return snapshot;}catch(Exception e){throw new RuntimeException(e);}},saved->{if(session.document().equals(saved))session.markSaved();status="Saved "+file.getParent().getFileName();applyExtensions();});
+        if(session==null)return;
+        commit();animationEdit();
+        saveProject(session).thenAccept(saved->{
+            try{applyExtensions(saved);}catch(RuntimeException error){status="Project saved; extension apply failed: "+error.getMessage();AssimpLoader.LOGGER.warn("Saved workbench extension could not be applied",error);}
+        });
+    }
+    @Override public Path projectPath(){return project==null?null:project.documentPath();}
+    @Override public CompletableFuture<WorkbenchDocument> saveProject(WorkbenchSession expectedSession){
+        if(minecraft==null||!minecraft.isSameThread())return CompletableFuture.failedFuture(new IllegalStateException("Save must start on the client thread"));
+        if(expectedSession==null||expectedSession!=session||scene==null)return saveRejected("This edit session no longer belongs to the workbench");
+        if(busy&&operation!=Operation.RECOVERY)return saveRejected("Wait for the current workbench operation before saving");
+        commit();
+        if(recovery!=null)recovery.invalidatePendingWrites();
+        if(project!=null)return persistProject(expectedSession);
+        var source=scene;var initial=session.document();var resources=minecraft.getResourceManager();
+        return task("Creating project",()->{
+            try{return new ImportedProject(WorkbenchAssets.importLoaded(store,source,resources),
+                    WorkbenchDocument.defaults(source,initial.assetId(),initial.sourcePath(),initial.contentHash()));}
+            catch(Exception e){throw new RuntimeException(e);}
+        },imported->adoptProject(expectedSession,imported),Operation.SAVE).thenCompose(imported->persistProject(expectedSession));
+    }
+    private CompletableFuture<WorkbenchDocument> saveRejected(String message){status=message;return CompletableFuture.failedFuture(new IllegalStateException(message));}
+    private void adoptProject(WorkbenchSession target,ImportedProject imported){
+        if(session!=target)throw new IllegalStateException("Workbench edit session changed during import");
+        var copied=imported.project();
+        target.rebase(document->document.rebaseAsset(imported.sourceDefaults(),copied.document()));
+        releaseRenderer();scene=copied.scene();metadata=copied.metadata();project=copied;
+        recovery=new WorkbenchRecovery(store,copied.documentPath());
+        data=new PreviewSceneData(scene);pose=new WorkbenchPose(scene);rendered=failed=false;draftRevision=-1;
+        if(!projects.contains(copied.documentPath())){var list=new ArrayList<>(projects);list.add(copied.documentPath());projects=List.copyOf(list);}
+        refreshIssues();refreshRows();rebuildWidgets();
+    }
+    private CompletableFuture<WorkbenchDocument> persistProject(WorkbenchSession target){
+        if(session!=target||project==null)return saveRejected("Workbench edit session changed before saving");
+        // First-copy IO may have taken time: capture the latest edits only after adopting its portable paths.
+        commit();var snapshot=target.document();var file=project.documentPath();
+        return task("Saving project",()->{
+            try{
+                store.save(file,snapshot);
+                String warning="";
+                try{store.discardDraft(file);}catch(java.io.IOException cleanup){warning="recovery cleanup failed";AssimpLoader.LOGGER.warn("Project saved but recovery cleanup failed: {}",file,cleanup);}
+                return new SavedProject(snapshot,warning);
+            }catch(Exception e){throw new RuntimeException(e);}
+        },saved->{
+            target.markSaved(saved.document());
+            project=new WorkbenchProjectStore.Project(project.directory(),file,scene,saved.document(),metadata);
+            draftRevision=-1;autosaveTicks=0;
+            status="Saved "+file.getParent().getFileName()+(target.dirty()?" (newer edits remain)":"")+
+                    (saved.warning().isEmpty()?"":"; "+saved.warning());
+        },Operation.SAVE).thenApply(SavedProject::document);
     }
     private void export(){if(project==null){status="Save this project before exporting";return;}var p=project;var doc=session.document();Path destination=store.root().resolve("exports").resolve(project.directory().getFileName()+".zip");task("Exporting",()->{try{return store.exportZip(p,doc,destination);}catch(Exception e){throw new RuntimeException(e);}},path->status="Exported "+path.getFileName());}
     private void apply(){
@@ -418,6 +469,10 @@ public final class ModelWorkbenchScreen extends Screen {
         status="Applied locally";
     }
     private void applyExtensions(){for(var extension:WorkbenchExtensions.available(context()))extension.apply(context());}
+    private void applyExtensions(WorkbenchDocument persisted){
+        var savedContext=new WorkbenchExtensions.Context(scene,new WorkbenchSession(persisted),this);
+        for(var extension:WorkbenchExtensions.available(savedContext))extension.apply(savedContext);
+    }
     private void revertSaved(boolean close){
         if(session==null)return;
         if(busy&&operation!=Operation.RECOVERY){status="Wait for the current operation before discarding edits";return;}
@@ -433,18 +488,28 @@ public final class ModelWorkbenchScreen extends Screen {
         syncClock();refreshIssues();refreshRows();rebuildWidgets();status="Reverted to saved project";
         if(close)LookDevNavigation.close(null);
     }
-    private <T> void task(String label,Supplier<T> work,Consumer<T> complete){
-        task(label,work,complete,Operation.NORMAL);
+    private <T> CompletableFuture<T> task(String label,Supplier<T> work,Consumer<T> complete){
+        return task(label,work,complete,Operation.NORMAL);
     }
-    private <T> void task(String label,Supplier<T> work,Consumer<T> complete,Operation next){
+    private <T> CompletableFuture<T> task(String label,Supplier<T> work,Consumer<T> complete,Operation next){
         // Queue explicit cleanup after an autosave and ignore its superseded UI callback.
-        if(busy&&!(next==Operation.DISCARD&&operation==Operation.RECOVERY))return;
+        if(busy&&!((next==Operation.DISCARD||next==Operation.SAVE)&&operation==Operation.RECOVERY))
+            return CompletableFuture.failedFuture(new IllegalStateException("Workbench is busy"));
+        var completion=new CompletableFuture<T>();
         busy=true;operation=next;status=label;int token=++request;
         try{CompletableFuture.supplyAsync(work,IO).whenComplete((result,error)->minecraft.execute(()->{
-            if(token!=request)return;busy=false;
-            if(error!=null){Throwable cause=error;while(cause.getCause()!=null)cause=cause.getCause();status=cause.getMessage()==null?cause.toString():cause.getMessage();AssimpLoader.LOGGER.warn("Workbench operation failed: {}",label,cause);}
-            else{status="";complete.accept(result);}
-        }));}catch(RuntimeException rejected){busy=false;status="Import queue is full";}
+            if(token!=request){completion.completeExceptionally(new CancellationException("Workbench operation superseded"));return;}
+            busy=false;
+            Throwable failure=error;
+            if(failure==null){
+                try{status="";complete.accept(result);completion.complete(result);return;}
+                catch(RuntimeException callbackFailure){failure=callbackFailure;}
+            }
+            Throwable cause=failure;while(cause.getCause()!=null)cause=cause.getCause();
+            status=cause.getMessage()==null?cause.toString():cause.getMessage();AssimpLoader.LOGGER.warn("Workbench operation failed: {}",label,cause);
+            completion.completeExceptionally(cause);
+        }));}catch(RuntimeException rejected){busy=false;status="Workbench IO queue is full";completion.completeExceptionally(rejected);}
+        return completion;
     }
     private void releaseRenderer(){if(renderer!=null){renderer.close();renderer=null;}}
     @Override public void removed(){releaseRenderer();dragButton=-1;gizmo.cancel();commit();}
