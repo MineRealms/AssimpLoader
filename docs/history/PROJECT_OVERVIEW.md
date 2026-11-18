@@ -2,7 +2,7 @@
 
 Minecraft Forge 1.20.1 的 Assimp 模型加载、动画渲染和 LookDev 模型预览工具。
 
-[快速开始](QUICK_START.md) | [文档索引](README.md) | [修复与验收](FIXES_2026-11-13.md) | [首轮审计](AUDIT_2026-11-13.md)
+[快速开始](../guides/QUICK_START.md) | [文档索引](../README.md) | [修复与验收](FIXES_2026-11-13.md) | [首轮审计](AUDIT_2026-11-13.md)
 
 ## 当前状态
 
@@ -16,7 +16,7 @@ Minecraft Forge 1.20.1 的 Assimp 模型加载、动画渲染和 LookDev 模型�
 | 骨骼/IK | 保留辅助父节点、多 root、绑定姿态及缺省动画通道；GPU 使用最强四个影响；IK 有数据测试 |
 | LookDev | `L` / `/lookdev` 浏览全部已加载模型；GPU 预览、筛选、旋转、平移、缩放；节点页留空 |
 | 节点/GLSL | 旧编辑器保留为未启用代码，不执行节点材质或 shader 注入 |
-| Photon/Oculus | 可选依赖与 mixin 缺失保护；支持 Blender FBX/GLB 嵌入 PBR 图像与 LabPBR `_n`/`_s`，见[材质说明](OCULUS_PBR_USAGE.md)与[实机验收](PBR_VALIDATION_2026-11-13.md) |
+| Photon/Oculus | 可选依赖与 mixin 缺失保护；支持 Blender FBX/GLB 嵌入 PBR 图像与 LabPBR `_n`/`_s`，见[材质说明](../guides/OCULUS_PBR_USAGE.md)与[实机验收](PBR_VALIDATION_2026-11-13.md) |
 | Gaussian Splatting | 修复布局、排序、LOD 和真实 TBO 回退；仍为独立原型，没有世界入口 |
 | 热重载/缓存 | 版本化缓存、后台原子替换、删除恢复、F3+T 失效及客户端 GPU/贴图资源清理 |
 
@@ -61,13 +61,13 @@ Linux/macOS 使用 `./gradlew`。ModernUI 和固定版本的 Photon/LDLib 开发
 .\gradlew.bat runClient --console=plain --no-daemon --no-parallel
 ```
 
-在有命令权限的测试世界执行 `/assimpdemo` 可放置八组展示模型，包括 CIWS、刀、PBR 探针和传送门。单独获取传送门可用 `/give @s assimploader:showcase_portal_pbr`，详见 [世界展示](MODEL_SHOWCASE.md)。
+在有命令权限的测试世界执行 `/assimpdemo` 可放置八组展示模型，包括 CIWS、刀、PBR 探针和传送门。单独获取传送门可用 `/give @s assimploader:showcase_portal_pbr`，详见 [世界展示](../showcase/MODEL_SHOWCASE.md)。
 
-制作新资产时先阅读 [PBR 资产与 FBX 接入规范](PBR_ASSET_SPEC.md)，其中列明材质节点、贴图命名、UV、透明度、单位、层级和枢轴要求。光影设置及截图见 [PBR 使用](OCULUS_PBR_USAGE.md)与[实机验收](PBR_VALIDATION_2026-11-13.md)。
+制作新资产时先阅读 [PBR 资产与 FBX 接入规范](../guides/PBR_ASSET_SPEC.md)，其中列明材质节点、贴图命名、UV、透明度、单位、层级和枢轴要求。光影设置及截图见 [PBR 使用](../guides/OCULUS_PBR_USAGE.md)与[实机验收](PBR_VALIDATION_2026-11-13.md)。
 
 旧 CNC/CCB 示例代码、注册项、模型与关联美术资源已移除。旧存档中的 `assimploader:cnc` 方块及其方块实体会成为缺失注册项；升级前备份需要保留这些内容的存档。
 
-LookDev 默认在世界中按 `L` 或执行 `/lookdev` 打开，操作见 [预览说明](LOOKDEV_PREVIEW.md)。开发日志位于 `run/logs/latest.log`，其他游戏实例使用其自己的 `logs/latest.log`。
+LookDev 默认在世界中按 `L` 或执行 `/lookdev` 打开，操作见 [预览说明](../guides/LOOKDEV_PREVIEW.md)。开发日志位于 `run/logs/latest.log`，其他游戏实例使用其自己的 `logs/latest.log`。
 
 ## 项目结构
 
@@ -101,18 +101,18 @@ git diff --check
 
 | 资料 | 内容 |
 | --- | --- |
-| [快速开始](QUICK_START.md) | 安装、构建、示例和自定义资源 |
-| [文档索引](README.md) | 按主题组织使用资料、设计和历史报告 |
+| [快速开始](../guides/QUICK_START.md) | 安装、构建、示例和自定义资源 |
+| [文档索引](../README.md) | 按主题组织使用资料、设计和历史报告 |
 | [修复记录](FIXES_2026-11-13.md) | 审计条目处理状态、构建与运行证据、剩余边界 |
 | [首轮审计](AUDIT_2026-11-13.md) | 修复前问题、Git 线索和第一阶段验证快照 |
-| [LookDev 预览](LOOKDEV_PREVIEW.md) | 当前界面的模型列表、视角操作和绘制方式 |
-| [PBR 资产规范](PBR_ASSET_SPEC.md) | FBX/GLB 制作、贴图通道、导出与美术交付 |
+| [LookDev 预览](../guides/LOOKDEV_PREVIEW.md) | 当前界面的模型列表、视角操作和绘制方式 |
+| [PBR 资产规范](../guides/PBR_ASSET_SPEC.md) | FBX/GLB 制作、贴图通道、导出与美术交付 |
 | [PBR 实机验收](PBR_VALIDATION_2026-11-13.md) | 法线、金属、玻璃、光影开关和重载截图 |
-| [动画资料](ANIMATION_USAGE_GUIDE.md) | 动画 API 和使用设计 |
+| [动画资料](../guides/ANIMATION_USAGE_GUIDE.md) | 动画 API 和使用设计 |
 | [IK 集成](IK_SYSTEM_INTEGRATION_PLAN.md) | IK 系统设计和阶段说明 |
 
 ## 来源与许可
 
-项目许可见 [LICENSE](../LICENSE)，内嵌源码、shader 及打包依赖的来源和许可材料见 [第三方声明](THIRD_PARTY_NOTICES.md) 与仓库根目录的 `licenses/`；这些文件也随发布包分发。Caliko 的原始导入 revision 未被历史记录保存，因此不声称精确上游版本。
+项目许可见 [LICENSE](../../LICENSE)，内嵌源码、shader 及打包依赖的来源和许可材料见 [第三方声明](../THIRD_PARTY_NOTICES.md) 与仓库根目录的 `licenses/`；这些文件也随发布包分发。Caliko 的原始导入 revision 未被历史记录保存，因此不声称精确上游版本。
 
 主要使用 Assimp、ModernUI、JOML、Gson 和内嵌 Caliko 代码。项目开发者包括 CARIERX，历史开发记录保留在仓库文档和 Git 中。
