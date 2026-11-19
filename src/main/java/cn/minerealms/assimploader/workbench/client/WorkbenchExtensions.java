@@ -9,6 +9,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+import java.util.function.BooleanSupplier;
+import cn.minerealms.assimploader.workbench.model.ModelTransform;
 
 /** Consumer modules contribute typed panels and application without becoming engine dependencies. */
 public final class WorkbenchExtensions {
@@ -19,9 +22,11 @@ public final class WorkbenchExtensions {
                     CompletableFuture.failedFuture(new IllegalStateException("This editor has no owning workbench project"));
         }
         public Path projectPath() {return parent instanceof ProjectSaver saver?saver.projectPath():null;}
+        public void refresh() {if(parent instanceof ModelWorkbenchScreen editor)editor.refreshExtension();}
+        public void previewClip(String clip) {if(parent instanceof ModelWorkbenchScreen editor)editor.previewClip(clip);}
     }
     public interface ProjectSaver {
-        /** Completes on the client thread after persistence, with the exact saved snapshot; never applies extensions. */
+        /** Completes on the client thread after persistence and the consumer's saved hook. */
         CompletableFuture<WorkbenchDocument> saveProject(WorkbenchSession expectedSession);
         default Path projectPath() {return null;}
     }
@@ -30,6 +35,19 @@ public final class WorkbenchExtensions {
         String title();
         boolean supports(Context context);
         Screen open(Context context);
+        /** Import is explicit. Merely having bones never activates a consumer. */
+        default boolean canImport() {return false;}
+        default CompletableFuture<Void> initialize(Context context) {return CompletableFuture.completedFuture(null);}
+        default List<Panel> panels(Context context) {return List.of();}
+        default boolean ownsRootTransform() {return false;}
+        default ModelTransform rootTransform(Context context) {return context.session().document().transform();}
+        default void rootTransform(Context context,ModelTransform transform) {context.session().edit(d->d.withTransform(transform));}
+        /** Captures external authoring files asynchronously; completion must return to the client thread. */
+        default CompletableFuture<Void> prepareAsync(Context context) {return CompletableFuture.completedFuture(null);}
+        /** Stages derived consumer data before the shared Save/Apply/Export snapshot. */
+        default void prepare(Context context) {}
+        default void saved(Context context) {}
+        default Map<String,byte[]> packageFiles(Context context) {return Map.of();}
         /** Optional registered page used by the shared navigation shell. */
         default cn.minerealms.assimploader.client.ui.WorkbenchPageRegistry.Key navigationPage() { return null; }
         /** Project open/import only, after formal/recovery selection; may stage newer consumer data as dirty edits. */
@@ -37,8 +55,31 @@ public final class WorkbenchExtensions {
         default boolean handlesApplication() { return false; }
         default void apply(Context context) {}
     }
+    public interface Panel {
+        String id();
+        String title();
+        void build(Inspector inspector);
+    }
+    /** Controls are laid out, clipped and owned by the engine's single inspector. */
+    public interface Inspector {
+        Context context();
+        void label(String text);
+        void text(String title,String value,Consumer<String> setter);
+        void number(String title,float value,Consumer<Float> setter);
+        void toggle(String title,BooleanSupplier value,Runnable action);
+        void action(String title,Runnable action);
+        void select(String title,List<String> values,String selected,Consumer<String> setter);
+    }
     private static final Map<String, Extension> EXTENSIONS = new LinkedHashMap<>();
     private WorkbenchExtensions() {}
-    public static void register(Extension extension) { EXTENSIONS.put(extension.id(), extension); }
+    public static void register(Extension extension) {
+        java.util.Objects.requireNonNull(extension);
+        if(extension.id()==null||!extension.id().matches("[a-z0-9_.-]{1,64}")||extension.title()==null||extension.title().isBlank())
+            throw new IllegalArgumentException("A workbench extension needs a stable ID and title");
+        var previous=EXTENSIONS.putIfAbsent(extension.id(),extension);
+        if(previous!=null&&previous!=extension)throw new IllegalArgumentException("Duplicate workbench extension: "+extension.id());
+    }
+    public static List<Extension> all() {return List.copyOf(EXTENSIONS.values());}
+    public static Extension get(String id) {var value=EXTENSIONS.get(id);if(value==null)throw new IllegalArgumentException("Unknown workbench extension: "+id);return value;}
     public static List<Extension> available(Context context) { return EXTENSIONS.values().stream().filter(e -> e.supports(context)).toList(); }
 }

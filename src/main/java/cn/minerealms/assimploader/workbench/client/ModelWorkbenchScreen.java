@@ -47,6 +47,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private record OpenedProject(WorkbenchProjectStore.Project project,WorkbenchProjectStore.Recovery recovery) {}
     private record ImportedProject(WorkbenchProjectStore.Project project,WorkbenchDocument sourceDefaults) {}
     private record SavedProject(WorkbenchDocument document,String warning) {}
+    private record ExtensionPanel(WorkbenchExtensions.Extension owner,WorkbenchExtensions.Panel panel) {}
     private final PreviewCamera camera=new PreviewCamera();
     private final WorkbenchGizmo gizmo=new WorkbenchGizmo();
     private final Vector3f focus=new Vector3f();
@@ -70,6 +71,8 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private EditBox search;
     private int left,right,sectionColumns=2,scroll,inspectorScroll,inspectorMaxScroll,dragButton=-1,request;
     private String selectedNode="",selectedSocket="",status="",query="";
+    private String extensionPanel="";
+    private List<ExtensionPanel> extensionPanels=List.of();
     private int selectedMaterial=-1;
     private boolean busy,playing,loop=true,rendered,failed,showSkeleton=true,catalogRequested;
     private Operation operation=Operation.NORMAL;
@@ -90,7 +93,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         left=Math.max(116,Math.min(190,width/5));right=Math.max(152,Math.min(218,width/4));
         LookDevNavigation.install(this,this::addRenderableWidget,LookDevNavigation.Page.WORKBENCH);
         int tx=8;
-        tool(tx,FlatUi.Icon.IMPORT,"Import FBX or folder",()->pathDialog(true));tx+=30;
+        tool(tx,FlatUi.Icon.IMPORT,"Import model or asset ZIP",()->requestImport(null));tx+=30;
         tool(tx,FlatUi.Icon.OPEN,"Open project",()->pathDialog(false));tx+=30;
         save=tool(tx,FlatUi.Icon.SAVE,"Save project",this::save);tx+=34;
         undo=tool(tx,FlatUi.Icon.UNDO,"Undo",()->history(false));tx+=30;
@@ -152,12 +155,18 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
                 default->{}
             }
         }
+        if(session!=null){
+            extensionPanels=WorkbenchExtensions.available(context()).stream().flatMap(e->e.panels(context()).stream().map(p->new ExtensionPanel(e,p))).toList();
+            for(var panel:extensionPanels)list.add(new Row("["+panel.owner.title()+"] "+panel.panel.title(),"extension:"+panel.owner.id()+"/"+panel.panel.id(),0,-1));
+        }
         rows=list.stream().filter(row->row.label.toLowerCase(Locale.ROOT).contains(filter)||row.key.toLowerCase(Locale.ROOT).contains(filter)).toList();
         if(session!=null&&!selectedSocket.isEmpty()&&!session.document().sockets().containsKey(selectedSocket))selectedSocket="";
         scroll=Math.min(scroll,Math.max(0,rows.size()-rowCount()));
     }
     private void select(Row row){
         commit();
+        if(row.key.startsWith("extension:")){extensionPanel=row.key;selectedNode=selectedSocket="";selectedMaterial=-1;inspectorScroll=0;rebuildWidgets();return;}
+        extensionPanel="";
         if(section==Section.ASSETS){
             if(!allowReplace())return;
             if(row.key.startsWith("loaded:")){var entry=loaded.get(row.index);task("Inspecting model",()->SceneMetadata.inspect(entry.scene()),meta->load(entry.scene(),meta,null,null,entry.name()));}
@@ -175,8 +184,23 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     }
     private boolean allowReplace(){if(session!=null&&session.dirty()){status="Save or revert current edits before switching projects";return false;}return !busy;}
     public void importPath(Path input){
+        importPath(input,null);
+    }
+    public void requestImport(String extension){
         if(!allowReplace())return;
-        task("Importing "+input.getFileName(),()->{try{return withRecovery(store.importAsset(input));}catch(Exception e){throw new RuntimeException(e);}},this::loadOpened);
+        minecraft.setScreen(new PathScreen(this,true,extension));
+    }
+    public void importPath(Path input,String extension){
+        if(!allowReplace())return;
+        task("Importing "+input.getFileName(),()->{try{return withRecovery(store.importAsset(input));}catch(Exception e){throw new RuntimeException(e);}},opened->{
+            loadOpened(opened);
+            if(extension!=null&&!session.document().extensions().has(extension)){
+                var imported=session;var original=imported.document();
+                awaitExtensions("Preparing "+extension+" configuration",()->WorkbenchExtensions.get(extension).initialize(context()))
+                        .whenComplete((unused,error)->{if(error!=null&&session==imported){imported.set(original);refreshExtension();}})
+                        .thenRun(()->{status="Imported ["+extension+"]";refreshExtension();fit();});
+            }
+        });
     }
     public void open(Path input){
         if(!allowReplace())return;
@@ -218,7 +242,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         recovery=project==null?null:new WorkbenchRecovery(store,project.documentPath());
         if(document==null)document=WorkbenchDocument.defaults(scene,name,scene.getSourcePath()==null?"source.fbx":scene.getSourcePath().getFileName().toString(),"");
         session=new WorkbenchSession(document);data=new PreviewSceneData(scene);pose=new WorkbenchPose(scene);
-        selectedNode=selectedSocket="";selectedMaterial=-1;rendered=failed=false;section=Section.NODES;scroll=0;inspectorScroll=0;
+        selectedNode=selectedSocket=extensionPanel="";selectedMaterial=-1;rendered=failed=false;section=Section.NODES;scroll=0;inspectorScroll=0;
         syncClock();refreshIssues();fit();status="";draftRevision=-1;rebuildWidgets();
         if(project!=null&&!projects.contains(project.documentPath())){var list=new ArrayList<>(projects);list.add(project.documentPath());projects=List.copyOf(list);}
     }
@@ -226,24 +250,29 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private void refreshIssues(){if(session==null)return;var all=new ArrayList<>(metadata.issues());all.addAll(session.document().validateReferences(metadata));issues=List.copyOf(all);}
     private void fit(){
         if(data==null||session==null)return;
-        Matrix4f transform=session.document().transform().matrix();transform.transformPosition(data.center(),focus);
-        float radius=data.radius()*Math.max(Math.abs(session.document().transform().sx()),Math.max(Math.abs(session.document().transform().sy()),Math.abs(session.document().transform().sz())));
+        ModelTransform root=rootTransform();Matrix4f transform=root.matrix();transform.transformPosition(data.center(),focus);
+        float radius=data.radius()*Math.max(Math.abs(root.sx()),Math.max(Math.abs(root.sy()),Math.abs(root.sz())));
         camera.fit(radius,(float)viewportWidth()/viewportHeight());
     }
     private ModelTransform selectedTransform(){
         var doc=session.document();
         if(!selectedSocket.isEmpty())return doc.sockets().get(selectedSocket).transform();
-        return selectedNode.isEmpty()?doc.transform():doc.nodes().getOrDefault(selectedNode,WorkbenchDocument.NodeOverride.DEFAULT).transform();
+        return selectedNode.isEmpty()?rootTransform():doc.nodes().getOrDefault(selectedNode,WorkbenchDocument.NodeOverride.DEFAULT).transform();
     }
     private void setTransform(ModelTransform transform,boolean transaction){
         if(session==null)return;if(transaction)session.beginTransaction();
         if(!selectedSocket.isEmpty()){var socket=session.document().sockets().get(selectedSocket);session.edit(d->d.withSocket(selectedSocket,new WorkbenchDocument.Socket(socket.node(),transform)));}
-        else if(selectedNode.isEmpty())session.edit(d->d.withTransform(transform));
+        else if(selectedNode.isEmpty()){var owner=rootOwner();if(owner==null)session.edit(d->d.withTransform(transform));else owner.rootTransform(context(),transform);}
         else session.edit(d->d.withNode(selectedNode,new WorkbenchDocument.NodeOverride(transform,d.nodes().getOrDefault(selectedNode,WorkbenchDocument.NodeOverride.DEFAULT).visible())));
     }
     private void buildInspector(){
         int x=inspectorX(),w=right-16,y=112-inspectorScroll;
         if(session==null)return;
+        if(!extensionPanel.isEmpty()){
+            var panel=extensionPanels.stream().filter(p->extensionPanel.equals("extension:"+p.owner.id()+"/"+p.panel.id())).findFirst().orElse(null);
+            if(panel!=null){panel.panel.build(new ExtensionInspector(x,y,w));return;}
+            extensionPanel="";
+        }
         if(selectedMaterial>=0){buildMaterial(x,y,w);return;}
         if(!selectedSocket.isEmpty()){
             var socket=session.document().sockets().get(selectedSocket);
@@ -266,15 +295,68 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         if(!selectedSocket.isEmpty()){addRenderableWidget(FlatUi.button(x,y,w,24,Component.literal("Remove socket"),b->{edit(d->d.withSocket(selectedSocket,null));selectedSocket="";refreshRows();rebuildWidgets();}));y+=32;}
         if(selectedNode.isEmpty()&&selectedSocket.isEmpty()){
             float h=data.size().y;
-            numberField("Target height (blocks)",h*Math.abs(session.document().transform().sy()),x,y+14,w,v->{if(v>0&&h>0){float scale=v/h;setTransform(selectedTransform().withScale(scale,scale,scale),true);}});y+=52;
+            numberField("Target height (blocks)",h*Math.abs(rootTransform().sy()),x,y+14,w,v->{if(v>0&&h>0){float scale=v/h;setTransform(selectedTransform().withScale(scale,scale,scale),true);}});y+=52;
         }
         addRenderableWidget(FlatUi.toggle(x,y,w,24,Component.literal("Skeleton / sockets"),()->showSkeleton,b->showSkeleton=!showSkeleton));y+=32;
-        for(var extension:WorkbenchExtensions.available(context())){
-            var e=extension;addRenderableWidget(FlatUi.button(x,y,w,24,Component.literal(e.title()),b->{commit();if(e.navigationPage()!=null)LookDevNavigation.open(e.navigationPage());else minecraft.setScreen(e.open(context()));}));y+=30;
-        }
         addRenderableWidget(FlatUi.button(x,y,w,24,Component.literal("Revert saved"),b->revertSaved(false)));
     }
     private WorkbenchExtensions.Context context(){return new WorkbenchExtensions.Context(scene,session,this);}
+    public void refreshExtension(){refreshRows();refreshIssues();rebuildWidgets();}
+    public void previewClip(String clip){clock=0;playing=true;edit(d->d.withAnimation(new WorkbenchDocument.AnimationPreview(clip,0,1,true,true)));rebuildWidgets();}
+    private WorkbenchExtensions.Extension rootOwner(){return WorkbenchExtensions.available(context()).stream().filter(WorkbenchExtensions.Extension::ownsRootTransform).findFirst().orElse(null);}
+    private ModelTransform rootTransform(){var owner=rootOwner();return owner==null?session.document().transform():owner.rootTransform(context());}
+    private WorkbenchDocument previewDocument(){return session.document().withTransform(rootTransform());}
+    private void prepareExtensions(){for(var extension:WorkbenchExtensions.available(context()))extension.prepare(context());commit();}
+    private CompletableFuture<Void> prepareForAction(WorkbenchSession expected){
+        if(expected==null||expected!=session||scene==null)return CompletableFuture.failedFuture(new IllegalStateException("This edit session no longer belongs to the workbench"));
+        return awaitExtensions("Reading extension sources",()->{
+            CompletableFuture<Void> prepared=CompletableFuture.completedFuture(null);
+            var context=context();
+            for(var extension:WorkbenchExtensions.available(context))prepared=prepared.thenCompose(ignored->extension.prepareAsync(context));
+            return prepared;
+        }).thenRun(this::prepareExtensions);
+    }
+    private CompletableFuture<Void> awaitExtensions(String label,Supplier<CompletableFuture<Void>> work){
+        if(busy&&operation!=Operation.RECOVERY)return CompletableFuture.failedFuture(new IllegalStateException("Wait for the current workbench operation"));
+        if(recovery!=null)recovery.invalidatePendingWrites();
+        var completion=new CompletableFuture<Void>();var expected=session;
+        busy=true;operation=Operation.SAVE;status=label;int token=++request;
+        CompletableFuture<Void> pending;
+        try{pending=java.util.Objects.requireNonNull(work.get());}
+        catch(RuntimeException error){pending=CompletableFuture.failedFuture(error);}
+        pending.whenComplete((ignored,error)->minecraft.execute(()->{
+            if(token!=request||session!=expected){completion.completeExceptionally(new CancellationException("Workbench operation superseded"));return;}
+            busy=false;
+            if(error==null){status="";completion.complete(null);}
+            else{operationFailed(label,error);completion.completeExceptionally(error);}
+        }));
+        return completion;
+    }
+    private void operationFailed(String label,Throwable failure){
+        Throwable cause=operationCause(failure);
+        status=label+" failed: "+(cause.getMessage()==null?cause.toString():cause.getMessage());
+        AssimpLoader.LOGGER.warn(status,cause);
+    }
+    private static Throwable operationCause(Throwable failure){
+        while(failure.getCause()!=null&&(failure instanceof java.util.concurrent.CompletionException||failure instanceof java.util.concurrent.ExecutionException))failure=failure.getCause();
+        return failure;
+    }
+    private final class ExtensionInspector implements WorkbenchExtensions.Inspector {
+        private final int x,w;private int y;
+        ExtensionInspector(int x,int y,int w){this.x=x;this.y=y;this.w=w;}
+        @Override public WorkbenchExtensions.Context context(){return ModelWorkbenchScreen.this.context();}
+        @Override public void label(String text){labels.add(new Label(text,x,y));y+=23;}
+        @Override public void text(String title,String value,Consumer<String> setter){textField(title,value,x,y+13,w,s->{try{setter.accept(s);status="";}catch(RuntimeException error){status=error.getMessage();}});y+=52;}
+        @Override public void number(String title,float value,Consumer<Float> setter){numberField(title,value,x,y+13,w,setter);y+=52;}
+        @Override public void toggle(String title,java.util.function.BooleanSupplier value,Runnable action){addRenderableWidget(FlatUi.toggle(x,y,w,24,Component.literal(title),value,b->{commit();action.run();}));y+=32;}
+        @Override public void action(String title,Runnable action){addRenderableWidget(FlatUi.button(x,y,w,24,Component.literal(title),b->{commit();action.run();}));y+=32;}
+        @Override public void select(String title,List<String> values,String selected,Consumer<String> setter){
+            label(title);int yy=y;
+            addRenderableWidget(FlatUi.icon(x,yy,FlatUi.Icon.PREVIOUS,Component.literal("Previous "+title),b->{if(values.isEmpty())return;int index=values.indexOf(selected);setter.accept(values.get(index<0?values.size()-1:Math.floorMod(index-1,values.size())));refreshExtension();}));
+            labels.add(new Label(selected==null?"":selected,x+32,yy+9));
+            addRenderableWidget(FlatUi.icon(x+w-26,yy,FlatUi.Icon.NEXT,Component.literal("Next "+title),b->{if(values.isEmpty())return;setter.accept(values.get((values.indexOf(selected)+1)%values.size()));refreshExtension();}));y+=36;
+        }
+    }
     private void buildMaterial(int x,int y,int w){
         String[] names={"Red","Green","Blue","Opacity","Metallic","Roughness","HDR emission","Alpha cutoff"};
         var m=session.document().materials().get(selectedMaterial);if(m==null)return;
@@ -333,16 +415,16 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         if(playing&&session!=null){double end=duration();clock=Math.max(0,clock+elapsed*speed);if(end>0&&clock>end){if(loop)clock%=end;else{clock=end;playing=false;}}}
         if(scene!=null&&session!=null&&!failed){
             try{
-                pose.sample(session.document(),clock);g.flush();if(renderer==null)renderer=new PreviewGpuRenderer(scene,data);
+                var preview=previewDocument();pose.sample(preview,clock);g.flush();if(renderer==null)renderer=new PreviewGpuRenderer(scene,data);
                 var window=minecraft.getWindow();double scale=window.getGuiScale();
                 renderer.render(camera,(int)Math.round(viewportX()*scale),(int)Math.round(window.getHeight()-(viewportY()+viewportHeight())*scale),
-                        Math.max(1,(int)Math.round(viewportWidth()*scale)),Math.max(1,(int)Math.round(viewportHeight()*scale)),session.document(),pose,focus,selectedMaterial);
+                        Math.max(1,(int)Math.round(viewportWidth()*scale)),Math.max(1,(int)Math.round(viewportHeight()*scale)),preview,pose,focus,selectedMaterial);
                 rendered=true;g.enableScissor(viewportX(),viewportY(),viewportX()+viewportWidth(),viewportY()+viewportHeight());renderOverlays(g,mx,my);g.disableScissor();
             }catch(Exception|LinkageError e){failed=true;status="Preview: "+e.getMessage();AssimpLoader.LOGGER.error("Workbench preview failed",e);}
         }
         renderRows(g,mx,my);
         g.enableScissor(width-right,84,width,height-24);
-        String selected=selectedMaterial>=0?"Material: "+metadata.materials().get(selectedMaterial).name():!selectedSocket.isEmpty()?selectedSocket:!selectedNode.isEmpty()?pose.nodeName(selectedNode):"Model transform";
+        String selected=!extensionPanel.isEmpty()?extensionPanels.stream().filter(p->extensionPanel.equals("extension:"+p.owner.id()+"/"+p.panel.id())).map(p->p.panel.title()).findFirst().orElse("Inspector"):selectedMaterial>=0?"Material: "+metadata.materials().get(selectedMaterial).name():!selectedSocket.isEmpty()?selectedSocket:!selectedNode.isEmpty()?pose.nodeName(selectedNode):"Model transform";
         g.drawString(font,FlatUi.clip(font,session==null?"Inspector":selected,right-16),inspectorX(),91,FlatUi.ACCENT,false);
         g.disableScissor();
         g.enableScissor(width-right,110,width,height-26);
@@ -355,7 +437,8 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
             int xx=left+8,ww=viewportWidth()-16;g.fill(xx,y+52,xx+ww,y+56,FlatUi.LINE);g.fill(xx,y+52,xx+(int)(ww*(duration()>0?clock/duration():0)),y+56,FlatUi.ACCENT);
         }
         g.fill(0,height-23,width,height,FlatUi.FIELD);
-        String footer=busy?status:!status.isEmpty()?status:session==null?"":(session.dirty()?"* ":"")+session.document().assetId()+"  |  "+data.triangles()+" triangles  |  "+issues.size()+" issues";
+        String tags=session==null?"":WorkbenchExtensions.available(context()).stream().map(e->"["+e.title()+"] ").collect(java.util.stream.Collectors.joining());
+        String footer=busy?status:!status.isEmpty()?status:session==null?"":(session.dirty()?"* ":"")+tags+session.document().assetId()+"  |  "+data.triangles()+" triangles  |  "+issues.size()+" issues";
         g.drawString(font,FlatUi.clip(font,footer,width-16),8,height-16,failed?FlatUi.ERROR:FlatUi.MUTED,false);
         for(var widget:renderables)if(!inspectorWidgets.contains(widget))widget.render(g,mx,my,partial);
         g.enableScissor(width-right,110,width,height-26);
@@ -367,14 +450,14 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private void renderRows(GuiGraphics g,int mx,int my){
         g.enableScissor(0,rowsY(),left,height-28);
         for(int i=scroll;i<rows.size()&&i<scroll+rowCount();i++){Row r=rows.get(i);int y=rowsY()+(i-scroll)*22;
-            boolean chosen=section==Section.NODES?r.key.equals(selectedNode):section==Section.MATERIALS?r.index==selectedMaterial:section==Section.SOCKETS?r.key.equals(selectedSocket):false;
+            boolean chosen=r.key.startsWith("extension:")?r.key.equals(extensionPanel):extensionPanel.isEmpty()&&(section==Section.NODES?r.key.equals(selectedNode):section==Section.MATERIALS?r.index==selectedMaterial:section==Section.SOCKETS?r.key.equals(selectedSocket):false);
             if(chosen||mx<left&&my>=y&&my<y+22)g.fill(0,y,left,y+21,chosen?FlatUi.SELECTED:0xff30363b);
             int indent=Math.min(r.depth*8,40);g.drawString(font,FlatUi.clip(font,r.label,left-indent-16),8+indent,y+7,chosen?FlatUi.ACCENT:FlatUi.TEXT,false);
         }g.disableScissor();
     }
     private Matrix4f viewportProjection(){return camera.projection((float)viewportWidth()/viewportHeight()).mul(camera.view()).translate(-focus.x,-focus.y,-focus.z);}
     private void renderOverlays(GuiGraphics g,int mx,int my){
-        Matrix4f p=viewportProjection(),root=session.document().transform().matrix();
+        Matrix4f p=viewportProjection(),root=rootTransform().matrix();
         if(showSkeleton)for(var node:metadata.nodes()){
             var matrix=new Matrix4f(root).mul(pose.node(node.path()));var point=cn.minerealms.assimploader.client.transform.GizmoMath.project(p,matrix.getTranslation(new Vector3f()),viewportWidth(),viewportHeight());
             if(point!=null){int xx=viewportX()+(int)point.x(),yy=viewportY()+(int)point.y();int color=node.path().equals(selectedNode)?0xffffdb80:0x884cd8cf;g.fill(xx-1,yy-1,xx+2,yy+2,color);}
@@ -384,7 +467,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
             var point=cn.minerealms.assimploader.client.transform.GizmoMath.project(p,m.getTranslation(new Vector3f()),viewportWidth(),viewportHeight());
             if(point!=null)g.drawString(font,socket.getKey(),viewportX()+(int)point.x()+5,viewportY()+(int)point.y(),0xffffda88,true);
         }
-        if(selectedMaterial>=0)return;
+        if(selectedMaterial>=0||!extensionPanel.isEmpty())return;
         Matrix4f base=new Matrix4f();
         if(!selectedSocket.isEmpty())base.set(root).mul(pose.node(session.document().sockets().get(selectedSocket).node()));
         else if(!selectedNode.isEmpty())base.set(root).mul(pose.node(selectedNode)).mul(selectedTransform().matrix().invert());
@@ -439,16 +522,16 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     public void save(){
         if(session==null)return;
         commit();animationEdit();
-        saveProject(session).thenAccept(saved->{
-            try{applyExtensions(saved);}catch(RuntimeException error){status="Project saved; extension apply failed: "+error.getMessage();AssimpLoader.LOGGER.warn("Saved workbench extension could not be applied",error);}
-        });
+        saveProject(session);
     }
     @Override public Path projectPath(){return project==null?null:project.documentPath();}
     @Override public CompletableFuture<WorkbenchDocument> saveProject(WorkbenchSession expectedSession){
         if(minecraft==null||!minecraft.isSameThread())return CompletableFuture.failedFuture(new IllegalStateException("Save must start on the client thread"));
         if(expectedSession==null||expectedSession!=session||scene==null)return saveRejected("This edit session no longer belongs to the workbench");
         if(busy&&operation!=Operation.RECOVERY)return saveRejected("Wait for the current workbench operation before saving");
-        commit();
+        return prepareForAction(expectedSession).thenCompose(ignored->savePreparedProject(expectedSession));
+    }
+    private CompletableFuture<WorkbenchDocument> savePreparedProject(WorkbenchSession expectedSession){
         if(recovery!=null)recovery.invalidatePendingWrites();
         if(project!=null)return persistProject(expectedSession);
         var source=scene;var initial=session.document();var resources=minecraft.getResourceManager();
@@ -472,7 +555,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private CompletableFuture<WorkbenchDocument> persistProject(WorkbenchSession target){
         if(session!=target||project==null)return saveRejected("Workbench edit session changed before saving");
         // First-copy IO may have taken time: capture the latest edits only after adopting its portable paths.
-        commit();var snapshot=target.document();var file=project.documentPath();
+        prepareExtensions();var snapshot=target.document();var file=project.documentPath();
         return task("Saving project",()->{
             try{
                 store.save(file,snapshot);
@@ -484,25 +567,36 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
             target.markSaved(saved.document());
             project=new WorkbenchProjectStore.Project(project.directory(),file,scene,saved.document(),metadata);
             draftRevision=-1;autosaveTicks=0;
+            var savedContext=new WorkbenchExtensions.Context(scene,new WorkbenchSession(saved.document()),this);
             status="Saved "+file.getParent().getFileName()+(target.dirty()?" (newer edits remain)":"")+
                     (saved.warning().isEmpty()?"":"; "+saved.warning());
+            try{for(var extension:WorkbenchExtensions.available(savedContext))extension.saved(savedContext);}
+            catch(RuntimeException error){
+                operationFailed("Project saved; application",error);
+                throw new IllegalStateException(status,error);
+            }
         },Operation.SAVE).thenApply(SavedProject::document);
     }
-    private void export(){if(project==null){status="Save this project before exporting";return;}var p=project;var doc=session.document();Path destination=store.root().resolve("exports").resolve(project.directory().getFileName()+".zip");task("Exporting",()->{try{return store.exportZip(p,doc,destination);}catch(Exception e){throw new RuntimeException(e);}},path->status="Exported "+path.getFileName());}
+    public void export(){
+        if(session==null||busy)return;
+        if(project==null){saveProject(session).thenAccept(saved->export());return;}
+        prepareForAction(session).thenCompose(ignored->{
+            var p=project;var doc=session.document();var extra=new java.util.LinkedHashMap<String,byte[]>();
+            for(var extension:WorkbenchExtensions.available(context()))for(var file:extension.packageFiles(context()).entrySet())
+                if(extra.putIfAbsent(file.getKey(),file.getValue())!=null)throw new IllegalArgumentException("Duplicate extension package file: "+file.getKey());
+            Path destination=store.root().resolve("exports").resolve(project.directory().getFileName()+".zip");
+            return task("Exporting",()->{try{return store.exportZip(p,doc,destination,extra);}catch(Exception e){throw new RuntimeException(e);}},path->status="Exported "+path.getFileName());
+        }).whenComplete((ignored,error)->{if(error!=null)operationFailed("Export",error);});
+    }
     private void apply(){
-        if(session==null)return;
-        commit();
-        var extensions=WorkbenchExtensions.available(context());
-        if(extensions.stream().noneMatch(WorkbenchExtensions.Extension::handlesApplication))
-            WorkbenchRuntime.apply(scene,session.document());
-        applyExtensions();
-        status="Applied locally";
+        if(session==null||busy)return;
+        prepareForAction(session).thenRun(()->{
+            var extensions=WorkbenchExtensions.available(context());
+            if(extensions.stream().noneMatch(WorkbenchExtensions.Extension::handlesApplication))WorkbenchRuntime.apply(scene,session.document());
+            applyExtensions();status="Applied locally";
+        }).whenComplete((ignored,error)->{if(error!=null)operationFailed("Apply",error);});
     }
     private void applyExtensions(){for(var extension:WorkbenchExtensions.available(context()))extension.apply(context());}
-    private void applyExtensions(WorkbenchDocument persisted){
-        var savedContext=new WorkbenchExtensions.Context(scene,new WorkbenchSession(persisted),this);
-        for(var extension:WorkbenchExtensions.available(savedContext))extension.apply(savedContext);
-    }
     private void revertSaved(boolean close){
         if(session==null)return;
         if(busy&&operation!=Operation.RECOVERY){status="Wait for the current operation before discarding edits";return;}
@@ -535,7 +629,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
                 try{status="";complete.accept(result);completion.complete(result);return;}
                 catch(RuntimeException callbackFailure){failure=callbackFailure;}
             }
-            Throwable cause=failure;while(cause.getCause()!=null)cause=cause.getCause();
+            Throwable cause=operationCause(failure);
             status=cause.getMessage()==null?cause.toString():cause.getMessage();AssimpLoader.LOGGER.warn("Workbench operation failed: {}",label,cause);
             completion.completeExceptionally(cause);
         }));}catch(RuntimeException rejected){busy=false;status="Workbench IO queue is full";completion.completeExceptionally(rejected);}
@@ -554,13 +648,19 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private static float component(ModelTransform t,int index){return values(t)[index];}
 
     private static final class PathScreen extends Screen {
-        private final ModelWorkbenchScreen parent;private final boolean importing;private EditBox path;
-        PathScreen(ModelWorkbenchScreen parent,boolean importing){super(Component.literal(importing?"Import asset":"Open project"));this.parent=parent;this.importing=importing;}
-        @Override protected void init(){int w=Math.min(560,width-32),x=(width-w)/2,y=height/2;path=addRenderableWidget(FlatUi.field(font,x,y,w,26,Component.literal("Path")));path.setMaxLength(4096);path.setHint(Component.literal(importing?"FBX file or folder":"project.workbench.json"));
-            addRenderableWidget(FlatUi.button(x,y+38,100,26,Component.literal(importing?"Import":"Open"),b->{String value=path.getValue().trim();minecraft.setScreen(parent);try{if(importing)parent.importPath(Path.of(value));else parent.open(Path.of(value));}catch(RuntimeException invalid){parent.status=invalid.getMessage();}}));
+        private final ModelWorkbenchScreen parent;private final boolean importing;private EditBox path;private String extension;
+        PathScreen(ModelWorkbenchScreen parent,boolean importing){this(parent,importing,null);}
+        PathScreen(ModelWorkbenchScreen parent,boolean importing,String extension){super(Component.literal(importing?"Import asset":"Open project"));this.parent=parent;this.importing=importing;this.extension=extension;}
+        @Override protected void init(){int w=Math.min(560,width-32),x=(width-w)/2,y=height/2;String previous=path==null?"":path.getValue();path=addRenderableWidget(FlatUi.field(font,x,y,w,26,Component.literal("Path")));path.setMaxLength(4096);path.setHint(Component.literal(importing?"Model file, project folder or asset ZIP":"project.workbench.json"));path.setValue(previous);
+            if(importing){
+                var providers=WorkbenchExtensions.all().stream().filter(WorkbenchExtensions.Extension::canImport).toList();int cells=providers.size()+1,cell=Math.max(1,w/cells);
+                addRenderableWidget(FlatUi.choice(x,y-38,cell-2,24,Component.literal("Model"),()->extension==null,b->{extension=null;rebuildWidgets();}));
+                for(int i=0;i<providers.size();i++){var provider=providers.get(i);addRenderableWidget(FlatUi.choice(x+(i+1)*cell,y-38,cell-2,24,Component.literal(provider.title()),()->provider.id().equals(extension),b->{extension=provider.id();rebuildWidgets();}));}
+            }
+            addRenderableWidget(FlatUi.button(x,y+38,100,26,Component.literal(importing?"Import":"Open"),b->{String value=path.getValue().trim();minecraft.setScreen(parent);try{if(importing)parent.importPath(Path.of(value),extension);else parent.open(Path.of(value));}catch(RuntimeException invalid){parent.status=invalid.getMessage();}}));
             addRenderableWidget(FlatUi.button(x+110,y+38,100,26,Component.literal("Cancel"),b->onClose()));setInitialFocus(path);}
-        @Override public void render(GuiGraphics g,int x,int y,float p){ScreenCompat.renderBackground(this,g,x,y,p);g.drawCenteredString(font,title,width/2,height/2-28,FlatUi.TEXT);super.render(g,x,y,p);}
-        @Override public void onFilesDrop(List<Path> files){if(!files.isEmpty()){minecraft.setScreen(parent);if(importing)parent.importPath(files.get(0));else parent.open(files.get(0));}}
+        @Override public void render(GuiGraphics g,int x,int y,float p){ScreenCompat.renderBackground(this,g,x,y,p);g.drawCenteredString(font,title,width/2,height/2-62,FlatUi.TEXT);super.render(g,x,y,p);}
+        @Override public void onFilesDrop(List<Path> files){if(!files.isEmpty()){minecraft.setScreen(parent);if(importing)parent.importPath(files.get(0),extension);else parent.open(files.get(0));}}
         @Override public void onClose(){minecraft.setScreen(parent);}@Override public boolean isPauseScreen(){return false;}
     }
     private static final class UnsavedScreen extends Screen {
