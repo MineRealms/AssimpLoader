@@ -316,8 +316,6 @@ if (isForge) {
             url = 'https://maven.architectury.dev/'
             content { includeGroup 'dev.architectury' }
         }
-        // ModernUI (dormant dead-wiring; scheduled for removal in migration phase 7).
-        maven { url = 'https://maven.izzel.io/releases/' }
         maven {
             url = 'https://api.modrinth.com/maven'
             content { includeGroup 'maven.modrinth' }
@@ -399,20 +397,6 @@ if (isForge) {
             modRuntimeOnly("dev.architectury:architectury-forge:${architectury_version}") { transitive = false }
         }
 
-        // Dormant historical editor sources compile for reference; active LookDev is independent.
-        compileOnly("icyllis.modernui:ModernUI-Core:${modernui_core_version}")
-        testRuntimeOnly("icyllis.modernui:ModernUI-Core:${modernui_core_version}")
-        modRuntimeOnly("icyllis.modernui:ModernUI-Forge:${modernui_forge_version}")
-        for (module in ['ModernUI-Core', 'ModernUI-Markdown']) {
-            additionalRuntimeClasspath("icyllis.modernui:${module}:${modernui_core_version}") {
-                exclude group: 'org.slf4j', module: 'slf4j-api'
-                exclude group: 'org.apache.logging.log4j'
-                exclude group: 'com.google.code.findbugs', module: 'jsr305'
-                exclude group: 'org.jetbrains', module: 'annotations'
-                exclude group: 'com.ibm.icu', module: 'icu4j'
-                exclude group: 'it.unimi.dsi', module: 'fastutil'
-            }
-        }
         if (project.hasProperty('f3TweakerJar')) {
             def devJar = rootProject.file(project.property('f3TweakerJar'))
             if (!devJar.isFile()) throw new GradleException("F3Tweaker JAR does not exist: ${devJar}")
@@ -723,10 +707,8 @@ if (isForge) {
         addModdingDependenciesTo sourceSets.showcase
         addModdingDependenciesTo sourceSets.integrationTest
 
-        unitTest {
-            enable()
-            testedMod = mods.assimploader
-        }
+        // These are isolated JUnit tests, not FML game tests. Bootstrapping a mod layer here
+        // loads LWJGL in a second classloader and also forbids direct mixin-package tests.
     }
 
     repositories {
@@ -742,8 +724,6 @@ if (isForge) {
             url = 'https://maven.architectury.dev/'
             content { includeGroup 'dev.architectury' }
         }
-        // ModernUI (dormant dead-wiring; scheduled for removal in migration phase 7).
-        maven { url = 'https://maven.izzel.io/releases/' }
         maven {
             url = 'https://api.modrinth.com/maven'
             content { includeGroup 'maven.modrinth' }
@@ -813,12 +793,6 @@ if (isForge) {
             runtimeOnly("dev.latvian.mods:kubejs-neoforge:${kubejs_version}") { transitive = false }
             runtimeOnly("dev.latvian.mods:rhino:${rhino_version}") { transitive = false }
         }
-
-        // ModernUI is dead wiring scheduled for deletion in migration phase 7. Only the
-        // loader-agnostic Core stays (compileOnly) so the dormant editor sources keep compiling
-        // until then; the Forge-only runtime artefacts are not used by the NeoForge dev client.
-        compileOnly("icyllis.modernui:ModernUI-Core:${modernui_core_version}")
-        testRuntimeOnly("icyllis.modernui:ModernUI-Core:${modernui_core_version}")
 
         compileOnly("maven.modrinth:gzevkJbM:${photon_version}") { transitive = false }
         compileOnly("maven.modrinth:B1CBVXHX:${ldlib_version}") { transitive = false }
