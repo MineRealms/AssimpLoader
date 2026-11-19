@@ -13,6 +13,7 @@
   "refmap": "assimploader.refmap.json",
   "mixins": [],
   "client": [
+    "lifecycle.MinecraftShutdownMixin",
     "render.VertexBufferSelectionAccess",
     "camera.WorldEditCameraAccess",
     "camera.WorldEditCameraMixin",
