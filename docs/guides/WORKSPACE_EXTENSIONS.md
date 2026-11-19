@@ -63,7 +63,7 @@ LookDevNavigation.registerPage(new WorkbenchPageRegistry.Page<>(
 
 `LookDevNavigation.modelContext()` 返回当前 Edit 页已打开的 `WorkbenchExtensions.Context`，没有模型或正在进行 I/O 时返回 null。上下文包含场景、编辑会话、项目持有者、保存入口和项目路径，不包含 RigWorks 类型。
 
-消费者通过 `WorkbenchExtensions.Extension` 扩展导入初始化、Inspector 面板、打开时处理、保存和应用。基础预览、节点树、材质、Socket、Gizmo、动画时间轴、撤销与项目 I/O 由 AssimpLoader 维护，消费模组不需要再建立一套编辑视口。
+消费者通过 `WorkbenchExtensions.Extension` 扩展导入初始化、Inspector 面板、打开时处理、保存和应用。`imported(context)` 用于显式文件导入（包括已有扩展元数据的 ZIP），默认委托 `initialize(context)`；本地项目重新打开则调用 `opened(context)`，扩展可据此区分新副本和原项目。基础预览、节点树、材质、Socket、Gizmo、动画时间轴、撤销与项目 I/O 由 AssimpLoader 维护，消费模组不需要再建立一套编辑视口。
 
 扩展可以返回 `panels(context)`，每个面板提供唯一 `id()`、标题和 `build(Inspector)`。左侧以 `[模组名] 面板名` 显示；点击后在同一 Inspector 中构建控件。`Inspector` 提供 `label`、`text`、`number`、`toggle`、`action`、`select`，布局、裁剪和滚动由公共工作台负责。
 
@@ -120,6 +120,10 @@ WorkbenchExtensions.register(new WorkbenchExtensions.Extension() {
 | `apply(context)` | 应用当前准备好的草稿；不表示项目或服务器版本已保存 |
 | `handlesApplication()` | 返回 true 时抑制普通资产的源级 Apply，由扩展负责运行时接入 |
 | `packageFiles(context)` | 提供 `extensions/<模组>/...` 相对路径到 `byte[]` 的附加文件 |
+| `exportOptions(context)` | 注册带稳定 `<extension-id>:<option-id>` 的可选 ZIP 数据组 |
+| `exportDocument(context, selected)` | 根据当前勾选项返回过滤后的工作台文档，不应修改原编辑会话 |
+| `packageFiles(context, selected)` | 按勾选项返回扩展附加文件；文件仍由公共 ZIP 校验和打包 |
+| `context.choose(...)` | 在工作台内显示异步选项对话框，用于导入冲突等扩展流程 |
 | `context.saveProject()` | 调用所属项目的统一异步 Save，成功返回确实写入的文档 |
 
 生命周期为 `prepareAsync` 完成 → 客户端线程 `prepare` → 保存/应用/打包。文件读取和校验放在异步阶段，同步阶段只使用已完成的结果生成配置；不要在尚未结束的文件任务后立即宣布导出或应用成功。
@@ -127,6 +131,8 @@ WorkbenchExtensions.register(new WorkbenchExtensions.Extension() {
 保存期间出现的新编辑不会被错误标成已保存。`saved` 得到独立快照会话，不能拿它再次递归调用 `saveProject()`；如需应用角色，直接消费此快照。行为文件、项目配置和运行时应用分别由扩展负责，公共包导入本身不执行脚本。
 
 普通与角色项目共享 ZIP 容器：版本化 `manifest.json`、项目 JSON、`assets/` 和可选的 `extensions/`。Import/Open 识别 `.zip`/`.rig.zip`，校验字节数和 SHA-256 后创建独立项目。外部覆盖贴图导出时复制为包内相对路径，未知扩展节和附加文件保留。数据格式、大小限制和旧包兼容见 [项目格式](../reference/WORKBENCH_PROJECT_FORMAT.md#portable-zip-packages)。ZIP 是本地全资产交换，不等同于多人配置同步或 Minecraft 资源包。
+
+公共 Export 对话框始终包含模型、依赖和 PBR 贴图；核心配置（模型 TRS、节点、材质、Socket、动画预览）与扩展配置由 checkbox 分组选择。每个扩展的 `ExportOption` 默认可实现为一个整体文件选项，也可覆盖为更细的分组。导出时先对每个仍支持该项目的扩展依次运行 `exportDocument`，再调用其筛选版 `packageFiles`；临时文档按扩展顺序累积，不会写入当前编辑会话。若扩展拥有一整个脚本目录，筛选后的文件列表仍应配合目录快照标记，防止未选内容或过期脚本从项目磁盘重新混入 ZIP。
 
 切换页面会提交当前变换事务并保留工作区中的草稿；关闭整个工作区时，未保存的 Edit 项目仍进入已有保存/丢弃提示。退出服务器会清除工作区引用，避免把上一个世界的编辑上下文带到下一个世界。
 

@@ -41,6 +41,12 @@ import java.util.function.UnaryOperator;
 /** A lightweight asset editor, sharing the engine's imported scenes and immutable edit document. */
 public final class ModelWorkbenchScreen extends Screen implements WorkbenchExtensions.ProjectSaver {
     private static final ThreadPoolExecutor IO=new ThreadPoolExecutor(1,1,30,TimeUnit.SECONDS,new ArrayBlockingQueue<>(4),r->{Thread t=new Thread(r,"AssimpLoader-workbench");t.setDaemon(true);return t;},new ThreadPoolExecutor.AbortPolicy());
+    private static final List<WorkbenchExtensions.ExportOption> EXPORT_OPTIONS=List.of(
+            new WorkbenchExtensions.ExportOption("assimploader:transform","Model transform",true),
+            new WorkbenchExtensions.ExportOption("assimploader:nodes","Node transforms and visibility",true),
+            new WorkbenchExtensions.ExportOption("assimploader:materials","Materials and PBR mappings",true),
+            new WorkbenchExtensions.ExportOption("assimploader:sockets","Sockets",true),
+            new WorkbenchExtensions.ExportOption("assimploader:animation","Animation preview",true));
     private enum Section { ASSETS, NODES, MATERIALS, SOCKETS }
     private enum Operation { NORMAL, RECOVERY, DISCARD, SAVE }
     private record Row(String label,String key,int depth,int index) {}
@@ -198,10 +204,10 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     public void importPath(Path input,String extension){
         if(!allowReplace())return;
         task("Importing "+input.getFileName(),()->{try{return withRecovery(store.importAsset(input));}catch(Exception e){throw new RuntimeException(e);}},opened->{
-            loadOpened(opened);
-            if(extension!=null&&!session.document().extensions().has(extension)){
+            loadOpened(opened,extension==null);
+            if(extension!=null){
                 var imported=session;var original=imported.document();
-                awaitExtensions("Preparing "+extension+" configuration",()->WorkbenchExtensions.get(extension).initialize(context()))
+                awaitExtensions("Preparing "+extension+" configuration",()->WorkbenchExtensions.get(extension).imported(context()))
                         .whenComplete((unused,error)->{if(error!=null&&session==imported){imported.set(original);refreshExtension();}})
                         .thenRun(()->{status="Imported ["+extension+"]";refreshExtension();fit();});
             }
@@ -212,7 +218,8 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         task("Opening project",()->{try{return withRecovery(store.open(input));}catch(Exception e){throw new RuntimeException(e);}},this::loadOpened);
     }
     private OpenedProject withRecovery(WorkbenchProjectStore.Project project){return new OpenedProject(project,store.readRecovery(project.documentPath(),project.document()));}
-    private void loadOpened(OpenedProject opened){
+    private void loadOpened(OpenedProject opened){loadOpened(opened,true);}
+    private void loadOpened(OpenedProject opened,boolean notifyExtensions){
         if(!allowReplace())return;
         load(opened.project());
         if(!opened.recovery().issues().isEmpty()){
@@ -222,7 +229,8 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
             status="Opened saved project; recovery draft ignored";
         }
         opened.recovery().document().ifPresent(draft->{session.set(draft);status="Recovered unsaved draft";});
-        notifyProjectOpened();syncClock();refreshIssues();refreshRows();rebuildWidgets();
+        if(notifyExtensions)notifyProjectOpened();
+        syncClock();refreshIssues();refreshRows();rebuildWidgets();
     }
     private void notifyProjectOpened(){
         try{
@@ -315,6 +323,13 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     public CompletableFuture<Void> runExtensionTask(WorkbenchSession expected,String label,Supplier<CompletableFuture<Void>> work){
         if(session!=expected)return CompletableFuture.failedFuture(new IllegalStateException("This edit session no longer belongs to the workbench"));
         return awaitExtensions(label,work);
+    }
+    public CompletableFuture<Integer> chooseExtension(WorkbenchSession expected,String title,String message,List<String> options) {
+        if(minecraft==null||!minecraft.isSameThread()||session!=expected||options.isEmpty())
+            return CompletableFuture.failedFuture(new IllegalStateException("Extension choices must be shown for the active workbench session"));
+        var result=new CompletableFuture<Integer>();
+        minecraft.setScreen(new ExtensionChoiceScreen(this,title,message,options,result));
+        return result;
     }
     private CompletableFuture<Void> prepareForAction(WorkbenchSession expected){
         if(expected==null||expected!=session||scene==null)return CompletableFuture.failedFuture(new IllegalStateException("This edit session no longer belongs to the workbench"));
@@ -606,13 +621,38 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     public void export(){
         if(session==null||busy)return;
         if(project==null){saveProject(session).thenAccept(saved->export());return;}
-        prepareForAction(session).thenCompose(ignored->{
-            var p=project;var doc=session.document();var extra=new java.util.LinkedHashMap<String,byte[]>();
-            for(var extension:WorkbenchExtensions.available(context()))for(var file:extension.packageFiles(context()).entrySet())
-                if(extra.putIfAbsent(file.getKey(),file.getValue())!=null)throw new IllegalArgumentException("Duplicate extension package file: "+file.getKey());
-            Path destination=store.root().resolve("exports").resolve(project.directory().getFileName()+".zip");
-            return task("Exporting",()->{try{return store.exportZip(p,doc,destination,extra);}catch(Exception e){throw new RuntimeException(e);}},path->status="Exported "+path.getFileName());
+        prepareForAction(session).thenRun(()->{
+            var options=new ArrayList<>(EXPORT_OPTIONS);var used=new java.util.HashSet<String>();
+            EXPORT_OPTIONS.forEach(option->used.add(option.id()));
+            for(var extension:WorkbenchExtensions.available(context()))for(var option:extension.exportOptions(context())) {
+                if(!used.add(option.id()))throw new IllegalArgumentException("Duplicate workbench export option: "+option.id());
+                options.add(option);
+            }
+            minecraft.setScreen(new ExportOptionsScreen(this,options));
         }).whenComplete((ignored,error)->{if(error!=null)operationFailed("Export",error);});
+    }
+    private void exportSelected(java.util.Set<String> selected) {
+        if(session==null||project==null||busy)return;
+        try {
+            var current=context();var document=session.document();
+            for(var extension:WorkbenchExtensions.all()) {
+                var exportContext=new WorkbenchExtensions.Context(current.scene(),new WorkbenchSession(document),current.parent());
+                if(extension.supports(exportContext))document=extension.exportDocument(exportContext,selected);
+            }
+            ModelTransform transform=selected.contains("assimploader:transform")?document.transform():ModelTransform.IDENTITY;
+            var nodes=selected.contains("assimploader:nodes")?document.nodes():java.util.Map.<String,WorkbenchDocument.NodeOverride>of();
+            var materials=selected.contains("assimploader:materials")?document.materials():java.util.Map.<Integer,WorkbenchDocument.MaterialOverride>of();
+            var sockets=selected.contains("assimploader:sockets")?document.sockets():java.util.Map.<String,WorkbenchDocument.Socket>of();
+            var animation=selected.contains("assimploader:animation")?document.animation():WorkbenchDocument.AnimationPreview.DEFAULT;
+            var exportDocument=new WorkbenchDocument(document.version(),document.assetId(),document.sourcePath(),document.contentHash(),
+                    transform,nodes,materials,sockets,animation,document.extensions());
+            var extra=new java.util.LinkedHashMap<String,byte[]>();
+            for(var extension:WorkbenchExtensions.available(current))for(var file:extension.packageFiles(current,selected).entrySet())
+                if(extra.putIfAbsent(file.getKey(),file.getValue())!=null)throw new IllegalArgumentException("Duplicate extension package file: "+file.getKey());
+            var projectSnapshot=project;Path destination=store.root().resolve("exports").resolve(projectSnapshot.directory().getFileName()+".zip");
+            task("Exporting",()->{try{return store.exportZip(projectSnapshot,exportDocument,destination,extra);}catch(Exception e){throw new RuntimeException(e);}},
+                    path->status="Exported "+path.getFileName());
+        }catch(RuntimeException error){operationFailed("Export",error);}
     }
     private void apply(){
         if(session==null||busy)return;
@@ -672,6 +712,67 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private static String format(float n){return String.format(Locale.ROOT,"%.5g",n);}
     private static float[] values(ModelTransform t){return new float[]{t.x(),t.y(),t.z(),t.rx(),t.ry(),t.rz(),t.sx(),t.sy(),t.sz()};}
     private static float component(ModelTransform t,int index){return values(t)[index];}
+
+    private static final class ExtensionChoiceScreen extends Screen {
+        private final ModelWorkbenchScreen parent;private final String message;private final List<String> options;
+        private final CompletableFuture<Integer> result;private boolean completed;
+        ExtensionChoiceScreen(ModelWorkbenchScreen parent,String title,String message,List<String> options,CompletableFuture<Integer> result){
+            super(Component.literal(title));this.parent=parent;this.message=message;this.options=List.copyOf(options);this.result=result;
+        }
+        @Override protected void init(){
+            int w=Math.min(480,width-32),x=(width-w)/2,y=Math.max(44,(height-(options.size()*32+112))/2);
+            for(int i=0;i<options.size();i++){int choice=i;addRenderableWidget(FlatUi.button(x,y+i*32,w,26,Component.literal(options.get(i)),b->finish(choice)));}
+            addRenderableWidget(FlatUi.button(x,y+options.size()*32+12,w,24,Component.literal("Cancel"),b->finish(-1)));
+        }
+        private void finish(int choice){if(completed)return;completed=true;minecraft.setScreen(parent);result.complete(choice);}
+        @Override public void render(GuiGraphics g,int x,int y,float p){ScreenCompat.renderBackground(this,g,x,y,p);g.drawCenteredString(font,title,width/2,16,FlatUi.TEXT);g.drawCenteredString(font,FlatUi.clip(font,message,width-32),width/2,36,FlatUi.MUTED);super.render(g,x,y,p);}
+        @Override public void onClose(){finish(-1);}
+        @Override public boolean isPauseScreen(){return false;}
+    }
+
+    private static final class ExportOptionsScreen extends Screen {
+        private final ModelWorkbenchScreen parent;private final List<WorkbenchExtensions.ExportOption> options;private final boolean[] enabled;
+        private int scroll;private final List<Button> rows=new ArrayList<>();
+        ExportOptionsScreen(ModelWorkbenchScreen parent,List<WorkbenchExtensions.ExportOption> options){
+            super(Component.literal("Export asset package"));this.parent=parent;this.options=List.copyOf(options);
+            enabled=new boolean[this.options.size()];
+            for(int i=0;i<enabled.length;i++)enabled[i]=this.options.get(i).selectedByDefault();
+        }
+        @Override protected void init(){rebuild();}
+        private void rebuild(){
+            clearWidgets();rows.clear();int w=Math.min(560,width-32),x=(width-w)/2;
+            int visible=Math.max(1,Math.min(options.size(),(height-184)/28)),top=Math.max(60,(height-(visible*28+146))/2);
+            int y=top+58;
+            var required=FlatUi.button(x,y,w,23,Component.literal("Model files and PBR textures (required)"),b->{});required.active=false;addRenderableWidget(required);
+            for(int i=scroll;i<options.size()&&i<scroll+visible;i++){
+                int index=i,yy=y+28+(i-scroll)*28;var option=options.get(i);
+                var toggle=FlatUi.toggle(x,yy,w,23,Component.literal(option.title()),()->enabled[index],b->{enabled[index]=!enabled[index];});rows.add(toggle);addRenderableWidget(toggle);
+            }
+            y+=28+visible*28;
+            addRenderableWidget(FlatUi.button(x,y,w/2-3,26,Component.literal("Export"),b->{
+                var selected=new java.util.HashSet<String>();for(int i=0;i<options.size();i++)if(enabled[i])selected.add(options.get(i).id());
+                minecraft.setScreen(parent);parent.exportSelected(java.util.Set.copyOf(selected));
+            }));
+            addRenderableWidget(FlatUi.button(x+w/2+3,y,w/2-3,26,Component.literal("Cancel"),b->onClose()));
+        }
+        @Override public boolean mouseClicked(double x,double y,int button){return super.mouseClicked(x,y,button);}
+        private boolean scrolled(double x,double y,double delta){
+            if(y>=height/2-100&&y<height/2+100&&options.size()>rows.size()){
+                scroll=Math.max(0,Math.min(options.size()-rows.size(),scroll-(int)Math.signum(delta)));rebuild();return true;
+            }
+            return false;
+        }
+        //? if forge {
+        @Override public boolean mouseScrolled(double x,double y,double delta){return scrolled(x,y,delta)||super.mouseScrolled(x,y,delta);}
+        //?}
+        //? if neoforge {
+        /*
+        @Override public boolean mouseScrolled(double x,double y,double deltaX,double deltaY){return scrolled(x,y,deltaY)||super.mouseScrolled(x,y,deltaX,deltaY);}
+        *///?}
+        @Override public void render(GuiGraphics g,int x,int y,float p){ScreenCompat.renderBackground(this,g,x,y,p);g.drawCenteredString(font,title,width/2,18,FlatUi.TEXT);g.drawCenteredString(font,"Choose which editable data to include",width/2,38,FlatUi.MUTED);super.render(g,x,y,p);}
+        @Override public void onClose(){minecraft.setScreen(parent);}
+        @Override public boolean isPauseScreen(){return false;}
+    }
 
     private static final class UnsavedScreen extends Screen {
         private final ModelWorkbenchScreen parent;UnsavedScreen(ModelWorkbenchScreen parent){super(Component.literal("Unsaved project"));this.parent=parent;}

@@ -19,6 +19,8 @@ Import、Open 和材质贴图槽的文件浏览按钮均使用系统文件选择
 
 工作台导出的 `.zip` 和 `.rig.zip` 可以直接 Import/Open，无需手动解压。包中已有的扩展配置会保留；没有安装对应模组时也不会丢弃未知扩展数据。这里的 ZIP 指工作台项目包，不是任意模型网站下载压缩包。
 
+点击 **Export** 后可以选择要包含的配置组。模型本体、可读取的依赖和 PBR 贴图始终包含；模型 TRS、节点覆盖、材质/PBR 覆盖、Socket、动画预览以及扩展拥有的配置分别勾选。扩展可将一个配置面板拆成多个导出组。取消某组只影响导出的 ZIP，不改当前编辑会话；同一 ZIP 仍可再次导入为工作台项目。
+
 导入使用动态模式，保留可用的节点、蒙皮和动画，并复制可识别的模型依赖，源目录保持不变。缺图、缺 UV 和失效引用会进入诊断；无法从源文件恢复的贴图不会自动生成。
 
 ## 项目位置
@@ -202,6 +204,10 @@ RigWorks 分享完整角色配置：比例/根变换、骨骼和动作映射、�
 | `saved(savedContext)` | 正式保存成功后处理那份已落盘快照；此处不是当前仍可继续编辑的草稿 |
 | `handlesApplication()`、`apply(context)` | 接管消费者自己的应用方式；接管后不会执行普通资产按来源生效的 `WorkbenchRuntime.apply` |
 | `packageFiles(context)` | 返回已准备好的附加文件快照，交给公共 ZIP 导出流程 |
+| `exportOptions(context)` | 声明公共 Export 对话框中的可勾选数据组 |
+| `exportDocument(context, selected)` | 只改变输出文档，不能改写当前草稿 |
+| `packageFiles(context, selected)` | 按勾选组提供 ZIP 附加文件 |
+| `context.choose(...)` | 请求工作台显示扩展选项对话框，完成后异步返回选择 |
 
 一个项目只应有一个根变换拥有者；当前公共界面选择首个可用的 `ownsRootTransform()` 扩展。`handlesApplication()` 只抑制通用来源级 Apply，公共界面仍会调用各可用扩展的 `apply`。扩展应在自己的命名空间内工作，不接管其他消费者的配置。
 
