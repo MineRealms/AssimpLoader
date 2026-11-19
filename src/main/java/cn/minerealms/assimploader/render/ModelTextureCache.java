@@ -199,7 +199,9 @@ public final class ModelTextureCache {
             if (material != null && material.getPbrInputs().hasUnsupportedUv()) {
                 AssimpLoader.LOGGER.warn("Model material {} references unsupported PBR UV sets; only UV0 channels will be used", material.getName());
             }
-            return PbrTexturePreparation.prepare(path, siblingBase, material == null ? null : material.getPbrInputs(), reference -> image(reference,source,material!=null&&material.isDetached()));
+            return PbrTexturePreparation.prepare(path, siblingBase, material == null ? null : material.getPbrInputs(),
+                    material == null ? cn.minerealms.assimploader.material.MaterialAlpha.SOURCE : material.getAlphaPolicy(),
+                    reference -> image(reference,source,material!=null&&material.isDetached()));
         }
 
         private LabPbrPacker.Image image(String path,Path source,boolean authored) {

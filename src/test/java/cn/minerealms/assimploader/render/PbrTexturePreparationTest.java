@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.render;
 
 import cn.minerealms.assimploader.material.LabPbrPacker;
 import cn.minerealms.assimploader.material.PbrMaterialInputs;
+import cn.minerealms.assimploader.material.MaterialAlpha;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -76,6 +77,38 @@ class PbrTexturePreparationTest {
         assertNull(prepared.maps().specular());
         assertEquals("none", prepared.normalSource());
         assertEquals("none", prepared.specularSource());
+    }
+
+    @Test void sharedSourceProducesIndependentAlphaVariantsAndKeepsPackedPbrPlanesExact() {
+        var albedo=new LabPbrPacker.Image(2,1,new int[]{0x40112233,0xff445566});
+        var normal=image(0x12345678);var specular=image(0x87654321);
+        Map<String,LabPbrPacker.Image> files=Map.of("body.png",albedo,"body_n.png",normal,"body_s.png",specular);
+        var masked=PbrTexturePreparation.prepare("body.png","body.png",null,
+                new MaterialAlpha(MaterialAlpha.Mode.MASK,.5f,.3f),files::get);
+        var opaque=PbrTexturePreparation.prepare("body.png","body.png",null,
+                new MaterialAlpha(MaterialAlpha.Mode.OPAQUE,0,.9f),files::get);
+        var blend=PbrTexturePreparation.prepare("body.png","body.png",null,
+                new MaterialAlpha(MaterialAlpha.Mode.BLEND,.5f,.3f),files::get);
+        assertArrayEquals(new int[]{0x00112233,0xff445566},masked.albedo().pixels());
+        assertArrayEquals(new int[]{0xff112233,0xff445566},opaque.albedo().pixels());
+        assertSame(albedo,blend.albedo());
+        assertArrayEquals(new int[]{0x40112233,0xff445566},albedo.pixels());
+        for(var value:java.util.List.of(masked,opaque,blend)) {
+            assertSame(normal,value.maps().normal());assertSame(specular,value.maps().specular());
+            assertEquals("prepacked:body_n.png",value.normalSource());
+            assertEquals("prepacked:body_s.png",value.specularSource());
+        }
+    }
+
+    @Test void missingAlbedoUsesTheSameAlphaPolicyAndRetainsConvertedMaterialPbr() {
+        var hidden=PbrTexturePreparation.prepare(null,null,scalar(.4f),
+                new MaterialAlpha(MaterialAlpha.Mode.MASK,.25f,.5f),ignored->null);
+        var shown=PbrTexturePreparation.prepare("missing.png","missing.png",scalar(.4f),
+                new MaterialAlpha(MaterialAlpha.Mode.OPAQUE,0,.5f),ignored->null);
+        assertEquals(0x00ffffff,hidden.albedo().pixel(0,0));
+        assertEquals(0xffffffff,shown.albedo().pixel(0,0));
+        assertArrayEquals(hidden.maps().specular().pixels(),shown.maps().specular().pixels());
+        assertNotNull(shown.maps().specular());
     }
 
     private static LabPbrPacker.Image image(int pixel) { return new LabPbrPacker.Image(1, 1, new int[]{pixel}); }

@@ -3,6 +3,7 @@ package cn.minerealms.assimploader.render;
 import cn.minerealms.assimploader.compat.OculusPBRSupport;
 import cn.minerealms.assimploader.material.LabPbrPacker;
 import cn.minerealms.assimploader.material.PbrMaterialInputs;
+import cn.minerealms.assimploader.material.MaterialAlpha;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +17,11 @@ public final class PbrTexturePreparation {
 
     public static Prepared prepare(String albedoPath, String siblingBase, PbrMaterialInputs inputs,
                                    Function<String, LabPbrPacker.Image> source) {
+        return prepare(albedoPath, siblingBase, inputs, MaterialAlpha.SOURCE, source);
+    }
+
+    public static Prepared prepare(String albedoPath, String siblingBase, PbrMaterialInputs inputs,
+                                   MaterialAlpha alpha, Function<String, LabPbrPacker.Image> source) {
         Map<String, LabPbrPacker.Image> images = new HashMap<>();
         Function<String, LabPbrPacker.Image> resolve = path -> {
             if (path == null || path.isBlank()) return null;
@@ -40,7 +46,7 @@ public final class PbrTexturePreparation {
                 specularSource = "converted:" + inputs.workflow();
             }
         }
-        return new Prepared(albedo == null ? WHITE : albedo,
+        return new Prepared(alpha.apply(albedo == null ? WHITE : albedo),
                 new LabPbrPacker.PackedTextures(normal, specular), normalSource, specularSource);
     }
 

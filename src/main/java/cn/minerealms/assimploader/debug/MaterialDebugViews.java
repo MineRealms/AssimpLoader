@@ -15,7 +15,7 @@ public final class MaterialDebugViews {
     }
     public static boolean active(){return current()!=MaterialView.DEFAULT;}
     public static float[] tint(AssimpMaterial material) {
-        return active() || material==null ? new float[]{1,1,1,material==null?1:material.getDiffuseColor()[3]} : material.getDiffuseColor();
+        return active() || material==null ? new float[]{1,1,1,material==null?1:material.getRenderColor()[3]} : material.getRenderColor();
     }
     public static LabPbrPacker.Image image(MaterialView view, LabPbrPacker.Image albedo, LabPbrPacker.PackedTextures maps) {
         var source=switch(view) {

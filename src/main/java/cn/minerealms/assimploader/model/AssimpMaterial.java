@@ -1,6 +1,7 @@
 package cn.minerealms.assimploader.model;
 
 import cn.minerealms.assimploader.material.PbrMaterialInputs;
+import cn.minerealms.assimploader.material.MaterialAlpha;
 import org.lwjgl.assimp.AIMaterial;
 import org.lwjgl.assimp.AIString;
 
@@ -26,6 +27,8 @@ public class AssimpMaterial {
     private final String specularTexture;
     private final PbrMaterialInputs pbrInputs;
     private final boolean blendAlpha;
+    private final MaterialAlpha alphaPolicy;
+    private final boolean doubleSided;
     private final boolean detached;
 
     public AssimpMaterial(AIMaterial aiMaterial, int index) {
@@ -43,17 +46,47 @@ public class AssimpMaterial {
         this.specularTexture = readTexturePath(aiMaterial, aiTextureType_SPECULAR);
         this.pbrInputs = readPbrInputs(aiMaterial, sourceFormat, sourceGenerator);
         this.blendAlpha = readBlendAlpha(aiMaterial);
+        this.alphaPolicy = MaterialAlpha.SOURCE;
+        this.doubleSided = blendAlpha || diffuseColor[3] < 0.99f;
         this.detached = false;
     }
 
     /** Detached material variant; the shared imported material remains immutable. */
     public AssimpMaterial(AssimpMaterial source, float[] color, String albedo, String normal, String specular,
                           PbrMaterialInputs inputs, boolean blend) {
+        this(source, color, albedo, normal, specular, inputs, blend, blend || color[3] < 0.99f, false);
+    }
+
+    /** A detached render policy does not change the shared material or texture data. */
+    public AssimpMaterial(AssimpMaterial source, float[] color, String albedo, String normal, String specular,
+                          PbrMaterialInputs inputs, boolean blend, boolean doubleSided) {
+        this(source, color, albedo, normal, specular, inputs, blend, doubleSided, false);
+    }
+
+    /** Compatibility overload for explicit OPAQUE/BLEND; use MaterialAlpha for MASK cutoff. */
+    public AssimpMaterial(AssimpMaterial source, float[] color, String albedo, String normal, String specular,
+                          PbrMaterialInputs inputs, boolean blend, boolean doubleSided, boolean explicitAlphaMode) {
+        this(source, color, albedo, normal, specular, inputs, blend, doubleSided, explicitAlphaMode
+                ? new MaterialAlpha(blend ? MaterialAlpha.Mode.BLEND : MaterialAlpha.Mode.OPAQUE, color[3], .1f)
+                : MaterialAlpha.SOURCE);
+    }
+
+    public AssimpMaterial(AssimpMaterial source, float[] color, String albedo, String normal, String specular,
+                          PbrMaterialInputs inputs, MaterialAlpha alphaPolicy, boolean doubleSided) {
+        this(source, color, albedo, normal, specular, inputs,
+                alphaPolicy.mode() == MaterialAlpha.Mode.SOURCE ? source.blendAlpha : alphaPolicy.mode() == MaterialAlpha.Mode.BLEND,
+                doubleSided, alphaPolicy);
+    }
+
+    private AssimpMaterial(AssimpMaterial source, float[] color, String albedo, String normal, String specular,
+                           PbrMaterialInputs inputs, boolean blend, boolean doubleSided, MaterialAlpha alphaPolicy) {
         this.index = source.index; this.name = source.name;
         this.diffuseColor = color.clone(); this.specularColor = source.specularColor.clone();
         this.ambientColor = source.ambientColor.clone();
         this.diffuseTexture = albedo; this.normalTexture = normal; this.specularTexture = specular;
         this.pbrInputs = java.util.Objects.requireNonNull(inputs); this.blendAlpha = blend;
+        this.alphaPolicy = java.util.Objects.requireNonNull(alphaPolicy);
+        this.doubleSided = doubleSided;
         this.detached = true;
     }
 
@@ -258,6 +291,15 @@ public class AssimpMaterial {
         return diffuseColor.clone();
     }
 
+    /** OPAQUE/MASK have already applied their factor to albedo coverage on the image worker. */
+    public float[] getRenderColor() {
+        float[] color = diffuseColor.clone();
+        if (alphaPolicy.baked()) color[3] = 1;
+        return color;
+    }
+
+    public MaterialAlpha getAlphaPolicy() { return alphaPolicy; }
+
     public float[] getSpecularColor() {
         return specularColor.clone();
     }
@@ -280,6 +322,7 @@ public class AssimpMaterial {
 
     public PbrMaterialInputs getPbrInputs() { return pbrInputs; }
     public boolean isDetached() { return detached; }
+    public boolean isDoubleSided() { return doubleSided; }
 
     /** @return 1 = opaque, 0 = fully transparent */
     public float getOpacity() {
@@ -287,7 +330,8 @@ public class AssimpMaterial {
     }
 
     public boolean isTransparent() {
-        return blendAlpha || getOpacity() < 0.99f;
+        return alphaPolicy.mode() == MaterialAlpha.Mode.SOURCE
+                ? blendAlpha || getOpacity() < 0.99f : alphaPolicy.mode() == MaterialAlpha.Mode.BLEND;
     }
 
     public boolean hasTexture() {
