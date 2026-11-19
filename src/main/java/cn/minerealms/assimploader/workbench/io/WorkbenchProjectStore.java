@@ -51,6 +51,7 @@ public final class WorkbenchProjectStore {
         if(root.getParent()==null)throw new IllegalArgumentException("Project directory must not be a filesystem root");
     }
     public Path root(){return root;}
+    public static List<String> modelExtensions(){return MODEL_EXTENSIONS.stream().sorted().toList();}
 
     public List<Path> listProjects() throws IOException {
         if(!Files.isDirectory(root))return List.of();

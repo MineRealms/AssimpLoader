@@ -3,6 +3,7 @@ package cn.minerealms.assimploader.workbench.client;
 import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.client.ui.FlatUi;
 import cn.minerealms.assimploader.client.ui.LookDevNavigation;
+import cn.minerealms.assimploader.client.ui.NativeFileDialogs;
 import cn.minerealms.assimploader.lookdev.preview.LoadedModelCatalog;
 import cn.minerealms.assimploader.lookdev.preview.PreviewCamera;
 import cn.minerealms.assimploader.lookdev.preview.PreviewGpuRenderer;
@@ -55,6 +56,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private final List<EditBox> fields=new ArrayList<>();
     private final List<AbstractWidget> inspectorWidgets=new ArrayList<>();
     private WorkbenchProjectStore store;
+    private Path lastImportDirectory,lastProjectDirectory,lastTextureDirectory;
     private WorkbenchProjectStore.Project project;
     private WorkbenchRecovery recovery;
     private WorkbenchSession session;
@@ -96,7 +98,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         LookDevNavigation.install(this,this::addRenderableWidget,LookDevNavigation.Page.WORKBENCH);
         int tx=8;
         tool(tx,FlatUi.Icon.IMPORT,"Import model or asset ZIP",()->requestImport(null));tx+=30;
-        tool(tx,FlatUi.Icon.OPEN,"Open project",()->pathDialog(false));tx+=30;
+        tool(tx,FlatUi.Icon.OPEN,"Open project",()->chooseFile(false,null));tx+=30;
         save=tool(tx,FlatUi.Icon.SAVE,"Save project",this::save);tx+=34;
         undo=tool(tx,FlatUi.Icon.UNDO,"Undo",()->history(false));tx+=30;
         redo=tool(tx,FlatUi.Icon.REDO,"Redo",()->history(true));tx+=34;
@@ -191,7 +193,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     public void requestImport(String extension){
         if(busy&&operation==Operation.NORMAL&&session==null){pendingImport=true;pendingImportExtension=extension;return;}
         if(!allowReplace())return;
-        minecraft.setScreen(new PathScreen(this,true,extension));
+        chooseFile(true,extension);
     }
     public void importPath(Path input,String extension){
         if(!allowReplace())return;
@@ -527,7 +529,22 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     }
     private boolean insideViewport(double x,double y){return x>=viewportX()&&x<viewportX()+viewportWidth()&&y>=viewportY()&&y<viewportY()+viewportHeight();}
     @Override public void onFilesDrop(List<Path> paths){if(!paths.isEmpty())importPath(paths.get(0));}
-    private void pathDialog(boolean importing){commit();minecraft.setScreen(new PathScreen(this,importing));}
+    private void chooseFile(boolean importing,String extension){
+        commit();if(!allowReplace())return;
+        Path initial=importing?lastImportDirectory:lastProjectDirectory;
+        if(initial==null)initial=importing?minecraft.gameDirectory.toPath():project==null?store.root():project.documentPath();
+        var patterns=new ArrayList<String>();
+        if(importing)for(String format:WorkbenchProjectStore.modelExtensions())patterns.add("*."+format);
+        patterns.add("*.zip");patterns.add("*.workbench.json");
+        Path initialSelection=initial;
+        String title=importing?(extension==null?"Import model or asset ZIP":"Import "+WorkbenchExtensions.get(extension).title()+" avatar"):"Open workbench project";
+        task("Choosing file",()->NativeFileDialogs.openFile(title,initialSelection,patterns,importing?"Models and workbench packages":"Workbench projects and ZIP packages"),selected->{
+            if(minecraft.screen!=this||selected.isEmpty())return;
+            Path file=selected.get();
+            if(importing){lastImportDirectory=file.getParent();importPath(file,extension);}
+            else{lastProjectDirectory=file.getParent();open(file);}
+        });
+    }
     public void save(){
         if(session==null)return;
         commit();animationEdit();
@@ -656,22 +673,6 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private static float[] values(ModelTransform t){return new float[]{t.x(),t.y(),t.z(),t.rx(),t.ry(),t.rz(),t.sx(),t.sy(),t.sz()};}
     private static float component(ModelTransform t,int index){return values(t)[index];}
 
-    private static final class PathScreen extends Screen {
-        private final ModelWorkbenchScreen parent;private final boolean importing;private EditBox path;private String extension;
-        PathScreen(ModelWorkbenchScreen parent,boolean importing){this(parent,importing,null);}
-        PathScreen(ModelWorkbenchScreen parent,boolean importing,String extension){super(Component.literal(importing?"Import asset":"Open project"));this.parent=parent;this.importing=importing;this.extension=extension;}
-        @Override protected void init(){int w=Math.min(560,width-32),x=(width-w)/2,y=height/2;String previous=path==null?"":path.getValue();path=addRenderableWidget(FlatUi.field(font,x,y,w,26,Component.literal("Path")));path.setMaxLength(4096);path.setHint(Component.literal(importing?"Model file, project folder or asset ZIP":"project.workbench.json"));path.setValue(previous);
-            if(importing){
-                var providers=WorkbenchExtensions.all().stream().filter(WorkbenchExtensions.Extension::canImport).toList();int cells=providers.size()+1,cell=Math.max(1,w/cells);
-                addRenderableWidget(FlatUi.choice(x,y-38,cell-2,24,Component.literal("Model"),()->extension==null,b->{extension=null;rebuildWidgets();}));
-                for(int i=0;i<providers.size();i++){var provider=providers.get(i);addRenderableWidget(FlatUi.choice(x+(i+1)*cell,y-38,cell-2,24,Component.literal(provider.title()),()->provider.id().equals(extension),b->{extension=provider.id();rebuildWidgets();}));}
-            }
-            addRenderableWidget(FlatUi.button(x,y+38,100,26,Component.literal(importing?"Import":"Open"),b->{String value=path.getValue().trim();minecraft.setScreen(parent);try{if(importing)parent.importPath(Path.of(value),extension);else parent.open(Path.of(value));}catch(RuntimeException invalid){parent.status=invalid.getMessage();}}));
-            addRenderableWidget(FlatUi.button(x+110,y+38,100,26,Component.literal("Cancel"),b->onClose()));setInitialFocus(path);}
-        @Override public void render(GuiGraphics g,int x,int y,float p){ScreenCompat.renderBackground(this,g,x,y,p);g.drawCenteredString(font,title,width/2,height/2-62,FlatUi.TEXT);super.render(g,x,y,p);}
-        @Override public void onFilesDrop(List<Path> files){if(!files.isEmpty()){minecraft.setScreen(parent);if(importing)parent.importPath(files.get(0),extension);else parent.open(files.get(0));}}
-        @Override public void onClose(){minecraft.setScreen(parent);}@Override public boolean isPauseScreen(){return false;}
-    }
     private static final class UnsavedScreen extends Screen {
         private final ModelWorkbenchScreen parent;UnsavedScreen(ModelWorkbenchScreen parent){super(Component.literal("Unsaved project"));this.parent=parent;}
         @Override protected void init(){int x=width/2-150,y=height/2;addRenderableWidget(FlatUi.button(x,y,94,26,Component.literal("Save"),b->{minecraft.setScreen(parent);parent.save();}));
@@ -684,9 +685,20 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         private static final String[] SLOTS={"albedo","normal","specular","roughness","metallic","occlusion","emissive"};
         private final ModelWorkbenchScreen parent;private final int material;private String error="";TextureScreen(ModelWorkbenchScreen parent,int material){super(Component.literal("Texture slots"));this.parent=parent;this.material=material;}
         @Override protected void init(){int w=Math.min(500,width-32),x=(width-w)/2,y=38;parent.session.beginTransaction();
-            for(String slot:SLOTS){int yy=y;addRenderableWidget(FlatUi.button(x,yy,92,26,Component.literal(slot),b->{}));EditBox field=addRenderableWidget(FlatUi.field(font,x+100,yy,w-100,26,Component.literal(slot)));field.setMaxLength(4096);field.setValue(parent.session.document().materials().get(material).textures().getOrDefault(slot,""));field.setResponder(value->{try{var c=parent.session.document().materials().get(material);var paths=new java.util.LinkedHashMap<>(c.textures());if(value.isBlank())paths.remove(slot);else paths.put(slot,value);parent.session.edit(d->d.withMaterial(material,new WorkbenchDocument.MaterialOverride(c.r(),c.g(),c.b(),c.a(),c.metallic(),c.roughness(),c.emission(),c.alphaMode(),c.cutoff(),c.doubleSided(),paths)));error="";}catch(RuntimeException e){error=e.getMessage();}});y+=36;}
+            for(String slot:SLOTS){int yy=y;EditBox field=addRenderableWidget(FlatUi.field(font,x+100,yy,w-134,26,Component.literal(slot)));field.setMaxLength(4096);field.setValue(parent.session.document().materials().get(material).textures().getOrDefault(slot,""));field.setResponder(value->{try{var c=parent.session.document().materials().get(material);var paths=new java.util.LinkedHashMap<>(c.textures());if(value.isBlank())paths.remove(slot);else paths.put(slot,value);parent.session.edit(d->d.withMaterial(material,new WorkbenchDocument.MaterialOverride(c.r(),c.g(),c.b(),c.a(),c.metallic(),c.roughness(),c.emission(),c.alphaMode(),c.cutoff(),c.doubleSided(),paths)));error="";}catch(RuntimeException e){error=e.getMessage();}});
+                addRenderableWidget(FlatUi.icon(x+w-26,yy,FlatUi.Icon.OPEN,Component.literal("Choose "+slot+" texture"),b->chooseTexture(slot,field)));y+=36;}
             addRenderableWidget(FlatUi.button(x,y,100,26,Component.literal("Apply"),b->{parent.session.commitTransaction();onClose();}));addRenderableWidget(FlatUi.button(x+110,y,100,26,Component.literal("Cancel"),b->{parent.session.cancelTransaction();onClose();}));}
-        @Override public void render(GuiGraphics g,int x,int y,float p){ScreenCompat.renderBackground(this,g,x,y,p);g.drawCenteredString(font,title,width/2,16,FlatUi.TEXT);g.drawString(font,FlatUi.clip(font,error,width-32),16,height-20,FlatUi.ERROR,false);super.render(g,x,y,p);}
+        private void chooseTexture(String slot,EditBox field){
+            Path initial=parent.lastTextureDirectory;
+            if(initial==null)initial=parent.project==null?minecraft.gameDirectory.toPath():parent.project.directory();
+            Path initialSelection=initial;
+            parent.task("Choosing texture",()->NativeFileDialogs.openFile("Choose "+slot+" texture",initialSelection,
+                    List.of("*.png","*.jpg","*.jpeg","*.tga","*.bmp","*.webp","*.dds","*.ktx2"),"Texture images"),selected->{
+                if(minecraft.screen!=this||selected.isEmpty())return;
+                Path file=selected.get();parent.lastTextureDirectory=file.getParent();field.setValue(file.toString());
+            }).whenComplete((unused,failure)->{if(failure!=null)error=operationCause(failure).getMessage();});
+        }
+        @Override public void render(GuiGraphics g,int x,int y,float p){ScreenCompat.renderBackground(this,g,x,y,p);g.drawCenteredString(font,title,width/2,16,FlatUi.TEXT);int left=(width-Math.min(500,width-32))/2;for(int i=0;i<SLOTS.length;i++)g.drawString(font,SLOTS[i],left,47+i*36,FlatUi.TEXT,false);g.drawString(font,FlatUi.clip(font,error==null?"":error,width-32),16,height-20,FlatUi.ERROR,false);super.render(g,x,y,p);}
         @Override public void onClose(){parent.session.commitTransaction();minecraft.setScreen(parent);}@Override public boolean isPauseScreen(){return false;}
     }
 }
