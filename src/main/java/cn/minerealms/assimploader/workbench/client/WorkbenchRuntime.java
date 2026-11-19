@@ -14,6 +14,10 @@ import org.joml.Matrix4f;
 public final class WorkbenchRuntime {
     private static final Map<String,WorkbenchDocument> APPLIED=new LinkedHashMap<>();
     private static final Map<AssimpScene,Binding> BINDINGS=new WeakHashMap<>();
+    private static final Map<Object,OwnerBinding> OWNERS=new WeakHashMap<>();
+    private static final ThreadLocal<InstanceBinding> CURRENT=new ThreadLocal<>();
+    private record OwnerBinding(AssimpScene scene,Binding binding) {}
+    private record InstanceBinding(AssimpScene scene,Binding binding) {}
     private static long serial;
     private static final class Binding {
         final WorkbenchDocument doc;
@@ -29,8 +33,32 @@ public final class WorkbenchRuntime {
         BINDINGS.entrySet().removeIf(entry->{if(key(entry.getKey()).equals(key(scene))){entry.getValue().materials.values().forEach(m->ModelTextureCache.releaseMaterial(entry.getKey(),m));return true;}return false;});
         cn.minerealms.assimploader.rendering.OculusEntityBufferCache.invalidateScene(scene);
     }
-    public static WorkbenchDocument document(AssimpScene scene){return APPLIED.get(key(scene));}
-    private static Binding binding(AssimpScene scene){var doc=document(scene);if(doc==null)return null;var old=BINDINGS.get(scene);if(old==null||old.doc!=doc){old=new Binding(doc,scene);BINDINGS.put(scene,old);}return old;}
+    /** Owner scopes also suppress source-wide overrides when this instance has no edits. */
+    public static InstanceScope instance(Object owner,AssimpScene scene,WorkbenchDocument document){
+        Objects.requireNonNull(owner);Objects.requireNonNull(scene);
+        var owned=OWNERS.get(owner);Binding binding=owned==null?null:owned.binding();
+        if(document==null){if(binding!=null)release(owner,scene);binding=null;}
+        else if(binding==null||owned.scene()!=scene||!binding.doc.equals(document)){
+            if(binding!=null)release(owner,scene);
+            binding=new Binding(document,scene);OWNERS.put(owner,new OwnerBinding(scene,binding));
+            if(owner instanceof cn.minerealms.assimploader.animation.AnimationState animation)
+                cn.minerealms.assimploader.rendering.OculusEntityBufferCache.invalidateOwner(animation);
+        }
+        var previous=CURRENT.get();CURRENT.set(new InstanceBinding(scene,binding));return new InstanceScope(previous);
+    }
+    public static void release(Object owner,AssimpScene scene){
+        var binding=OWNERS.remove(owner);
+        if(binding!=null)binding.binding().materials.values().forEach(m->ModelTextureCache.releaseMaterial(binding.scene(),m));
+        if(owner instanceof cn.minerealms.assimploader.animation.AnimationState animation)
+            cn.minerealms.assimploader.rendering.OculusEntityBufferCache.invalidateOwner(animation);
+    }
+    public static final class InstanceScope implements AutoCloseable {
+        private final InstanceBinding previous;private boolean closed;
+        private InstanceScope(InstanceBinding previous){this.previous=previous;}
+        @Override public void close(){if(!closed){closed=true;if(previous==null)CURRENT.remove();else CURRENT.set(previous);}}
+    }
+    public static WorkbenchDocument document(AssimpScene scene){var current=CURRENT.get();return current!=null&&current.scene()==scene?current.binding()==null?null:current.binding().doc:APPLIED.get(key(scene));}
+    private static Binding binding(AssimpScene scene){var current=CURRENT.get();if(current!=null&&current.scene()==scene)return current.binding();var doc=document(scene);if(doc==null)return null;var old=BINDINGS.get(scene);if(old==null||old.doc!=doc){old=new Binding(doc,scene);BINDINGS.put(scene,old);}return old;}
     public static AssimpMaterial material(AssimpScene scene,int index){
         Binding binding=binding(scene);if(binding==null||index<0||index>=scene.getMaterialCount())return null;
         var edit=binding.doc.materials().get(index);if(edit==null)return null;
@@ -51,6 +79,7 @@ public final class WorkbenchRuntime {
     }
     public static PoseSnapshot pose(AssimpScene scene,PoseSnapshot source){
         Binding b=binding(scene);if(b==null||b.doc.nodes().isEmpty())return source;
+        if(source!=null&&source==b.pose)return source;
         if(b.source==source&&b.pose!=null)return b.pose;
         var locals=source==null?new LinkedHashMap<String,Matrix4f>():new LinkedHashMap<>(source.copyLocalTransforms());
         if(scene.getRootNode()!=null)applyNodes(scene.getRootNode(),"",0,b.doc,locals);

@@ -41,7 +41,7 @@ import java.util.Map;
 /** Persistent Oculus ENTITY buffers; Minecraft and the shader pack retain control of every draw. */
 public final class OculusEntityBufferCache {
     public record Statistics(int buffers, long uploads, long vertices, long bytes, long draws, long shadowDraws) {}
-    private record Entry(VertexBuffer buffer, AttributeLayout attributes, OculusPoseCompute compute) implements AutoCloseable {
+    private record Entry(VertexBuffer buffer, AttributeLayout attributes, OculusPoseCompute compute, AssimpMaterial material) implements AutoCloseable {
         @Override public void close() {
             if (compute != null) compute.close();
             buffer.close();
@@ -51,6 +51,7 @@ public final class OculusEntityBufferCache {
     private static final Map<AnimationState,PoseEntry> POSES = new java.util.LinkedHashMap<>(16,.75f,true);
     private static final class PoseEntry {
         PoseSnapshot snapshot;
+        cn.minerealms.assimploader.workbench.model.WorkbenchDocument document;
         final Map<AssimpMesh,Entry> meshes=new IdentityHashMap<>();
         long reservation;
         boolean compute;
@@ -142,9 +143,11 @@ public final class OculusEntityBufferCache {
         DrawProgress progress=new DrawProgress();
         try(DrawState state=new DrawState();AutoCloseable phase=blockEntity
                 ?OculusEntityDrawBridge.beginBlockEntity():OculusEntityDrawBridge.beginEntity()) {
-            boolean rebuild=entry.snapshot!=snapshot;
+            var document=cn.minerealms.assimploader.workbench.client.WorkbenchRuntime.document(scene);
+            boolean materialChanged=entry.document!=document;
+            boolean rebuild=entry.snapshot!=snapshot||materialChanged;
             boolean formatChanged=entry.meshes.values().stream().anyMatch(value->!OculusEntityDrawBridge.isEntityFormat(value.buffer().getFormat()));
-            if(formatChanged) {entry.meshes.values().forEach(Entry::close);entry.meshes.clear();rebuild=true;}
+            if(formatChanged||materialChanged) {entry.meshes.values().forEach(Entry::close);entry.meshes.clear();rebuild=true;}
             if(rebuild) {
                 for(var mesh:scene.getMeshes()) {
                     Entry previousEntry=entry.meshes.get(mesh);
@@ -156,6 +159,7 @@ public final class OculusEntityBufferCache {
                     } else entry.meshes.put(mesh,upload(scene,mesh,snapshot,previousEntry,false));
                 }
                 entry.snapshot=snapshot;
+                entry.document=document;
             } else poseHits++;
             var instances=new ArrayList<SceneTransforms.Instance>();
             for(var instance:snapshot.copyMeshInstances()) instances.add(new SceneTransforms.Instance(instance.mesh(),
@@ -213,6 +217,7 @@ public final class OculusEntityBufferCache {
     }
     private static void closePose(PoseEntry entry) {
         entry.meshes.values().forEach(Entry::close);poseResident-=entry.reservation;
+        entry.meshes.clear();entry.reservation=0;entry.snapshot=null;entry.document=null;
     }
     public static PoseStatistics poseStatistics() {
         return new PoseStatistics(POSES.size(),POSES.values().stream().mapToInt(value->value.meshes.size()).sum(),
@@ -246,7 +251,8 @@ public final class OculusEntityBufferCache {
             var entries = SCENES.computeIfAbsent(scene, ignored -> new IdentityHashMap<>());
             for (var instance : instances) {
                 Entry entry = entries.get(instance.mesh());
-                if (entry != null && !OculusEntityDrawBridge.isEntityFormat(entry.buffer().getFormat())) {
+                if (entry != null && (!OculusEntityDrawBridge.isEntityFormat(entry.buffer().getFormat())
+                        || entry.material()!=ModelTextureCache.material(scene,instance.mesh()))) {
                     entry.close();
                     entries.remove(instance.mesh());
                 }
@@ -302,6 +308,7 @@ public final class OculusEntityBufferCache {
     }
 
     private static Entry upload(AssimpScene scene, AssimpMesh mesh,PoseSnapshot snapshot,Entry previous,boolean gpu) {
+        AssimpMaterial material=ModelTextureCache.material(scene,mesh);
         //? if forge {
         if (scratch == null) scratch = new BufferBuilder(1 << 20);
         scratch.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.NEW_ENTITY);
@@ -313,10 +320,10 @@ public final class OculusEntityBufferCache {
         scratch = new BufferBuilder(scratchBuffer, VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.NEW_ENTITY);
         *///?}
         try {
-            if(snapshot==null || gpu) ENCODER.encode(mesh, ModelTextureCache.material(scene, mesh), scratch);
+            if(snapshot==null || gpu) ENCODER.encode(mesh, material, scratch);
             else {
                 var geometry=CpuSkinning.geometry(snapshot,mesh);
-                ENCODER.encode(mesh,geometry.positions(),geometry.normals(),ModelTextureCache.material(scene,mesh),scratch);
+                ENCODER.encode(mesh,geometry.positions(),geometry.normals(),material,scratch);
             }
         } catch (RuntimeException | LinkageError error) {
             //? if forge {
@@ -363,7 +370,7 @@ public final class OculusEntityBufferCache {
             complete = true;
             if(snapshot==null) AssimpLoader.LOGGER.info("[OculusEntityCache] Uploaded {} vertices={} stride={} bytes={} attributes={}",
                     mesh.getName(), draw.vertexCount(), draw.format().getVertexSize(), draw.vertexBufferSize(), attributes);
-            return new Entry(buffer, attributes, compute);
+            return new Entry(buffer, attributes, compute, material);
         } finally {
             if (!transferred) data.release();
             if (!complete) {
@@ -378,11 +385,16 @@ public final class OculusEntityBufferCache {
     }
 
     /** One accepted material edit must not invalidate unrelated resident models. */
+    public static void invalidateOwner(AnimationState owner) {
+        RenderSystem.assertOnRenderThread();
+        var entry=POSES.remove(owner);if(entry!=null)closePose(entry);
+    }
+
     public static void invalidateScene(AssimpScene scene) {
         RenderSystem.assertOnRenderThread();
         var entries=SCENES.remove(scene);if(entries!=null)entries.values().forEach(Entry::close);
         var iterator=POSES.entrySet().iterator();
-        while(iterator.hasNext()){var entry=iterator.next();if(entry.getKey().getScene()==scene){poseResident-=entry.getValue().reservation;closePose(entry.getValue());iterator.remove();}}
+        while(iterator.hasNext()){var entry=iterator.next();if(entry.getKey().getScene()==scene){closePose(entry.getValue());iterator.remove();}}
         BufferUploader.invalidate();
     }
 
