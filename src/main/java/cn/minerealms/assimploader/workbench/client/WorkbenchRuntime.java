@@ -8,6 +8,7 @@ import cn.minerealms.assimploader.render.SceneTransforms;
 import cn.minerealms.assimploader.workbench.model.*;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.*;
+import java.nio.file.Path;
 import org.joml.Matrix4f;
 
 /** Accepted local overrides. Drafts stay in the screen and never leak into shared imported data. */
@@ -21,10 +22,18 @@ public final class WorkbenchRuntime {
     private static long serial;
     private static final class Binding {
         final WorkbenchDocument doc;
+        final Path textureSource;
+        final Map<String,String> nodeNames=new HashMap<>();
+        final Map<String,Matrix4f> bindFrames=new HashMap<>();
         final Map<Integer,AssimpMaterial> materials=new HashMap<>();
         final Set<Integer> hidden=new HashSet<>();
         PoseSnapshot source,pose;
-        Binding(WorkbenchDocument doc,AssimpScene scene){this.doc=doc;if(scene.getRootNode()!=null)visibility(scene.getRootNode(),"",0,true,doc,hidden);}
+        Binding(WorkbenchDocument doc,AssimpScene scene,Path textureSource){this.doc=doc;this.textureSource=textureSource;if(scene.getRootNode()!=null){visibility(scene.getRootNode(),"",0,true,doc,hidden);indexNodes(scene.getRootNode(),"",0,new Matrix4f());}}
+        private void indexNodes(AssimpNode node,String parent,int sibling,Matrix4f parentFrame){
+            String path=SceneMetadata.nodePath(parent,node.getName(),sibling);var frame=new Matrix4f(parentFrame).mul(node.getTransformation());
+            nodeNames.put(path,node.getName());bindFrames.put(path,frame);bindFrames.putIfAbsent(node.getName(),frame);
+            for(int i=0;i<node.getChildren().size();i++)indexNodes(node.getChildren().get(i),path,i,frame);
+        }
     }
     private WorkbenchRuntime(){}
     private static String key(AssimpScene scene){return scene.getSourceResource()!=null?scene.getSourceResource().toString():scene.getSourcePath()!=null?scene.getSourcePath().toAbsolutePath().normalize().toString():"memory:"+System.identityHashCode(scene);}
@@ -35,12 +44,17 @@ public final class WorkbenchRuntime {
     }
     /** Owner scopes also suppress source-wide overrides when this instance has no edits. */
     public static InstanceScope instance(Object owner,AssimpScene scene,WorkbenchDocument document){
+        return instance(owner,scene,document,null);
+    }
+    /** A local project can resolve its material overrides without replacing another owner's scene. */
+    public static InstanceScope instance(Object owner,AssimpScene scene,WorkbenchDocument document,Path textureSource){
         Objects.requireNonNull(owner);Objects.requireNonNull(scene);
+        Path source=textureSource==null?scene.getSourcePath():textureSource.toAbsolutePath().normalize();
         var owned=OWNERS.get(owner);Binding binding=owned==null?null:owned.binding();
         if(document==null){if(binding!=null)release(owner,scene);binding=null;}
-        else if(binding==null||owned.scene()!=scene||!binding.doc.equals(document)){
+        else if(binding==null||owned.scene()!=scene||!binding.doc.equals(document)||!Objects.equals(source,binding.textureSource)){
             if(binding!=null)release(owner,scene);
-            binding=new Binding(document,scene);OWNERS.put(owner,new OwnerBinding(scene,binding));
+            binding=new Binding(document,scene,source);OWNERS.put(owner,new OwnerBinding(scene,binding));
             if(owner instanceof cn.minerealms.assimploader.animation.AnimationState animation)
                 cn.minerealms.assimploader.rendering.OculusEntityBufferCache.invalidateOwner(animation);
         }
@@ -58,7 +72,16 @@ public final class WorkbenchRuntime {
         @Override public void close(){if(!closed){closed=true;if(previous==null)CURRENT.remove();else CURRENT.set(previous);}}
     }
     public static WorkbenchDocument document(AssimpScene scene){var current=CURRENT.get();return current!=null&&current.scene()==scene?current.binding()==null?null:current.binding().doc:APPLIED.get(key(scene));}
-    private static Binding binding(AssimpScene scene){var current=CURRENT.get();if(current!=null&&current.scene()==scene)return current.binding();var doc=document(scene);if(doc==null)return null;var old=BINDINGS.get(scene);if(old==null||old.doc!=doc){old=new Binding(doc,scene);BINDINGS.put(scene,old);}return old;}
+    private static Binding binding(AssimpScene scene){var current=CURRENT.get();if(current!=null&&current.scene()==scene)return current.binding();var doc=document(scene);if(doc==null)return null;var old=BINDINGS.get(scene);if(old==null||old.doc!=doc){old=new Binding(doc,scene,scene.getSourcePath());BINDINGS.put(scene,old);}return old;}
+    /** Capture this on the render thread before scheduling image IO. */
+    public static Path textureSource(AssimpScene scene){var binding=binding(scene);return binding==null?scene.getSourcePath():binding.textureSource;}
+    /** Named attachment in edited model space. The consumer applies its model/world root once. */
+    public static Matrix4f socket(AssimpScene scene,PoseSnapshot snapshot,String name){
+        var binding=binding(scene);if(binding==null)return null;var socket=binding.doc.sockets().get(name);if(socket==null)return null;
+        var corrected=pose(scene,snapshot);String node=binding.nodeNames.getOrDefault(socket.node(),socket.node());
+        var frame=corrected==null?binding.bindFrames.get(socket.node()):corrected.getNodeTransform(node);
+        return frame==null?null:new Matrix4f(frame).mul(socket.transform().matrix());
+    }
     public static AssimpMaterial material(AssimpScene scene,int index){
         Binding binding=binding(scene);if(binding==null||index<0||index>=scene.getMaterialCount())return null;
         var edit=binding.doc.materials().get(index);if(edit==null)return null;

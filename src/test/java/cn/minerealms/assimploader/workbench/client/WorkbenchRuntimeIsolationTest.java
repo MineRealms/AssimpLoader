@@ -143,6 +143,31 @@ class WorkbenchRuntimeIsolationTest {
                 new ModelTransform(dx, 0, 0, 0, 0, 0, 1, 1, 1), visible));
     }
 
+    @Test void socketUsesEditedAnimationAndOwnerTextureOriginsStayIndependent() {
+        var scene=scene();var first=new Object();var second=new Object();
+        var source=PoseSnapshot.capture(3,scene,Map.of());
+        var doc=document(scene,3,1,0,true).withSocket("back",new WorkbenchDocument.Socket("Joint",ModelTransform.IDENTITY.withPosition(1,0,0)));
+        var pathA=java.nio.file.Path.of("project-a/model.fbx").toAbsolutePath().normalize();
+        var pathB=java.nio.file.Path.of("project-b/model.fbx").toAbsolutePath().normalize();
+        AssimpMaterial bMaterial;
+        try {
+            try(var ignored=WorkbenchRuntime.instance(first,scene,doc,pathA)) {
+                assertEquals(pathA,WorkbenchRuntime.textureSource(scene));
+                assertEquals(6,WorkbenchRuntime.socket(scene,source,"back").m30(),1e-5);
+                assertNull(WorkbenchRuntime.socket(scene,source,"unknown"));
+            }
+            try(var ignored=WorkbenchRuntime.instance(second,scene,doc,pathB)) {
+                bMaterial=WorkbenchRuntime.material(scene,0);
+                assertEquals(pathB,WorkbenchRuntime.textureSource(scene));
+            }
+            try(var ignored=WorkbenchRuntime.instance(first,scene,doc,pathB)) {
+                assertEquals(pathB,WorkbenchRuntime.textureSource(scene));
+                assertNotSame(bMaterial,WorkbenchRuntime.material(scene,0));
+            }
+            try(var ignored=WorkbenchRuntime.instance(second,scene,doc,pathB)) {assertSame(bMaterial,WorkbenchRuntime.material(scene,0));}
+        } finally {WorkbenchRuntime.release(first,scene);WorkbenchRuntime.release(second,scene);}
+    }
+
     private static AssimpScene scene() {
         var binary = ByteBuffer.allocate(36).order(ByteOrder.LITTLE_ENDIAN);
         for (float value : new float[]{0, 0, 0, 1, 0, 0, 0, 1, 0}) binary.putFloat(value);

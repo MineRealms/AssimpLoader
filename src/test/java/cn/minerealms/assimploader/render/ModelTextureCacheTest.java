@@ -38,4 +38,13 @@ class ModelTextureCacheTest {
         assertNull(ModelTextureCache.resolveFile(source, "other:textures/body.png"));
         assertNull(ModelTextureCache.resolveFile(source, "*0"));
     }
+
+    @Test void explicitEditorOverrideCanReadAnAbsoluteAuthorFileWithoutOpeningSceneTraversal() throws Exception {
+        Path model=Files.createDirectories(directory.resolve("model")).resolve("model.fbx");
+        Path chosen=Files.writeString(directory.resolve("selected.png"),"selected");
+        assertEquals(chosen,ModelTextureCache.resolveFile(model,chosen.toString(),true));
+        assertNull(ModelTextureCache.resolveFile(model,chosen.toString(),false));
+        assertNull(ModelTextureCache.resolveFile(model,"../selected.png",true));
+        assertNull(ModelTextureCache.resolveFile(model,"missing.png",true));
+    }
 }

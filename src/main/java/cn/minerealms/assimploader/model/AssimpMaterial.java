@@ -26,6 +26,7 @@ public class AssimpMaterial {
     private final String specularTexture;
     private final PbrMaterialInputs pbrInputs;
     private final boolean blendAlpha;
+    private final boolean detached;
 
     public AssimpMaterial(AIMaterial aiMaterial, int index) {
         this(aiMaterial, index, "", "");
@@ -42,6 +43,7 @@ public class AssimpMaterial {
         this.specularTexture = readTexturePath(aiMaterial, aiTextureType_SPECULAR);
         this.pbrInputs = readPbrInputs(aiMaterial, sourceFormat, sourceGenerator);
         this.blendAlpha = readBlendAlpha(aiMaterial);
+        this.detached = false;
     }
 
     /** Detached material variant; the shared imported material remains immutable. */
@@ -52,6 +54,7 @@ public class AssimpMaterial {
         this.ambientColor = source.ambientColor.clone();
         this.diffuseTexture = albedo; this.normalTexture = normal; this.specularTexture = specular;
         this.pbrInputs = java.util.Objects.requireNonNull(inputs); this.blendAlpha = blend;
+        this.detached = true;
     }
 
     // ------------------------------------------------------------------ native readers
@@ -276,6 +279,7 @@ public class AssimpMaterial {
     }
 
     public PbrMaterialInputs getPbrInputs() { return pbrInputs; }
+    public boolean isDetached() { return detached; }
 
     /** @return 1 = opaque, 0 = fully transparent */
     public float getOpacity() {

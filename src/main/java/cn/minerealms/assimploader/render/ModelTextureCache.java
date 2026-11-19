@@ -122,6 +122,14 @@ public final class ModelTextureCache {
 
     /** Filesystem sources remain confined to the model's actual parent directory, including symlink resolution. */
     static Path resolveFile(Path source, String texturePath) throws IOException {
+        return resolveFile(source,texturePath,false);
+    }
+    /** Only explicit editor material variants may use author-selected absolute files. */
+    static Path resolveFile(Path source,String texturePath,boolean authored) throws IOException {
+        if(authored&&texturePath!=null&&!texturePath.isBlank()){
+            try{Path explicit=Path.of(texturePath.replace('\\','/'));if(explicit.isAbsolute())return Files.isRegularFile(explicit)?explicit.toAbsolutePath().normalize():null;}
+            catch(java.nio.file.InvalidPathException invalid){return null;}
+        }
         if (source == null || texturePath == null || texturePath.isBlank() || texturePath.startsWith("*")) return null;
         String path = texturePath.replace('\\', '/');
         if (path.startsWith("/") || path.contains(":")) return null;
@@ -181,7 +189,7 @@ public final class ModelTextureCache {
             }
         }
 
-        private PbrTexturePreparation.Prepared prepare(AssimpMaterial material, String path) {
+        private PbrTexturePreparation.Prepared prepare(AssimpMaterial material, String path, Path source) {
             String siblingBase = path;
             int embeddedIndex = scene.findEmbeddedTextureIndex(path);
             if (embeddedIndex >= 0) {
@@ -191,21 +199,36 @@ public final class ModelTextureCache {
             if (material != null && material.getPbrInputs().hasUnsupportedUv()) {
                 AssimpLoader.LOGGER.warn("Model material {} references unsupported PBR UV sets; only UV0 channels will be used", material.getName());
             }
-            return PbrTexturePreparation.prepare(path, siblingBase, material == null ? null : material.getPbrInputs(), this::image);
+            return PbrTexturePreparation.prepare(path, siblingBase, material == null ? null : material.getPbrInputs(), reference -> image(reference,source,material!=null&&material.isDetached()));
         }
 
-        private LabPbrPacker.Image image(String path) {
+        private LabPbrPacker.Image image(String path,Path source,boolean authored) {
             if (closed || path == null || path.isBlank()) return null;
-            return images.computeIfAbsent(path, this::loadImage).orElse(null);
+            int embedded=authoredAbsolute(path,authored)?-1:scene.findEmbeddedTextureIndex(path);
+            String key=embedded>=0?"embedded:"+embedded:source+"\0"+authored+"\0"+path;
+            return images.computeIfAbsent(key, ignored -> loadImage(path,source,authored)).orElse(null);
         }
 
-        private Optional<LabPbrPacker.Image> loadImage(String path) {
+        private static boolean authoredAbsolute(String path,boolean authored){
+            if(!authored)return false;
+            try{return Path.of(path.replace('\\','/')).isAbsolute();}catch(java.nio.file.InvalidPathException invalid){return false;}
+        }
+
+        private Optional<LabPbrPacker.Image> loadImage(String path,Path source,boolean authored) {
             try {
+                if(authoredAbsolute(path,authored)) {
+                    Path selected=resolveFile(source,path,true);if(selected==null)return Optional.empty();
+                    try(InputStream stream=Files.newInputStream(selected);NativeImage image=NativeImage.read(stream)){return Optional.of(copy(image));}
+                }
                 int embeddedIndex = scene.findEmbeddedTextureIndex(path);
                 if (embeddedIndex >= 0) {
                     try (NativeImage image = scene.getTextures().get(embeddedIndex).loadAsNativeImage()) {
                         return Optional.of(copy(image));
                     }
+                }
+                if(source!=null&&!java.util.Objects.equals(source,scene.getSourcePath())) {
+                    Path local=resolveFile(source,path,authored);
+                    if(local!=null)try(InputStream stream=Files.newInputStream(local);NativeImage image=NativeImage.read(stream)){return Optional.of(copy(image));}
                 }
                 ResourceLocation resource = resolveResource(scene.getSourceResource(), path);
                 if (resource != null) {
@@ -216,7 +239,7 @@ public final class ModelTextureCache {
                         }
                     }
                 }
-                Path file = resolveFile(scene.getSourcePath(), path);
+                Path file = resolveFile(source, path,authored);
                 if (file != null) {
                     try (InputStream stream = Files.newInputStream(file); NativeImage image = NativeImage.read(stream)) {
                         return Optional.of(copy(image));
@@ -244,6 +267,7 @@ public final class ModelTextureCache {
         private final SceneTextures owner;
         private final AssimpMaterial material;
         private final String path;
+        private final Path source;
         private final ResourceLocation location;
         private final AssimpPbrTexture texture;
         private CompletableFuture<PbrTexturePreparation.Prepared> pending;
@@ -259,6 +283,7 @@ public final class ModelTextureCache {
             this.owner = owner;
             this.material = material;
             this.path = path;
+            this.source = cn.minerealms.assimploader.workbench.client.WorkbenchRuntime.textureSource(owner.scene);
             this.location = location;
             this.texture = texture;
             failed = texture == null;
@@ -267,7 +292,7 @@ public final class ModelTextureCache {
         private void schedule() {
             if (pending != null || failed || closed) return;
             try {
-                pending = CompletableFuture.supplyAsync(() -> owner.prepare(material, path), WORKERS);
+                pending = CompletableFuture.supplyAsync(() -> owner.prepare(material, path, source), WORKERS);
                 pending.whenComplete((prepared, error) -> RenderSystem.recordRenderCall(() -> {
                     if (closed || owner.closed) return;
                     if (error != null) {
