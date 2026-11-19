@@ -76,6 +76,81 @@ class WorkbenchPackageTest {
         assertEquals(WorkbenchProjectStore.hashFiles(restored.directory().resolve("assets")), restored.document().contentHash());
     }
 
+    @Test void ownedDirectorySnapshotDropsDeletedScriptsAndRetainsOtherExtensionData() throws Exception {
+        var store = new WorkbenchProjectStore(temp.resolve("projects"));
+        var project = store.importAsset(gltf(temp.resolve("source")));
+        extensionFile(project, "rigworks/behavior/controller.js", "old controller");
+        extensionFile(project, "rigworks/behavior/deleted.js", "deleted");
+        extensionFile(project, "rigworks/behavior/nested/deleted.js", "nested deleted");
+        extensionFile(project, "rigworks/behavior-backup/keep.js", "same-module sibling");
+        extensionFile(project, "future/keep.js", "unknown consumer");
+        var snapshot = Map.of("extensions/rigworks/behavior/", new byte[0],
+                "extensions/rigworks/behavior/controller.js", "new controller".getBytes(StandardCharsets.UTF_8));
+        Path output = store.exportZip(project, project.document(), temp.resolve("snapshot.zip"), snapshot);
+        try (var zip = new ZipFile(output.toFile())) {
+            assertNull(zip.getEntry("extensions/rigworks/behavior/"), "The ownership marker is metadata, not archive content");
+            assertNull(zip.getEntry("extensions/rigworks/behavior/deleted.js"));
+            assertNull(zip.getEntry("extensions/rigworks/behavior/nested/deleted.js"));
+            assertEquals("new controller", new String(zip.getInputStream(zip.getEntry("extensions/rigworks/behavior/controller.js")).readAllBytes(), StandardCharsets.UTF_8));
+            assertNotNull(zip.getEntry("extensions/rigworks/behavior-backup/keep.js"));
+            assertNotNull(zip.getEntry("extensions/future/keep.js"));
+            var manifest = JsonParser.parseString(new String(zip.getInputStream(zip.getEntry("manifest.json")).readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
+            assertFalse(manifest.getAsJsonObject("files").has("extensions/rigworks/behavior/"));
+            assertFalse(manifest.getAsJsonObject("files").has("extensions/rigworks/behavior/deleted.js"));
+        }
+        var restored = store.importZip(output);
+        assertFalse(Files.exists(restored.directory().resolve("extensions/rigworks/behavior/deleted.js")));
+        assertEquals("new controller", Files.readString(restored.directory().resolve("extensions/rigworks/behavior/controller.js")));
+        assertEquals("unknown consumer", Files.readString(restored.directory().resolve("extensions/future/keep.js")));
+        assertTrue(Files.isRegularFile(project.directory().resolve("extensions/rigworks/behavior/deleted.js")), "Export must not delete original author files");
+    }
+
+    @Test void explicitEmptySnapshotClearsOnlyItsDirectoryAndEmptyMapKeepsLegacyFiles() throws Exception {
+        var store = new WorkbenchProjectStore(temp.resolve("projects"));
+        var project = store.importAsset(gltf(temp.resolve("source")));
+        extensionFile(project, "rigworks/behavior/deleted.js", "deleted");
+        extensionFile(project, "rigworks/notes.json", "{}");
+        extensionFile(project, "future/keep.js", "unknown consumer");
+        Path empty = store.exportZip(project, project.document(), temp.resolve("empty-snapshot.zip"),
+                Map.of("extensions/rigworks/behavior/", new byte[0]));
+        try (var zip = new ZipFile(empty.toFile())) {
+            assertFalse(zip.stream().anyMatch(entry -> entry.getName().startsWith("extensions/rigworks/behavior/")));
+            assertNotNull(zip.getEntry("extensions/rigworks/notes.json"));
+            assertNotNull(zip.getEntry("extensions/future/keep.js"));
+        }
+        Path merged = store.exportZip(project, project.document(), temp.resolve("legacy-merge.zip"), Map.of());
+        try (var zip = new ZipFile(merged.toFile())) {
+            assertNotNull(zip.getEntry("extensions/rigworks/behavior/deleted.js"));
+        }
+        var restored = store.importZip(empty);
+        Path repacked = store.exportZip(restored, restored.document(), temp.resolve("repacked.zip"), Map.of());
+        try (var zip = new ZipFile(repacked.toFile())) {
+            assertNull(zip.getEntry("extensions/rigworks/behavior/deleted.js"));
+            assertNotNull(zip.getEntry("extensions/future/keep.js"));
+        }
+    }
+
+    @Test void directorySnapshotMarkersRejectGlobalClaimsInvalidPathsAndPayloads() throws Exception {
+        var store = new WorkbenchProjectStore(temp.resolve("projects"));
+        var project = store.importAsset(gltf(temp.resolve("source")));
+        Path destination = temp.resolve("keep.zip"); byte[] original = {1, 2, 3}; Files.write(destination, original);
+        for (var invalid : java.util.List.of(
+                Map.of("extensions/", new byte[0]),
+                Map.of("assets/", new byte[0]),
+                Map.of("extensions/rigworks/../future/", new byte[0]),
+                Map.of("extensions/rigworks/behavior/", new byte[]{1}),
+                Map.of("extensions/rigworks/behavior/", new byte[0], "extensions/rigworks/behavior", new byte[0]),
+                Map.of("extensions/rigworks/behavior/", new byte[0], "extensions/RigWorks/behavior/main.js", new byte[0]))) {
+            assertThrows(IOException.class, () -> store.exportZip(project, project.document(), destination, invalid));
+            assertArrayEquals(original, Files.readAllBytes(destination));
+        }
+    }
+
+    private static void extensionFile(WorkbenchProjectStore.Project project, String relative, String contents) throws IOException {
+        Path path = project.directory().resolve("extensions").resolve(relative);
+        Files.createDirectories(path.getParent()); Files.writeString(path, contents, StandardCharsets.UTF_8);
+    }
+
     @Test void legacyZipReopensSavedDocumentAndReportsMissingManifest() throws Exception {
         var entries = validEntries();
         Path archive = archive("legacy.zip", entries);

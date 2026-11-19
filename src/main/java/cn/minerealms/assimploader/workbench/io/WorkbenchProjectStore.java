@@ -225,7 +225,11 @@ public final class WorkbenchProjectStore {
     public Path exportZip(Project project,WorkbenchDocument document,Path destination) throws IOException {
         return exportZip(project,document,destination,Map.of());
     }
-    /** Additional consumer files use portable paths under extensions/ and never execute during import. */
+    /**
+     * Additional consumer files use portable paths under extensions/ and never execute during import.
+     * An empty entry named extensions/modid/folder/ replaces that complete subtree in the archive;
+     * the marker itself is omitted. With no marker, existing files retain the legacy merge behavior.
+     */
     public Path exportZip(Project project,WorkbenchDocument document,Path destination,Map<String,byte[]> extensionFiles) throws IOException {
         Path output=destination.toAbsolutePath().normalize();
         Files.createDirectories(output.getParent());

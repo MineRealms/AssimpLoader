@@ -18,6 +18,9 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.FileVisitResult;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.DigestOutputStream;
@@ -57,11 +60,13 @@ final class WorkbenchPackageIO {
 
     static void write(WorkbenchProjectStore.Project project, WorkbenchDocument document,
                       Path output, Map<String, byte[]> extraFiles) throws IOException {
+        Set<String> replacedDirectories = snapshotDirectories(extraFiles);
         var files = new TreeMap<String, Payload>();
-        collect(project.directory(), "assets", files);
-        collect(project.directory(), "extensions", files);
+        collect(project.directory(), "assets", files, Set.of());
+        collect(project.directory(), "extensions", files, replacedDirectories);
         WorkbenchDocument portable = portableTextures(project, document, files);
         for (var entry : extraFiles.entrySet()) {
+            if (entry.getKey().endsWith("/")) continue;
             String name = checkedPath(entry.getKey(), false);
             if (!name.startsWith("extensions/")) throw new IOException("Extra package files must be inside extensions/");
             byte[] bytes = java.util.Objects.requireNonNull(entry.getValue(), "Extra package content");
@@ -131,23 +136,60 @@ final class WorkbenchPackageIO {
         zip.putNextEntry(entry);
     }
 
-    private static void collect(Path project, String folder, Map<String, Payload> files) throws IOException {
+    /** A directory marker owns its subtree even when the current snapshot contains no files. */
+    private static Set<String> snapshotDirectories(Map<String, byte[]> extraFiles) throws IOException {
+        var directories = new HashSet<String>();
+        var spelling = new LinkedHashMap<String, String>();
+        for (var entry : extraFiles.entrySet()) {
+            String name = checkedPath(entry.getKey(), entry.getKey() != null && entry.getKey().endsWith("/"));
+            if (!name.startsWith("extensions/")) throw new IOException("Extra package files must be inside extensions/");
+            byte[] bytes = entry.getValue();
+            if (bytes == null) throw new IOException("Extra package content is missing");
+            rememberPath(name, spelling);
+            if (!entry.getKey().endsWith("/")) continue;
+            if (bytes.length != 0) throw new IOException("Package snapshot directory markers must be empty");
+            if (directories.size() >= MAX_ENTRIES) throw new IOException("Too many package snapshot directories");
+            directories.add(name.toLowerCase(Locale.ROOT));
+        }
+        for (String path : extraFiles.keySet()) if (!path.endsWith("/")) {
+            String file = path.toLowerCase(Locale.ROOT);
+            if (directories.stream().anyMatch(directory -> directory.equals(file) || directory.startsWith(file + "/")))
+                throw new IOException("Package snapshot directory conflicts with an extra file");
+        }
+        return Set.copyOf(directories);
+    }
+
+    private static boolean replaced(String name, Set<String> directories) {
+        String path = name.toLowerCase(Locale.ROOT);
+        for (int end = path.length(); end >= 0; end = path.lastIndexOf('/', end - 1)) {
+            if (directories.contains(path.substring(0, end))) return true;
+            if (end == 0) break;
+        }
+        return false;
+    }
+
+    private static void collect(Path project, String folder, Map<String, Payload> files, Set<String> replacedDirectories) throws IOException {
         Path directory = project.resolve(folder);
         if (!Files.exists(directory, LinkOption.NOFOLLOW_LINKS)) return;
         if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) throw new IOException("Package folder must be a real directory: " + folder);
         Path realRoot = project.toRealPath();
-        try (var paths = Files.walk(directory)) {
-            var iterator = paths.iterator();
-            while (iterator.hasNext()) {
-                Path file = iterator.next();
+        Files.walkFileTree(directory, new SimpleFileVisitor<>() {
+            @Override public FileVisitResult preVisitDirectory(Path path, BasicFileAttributes attributes) throws IOException {
+                String name = project.relativize(path).toString().replace('\\', '/');
+                return replaced(name, replacedDirectories) ? FileVisitResult.SKIP_SUBTREE : FileVisitResult.CONTINUE;
+            }
+            @Override public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
+                String relative = project.relativize(file).toString().replace('\\', '/');
+                if (replaced(relative, replacedDirectories)) return FileVisitResult.CONTINUE;
                 if (Files.isSymbolicLink(file)) throw new IOException("Package cannot include symbolic links");
-                if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) continue;
+                if (!attributes.isRegularFile()) return FileVisitResult.CONTINUE;
                 if (!file.toRealPath().startsWith(realRoot)) throw new IOException("Package asset escapes project");
                 if (files.size() >= MAX_ENTRIES - 2) throw new IOException("Package exceeds 10000 entries");
-                String name = checkedPath(project.relativize(file).toString().replace('\\', '/'), false);
+                String name = checkedPath(relative, false);
                 files.put(name, new Payload(file, null));
+                return FileVisitResult.CONTINUE;
             }
-        }
+        });
     }
 
     private static WorkbenchDocument portableTextures(WorkbenchProjectStore.Project project, WorkbenchDocument document,
@@ -161,7 +203,9 @@ final class WorkbenchPackageIO {
             var textures = new LinkedHashMap<String, String>();
             for (var texture : material.textures().entrySet()) {
                 String reference = texture.getValue();
-                if (reference.matches("\\*\\d+")) { textures.put(texture.getKey(), reference); continue; }
+                if (reference.matches("\\*\\d+") || project.scene().findEmbeddedTextureIndex(reference) >= 0) {
+                    textures.put(texture.getKey(), reference); continue;
+                }
                 Path file = SceneMetadata.resolveDependency(model, reference);
                 if (file == null || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS))
                     throw new IOException("Missing texture for package export: " + reference);
