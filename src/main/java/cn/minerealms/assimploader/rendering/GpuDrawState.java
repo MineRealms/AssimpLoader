@@ -40,8 +40,12 @@ final class GpuDrawState implements AutoCloseable {
     }
 
     void prepare() {
+        prepare(false);
+    }
+
+    void prepare(boolean doubleSided) {
         RenderSystem.disableBlend();
-        RenderSystem.enableCull();
+        if (doubleSided) RenderSystem.disableCull(); else RenderSystem.enableCull();
         RenderSystem.enableDepthTest();
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
         RenderSystem.depthMask(true);

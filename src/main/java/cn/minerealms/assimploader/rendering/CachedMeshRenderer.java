@@ -98,7 +98,10 @@ public final class CachedMeshRenderer {
         if (AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.optimizationLevel::get,
                 AssimpLoaderConfig.OptimizationLevel.AUTO) == AssimpLoaderConfig.OptimizationLevel.FALLBACK) return false;
         // Transparent meshes keep Minecraft's own blending/order path.
-        if (!SceneTransforms.isOpaque(scene)) return false;
+        if (instances.stream().anyMatch(instance -> {
+            var material = ModelTextureCache.material(scene, instance.mesh());
+            return material != null && material.isTransparent();
+        })) return false;
         if (buffers instanceof MultiBufferSource.BufferSource source) source.endBatch();
         try (GpuDrawState drawState = new GpuDrawState()) {
             drawState.prepare();
@@ -132,7 +135,9 @@ public final class CachedMeshRenderer {
                     normal.get(normalBuffer);
                     GL20.glUniformMatrix3fv(normalLocation, false, normalBuffer);
                     var material = ModelTextureCache.material(scene, mesh);
-                    float[] tint = material == null ? new float[]{1,1,1,1} : material.getDiffuseColor();
+                    if (material != null && material.isDoubleSided()) RenderSystem.disableCull();
+                    else RenderSystem.enableCull();
+                    float[] tint = material == null ? new float[]{1,1,1,1} : material.getRenderColor();
                     GL20.glUniform4f(tintLocation, tint[0], tint[1], tint[2], tint[3]);
                     RenderSystem.activeTexture(GL13.GL_TEXTURE0);
                     Minecraft.getInstance().getTextureManager().bindForSetup(ModelTextureCache.getTexture(scene, mesh));

@@ -46,7 +46,7 @@ public abstract class BaseAssimpRenderer {
 
     protected RenderType getRenderType(AssimpMaterial material, ResourceLocation texture) {
         ResourceLocation location = texture == null ? ModelTextureCache.WHITE : texture;
-        return AssimpRenderTypes.entity(location, material != null && material.isTransparent());
+        return AssimpRenderTypes.entity(location, material != null && material.isTransparent(), material != null && material.isDoubleSided());
     }
 
     /** A scoped index mask shares pose/deformation resources with the full character. */
@@ -89,7 +89,7 @@ public abstract class BaseAssimpRenderer {
                                      MultiBufferSource buffers, int light, int overlay) {
         List<SceneTransforms.Instance> instances = snapshot == null ? SceneTransforms.instances(scene)
                 : snapshot.copyMeshInstances().stream()
-                .map(instance -> new SceneTransforms.Instance(instance.mesh(), instance.transform())).toList();
+                .map(instance -> new SceneTransforms.Instance(instance.mesh(), instance.transform(), instance.node())).toList();
         instances=cn.minerealms.assimploader.workbench.client.WorkbenchRuntime.instances(scene,instances);
         ModelInstance configured = state == null ? null : state.getModelInstance();
         if (cn.minerealms.assimploader.rendering.MeshDrawSelection.current() == null)
@@ -185,7 +185,7 @@ public abstract class BaseAssimpRenderer {
         if (selection != null && !selection.contains(mesh)) return;
         AssimpMaterial material = ModelTextureCache.material(scene, mesh);
         ResourceLocation texture = getTextureLocation(scene, mesh, getModelName());
-        RenderType type = sample != null && sample.alpha() < 1 ? AssimpRenderTypes.entity(texture == null ? ModelTextureCache.WHITE : texture, true)
+        RenderType type = sample != null && sample.alpha() < 1 ? AssimpRenderTypes.entity(texture == null ? ModelTextureCache.WHITE : texture, true, material != null && material.isDoubleSided())
                 : getRenderType(material, texture);
         VertexConsumer consumer = buffers.getBuffer(type);
         if (sample != null) consumer = new AnimatedMaterialConsumer(consumer, sample);

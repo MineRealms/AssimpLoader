@@ -95,10 +95,17 @@ public final class GpuInstanceBatcher implements AutoCloseable {
         if(pose!=null&&pose.getScene()!=scene) return reject("snapshot belongs to another scene");
         if(!modelView.isFinite()) return reject("non-finite model transform");
         if(!SceneTransforms.isOpaque(scene)) return reject("transparent material");
+        // This batch has one cull state; edited two-sided surfaces use the immediate VBO backend.
+        for(var mesh:scene.getMeshes()) {
+            var material=ModelTextureCache.material(scene,mesh);
+            if(material!=null&&material.isTransparent()) return reject("transparent material override");
+            if(material!=null&&material.isDoubleSided()) return reject("double-sided material");
+        }
         if(pose!=null&&pose.hasActiveMorphs()) return reject("active Morph");
         if(pose==null&&scene.getMeshes().stream().anyMatch(AssimpMesh::hasMorphTargets)) return reject("Morph defaults require a snapshot");
         var draws=pose==null?SceneTransforms.instances(scene):pose.copyMeshInstances().stream()
-                .map(value->new SceneTransforms.Instance(value.mesh(),value.transform())).toList();
+                .map(value->new SceneTransforms.Instance(value.mesh(),value.transform(),value.node())).toList();
+        draws=cn.minerealms.assimploader.workbench.client.WorkbenchRuntime.instances(scene,draws);
         if(draws.isEmpty() || instances.size()+draws.size()>policy.maxInstances()) return reject("instance capacity");
         long required=0,additionalVertices=0,additionalIndices=0;
         var missing=Collections.newSetFromMap(new IdentityHashMap<AssimpMesh,Boolean>());
@@ -126,7 +133,7 @@ public final class GpuInstanceBatcher implements AutoCloseable {
             Matrix4f view=new Matrix4f(modelView);
             if(!mesh.hasBones()) view.mul(draw.transform());
             instances.add(new Instance(mesh,ModelTextureCache.getTexture(scene,mesh),view,
-                    material==null?new float[]{1,1,1,1}:material.getDiffuseColor().clone(),light,overlay,
+                    material==null?new float[]{1,1,1,1}:material.getRenderColor(),light,overlay,
                     mesh.hasBones()?pose.getBoneTransforms(mesh):new Matrix4f[0],eyeBounds));
         }
         frameBytes+=required;accepted+=draws.size();return true;

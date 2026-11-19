@@ -163,7 +163,7 @@ public final class OculusEntityBufferCache {
             } else poseHits++;
             var instances=new ArrayList<SceneTransforms.Instance>();
             for(var instance:snapshot.copyMeshInstances()) instances.add(new SceneTransforms.Instance(instance.mesh(),
-                    instance.mesh().hasBones()?new Matrix4f():instance.transform()));
+                    instance.mesh().hasBones()?new Matrix4f():instance.transform(),instance.node()));
             draw(scene,instances,poses,light,overlay,state,entry.meshes,true,progress);
             cn.minerealms.assimploader.debug.DebugGeometryRenderer.render(scene,snapshot,configured,poses,
                     net.minecraft.client.Minecraft.getInstance().renderBuffers().bufferSource());
@@ -277,7 +277,7 @@ public final class OculusEntityBufferCache {
             Matrix4f modelView = new Matrix4f();
             boolean shadow = OculusCompat.isRenderingShadowPass();
             for (int pass = 0; pass < 2; pass++) for (var instance : instances) {
-                if(!cn.minerealms.assimploader.workbench.client.WorkbenchRuntime.visible(scene,instance.mesh()))continue;
+                if(!cn.minerealms.assimploader.workbench.client.WorkbenchRuntime.visible(scene,instance))continue;
                 var selection = MeshDrawSelection.current();
                 if (selection != null && !selection.contains(instance.mesh())) continue;
                 var material = ModelTextureCache.material(scene, instance.mesh());
@@ -285,7 +285,7 @@ public final class OculusEntityBufferCache {
                 if (transparent != (pass == 1)) continue;
                 Entry entry = entries.get(instance.mesh());
                 OculusEntityDrawBridge.clearShaderBinding();
-                var type = AssimpRenderTypes.entity(ModelTextureCache.getTexture(scene, instance.mesh()), transparent);
+                var type = AssimpRenderTypes.entity(ModelTextureCache.getTexture(scene, instance.mesh()), transparent, material != null && material.isDoubleSided());
                 type.setupRenderState();
                 try {
                     ShaderInstance shader = RenderSystem.getShader();

@@ -90,6 +90,8 @@ public class SkinnedMeshRenderer {
     public void renderWithSnapshot(AnimationState owner,PoseSnapshot snapshot,AssimpMesh mesh,PoseStack poses,
             MultiBufferSource buffers,ResourceLocation texture,TextureManager textures,int light,int overlay,float[] tint) {
         var palette=snapshot.getBoneTransforms(mesh);
+        var material=cn.minerealms.assimploader.render.ModelTextureCache.material(snapshot.getScene(),mesh);
+        boolean doubleSided=material!=null&&material.isDoubleSided();
         if(!computeFailed && ComputeSkinning.available() && owner!=null && !owner.isClosed()
                 && AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.computeSkinningEnabled::get,false)
                 && !cn.minerealms.assimploader.compat.OculusCompat.shouldAvoidCustomShaders()) {
@@ -118,7 +120,7 @@ public class SkinnedMeshRenderer {
                     if(buffers instanceof MultiBufferSource.BufferSource source) source.endBatch();
                     Matrix4f modelView=createModelView(RenderSystem.getModelViewMatrix(),poses.last().pose());
                     try(GpuDrawState drawState=new GpuDrawState()) {
-                        drawState.prepare();output.deform(snapshot);
+                        drawState.prepare(doubleSided);output.deform(snapshot);
                         renderPacked(mesh,palette,createModelViewProjection(RenderSystem.getProjectionMatrix(),modelView),modelView,
                                 texture,textures,light,overlay,tint,null,output);
                     }
@@ -130,7 +132,7 @@ public class SkinnedMeshRenderer {
             }
         }
         renderWithPose(mesh,palette,poses,buffers,texture,textures,light,overlay,tint,
-                snapshot.hasActiveMorphs(mesh)?snapshot.getMorphWeights(mesh):null);
+                snapshot.hasActiveMorphs(mesh)?snapshot.getMorphWeights(mesh):null,doubleSided);
     }
 
     private void clearCompute() {
@@ -207,6 +209,12 @@ public class SkinnedMeshRenderer {
     public void renderWithPose(AssimpMesh mesh, Matrix4f[] boneMatrices,
                                PoseStack poseStack, MultiBufferSource bufferSource,
                                ResourceLocation texture, TextureManager textureManager, int light, int overlay, float[] tint,float[] morphWeights) {
+        renderWithPose(mesh,boneMatrices,poseStack,bufferSource,texture,textureManager,light,overlay,tint,morphWeights,false);
+    }
+
+    private void renderWithPose(AssimpMesh mesh, Matrix4f[] boneMatrices,
+                               PoseStack poseStack, MultiBufferSource bufferSource,
+                               ResourceLocation texture, TextureManager textureManager, int light, int overlay, float[] tint,float[] morphWeights,boolean doubleSided) {
         if (bufferSource instanceof MultiBufferSource.BufferSource source) {
             source.endBatch();
         }
@@ -214,7 +222,7 @@ public class SkinnedMeshRenderer {
         Matrix4f modelView = createModelView(RenderSystem.getModelViewMatrix(), poseStack.last().pose());
         Matrix4f modelViewProjection = createModelViewProjection(RenderSystem.getProjectionMatrix(), modelView);
         try (GpuDrawState drawState = new GpuDrawState()) {
-            drawState.prepare();
+            drawState.prepare(doubleSided);
             renderPacked(mesh, boneMatrices, modelViewProjection, modelView, texture, textureManager, light, overlay, tint,morphWeights);
         }
     }
