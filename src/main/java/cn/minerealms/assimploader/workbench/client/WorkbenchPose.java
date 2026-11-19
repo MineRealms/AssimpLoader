@@ -6,6 +6,7 @@ import cn.minerealms.assimploader.model.AssimpNode;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.workbench.model.SceneMetadata;
 import cn.minerealms.assimploader.workbench.model.WorkbenchDocument;
+import cn.minerealms.assimploader.workbench.model.ModelTransform;
 import org.joml.Matrix4f;
 
 import java.util.HashMap;
@@ -13,6 +14,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 import cn.minerealms.assimploader.lookdev.preview.PreviewSceneData;
 
 /** An editor owns its animation clock; sampling never changes a live entity or imported scene. */
@@ -22,6 +26,7 @@ public final class WorkbenchPose {
     private final Map<String, String> names = new HashMap<>();
     private final Map<String, Matrix4f> paths = new HashMap<>();
     private final Map<Integer, Boolean> visible = new HashMap<>();
+    private final Set<AssimpNode> hiddenNodes=Collections.newSetFromMap(new IdentityHashMap<>());
     private final List<PreviewSceneData.Draw> draws=new ArrayList<>();
     private final List<PreviewSceneData.Draw> staticDraws;
     private List<PreviewSceneData.Draw> sampledDraws=List.of();
@@ -46,7 +51,7 @@ public final class WorkbenchPose {
             player.synchronizePhase(duration > 0 ? Math.max(0, Math.min(1, seconds / duration)) : 0);
             player.getBoneTransforms().forEach((name, matrix) -> locals.put(name, new Matrix4f(matrix)));
         }
-        names.clear(); paths.clear(); visible.clear();draws.clear();
+        names.clear(); paths.clear(); visible.clear();hiddenNodes.clear();draws.clear();
         if (scene.getRootNode() != null) collect(scene.getRootNode(), "", 0, new Matrix4f(), true, document, locals);
         if(!scene.isDynamic()) {draws.clear();draws.addAll(staticDraws);}
         sampledDraws=List.copyOf(draws);
@@ -64,17 +69,23 @@ public final class WorkbenchPose {
         names.put(path, node.getName());
         var edit = document.nodes().getOrDefault(path, document.nodes().get(node.getName()));
         Matrix4f local = new Matrix4f(locals.getOrDefault(node.getName(), node.getTransformation()));
-        if (edit != null) { local.mul(edit.transform().matrix()); shown &= edit.visible(); locals.put(node.getName(), local); }
+        if (edit != null) {
+            shown &= edit.visible();
+            if(!edit.transform().equals(ModelTransform.IDENTITY)){local.mul(edit.transform().matrix());locals.put(node.getName(),local);}
+        }
         Matrix4f global = new Matrix4f(parentMatrix).mul(local);
         paths.put(path, global);
+        if(!shown)hiddenNodes.add(node);
         for (int index : node.getMeshIndices()) {
             visible.merge(index, shown, (a, b) -> a || b);
-            if(shown&&index>=0&&index<scene.getMeshCount())draws.add(new PreviewSceneData.Draw(index,new Matrix4f(global)));
+            if(index>=0&&index<scene.getMeshCount())draws.add(new PreviewSceneData.Draw(index,new Matrix4f(global),node));
         }
         for (int i = 0; i < node.getChildren().size(); i++) collect(node.getChildren().get(i), path, i, global, shown, document, locals);
     }
 
     public boolean visible(int mesh) { return visible.getOrDefault(mesh, true); }
+    /** Legacy draws without node identity remain visible while any occurrence of their mesh is visible. */
+    public boolean visible(PreviewSceneData.Draw draw) { return draw.node()==null?visible(draw.meshIndex()):!hiddenNodes.contains(draw.node()); }
     public Matrix4f node(String path) {
         Matrix4f matrix = paths.get(path);
         if (matrix == null && snapshot != null) matrix = snapshot.getNodeTransform(path);

@@ -123,11 +123,11 @@ public final class PreviewGpuRenderer implements AutoCloseable {
             for (boolean transparentPass : new boolean[]{false, true}) {
                 RenderSystem.depthMask(!transparentPass);
                 for (PreviewSceneData.Draw draw : pose==null?data.draws():pose.draws()) {
-                    if(pose!=null&&!pose.visible(draw.meshIndex()))continue;
+                    if(pose!=null&&!pose.visible(draw))continue;
                     AssimpMesh mesh = scene.getMeshes().get(draw.meshIndex());
                     AssimpMaterial material = editorMaterials.material(mesh.getMaterialIndex(),document);
                     var edit=document==null?null:document.materials().get(mesh.getMaterialIndex());
-                    boolean transparent=edit==null?material!=null&&material.isTransparent():edit.alphaMode()==WorkbenchDocument.AlphaMode.BLEND;
+                    boolean transparent=edit==null||edit.alphaMode()==WorkbenchDocument.AlphaMode.SOURCE?material!=null&&material.isTransparent():edit.alphaMode()==WorkbenchDocument.AlphaMode.BLEND;
                     if (transparent != transparentPass) continue;
                     PoseSnapshot snapshot=pose==null?null:pose.snapshot();
                     Matrix4f node=draw.transform();
@@ -150,7 +150,7 @@ public final class PreviewGpuRenderer implements AutoCloseable {
                     boolean surface=edit!=null&&originalInputs!=null&&(edit.metallic()!=originalInputs.metallicFactor()||edit.roughness()!=originalInputs.roughnessFactor());
                     GL20.glUniform4f(GL20.glGetUniformLocation(program,"Surface"),edit!=null?edit.metallic():inputs==null?0:inputs.metallicFactor(),
                             edit!=null?edit.roughness():inputs==null?.5f:inputs.roughnessFactor(),edit==null?0:edit.emission(),surface?1:0);
-                    GL20.glUniform1f(GL20.glGetUniformLocation(program,"AlphaCutoff"),edit==null?.01f:edit.alphaMode()==WorkbenchDocument.AlphaMode.MASK?edit.cutoff():edit.alphaMode()==WorkbenchDocument.AlphaMode.OPAQUE?-1:0.001f);
+                    GL20.glUniform1f(GL20.glGetUniformLocation(program,"AlphaCutoff"),edit==null||edit.alphaMode()==WorkbenchDocument.AlphaMode.SOURCE?.1f:edit.alphaMode()==WorkbenchDocument.AlphaMode.MASK?edit.cutoff():edit.alphaMode()==WorkbenchDocument.AlphaMode.OPAQUE?-1:0.001f);
                     GL20.glUniform1i(GL20.glGetUniformLocation(program,"Selected"),mesh.getMaterialIndex()==selectedMaterial?1:0);
                     ResourceLocation texture = ModelTextureCache.getTexture(scene, material);
                     var maps=previewMaps(mesh.getMaterialIndex(),material);
