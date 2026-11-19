@@ -31,6 +31,6 @@
 
 [CIWS / 模型展台](showcase/MODEL_SHOWCASE.md)、[鹿](showcase/DEER_SHOWCASE.md)、[装甲车](showcase/VEHICLES.md)、[火箭发动机](showcase/ROCKET_ENGINE_SHOWCASE.md)、[体积尾焰](showcase/ROCKET_EXHAUST.md)、[质量流量模型](showcase/ROCKET_FLOW_MODEL.md)、[体积历史](showcase/ROCKET_TEMPORAL.md)。示例属于单独的 AssimpShowcase JAR。
 
-待办见[工作台路线图](roadmap/IN_GAME_WORKBENCH_TODO.md)。审计、阶段设计、调查和验收过程放在 [history/](history/README.md)，更早资料保存在 [archive/](archive/README.md)。历史报告中的机器路径、旧模块结构和完成率不代表当前状态。
+待办见[工作台路线图](roadmap/IN_GAME_WORKBENCH_TODO.md)；双版本架构、依赖与待验项目见 [1.21.1 迁移状态](roadmap/1.21.1_MIGRATION_PLAN.md)。审计、阶段设计、调查和验收过程放在 [history/](history/README.md)，更早资料保存在 [archive/](archive/README.md)。历史报告中的机器路径、旧模块结构和完成率不代表当前状态。
 
 许可与打包归属见[第三方声明](THIRD_PARTY_NOTICES.md)。
