@@ -1,4 +1,6 @@
-package cn.minerealms.assimpshowcase.vehicle;
+package cn.minerealms.assimploader.vehicle;
+
+import cn.minerealms.assimpshowcase.vehicle.ArmoredCarPhysics;
 
 import org.junit.jupiter.api.Test;
 

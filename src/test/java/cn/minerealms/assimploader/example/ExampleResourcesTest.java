@@ -1,4 +1,4 @@
-package cn.minerealms.assimpshowcase.example;
+package cn.minerealms.assimploader.example;
 
 import cn.minerealms.assimpshowcase.showcase.ShowcaseModel;
 import com.google.gson.JsonObject;

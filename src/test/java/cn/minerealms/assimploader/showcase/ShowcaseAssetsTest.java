@@ -1,4 +1,6 @@
-package cn.minerealms.assimpshowcase.showcase;
+package cn.minerealms.assimploader.showcase;
+
+import cn.minerealms.assimpshowcase.showcase.ShowcaseModel;
 
 import cn.minerealms.assimploader.render.ModelVisibility;
 

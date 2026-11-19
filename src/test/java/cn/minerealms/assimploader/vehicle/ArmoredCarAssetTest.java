@@ -1,4 +1,6 @@
-package cn.minerealms.assimpshowcase.vehicle;
+package cn.minerealms.assimploader.vehicle;
+
+import cn.minerealms.assimpshowcase.vehicle.ArmoredCarEntity;
 
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.core.ModelImportMode;

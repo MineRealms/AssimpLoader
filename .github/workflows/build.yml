@@ -13,19 +13,34 @@ concurrency:
 
 jobs:
   build:
+    name: Build ${{ matrix.node }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node: 1.20.1-forge
+            java: '17'
+            metadata: META-INF/mods.toml
+            pack-format: 15
+          - node: 1.21.1-neoforge
+            java: '21'
+            metadata: META-INF/neoforge.mods.toml
+            pack-format: 34
+    env:
+      BUILD_NODE: ${{ matrix.node }}
+      MOD_METADATA: ${{ matrix.metadata }}
+      PACK_FORMAT: ${{ matrix.pack-format }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Gradle 9.4.1 runs on JDK 17; the NeoForge node's Java 21 toolchain is provisioned
-      # automatically by the foojay resolver declared in settings.gradle.
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: ${{ matrix.java }}
           distribution: 'temurin'
           cache: 'gradle'
 
@@ -36,15 +51,13 @@ jobs:
       # be redistributed through the repository. downloadDevDeps pins them by Modrinth
       # version id and verifies a sha512 checksum. Only the Forge node needs them today.
       - name: Download dev-only dependencies
+        if: matrix.node == '1.20.1-forge'
         run: ./gradlew :1.20.1-forge:downloadDevDeps --stacktrace --no-daemon
 
-      # Stonecutter applies the shared build.gradle to every node. The 1.21.1 node is part of the
-      # multiversion structure but its source migration (phase 2) is still in progress, so CI
-      # currently builds the 1.20.1 node; swap in `build` once both nodes compile.
-      - name: Build the 1.20.1 node
+      - name: Build and test the node
         run: |
           set -o pipefail
-          ./gradlew :1.20.1-forge:build --stacktrace --console=plain --no-daemon 2>&1 | tee gradle-build.log
+          ./gradlew ":${BUILD_NODE}:build" --stacktrace --console=plain --no-daemon 2>&1 | tee gradle-build.log
 
       # GitHub only lets anonymous users read check-run *annotations*, not the raw log,
       # so failed builds re-emit the interesting part of the log as annotations.
@@ -68,36 +81,73 @@ jobs:
             echo "::error::gradle-build.log was not produced"
           fi
 
-      # Regression guard: the distributable jar must contain the Assimp natives, otherwise
-      # the mod loads but cannot import a single model.
-      - name: Verify the distributable jar
+      - name: Verify engine and Showcase release jars
         run: |
-          set -e
-          JAR=$(ls versions/1.20.1-forge/build/libs/assimploader-1.20.1-forge-*.jar)
-          echo "Checking $JAR"
-          for entry in windows/x64/org/lwjgl/assimp/assimp.dll \
-                       linux/x64/org/lwjgl/assimp/libassimp.so \
-                       macos/x64/org/lwjgl/assimp/libassimp.dylib \
-                       mixins.photon_compat.json; do
-            unzip -l "$JAR" | grep -q "$entry" || { echo "missing $entry"; exit 1; }
-          done
-          unzip -l "$JAR" | grep -qE 'META-INF/(neoforge\.)?mods\.toml' \
-            || { echo "missing loader metadata"; exit 1; }
-          echo "OK"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import tomllib
+          from zipfile import ZipFile
+
+          node = os.environ['BUILD_NODE']
+          metadata = os.environ['MOD_METADATA']
+          pack_format = int(os.environ['PACK_FORMAT'])
+          libs = Path('versions') / node / 'build' / 'libs'
+          natives = {
+              f'{platform}/{arch}/org/lwjgl/assimp/{library}'
+              for platform, library in (
+                  ('windows', 'assimp.dll'),
+                  ('linux', 'libassimp.so'),
+                  ('macos', 'libassimp.dylib'),
+              )
+              for arch in ('x64', 'arm64')
+          }
+          for mod_id in ('assimploader', 'assimpshowcase'):
+              jars = [p for p in libs.glob(f'{mod_id}-{node}-*.jar')
+                      if not p.stem.endswith(('-sources', '-javadoc'))]
+              if len(jars) != 1:
+                  raise SystemExit(f'Expected one {mod_id} release jar, found {jars}')
+              with ZipFile(jars[0]) as jar:
+                  names = set(jar.namelist())
+                  required = {metadata, 'pack.mcmeta'}
+                  if mod_id == 'assimploader':
+                      required |= natives | {'META-INF/jarjar/metadata.json',
+                                            'mixins.assimploader.json',
+                                            'mixins.iris_compat.json',
+                                            'mixins.photon_compat.json'}
+                  else:
+                      required.add('mixins.assimpshowcase.json')
+                  missing = required - names
+                  if missing:
+                      raise SystemExit(f'{jars[0]} missing {sorted(missing)}')
+                  mods = tomllib.loads(jar.read(metadata).decode('utf-8'))['mods']
+                  if [m['modId'] for m in mods] != [mod_id]:
+                      raise SystemExit(f'{jars[0]} has wrong mod declarations: {mods}')
+                  actual_format = json.loads(jar.read('pack.mcmeta'))['pack']['pack_format']
+                  if actual_format != pack_format:
+                      raise SystemExit(f'{jars[0]} has pack_format {actual_format}, expected {pack_format}')
+                  if any(n.startswith('cn/minerealms/rigworks/') or n.endswith('SmokeTest.class')
+                         for n in names):
+                      raise SystemExit(f'{jars[0]} contains consumer or integration-test classes')
+                  if node.endswith('-forge') and mod_id + '.refmap.json' not in names:
+                      raise SystemExit(f'{jars[0]} has no Forge mixin refmap')
+              print(f'Verified {jars[0]}')
+          PY
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: assimploader-build
-          path: versions/*/build/libs/*.jar
+          name: assimploader-${{ matrix.node }}
+          path: versions/${{ matrix.node }}/build/libs/*.jar
           if-no-files-found: error
 
       - name: Upload test report on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-report
+          name: test-report-${{ matrix.node }}
           path: |
-            versions/*/build/reports/tests/test
-            versions/*/build/test-results/test
+            versions/${{ matrix.node }}/build/reports/tests/test
+            versions/${{ matrix.node }}/build/test-results/test
           if-no-files-found: ignore

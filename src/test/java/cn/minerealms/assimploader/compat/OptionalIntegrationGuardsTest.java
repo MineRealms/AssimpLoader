@@ -8,16 +8,25 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class OptionalIntegrationGuardsTest {
     private static final String PREFIX = "cn.minerealms.assimploader.mixin.photon.";
+    //? if forge {
     private static final String MESH = "com.lowdragmc.photon.gui.editor.MeshesResource";
     private static final String MATERIAL = "com.lowdragmc.photon.gui.editor.MaterialsResource";
+    private static final String LDLIB = "ldlib";
+    //?}
+    //? if neoforge {
+    /*
+    private static final String MESH = "com.lowdragmc.photon.gui.editor.resource.MeshResource";
+    private static final String MATERIAL = "com.lowdragmc.photon.gui.editor.resource.MaterialResource";
+    private static final String LDLIB = "ldlib2";
+    *///?}
     private static boolean initialized;
 
     @Test
     void bothOptionalModsAreRequired() {
         assertFalse(OptionalIntegrationGuards.requiredPhotonMods(Set.<String>of()::contains));
         assertFalse(OptionalIntegrationGuards.requiredPhotonMods(Set.of("photon")::contains));
-        assertFalse(OptionalIntegrationGuards.requiredPhotonMods(Set.of("ldlib")::contains));
-        assertTrue(OptionalIntegrationGuards.requiredPhotonMods(Set.of("photon", "ldlib")::contains));
+        assertFalse(OptionalIntegrationGuards.requiredPhotonMods(Set.of(LDLIB)::contains));
+        assertTrue(OptionalIntegrationGuards.requiredPhotonMods(Set.of("photon", LDLIB)::contains));
     }
 
     @Test

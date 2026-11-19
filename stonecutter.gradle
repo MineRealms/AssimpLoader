@@ -2,15 +2,15 @@ plugins {
     id 'dev.kikugie.stonecutter'
 }
 
-// The shared source in `src/` is version-neutral by construction: loader and vanilla
-// drift live in `versions/<node>/src` adapters, not in `//?` conditions.
+// Shared sources use the Forge dialect; replacements and conditional blocks adapt NeoForge.
 stonecutter.active('1.20.1-forge')
 
 // A failed node must never publish a partial set of artifacts to the collection directory.
 tasks.register('buildAndCollect', Sync) {
     group = 'build'
-    description = 'Builds both targets and collects the two release jars.'
+    description = 'Builds both targets and collects the engine and showcase release jars.'
     dependsOn ':1.20.1-forge:build', ':1.21.1-neoforge:build'
+    dependsOn ':1.20.1-forge:reobfJar', ':1.20.1-forge:reobfShowcaseJar'
     from(layout.projectDirectory.dir('versions/1.20.1-forge/build/libs')) {
         include 'assimploader-1.20.1-forge-*.jar', 'assimpshowcase-1.20.1-forge-*.jar'
     }
