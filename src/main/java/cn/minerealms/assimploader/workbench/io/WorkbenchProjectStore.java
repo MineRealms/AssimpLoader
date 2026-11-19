@@ -30,8 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.Optional;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 /** Blocking file service. Call import/open/export on a bounded worker, never from render(). */
 public final class WorkbenchProjectStore {
@@ -64,6 +62,7 @@ public final class WorkbenchProjectStore {
 
     public Project importAsset(Path input) throws IOException {
         Path requested=input.toAbsolutePath().normalize();
+        if(Files.isRegularFile(requested)&&extension(requested).equals("zip"))return importZip(requested);
         if(Files.isRegularFile(requested)&&requested.getFileName().toString().endsWith(".workbench.json"))return open(requested);
         if(Files.isDirectory(requested)&&Files.isRegularFile(requested.resolve(PROJECT_FILE)))return open(requested);
         Path model=selectModel(requested);
@@ -129,6 +128,7 @@ public final class WorkbenchProjectStore {
 
     public Project open(Path projectFile) throws IOException {
         Path file=projectFile.toAbsolutePath().normalize();
+        if(Files.isRegularFile(file)&&extension(file).equals("zip"))return importZip(file);
         if(Files.isDirectory(file))file=file.resolve(PROJECT_FILE);
         WorkbenchDocument document=read(file);
         Path directory=file.getParent();
@@ -223,23 +223,50 @@ public final class WorkbenchProjectStore {
 
     /** Export the accepted document and its local bundle. The source project is not modified. */
     public Path exportZip(Project project,WorkbenchDocument document,Path destination) throws IOException {
+        return exportZip(project,document,destination,Map.of());
+    }
+    /** Additional consumer files use portable paths under extensions/ and never execute during import. */
+    public Path exportZip(Project project,WorkbenchDocument document,Path destination,Map<String,byte[]> extensionFiles) throws IOException {
         Path output=destination.toAbsolutePath().normalize();
         Files.createDirectories(output.getParent());
         Path temp=Files.createTempFile(output.getParent(),".workbench-export-",".zip");
         try {
-            try(var zip=new ZipOutputStream(Files.newOutputStream(temp))) {
-                zipEntry(zip,PROJECT_FILE,WorkbenchCodec.write(document).getBytes(StandardCharsets.UTF_8));
-                Path assets=project.directory().resolve("assets");
-                if(Files.isDirectory(assets))try(var paths=Files.walk(assets)) {
-                    for(Path file:paths.filter(path->Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS)).sorted().toList()) {
-                        if(!file.toRealPath().startsWith(assets.toRealPath()))throw new IOException("Asset link escapes project");
-                        zip.putNextEntry(new ZipEntry(slash(project.directory().relativize(file))));
-                        Files.copy(file,zip);zip.closeEntry();
-                    }
-                }
-            }
+            WorkbenchPackageIO.write(project,document,temp,extensionFiles);
             move(temp,output);return output;
         } finally {Files.deleteIfExists(temp);}
+    }
+
+    /** Extract into a new isolated project; a failed package never overwrites an existing project. */
+    public Project importZip(Path archive) throws IOException {
+        Files.createDirectories(root);
+        Path staging=Files.createTempDirectory(root,".import-");
+        Path published=null;
+        boolean complete=false;
+        try {
+            var extracted=WorkbenchPackageIO.extract(archive.toAbsolutePath().normalize(),staging);
+            var document=extracted.document();
+            if(!MODEL_EXTENSIONS.contains(extension(Path.of(document.sourcePath()))))throw new IOException("Package source is not a supported model");
+            String name=stem(Path.of(document.sourcePath()).getFileName().toString()).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9._-]","_");
+            if(name.isBlank())name="model";
+            if(name.length()>64)name=name.substring(0,64);
+            Path destination=root.resolve(name+"-package-"+UUID.randomUUID());
+            if(Files.exists(destination,LinkOption.NOFOLLOW_LINKS))throw new IOException("Package destination already exists");
+            try{Files.move(staging,destination,StandardCopyOption.ATOMIC_MOVE);}
+            catch(AtomicMoveNotSupportedException unsupported){Files.move(staging,destination);}
+            published=destination;
+            Project project=open(published);
+            if(extracted.legacy()) {
+                var metadata=project.metadata();var issues=new ArrayList<>(metadata.issues());
+                issues.add("Legacy ZIP imported without manifest checksums; save and export to upgrade it");
+                project=new Project(project.directory(),project.documentPath(),project.scene(),project.document(),
+                        new SceneMetadata(metadata.nodes(),metadata.meshes(),metadata.materials(),metadata.clips(),metadata.bounds(),issues,
+                                metadata.skinned(),metadata.embeddedTextures(),metadata.sourceFormat(),metadata.sourceGenerator()));
+            }
+            complete=true;return project;
+        } finally {
+            if(Files.isDirectory(staging,LinkOption.NOFOLLOW_LINKS))removeStaging(staging);
+            if(!complete&&published!=null&&Files.isDirectory(published,LinkOption.NOFOLLOW_LINKS))removeOwnedImport(published);
+        }
     }
 
     public static Path resolvePortable(Path directory,String reference) throws IOException {
@@ -324,9 +351,13 @@ public final class WorkbenchProjectStore {
     private void removeStaging(Path staging) throws IOException {
         Path verified=staging.toAbsolutePath().normalize();
         if(!verified.getParent().equals(root)||!verified.getFileName().toString().startsWith(".import-"))throw new IOException("Invalid staging cleanup path");
+        removeOwnedImport(verified);
+    }
+    private void removeOwnedImport(Path directory) throws IOException {
+        Path verified=directory.toAbsolutePath().normalize();
+        if(!verified.getParent().equals(root)||!Files.isDirectory(verified,LinkOption.NOFOLLOW_LINKS))throw new IOException("Invalid import cleanup path");
         try(var paths=Files.walk(verified)) {for(Path path:paths.sorted(Comparator.reverseOrder()).toList())Files.deleteIfExists(path);}
     }
-    private static void zipEntry(ZipOutputStream zip,String name,byte[] data) throws IOException {zip.putNextEntry(new ZipEntry(name));zip.write(data);zip.closeEntry();}
     private static String extension(Path path){String name=path.getFileName().toString();int dot=name.lastIndexOf('.');return dot<0?"":name.substring(dot+1).toLowerCase(Locale.ROOT);}
     private static String stem(String name){int dot=name.lastIndexOf('.');return dot<0?name:name.substring(0,dot);}
     private static String slash(Path path){return path.toString().replace('\\','/');}

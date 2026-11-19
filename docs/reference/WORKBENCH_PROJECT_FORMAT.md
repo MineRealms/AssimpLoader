@@ -16,7 +16,8 @@ assets/textures/...
 ```
 
 `WorkbenchProjectStore` accepts a model file, a folder containing one unambiguous
-model, or an existing `.workbench.json` project. It copies texture references and
+model, an existing `.workbench.json` project, or an exported `.zip`/`.rig.zip`
+package. `open` also recognizes ZIP packages. It copies texture references and
 glTF external buffers; folder imports also retain image, MTL and binary sidecars.
 Source files are untouched. Models import in `DYNAMIC` mode so node hierarchy,
 skinning and animation remain available. Run this blocking service on a worker.
@@ -97,13 +98,27 @@ same edit session. Such changes remain dirty until saved. A callback failure is
 reported as a diagnostic without preventing the valid project from opening. The
 hook is not invoked while rebasing the first asset copy during Save.
 
-This API saves the project without invoking extension application, so a consumer
-can apply the returned snapshot after success without a save/apply cycle. The
-generic toolbar Save separately calls extension application against that saved
-snapshot. Edits made after JSON writing begins remain dirty; neither the callback
-nor the saved baseline claims that those newer edits reached disk. If only
-recovery-file cleanup fails after a successful formal write, the baseline still
-advances and the screen reports the cleanup warning.
+Shared Save/Apply/Export await `Extension.prepareAsync(context)` to validate and
+capture external source files, then run `Extension.prepare(context)` on the client
+thread before taking a snapshot. Save invokes `Extension.saved(savedContext)` after the formal write and
+baseline update. The latter receives a separate session containing exactly the
+persisted snapshot. It may apply consumer configuration, but must not recursively
+save that snapshot session. Save does not call `Extension.apply`; the toolbar
+Apply separately prepares and applies the current draft. A consumer returning
+`handlesApplication()` suppresses the ordinary source-wide runtime Apply.
+
+Edits made after JSON writing begins remain dirty; neither the callback nor the
+saved baseline claims that those newer edits reached disk. If only recovery-file
+cleanup fails after a successful formal write, the baseline still advances and
+the screen reports the cleanup warning.
+
+Consumers contribute `Panel` implementations to the same Inspector, editing
+namespaced document extensions through the shared session. `canImport()` and
+asynchronous `initialize(context)` opt into an explicit import type; a skeleton
+alone never enables a character consumer. `ownsRootTransform()` and the paired
+root getter/setter let the shared tree, gizmo and preview use the consumer's
+single root transform. Unknown extension data remains round-trippable without
+the consumer installed. See [extension integration](../guides/WORKSPACE_EXTENSIONS.md).
 
 `exportZip` exports the supplied draft and copied assets as a portable project;
 it does not register new Minecraft block/item IDs or claim to be an automatically
@@ -113,6 +128,86 @@ belong to the workbench consumer integration.
 An edited source bundle produces a hash warning on reopen. Saving configuration
 does not silently approve new source content. FBX and texture file transfer is
 separate from player visual-configuration synchronization.
+
+## Portable ZIP Packages
+
+Both ordinary assets and character projects use the same ZIP container. It is not
+a Minecraft resource pack and does not add registry entries. ZIP compression uses
+the standard DEFLATE method at its best compression level. Exported entry order
+is stable and entry timestamps are normalized.
+
+```text
+manifest.json
+project.workbench.json
+assets/model.fbx
+assets/textures/...
+extensions/<consumer>/...       # optional opaque consumer files
+```
+
+`manifest.json` uses this independent container schema:
+
+```json
+{
+  "format": "assimploader.asset-package",
+  "version": 1,
+  "project": "project.workbench.json",
+  "files": {
+    "project.workbench.json": {"bytes": 1234, "sha256": "<64 lowercase hex characters>"},
+    "assets/model.fbx": {"bytes": 5678, "sha256": "<64 lowercase hex characters>"}
+  }
+}
+```
+
+The manifest lists every non-directory file except itself, with its exact
+uncompressed byte length and SHA-256. Missing, additional, duplicated, corrupt or
+case-conflicting entries fail the import. Unknown container versions are rejected;
+arbitrary namespaced document `extensions` and opaque `extensions/` files are
+retained without requiring their consumer mod. Checksums detect content changes;
+they do not authenticate the author or make scripts trusted.
+
+`exportZip(project, document, destination)` exports that exact edit snapshot, the
+project's current `assets/` and optional `extensions/` folders. The overload
+`exportZip(project, document, destination, Map<String, byte[]> extensionFiles)`
+lets a consumer provide additional files under `extensions/`; an exact matching
+path replaces its copied consumer file in the archive only. Other locations are
+rejected. The engine never runs these files during import. Consumers decide how
+to interpret them after opening the project.
+
+Texture overrides added after initial import are copied into the ZIP. Existing
+project-relative assets keep their paths; external replacement textures are
+stored under content-addressed `assets/textures/override-<sha256>-<name>` paths.
+Only the exported document's texture references and asset `content_hash` are
+updated. The original FBX, saved project and in-memory edit snapshot are not
+modified. Missing configured textures produce an actionable export error instead
+of a package that depends on an author's local disk. Embedded `*N` textures remain
+inside the source model. This process preserves FBX geometry and authored clips;
+it does not bake transforms or write a new FBX.
+
+Import/Open ZIP calls `WorkbenchProjectStore.importZip`. Each import creates a
+new independent project directory under the configured workbench root. Extraction
+uses a fresh staging directory, validates the complete manifest, project document,
+source model path and configured texture paths, then publishes the directory with
+an atomic move when supported. Only then is the model passed to Assimp. A failed
+load also removes this new directory; an existing project is never replaced.
+
+Limits apply to streamed expanded bytes rather than trusting ZIP headers: 2 GiB
+total including the manifest, 10000 entries, 4 MiB project JSON, 4 MiB manifest,
+1024-character paths and 32 path components. Absolute paths, drive/UNC paths,
+backslashes, `.`/`..`, Windows reserved filenames, file/directory collisions and
+case conflicts are rejected. Imported members are created as ordinary files in
+the staging directory; no symbolic links or archive file permissions are applied.
+glTF external buffer/image URIs must resolve to included files under `assets/`.
+All IO remains on the bounded workbench worker.
+
+Legacy ZIP exports containing only `project.workbench.json`, `assets/` and optional
+`extensions/` are accepted with the same path and size limits. They display a
+diagnostic explaining that manifest checksums are absent; exporting them again
+upgrades the container. They do not acquire trust or execute scripts automatically.
+Recovery drafts and editor layout are not packaged.
+
+This local full-asset archive remains separate from multiplayer configuration
+distribution. Consumers such as RigWorks can synchronize small JSON/behavior
+packages while requiring players to obtain large FBX/textures separately.
 
 ## Preview Resource Lifetime
 
