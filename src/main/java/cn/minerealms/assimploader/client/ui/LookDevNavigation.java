@@ -132,7 +132,8 @@ public final class LookDevNavigation {
                 () -> page.available().getAsBoolean() ? page.title() : page.unavailableReason().get(), () -> open(page.key()))).toList();
         row(add, modules, 2, 22, host.width - 44, 104, refresh);
         row(add, pages, 27, 20, host.width - 8, 88, refresh);
-        add.accept(FlatUi.icon(host.width - 34, 2, FlatUi.Icon.CLOSE, Component.literal("Close workbench"), button -> host.onClose()));
+        var close = FlatUi.icon(host.width - 34, 2, FlatUi.Icon.CLOSE, Component.literal("Close workbench"), button -> host.onClose());
+        close.setHeight(22); add.accept(close);
     }
 
     private static void openModule(String module) {
