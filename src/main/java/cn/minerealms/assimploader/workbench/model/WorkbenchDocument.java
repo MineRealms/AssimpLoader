@@ -40,7 +40,7 @@ public record WorkbenchDocument(int version, String assetId, String sourcePath, 
         public NodeOverride { Objects.requireNonNull(transform); }
     }
 
-    public enum AlphaMode { OPAQUE, MASK, BLEND }
+    public enum AlphaMode { OPAQUE, MASK, BLEND, SOURCE }
 
     /** Texture keys: albedo, normal, specular, roughness, metallic, occlusion, emissive, orm. */
     public record MaterialOverride(float r, float g, float b, float a, float metallic, float roughness,
@@ -67,7 +67,7 @@ public record WorkbenchDocument(int version, String assetId, String sourcePath, 
             if (pbr.emissive() != null) texture(textures,"emissive",pbr.emissive().path());
             return new MaterialOverride(importColor(color[0]),importColor(color[1]),importColor(color[2]),importColor(color[3]),pbr.metallicFactor(),pbr.roughnessFactor(),
                     Math.max(pbr.emissiveR(),Math.max(pbr.emissiveG(),pbr.emissiveB())),
-                    material.isTransparent() ? AlphaMode.BLEND : AlphaMode.OPAQUE,.1f,true,textures);
+                    AlphaMode.SOURCE,.1f,material.isDoubleSided(),textures);
         }
         public static MaterialOverride from(AssimpScene scene,AssimpMaterial material) {
             var value=from(material);var textures=new LinkedHashMap<>(value.textures());

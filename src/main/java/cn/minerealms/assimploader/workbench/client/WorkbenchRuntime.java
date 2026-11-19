@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.workbench.client;
 
 import cn.minerealms.assimploader.animation.PoseSnapshot;
 import cn.minerealms.assimploader.material.PbrMaterialInputs;
+import cn.minerealms.assimploader.material.MaterialAlpha;
 import cn.minerealms.assimploader.model.*;
 import cn.minerealms.assimploader.render.ModelTextureCache;
 import cn.minerealms.assimploader.render.SceneTransforms;
@@ -26,9 +27,11 @@ public final class WorkbenchRuntime {
         final Map<String,String> nodeNames=new HashMap<>();
         final Map<String,Matrix4f> bindFrames=new HashMap<>();
         final Map<Integer,AssimpMaterial> materials=new HashMap<>();
-        final Set<Integer> hidden=new HashSet<>();
+        final Set<AssimpNode> hiddenNodes=Collections.newSetFromMap(new IdentityHashMap<>());
+        final Map<Integer,Boolean> meshVisibility=new HashMap<>();
+        final boolean transformsNodes;
         PoseSnapshot source,pose;
-        Binding(WorkbenchDocument doc,AssimpScene scene,Path textureSource){this.doc=doc;this.textureSource=textureSource;if(scene.getRootNode()!=null){visibility(scene.getRootNode(),"",0,true,doc,hidden);indexNodes(scene.getRootNode(),"",0,new Matrix4f());}}
+        Binding(WorkbenchDocument doc,AssimpScene scene,Path textureSource){this.doc=doc;this.textureSource=textureSource;this.transformsNodes=doc.nodes().values().stream().anyMatch(edit->!edit.transform().equals(cn.minerealms.assimploader.workbench.model.ModelTransform.IDENTITY));if(scene.getRootNode()!=null){visibility(scene.getRootNode(),"",0,true,doc,hiddenNodes,meshVisibility);indexNodes(scene.getRootNode(),"",0,new Matrix4f());}}
         private void indexNodes(AssimpNode node,String parent,int sibling,Matrix4f parentFrame){
             String path=SceneMetadata.nodePath(parent,node.getName(),sibling);var frame=new Matrix4f(parentFrame).mul(node.getTransformation());
             nodeNames.put(path,node.getName());bindFrames.put(path,frame);bindFrames.putIfAbsent(node.getName(),frame);
@@ -88,20 +91,23 @@ public final class WorkbenchRuntime {
         return binding.materials.computeIfAbsent(index,i->{var original=scene.getMaterials().get(i);var p=original.getPbrInputs();var paths=edit.textures();
             var inputs=new PbrMaterialInputs(p.workflow()==PbrMaterialInputs.Workflow.NONE?PbrMaterialInputs.Workflow.METALLIC_ROUGHNESS:p.workflow(),ref(paths,"normal",p.normal()),ref(paths,"roughness",p.roughness()),ref(paths,"metallic",p.metallic()),
                     ref(paths,"occlusion",p.occlusion()),ref(paths,"emissive",p.emissive()),edit.roughness(),edit.metallic(),p.normalScale(),p.occlusionStrength(),edit.emission(),edit.emission(),edit.emission(),p.dielectricF0());
-            return new AssimpMaterial(original,new float[]{edit.r(),edit.g(),edit.b(),edit.a()},paths.get("albedo"),paths.get("normal"),paths.get("specular"),inputs,edit.alphaMode()==WorkbenchDocument.AlphaMode.BLEND);
+            var alpha=new MaterialAlpha(switch(edit.alphaMode()){case OPAQUE->MaterialAlpha.Mode.OPAQUE;case MASK->MaterialAlpha.Mode.MASK;case BLEND->MaterialAlpha.Mode.BLEND;case SOURCE->MaterialAlpha.Mode.SOURCE;},edit.a(),edit.cutoff());
+            return new AssimpMaterial(original,new float[]{edit.r(),edit.g(),edit.b(),edit.a()},paths.get("albedo"),paths.get("normal"),paths.get("specular"),inputs,alpha,edit.doubleSided());
         });
     }
     private static PbrMaterialInputs.TextureRef ref(Map<String,String> paths,String slot,PbrMaterialInputs.TextureRef source){String path=paths.get(slot);return path==null?null:new PbrMaterialInputs.TextureRef(path,source==null?0:source.channel(),0);}
-    public static boolean visible(AssimpScene scene,AssimpMesh mesh){Binding b=binding(scene);return b==null||!b.hidden.contains(mesh.getIndex());}
-    public static List<SceneTransforms.Instance> instances(AssimpScene scene,List<SceneTransforms.Instance> instances){return document(scene)==null?instances:instances.stream().filter(i->visible(scene,i.mesh())).toList();}
+    /** Geometry-only queries remain visible while any node occurrence is visible. */
+    public static boolean visible(AssimpScene scene,AssimpMesh mesh){Binding b=binding(scene);return b==null||b.meshVisibility.getOrDefault(mesh.getIndex(),true);}
+    public static boolean visible(AssimpScene scene,SceneTransforms.Instance instance){Binding b=binding(scene);return b==null||(instance.node()==null?b.meshVisibility.getOrDefault(instance.mesh().getIndex(),true):!b.hiddenNodes.contains(instance.node()));}
+    public static List<SceneTransforms.Instance> instances(AssimpScene scene,List<SceneTransforms.Instance> instances){return document(scene)==null?instances:instances.stream().filter(i->visible(scene,i)).toList();}
     public static List<SceneTransforms.Instance> staticInstances(AssimpScene scene){
-        var doc=document(scene);
-        if(doc==null||doc.nodes().isEmpty())return instances(scene,SceneTransforms.instances(scene));
+        var binding=binding(scene);
+        if(binding==null||!binding.transformsNodes)return instances(scene,SceneTransforms.instances(scene));
         var snapshot=pose(scene,null);
-        return instances(scene,snapshot.copyMeshInstances().stream().map(i->new SceneTransforms.Instance(i.mesh(),i.transform())).toList());
+        return instances(scene,snapshot.copyMeshInstances().stream().map(i->new SceneTransforms.Instance(i.mesh(),i.transform(),i.node())).toList());
     }
     public static PoseSnapshot pose(AssimpScene scene,PoseSnapshot source){
-        Binding b=binding(scene);if(b==null||b.doc.nodes().isEmpty())return source;
+        Binding b=binding(scene);if(b==null||!b.transformsNodes)return source;
         if(source!=null&&source==b.pose)return source;
         if(b.source==source&&b.pose!=null)return b.pose;
         var locals=source==null?new LinkedHashMap<String,Matrix4f>():new LinkedHashMap<>(source.copyLocalTransforms());
@@ -111,13 +117,14 @@ public final class WorkbenchRuntime {
     }
     private static void applyNodes(AssimpNode node,String parent,int sibling,WorkbenchDocument doc,Map<String,Matrix4f> locals){
         String path=SceneMetadata.nodePath(parent,node.getName(),sibling);var edit=doc.nodes().getOrDefault(path,doc.nodes().get(node.getName()));
-        if(edit!=null)locals.put(node.getName(),new Matrix4f(locals.getOrDefault(node.getName(),node.getTransformation())).mul(edit.transform().matrix()));
+        if(edit!=null&&!edit.transform().equals(cn.minerealms.assimploader.workbench.model.ModelTransform.IDENTITY))locals.put(node.getName(),new Matrix4f(locals.getOrDefault(node.getName(),node.getTransformation())).mul(edit.transform().matrix()));
         for(int i=0;i<node.getChildren().size();i++)applyNodes(node.getChildren().get(i),path,i,doc,locals);
     }
-    private static void visibility(AssimpNode node,String parent,int sibling,boolean visible,WorkbenchDocument doc,Set<Integer> hidden){
+    private static void visibility(AssimpNode node,String parent,int sibling,boolean visible,WorkbenchDocument doc,Set<AssimpNode> hidden,Map<Integer,Boolean> meshVisibility){
         String path=SceneMetadata.nodePath(parent,node.getName(),sibling);var edit=doc.nodes().getOrDefault(path,doc.nodes().get(node.getName()));
-        if(edit!=null)visible&=edit.visible();if(!visible)for(int index:node.getMeshIndices())hidden.add(index);
-        for(int i=0;i<node.getChildren().size();i++)visibility(node.getChildren().get(i),path,i,visible,doc,hidden);
+        if(edit!=null)visible&=edit.visible();if(!visible)hidden.add(node);
+        for(int index:node.getMeshIndices())meshVisibility.merge(index,visible,(a,b)->a||b);
+        for(int i=0;i<node.getChildren().size();i++)visibility(node.getChildren().get(i),path,i,visible,doc,hidden,meshVisibility);
     }
     public static Scope transform(AssimpScene scene,PoseStack stack){var doc=document(scene);if(doc==null)return new Scope(null);stack.pushPose();SceneTransforms.apply(stack,doc.transform().matrix());return new Scope(stack);}
     public static final class Scope implements AutoCloseable {private final PoseStack stack;private Scope(PoseStack stack){this.stack=stack;}public void close(){if(stack!=null)stack.popPose();}}
