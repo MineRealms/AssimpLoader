@@ -10,9 +10,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ForgeRegistries;
 
 /** Items use the same scene traversal, texture cache and GPU buffers as world displays. */
 public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
@@ -31,7 +31,7 @@ public class AssimpItemRenderer extends BlockEntityWithoutLevelRenderer {
         var baked = Minecraft.getInstance().getItemRenderer().getModel(stack, null, null, 0);
         AssimpBakedModel model = baked instanceof AssimpBakedModel assimp ? assimp : null;
         String key = stack.getItem() instanceof AssimpModelItem item && item.getModelName() != null
-                ? item.getModelName() : ForgeRegistries.ITEMS.getKey(stack.getItem()).getPath();
+                ? item.getModelName() : BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
         AssimpScene scene = AssimpModelLoader.getCachedModel(key);
         if (scene == null && model != null) scene = model.getScene();
         if (scene == null) return;

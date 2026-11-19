@@ -1,9 +1,12 @@
+// Verifies that the engine mod and the AssimpShowcase companion mod stay one-way isolated.
+// Paths are absolute: under Stonecutter this script runs inside a `versions/<node>` project, so
+// a relative path would resolve into the node directory and silently match nothing.
 tasks.register('verifyModuleBoundaries') {
     group = 'verification'
     description = 'Verify independent mod contents and one-way source dependencies'
-    dependsOn 'reobfJarJar', 'reobfShowcaseJar'
+    dependsOn 'jar', 'showcaseJar'
     doLast {
-        fileTree('src/main/java').matching { include '**/*.java' }.each { source ->
+        fileTree(rootProject.file('src/main/java')).matching { include '**/*.java' }.each { source ->
             def text = source.getText('UTF-8')
             if (text =~ /cn\.minerealms\.(rigworks|assimpshowcase)\./ ||
                     text =~ /cn\.minerealms\.assimploader\.(showcase|deer|vehicle|rocket|example)\./)
@@ -13,7 +16,7 @@ tasks.register('verifyModuleBoundaries') {
                 throw new GradleException("Engine contains a gameplay server entry: ${source}")
         }
         def archives = [
-                [task: tasks.named('jarJar').get(), id: 'assimploader',
+                [task: tasks.named('jar').get(), id: 'assimploader',
                  forbidden: ['cn/minerealms/rigworks/', 'cn/minerealms/assimpshowcase/', 'models/character/', 'models/showcase/', 'models/validation/', 'SmokeTest.class', 'assimpshowcase.refmap.json']],
                 [task: tasks.named('showcaseJar').get(), id: 'assimpshowcase',
                  forbidden: ['cn/minerealms/rigworks/', 'cn/minerealms/assimploader/', 'SmokeTest.class', 'assimploader.refmap.json']]
@@ -25,7 +28,12 @@ tasks.register('verifyModuleBoundaries') {
                 def entries = zip.entries().toList()*.name
                 def wrong = entries.find { entry -> spec.forbidden.any { entry.contains(it) } }
                 if (wrong != null) throw new GradleException("${artifact.name} contains ${wrong}")
-                def metadata = zip.getInputStream(zip.getEntry('META-INF/mods.toml')).getText('UTF-8')
+                // Forge 1.20.1 ships META-INF/mods.toml, NeoForge 1.21.1 META-INF/neoforge.mods.toml.
+                def metadataEntry = ['META-INF/mods.toml', 'META-INF/neoforge.mods.toml'].collect {
+                    zip.getEntry(it)
+                }.find { it != null }
+                if (metadataEntry == null) throw new GradleException("${artifact.name} has no loader metadata")
+                def metadata = zip.getInputStream(metadataEntry).getText('UTF-8')
                 def ids = (metadata =~ /(?m)^modId="([^"]+)"/).collect { it[1] }
                 if (ids.count(spec.id) != 1) throw new GradleException("Wrong mod entry in ${artifact.name}")
                 logger.lifecycle("Verified isolated ${spec.id}: ${artifact.name}")

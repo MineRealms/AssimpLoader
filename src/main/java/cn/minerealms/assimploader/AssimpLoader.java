@@ -8,6 +8,7 @@ import cn.minerealms.assimploader.render.AssimpGeometryLoader;
 import cn.minerealms.assimploader.render.GLCapabilityDetector;
 import cn.minerealms.assimploader.util.DebugLogger;
 import cn.minerealms.assimploader.util.AssimpLoaderPaths;
+import cn.minerealms.assimploader.util.ResourceLocations;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ModelEvent;
@@ -17,6 +18,10 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+//? if neoforge {
+/*
+import net.neoforged.fml.ModLoadingContext;
+*///?}
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,0 +1,279 @@
+plugins {
+    id 'dev.kikugie.stonecutter'
+}
+
+// The shared source in `src/` is version-neutral by construction: loader and vanilla
+// drift live in `versions/<node>/src` adapters, not in `//?` conditions.
+stonecutter.active('1.20.1-forge')
+
+// A failed node must never publish a partial set of artifacts to the collection directory.
+tasks.register('buildAndCollect', Sync) {
+    group = 'build'
+    description = 'Builds both targets and collects the two release jars.'
+    dependsOn ':1.20.1-forge:build', ':1.21.1-neoforge:build'
+    from(layout.projectDirectory.dir('versions/1.20.1-forge/build/libs')) {
+        include 'assimploader-1.20.1-forge-*.jar', 'assimpshowcase-1.20.1-forge-*.jar'
+    }
+    from(layout.projectDirectory.dir('versions/1.21.1-neoforge/build/libs')) {
+        include 'assimploader-1.21.1-neoforge-*.jar', 'assimpshowcase-1.21.1-neoforge-*.jar'
+    }
+    into layout.buildDirectory.dir('distributions')
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+}
+
+// `parameters {}` is replayed once per node with that node as the delegate, so `current` here is
+// the node being configured (computing it at the top level would pin it to the active node).
+//
+// The canonical sources in `src/` are written in the 1.20.1 Forge dialect - that is what the active
+// node compiles unprocessed. `replacements` below therefore run for the NeoForge node only and are
+// the compatibility layer for every drift that is a pure textual rename. Genuine structural drift
+// (a method that no longer exists, a different parameter list) stays in `//? if forge { ... }` /
+// `//? if neoforge { /* ... *///? }` blocks in the source, matching the Isorropia/Technomancy setup.
+stonecutter.parameters {
+    def neo = current.project.endsWith('-neoforge')
+
+    constants {
+        put('forge', !neo)
+        put('neoforge', neo)
+    }
+
+    replacements {
+        // Only the NeoForge target transforms symbols. The Forge target compiles the canonical
+        // sources verbatim, so the whole section is guarded rather than relying on per-rule
+        // predicates (the `string(true)` rules would otherwise fire on every node).
+        if (!neo) {
+            return
+        }
+
+        // ---------------------------------------------------------------- loader package moves
+        // Order matters: the generic `net.minecraftforge.` catch-all at the bottom must not see a
+        // path a more specific rule already rewrote.
+        string(neo) {
+            replace('net.minecraftforge.eventbus.api.', 'net.neoforged.bus.api.')
+        }
+        string(neo) {
+            replace('net.minecraftforge.api.distmarker.', 'net.neoforged.api.distmarker.')
+        }
+        string(neo) {
+            replace('net.minecraftforge.fml.', 'net.neoforged.fml.')
+        }
+
+        // Class renames where the simple name changed too, so they must precede the catch-all.
+        string(neo) {
+            replace('net.minecraftforge.common.MinecraftForge', 'net.neoforged.neoforge.common.NeoForge')
+        }
+        string(neo) {
+            replace('net.minecraftforge.common.ForgeConfigSpec', 'net.neoforged.neoforge.common.ModConfigSpec')
+        }
+        string(neo) {
+            replace('net.minecraftforge.registries.ForgeRegistries',
+                    'net.neoforged.neoforge.registries.NeoForgeRegistries')
+        }
+
+        // Catch-all for the remaining pure package moves (`common`, `client`, `event`, `registries`,
+        // `network`...). Everything those packages contain kept its simple name in NeoForge.
+        string(neo) {
+            replace('net.minecraftforge.', 'net.neoforged.neoforge.')
+        }
+
+        // `@Mod.EventBusSubscriber` is a nested type in Forge but a top-level annotation in
+        // NeoForge, and the Forge game bus is called GAME there. Both rules must run after the
+        // `net.minecraftforge.fml.` move, which would otherwise rewrite the target's prefix.
+        string(neo) {
+            replace('Mod.EventBusSubscriber.Bus.FORGE', 'net.neoforged.fml.common.EventBusSubscriber.Bus.GAME')
+        }
+        string(neo) {
+            replace('Mod.EventBusSubscriber.Bus.MOD', 'net.neoforged.fml.common.EventBusSubscriber.Bus.MOD')
+        }
+        string(neo) {
+            replace('Mod.EventBusSubscriber', 'net.neoforged.fml.common.EventBusSubscriber')
+        }
+
+        // Unqualified simple names. Restricted to identifier boundaries so `MinecraftForge` inside a
+        // longer identifier is left alone.
+        [MinecraftForge: 'NeoForge', ForgeConfigSpec: 'ModConfigSpec',
+         ForgeRegistries: 'NeoForgeRegistries'].each { before, after ->
+            regex(neo) {
+                replace('\\b' + before + '\\b', after, '\\b' + after + '\\b', before)
+            }
+        }
+
+
+        // ------------------------------------------------------- vanilla vertex pipeline drift
+        // 1.21 renamed every `VertexConsumer` builder method after the element it writes. Each old
+        // name maps onto exactly one new name with an unchanged parameter list, so these are pure
+        // renames. `uv2` must be rewritten before `uv`, and `.color(` must not see the zero-argument
+        // `trail.color()` / `visual.color()` accessors used elsewhere in the tree.
+        // The single-argument `uv2(int)` / `overlayCoords(int)` forms lost their old names too: they
+        // became `setLight(int)` / `setOverlay(int)`. Spelled out ahead of the two-argument renames.
+        string(neo) {
+            replace('.uv2(light)', '.setLight(light)')
+        }
+        string(neo) {
+            replace('.overlayCoords(overlay)', '.setOverlay(overlay)')
+        }
+        string(neo) {
+            replace('.overlayCoords(OverlayTexture.NO_OVERLAY)',
+                    '.setOverlay(OverlayTexture.NO_OVERLAY)')
+        }
+        string(neo) {
+            replace('.uv2(', '.setUv2(')
+        }
+        string(neo) {
+            replace('.uv(', '.setUv(')
+        }
+        string(neo) {
+            replace('.overlayCoords(', '.setUv1(')
+        }
+        string(neo) {
+            replace('.vertex(', '.addVertex(')
+        }
+        // Zero-width lookahead rather than a capture group: `[^)]` must not be consumed, or the
+        // first colour argument is eaten. It also keeps the zero-argument `trail.color()` accessor
+        // (next character `)`) untouched.
+        regex(neo) {
+            replace('\\.color\\((?=[^)])', '.setColor(', '\\.setColor\\((?=[^)])', '.color(')
+        }
+        // `endVertex()` no longer exists: 1.21 commits a vertex implicitly when the next one starts.
+        // Every call site ends a builder chain, so substituting the statement terminator leaves a
+        // valid (redundant) empty statement behind. An empty replacement is rejected by Stonecutter.
+        string(neo) {
+            replace('.endVertex()', ';')
+        }
+
+        // `normal(Matrix3f, ...)` became `setNormal(PoseStack.Pose, ...)`: 1.21 dropped the matrix
+        // overload because a pose already carries the matrix. The look is rewritten to hand the
+        // pose over instead; the no-arg `PoseStack.Pose.normal()` accessor is left alone by the
+        // zero-width lookahead below.
+        //
+        // The `modelView` lookbehind is not a VertexConsumer: it is the JOML matrix in
+        // PreviewGpuRenderer, and `Matrix4f#normal(Matrix3f)` (inverse-transpose) is unchanged in
+        // the JOML 1.10.8 that 1.21 ships, so it must keep its name.
+        regex(neo) {
+            replace('(?<!modelView)\\.normal\\((?=[^)])', '.setNormal(',
+                    '\\.setNormal\\((?=[^)])', '.normal(')
+        }
+        string(neo) {
+            replace('poses.last().normal(),normal.x,normal.y,normal.z)',
+                    'poses.last(),normal.x,normal.y,normal.z)')
+        }
+
+        // `VertexFormatElement` became a record in 1.21, so the bean accessors are now `type()` /
+        // `count()`. Spelled out per call site because `getType()` is also used by `HitResult`,
+        // `ScriptType` and the FBX light model, which keep their names.
+        string(neo) {
+            replace('getElements().get(index).getType()', 'getElements().get(index).type()')
+        }
+        string(neo) {
+            replace('getElements().get(index).getCount()', 'getElements().get(index).count()')
+        }
+        string(neo) {
+            replace('element.getType()', 'element.type()')
+        }
+        string(neo) {
+            replace('element.getCount()', 'element.count()')
+        }
+
+        // ------------------------------------------------------- tick event restructure
+        // 1.21 replaced Forge's single `TickEvent` with one type per phase and deleted `Phase`
+        // entirely. The canonical source keeps the 1.20.1 shape, so the NeoForge node is rewritten
+        // to the concrete phase type. Every `phase` guard then compares two nulls: the phase is
+        // implied by which event fired, so `== END` is constantly true and `!= END` constantly
+        // false - exactly the 1.20.1 behaviour for a handler that only ran on one phase.
+        //
+        // Keys are deliberately written in the canonical `net.minecraftforge.*` spelling. Stonecutter
+        // applies replacements longest-key-first, so a fully qualified key outranks the
+        // `net.minecraftforge.` catch-all above and fires while the text still carries the Forge
+        // prefix; keying them on the already-migrated spelling made them unreachable.
+        string(neo) {
+            replace('import net.minecraftforge.event.TickEvent;',
+                    '// TickEvent was split into per-phase types in 1.21; handlers now use the concrete type.')
+        }
+        [['ClientTickEvent', 'net.neoforged.neoforge.client.event.ClientTickEvent.Post'],
+         ['RenderTickEvent', 'net.neoforged.neoforge.client.event.RenderFrameEvent.Pre'],
+         ['ServerTickEvent', 'net.neoforged.neoforge.event.tick.ServerTickEvent.Post'],
+         ['LevelTickEvent', 'net.neoforged.neoforge.event.tick.LevelTickEvent.Post'],
+         ['PlayerTickEvent', 'net.neoforged.neoforge.event.tick.PlayerTickEvent.Post'],
+         ['EntityTickEvent', 'net.neoforged.neoforge.event.tick.EntityTickEvent.Post']].each { name, target ->
+            string(neo) {
+                replace('net.minecraftforge.event.TickEvent.' + name, target)
+            }
+            // Unqualified spelling, for the files that imported `TickEvent`. The fully qualified
+            // rule above has already claimed the qualified uses, so this only sees short names.
+            string(neo) {
+                replace('TickEvent.' + name, target)
+            }
+        }
+        string(neo) {
+            replace('net.minecraftforge.event.TickEvent.Phase.END', 'null')
+        }
+        string(neo) {
+            replace('net.minecraftforge.event.TickEvent.Phase.START', 'null')
+        }
+        // Unqualified uses: only reachable when the file imported `TickEvent`, which the catch-all
+        // never touches.
+        string(neo) {
+            replace('TickEvent.Phase.END', 'null')
+        }
+        string(neo) {
+            replace('TickEvent.Phase.START', 'null')
+        }
+        string(neo) {
+            replace('event.phase', 'null')
+        }
+
+        // `Minecraft#getFrameTime()` became the DeltaTracker partial tick in 1.21.
+        string(neo) {
+            replace('getFrameTime()', 'getTimer().getGameTimeDeltaPartialTick(true)')
+        }
+
+        // Config registration moved from ModLoadingContext to the active ModContainer.
+        string(neo) {
+            replace('ModLoadingContext.get().registerConfig(',
+                    'ModLoadingContext.get().getActiveContainer().registerConfig(')
+        }
+
+        // `FMLJavaModLoadingContext` was deleted; the mod bus now hangs off the active container.
+        // The import is dropped rather than rewritten because the type no longer exists.
+        string(neo) {
+            replace('import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;',
+                    '// FMLJavaModLoadingContext was removed in 1.21; the mod bus comes from ModLoadingContext.')
+        }
+        string(neo) {
+            replace('FMLJavaModLoadingContext.get().getModEventBus()',
+                    'ModLoadingContext.get().getActiveContainer().getEventBus()')
+        }
+
+        // `VertexFormatElement` is a record, so `getByteSize()` became `byteSize()`.
+        string(neo) {
+            replace('getByteSize()', 'byteSize()')
+        }
+
+        // `BufferBuilder.RenderedBuffer` became `MeshData`, and `release()` became `close()`.
+        string(neo) {
+            replace('data.release()', 'data.close()')
+        }
+        // `MeshData.DrawState` lost `vertexBufferSize()`; the format stride times the count is the
+        // same value the 1.20.1 record reported.
+        string(neo) {
+            replace('draw.vertexBufferSize()', 'draw.format().getVertexSize() * draw.vertexCount()')
+        }
+
+        // `ModelEvent.RegisterGeometryLoaders#register` takes a ResourceLocation in 1.21. The bare
+        // name has to be namespaced explicitly: `ResourceLocations.parse` would default it to
+        // `minecraft:assimp`, while every model file asks for `assimploader:assimp`.
+        string(neo) {
+            replace('event.register("assimp",',
+                    'event.register(ResourceLocations.of(AssimpLoader.MODID, "assimp"),')
+        }
+
+        // `QuadBakingVertexConsumer` lost its `Consumer<BakedQuad>` constructor in 1.21; the quad is
+        // now fetched from `bakeQuad()` after the four vertices have been written.
+        string(neo) {
+            replace('new QuadBakingVertexConsumer(quadRef::set)', 'new QuadBakingVertexConsumer()')
+        }
+        string(neo) {
+            replace('return quadRef.get();', 'return builder.bakeQuad();')
+        }
+    }
+}

@@ -15,7 +15,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.FloatBuffer;
 import java.util.stream.Collectors;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /**
  * Shader program for skinned mesh rendering with bone animation support.
  *
@@ -69,12 +69,12 @@ public class SkinnedMeshShader {
         String fragmentSource;
 
         if (useTBO) {
-            vertexSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh_tbo.vert"));
-            fragmentSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh_tbo.frag"));
+            vertexSource = loadShaderSource(ResourceLocations.of("assimploader", "shaders/skinned_mesh_tbo.vert"));
+            fragmentSource = loadShaderSource(ResourceLocations.of("assimploader", "shaders/skinned_mesh_tbo.frag"));
         } else {
             // Fallback to standard shaders
-            vertexSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh.vert"));
-            fragmentSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/skinned_mesh.frag"));
+            vertexSource = loadShaderSource(ResourceLocations.of("assimploader", "shaders/skinned_mesh.vert"));
+            fragmentSource = loadShaderSource(ResourceLocations.of("assimploader", "shaders/skinned_mesh.frag"));
         }
 
         // Compile shaders

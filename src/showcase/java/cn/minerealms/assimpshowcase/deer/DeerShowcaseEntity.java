@@ -25,7 +25,10 @@ public final class DeerShowcaseEntity extends PathfinderMob {
 
     public DeerShowcaseEntity(EntityType<? extends DeerShowcaseEntity> type, Level level) {
         super(type, level);
+        //? if forge {
+        // 1.21 deleted Entity#setMaxUpStep; 0.6 is the vanilla default anyway.
         setMaxUpStep(.6f);
+        //?}
     }
 
     public static AttributeSupplier.Builder attributes() {
@@ -33,11 +36,22 @@ public final class DeerShowcaseEntity extends PathfinderMob {
                 .add(Attributes.MOVEMENT_SPEED, .22).add(Attributes.FOLLOW_RANGE, 16);
     }
 
+    //? if forge {
     @Override protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(SHOWCASE_STATE, "auto");
         entityData.define(GROUND_IK,true); entityData.define(EFFECTS,false);
     }
+    //?}
+    //? if neoforge {
+    /*
+    // 1.21 passes the data builder in instead of exposing the SynchedEntityData field.
+    @Override protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(SHOWCASE_STATE, "auto");
+        builder.define(GROUND_IK,true); builder.define(EFFECTS,false);
+    }
+    *///?}
 
     @Override protected void registerGoals() {
         goalSelector.addGoal(0, new FloatGoal(this));

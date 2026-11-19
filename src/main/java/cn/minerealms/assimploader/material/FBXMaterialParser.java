@@ -10,7 +10,7 @@ import org.lwjgl.assimp.*;
 import java.nio.IntBuffer;
 
 import static org.lwjgl.assimp.Assimp.*;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /**
  * FBX material parser that extracts material properties from Assimp AIMaterial.
  *
@@ -253,7 +253,7 @@ public class FBXMaterialParser {
         if (texturePath.startsWith("*")) {
             // Embedded texture index
             String index = texturePath.substring(1);
-            return new ResourceLocation(modelNamespace, "textures/embedded/" + index + ".png");
+            return ResourceLocations.of(modelNamespace, "textures/embedded/" + index + ".png");
         }
 
         // Extract filename from path
@@ -272,7 +272,7 @@ public class FBXMaterialParser {
         // Convert to lowercase and replace spaces
         filename = filename.toLowerCase().replace(" ", "_");
 
-        return new ResourceLocation(modelNamespace, "textures/" + filename);
+        return ResourceLocations.of(modelNamespace, "textures/" + filename);
     }
 
     /**

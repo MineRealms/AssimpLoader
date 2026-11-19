@@ -20,6 +20,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Gradle 9.4.1 runs on JDK 17; the NeoForge node's Java 21 toolchain is provisioned
+      # automatically by the foojay resolver declared in settings.gradle.
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -32,18 +34,17 @@ jobs:
 
       # Photon and LDLib are needed to compile the optional Photon integration but must not
       # be redistributed through the repository. downloadDevDeps pins them by Modrinth
-      # version id and verifies a sha512 checksum.
+      # version id and verifies a sha512 checksum. Only the Forge node needs them today.
       - name: Download dev-only dependencies
-        run: ./gradlew downloadDevDeps --stacktrace --no-daemon
+        run: ./gradlew :1.20.1-forge:downloadDevDeps --stacktrace --no-daemon
 
-      - name: Build
+      # Stonecutter applies the shared build.gradle to every node. The 1.21.1 node is part of the
+      # multiversion structure but its source migration (phase 2) is still in progress, so CI
+      # currently builds the 1.20.1 node; swap in `build` once both nodes compile.
+      - name: Build the 1.20.1 node
         run: |
           set -o pipefail
-          # ForgeGradle generates the MCP/SRG artefacts lazily, from a worker thread, using the
-          # project's service registry. On a cold cache that generation happens during
-          # :compileJava and dies with "Project services has been closed" unless it runs on the
-          # build thread of a fresh JVM - hence no daemon and no parallel execution.
-          ./gradlew build --stacktrace --console=plain --no-daemon -Dorg.gradle.parallel=false 2>&1 | tee gradle-build.log
+          ./gradlew :1.20.1-forge:build --stacktrace --console=plain --no-daemon 2>&1 | tee gradle-build.log
 
       # GitHub only lets anonymous users read check-run *annotations*, not the raw log,
       # so failed builds re-emit the interesting part of the log as annotations.
@@ -72,22 +73,23 @@ jobs:
       - name: Verify the distributable jar
         run: |
           set -e
-          JAR=$(ls build/libs/*-all.jar)
+          JAR=$(ls versions/1.20.1-forge/build/libs/assimploader-1.20.1-forge-*.jar)
           echo "Checking $JAR"
           for entry in windows/x64/org/lwjgl/assimp/assimp.dll \
                        linux/x64/org/lwjgl/assimp/libassimp.so \
                        macos/x64/org/lwjgl/assimp/libassimp.dylib \
-                       META-INF/mods.toml \
                        mixins.photon_compat.json; do
             unzip -l "$JAR" | grep -q "$entry" || { echo "missing $entry"; exit 1; }
           done
+          unzip -l "$JAR" | grep -qE 'META-INF/(neoforge\.)?mods\.toml' \
+            || { echo "missing loader metadata"; exit 1; }
           echo "OK"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: assimploader-build
-          path: build/libs/*.jar
+          path: versions/*/build/libs/*.jar
           if-no-files-found: error
 
       - name: Upload test report on failure
@@ -96,6 +98,6 @@ jobs:
         with:
           name: test-report
           path: |
-            build/reports/tests/test
-            build/test-results/test
+            versions/*/build/reports/tests/test
+            versions/*/build/test-results/test
           if-no-files-found: ignore

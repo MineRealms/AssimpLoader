@@ -16,7 +16,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** Manual and automatic external overrides share the canonical repository and publish complete batches. */
 public final class ModelHotReloadManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ModelHotReloadManager.class);
@@ -133,7 +133,7 @@ public final class ModelHotReloadManager {
             path = "models/" + path;
         }
         try {
-            return new ResourceLocation(namespace, path);
+            return ResourceLocations.of(namespace, path);
         } catch (RuntimeException exception) {
             throw new IOException("Invalid external model resource name: " + relative, exception);
         }

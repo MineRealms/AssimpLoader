@@ -12,6 +12,7 @@ import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.workbench.io.WorkbenchProjectStore;
 import cn.minerealms.assimploader.workbench.io.WorkbenchRecovery;
 import cn.minerealms.assimploader.workbench.model.*;
+import cn.minerealms.assimploader.util.ScreenCompat;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -310,7 +311,10 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private void animationEdit(){if(session!=null)edit(d->d.withAnimation(new WorkbenchDocument.AnimationPreview(d.animation().clip(),clock,speed,loop,playing)));}
     private double duration(){return session==null?0:metadata.clips().stream().filter(c->c.name().equals(session.document().animation().clip())).mapToDouble(SceneMetadata.ClipInfo::seconds).findFirst().orElse(0);}
     @Override public void tick(){
+        //? if forge {
+        // 1.21 deleted EditBox#tick(); the caret now advances inside EditBox#renderWidget.
         if(search!=null)search.tick();fields.forEach(EditBox::tick);
+        //?}
         if(save!=null)save.active=session!=null&&!busy;if(undo!=null)undo.active=session!=null&&session.canUndo();if(redo!=null)redo.active=session!=null&&session.canRedo();
         long current=AssimpModelLoader.getCacheGeneration();if(generation!=current){releaseRenderer();generation=current;rendered=failed=false;status="Resources reloaded";}
         if(++autosaveTicks>=100){autosaveTicks=0;if(project!=null&&session.dirty()&&session.revision()!=draftRevision&&!busy){
@@ -402,14 +406,22 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         return super.mouseDragged(x,y,button,dx,dy);
     }
     @Override public boolean mouseReleased(double x,double y,int button){if(gizmo.release())return true;dragButton=-1;return super.mouseReleased(x,y,button);}
-    @Override public boolean mouseScrolled(double x,double y,double delta){
+    private boolean scrolled(double x,double y,double delta){
         if(busy&&operation==Operation.DISCARD)return true;
         if(x<left){scroll=Math.max(0,Math.min(Math.max(0,rows.size()-rowCount()),scroll-(int)Math.signum(delta)*3));return true;}
         if(x>=width-right&&y>=110&&y<height-24){
             commit();inspectorScroll=Math.max(0,Math.min(inspectorMaxScroll,inspectorScroll-(int)Math.signum(delta)*28));rebuildWidgets();return true;
         }
-        if(insideViewport(x,y)){if(hasShiftDown())camera.pan(0,delta*18,viewportHeight());else camera.zoom(delta);return true;}return super.mouseScrolled(x,y,delta);
+        if(insideViewport(x,y)){if(hasShiftDown())camera.pan(0,delta*18,viewportHeight());else camera.zoom(delta);return true;}return false;
     }
+    //? if forge {
+    @Override public boolean mouseScrolled(double x,double y,double delta){return scrolled(x,y,delta)||super.mouseScrolled(x,y,delta);}
+    //?}
+    //? if neoforge {
+    /*
+    // 1.21 split the scroll delta into horizontal and vertical axes; only the vertical one is used here.
+    @Override public boolean mouseScrolled(double x,double y,double deltaX,double deltaY){return scrolled(x,y,deltaY)||super.mouseScrolled(x,y,deltaX,deltaY);}
+    *///?}
     @Override public boolean keyPressed(int key,int scan,int modifiers){
         if(busy&&operation==Operation.DISCARD)return true;
         if(hasControlDown()&&key==GLFW.GLFW_KEY_S){commit();save();return true;}
@@ -545,7 +557,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         @Override protected void init(){int w=Math.min(560,width-32),x=(width-w)/2,y=height/2;path=addRenderableWidget(FlatUi.field(font,x,y,w,26,Component.literal("Path")));path.setMaxLength(4096);path.setHint(Component.literal(importing?"FBX file or folder":"project.workbench.json"));
             addRenderableWidget(FlatUi.button(x,y+38,100,26,Component.literal(importing?"Import":"Open"),b->{String value=path.getValue().trim();minecraft.setScreen(parent);try{if(importing)parent.importPath(Path.of(value));else parent.open(Path.of(value));}catch(RuntimeException invalid){parent.status=invalid.getMessage();}}));
             addRenderableWidget(FlatUi.button(x+110,y+38,100,26,Component.literal("Cancel"),b->onClose()));setInitialFocus(path);}
-        @Override public void render(GuiGraphics g,int x,int y,float p){renderBackground(g);g.drawCenteredString(font,title,width/2,height/2-28,FlatUi.TEXT);super.render(g,x,y,p);}
+        @Override public void render(GuiGraphics g,int x,int y,float p){ScreenCompat.renderBackground(this,g,x,y,p);g.drawCenteredString(font,title,width/2,height/2-28,FlatUi.TEXT);super.render(g,x,y,p);}
         @Override public void onFilesDrop(List<Path> files){if(!files.isEmpty()){minecraft.setScreen(parent);if(importing)parent.importPath(files.get(0));else parent.open(files.get(0));}}
         @Override public void onClose(){minecraft.setScreen(parent);}@Override public boolean isPauseScreen(){return false;}
     }
@@ -554,7 +566,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         @Override protected void init(){int x=width/2-150,y=height/2;addRenderableWidget(FlatUi.button(x,y,94,26,Component.literal("Save"),b->{minecraft.setScreen(parent);parent.save();}));
             addRenderableWidget(FlatUi.button(x+102,y,94,26,Component.literal("Discard"),b->{minecraft.setScreen(parent);parent.revertSaved(true);}));
             addRenderableWidget(FlatUi.button(x+204,y,94,26,Component.literal("Keep editing"),b->onClose()));}
-        @Override public void render(GuiGraphics g,int x,int y,float p){renderBackground(g);g.drawCenteredString(font,title,width/2,height/2-28,FlatUi.TEXT);super.render(g,x,y,p);}
+        @Override public void render(GuiGraphics g,int x,int y,float p){ScreenCompat.renderBackground(this,g,x,y,p);g.drawCenteredString(font,title,width/2,height/2-28,FlatUi.TEXT);super.render(g,x,y,p);}
         @Override public void onClose(){minecraft.setScreen(parent);}@Override public boolean isPauseScreen(){return false;}
     }
     private static final class TextureScreen extends Screen {
@@ -563,7 +575,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         @Override protected void init(){int w=Math.min(500,width-32),x=(width-w)/2,y=38;parent.session.beginTransaction();
             for(String slot:SLOTS){int yy=y;addRenderableWidget(FlatUi.button(x,yy,92,26,Component.literal(slot),b->{}));EditBox field=addRenderableWidget(FlatUi.field(font,x+100,yy,w-100,26,Component.literal(slot)));field.setMaxLength(4096);field.setValue(parent.session.document().materials().get(material).textures().getOrDefault(slot,""));field.setResponder(value->{try{var c=parent.session.document().materials().get(material);var paths=new java.util.LinkedHashMap<>(c.textures());if(value.isBlank())paths.remove(slot);else paths.put(slot,value);parent.session.edit(d->d.withMaterial(material,new WorkbenchDocument.MaterialOverride(c.r(),c.g(),c.b(),c.a(),c.metallic(),c.roughness(),c.emission(),c.alphaMode(),c.cutoff(),c.doubleSided(),paths)));error="";}catch(RuntimeException e){error=e.getMessage();}});y+=36;}
             addRenderableWidget(FlatUi.button(x,y,100,26,Component.literal("Apply"),b->{parent.session.commitTransaction();onClose();}));addRenderableWidget(FlatUi.button(x+110,y,100,26,Component.literal("Cancel"),b->{parent.session.cancelTransaction();onClose();}));}
-        @Override public void render(GuiGraphics g,int x,int y,float p){renderBackground(g);g.drawCenteredString(font,title,width/2,16,FlatUi.TEXT);g.drawString(font,FlatUi.clip(font,error,width-32),16,height-20,FlatUi.ERROR,false);super.render(g,x,y,p);}
+        @Override public void render(GuiGraphics g,int x,int y,float p){ScreenCompat.renderBackground(this,g,x,y,p);g.drawCenteredString(font,title,width/2,16,FlatUi.TEXT);g.drawString(font,FlatUi.clip(font,error,width-32),16,height-20,FlatUi.ERROR,false);super.render(g,x,y,p);}
         @Override public void onClose(){parent.session.commitTransaction();minecraft.setScreen(parent);}@Override public boolean isPauseScreen(){return false;}
     }
 }

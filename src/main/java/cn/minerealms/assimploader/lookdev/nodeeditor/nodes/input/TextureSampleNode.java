@@ -11,7 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.ResourceLocation;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /**
  * Texture Sample Node
  *
@@ -110,7 +110,7 @@ public class TextureSampleNode extends Node {
         // Try to load new texture
         if (!texturePath.isEmpty()) {
             try {
-                ResourceLocation resourceLocation = new ResourceLocation(texturePath);
+                ResourceLocation resourceLocation = ResourceLocations.parse(texturePath);
                 TextureManager textureManager = Minecraft.getInstance().getTextureManager();
                 AbstractTexture texture = textureManager.getTexture(resourceLocation);
 

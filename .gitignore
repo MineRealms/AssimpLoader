@@ -19,8 +19,10 @@ output/
 *.launch
 .cache
 
-# Local run directory (contains logs, worlds, options)
+# Local run directories (contains logs, worlds, options). The 1.21.1 node uses
+# run-client-1.21.1 / run-server-1.21.1 / run-data-1.21.1 at the repository root.
 run/
+run-*/
 logs/
 
 # Local third-party mod jars used for development only.

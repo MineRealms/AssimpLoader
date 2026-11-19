@@ -21,7 +21,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** Render-thread opaque batches. No entity mutation, server lookup or per-frame GPU readback. */
 public final class GpuInstanceBatcher implements AutoCloseable {
     private static final int INSTANCE_BYTES=112;
@@ -255,7 +255,7 @@ public final class GpuInstanceBatcher implements AutoCloseable {
             for(String source:sources) {
                 int type=source.endsWith(".vert")?GL20.GL_VERTEX_SHADER:source.endsWith(".frag")?GL20.GL_FRAGMENT_SHADER:GL43.GL_COMPUTE_SHADER;
                 int shader=GL20.glCreateShader(type);shaders.add(shader);
-                try(var input=Minecraft.getInstance().getResourceManager().open(new ResourceLocation("assimploader","shaders/"+source))) {
+                try(var input=Minecraft.getInstance().getResourceManager().open(ResourceLocations.of("assimploader", "shaders/"+source))) {
                     GL20.glShaderSource(shader,new String(input.readAllBytes(),StandardCharsets.UTF_8));
                 }
                 GL20.glCompileShader(shader);

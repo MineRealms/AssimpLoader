@@ -12,7 +12,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** One owner for Java model data; aliases never own additional scenes. No client or GL classes are referenced here. */
 final class ModelRepository {
     private static final Logger LOGGER = LoggerFactory.getLogger(ModelRepository.class);
@@ -44,7 +44,7 @@ final class ModelRepository {
         String path = colon >= 0 ? base.substring(colon + 1) : base;
         path = stripKnownExtension(path.replace('\\', '/'));
         if (!path.startsWith("models/")) path = "models/" + path;
-        return new ResourceLocation(namespace, path).toString();
+        return ResourceLocations.of(namespace, path).toString();
     }
 
     static AssimpScene load(String identity, ModelImportMode mode, boolean pinned,

@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** Compatibility facade over the canonical model repository; this class owns no competing cache. */
 public final class ModelCacheManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ModelCacheManager.class);
@@ -35,8 +35,8 @@ public final class ModelCacheManager {
                 // Namespaced resource locations are not Windows filesystem paths.
             }
             if (FMLEnvironment.dist == Dist.CLIENT) {
-                ResourceLocation resource = resourcePath.contains(":") ? new ResourceLocation(resourcePath)
-                        : new ResourceLocation("assimploader", resourcePath);
+                ResourceLocation resource = resourcePath.contains(":") ? ResourceLocations.parse(resourcePath)
+                        : ResourceLocations.of("assimploader", resourcePath);
                 return ResourcePackIntegration.getInstance().loadModel(resource, ModelImportMode.STATIC);
             }
         } catch (IOException | RuntimeException exception) {

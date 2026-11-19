@@ -1,5 +1,6 @@
 package cn.minerealms.assimploader.mixin.photon;
 
+//? if forge {
 import cn.minerealms.assimploader.compat.photon.AssimpToPhotonMeshConverter;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.model.AssimpScene;
@@ -19,7 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.util.Map;
 
 /**
@@ -166,8 +166,6 @@ public class MeshesResourceMixin {
             // 5. 刷新容器显示
             container.reBuild();
 
-            // 6. 释放 Assimp 资源
-
             LOGGER.info("FBX mesh import completed successfully: {} mesh(es) imported", imported);
 
         } catch (Exception e) {
@@ -175,3 +173,64 @@ public class MeshesResourceMixin {
         }
     }
 }
+//?}
+//? if neoforge {
+/*
+import cn.minerealms.assimploader.compat.photon.AssimpToPhotonMeshConverter;
+import cn.minerealms.assimploader.core.AssimpModelLoader;
+import cn.minerealms.assimploader.model.AssimpScene;
+import com.lowdragmc.lowdraglib2.editor.resource.ResourceImportContext;
+import com.lowdragmc.photon.client.gameobject.emitter.data.shape.MeshData;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.util.Locale;
+import java.util.Map;
+
+// Photon 2.2.11 replaced the editor resource classes and moved the import entry points onto
+// `Resource#canImportFile`/`importFile`. Hooking those keeps the native importers untouched: formats
+// Photon already understands are left to it, and only the Assimp-only ones are taken over.
+@Pseudo
+@Mixin(targets = "com.lowdragmc.photon.gui.editor.resource.MeshResource", remap = false)
+public class MeshesResourceMixin {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("MeshesResourceMixin");
+
+    @Inject(method = "canImportFile", at = @At("RETURN"), cancellable = true)
+    private void assimpCanImport(File file, CallbackInfoReturnable<Boolean> cir) {
+        if (PhotonModelFiles.isAssimpOnly(file)) cir.setReturnValue(true);
+    }
+
+    @Inject(method = "importFile", at = @At("HEAD"), cancellable = true)
+    @SuppressWarnings("unchecked")
+    private void assimpImportFile(ResourceImportContext ctx, CallbackInfo ci) {
+        File file = ctx.getFile();
+        if (file == null || !PhotonModelFiles.isAssimpOnly(file)) return;
+        try {
+            AssimpScene scene = new AssimpModelLoader().loadModel(file.toPath());
+            Map<String, MeshData> meshes = AssimpToPhotonMeshConverter.convertAllMeshes(scene);
+            if (meshes.isEmpty()) {
+                ctx.fail(String.format(Locale.ROOT, "No meshes found in %s", file.getName()));
+                ci.cancel();
+                return;
+            }
+            String stem = PhotonModelFiles.stem(file.getName());
+            for (Map.Entry<String, MeshData> entry : meshes.entrySet()) {
+                ctx.complete(stem + "_" + entry.getKey(), entry.getValue());
+            }
+            ci.cancel();
+        } catch (Exception | LinkageError e) {
+            LOGGER.error("Failed to import mesh from {}", file.getName(), e);
+            ctx.fail(String.format(Locale.ROOT, "Assimp import failed: %s", e.getMessage()));
+            ci.cancel();
+        }
+    }
+}
+*///?}

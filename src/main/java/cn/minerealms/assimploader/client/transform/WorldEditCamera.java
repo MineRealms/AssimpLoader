@@ -132,9 +132,17 @@ public final class WorldEditCamera {
         WorldEditCameraAccess access = (WorldEditCameraAccess) camera;
         access.assimploader$setRotation(orbit.yaw(), orbit.pitch());
         access.assimploader$setPosition(framed.x, framed.y, framed.z);
+        //? if forge {
         double boom = access.assimploader$getMaxZoom(orbit.distance());
         if (!Double.isFinite(boom)) boom = 0;
         access.assimploader$move(-Math.max(0, Math.min(boom, orbit.distance())), 0, 0);
+        //?}
+        //? if neoforge {
+        /*
+        double boom = access.assimploader$getMaxZoom((float) orbit.distance());
+        if (!Double.isFinite(boom)) boom = 0;
+        access.assimploader$move(-(float) Math.max(0, Math.min(boom, orbit.distance())), 0, 0);
+        *///?}
         Vec3 finalPosition = loadedSegment(framed, camera.getPosition());
         access.assimploader$setPosition(finalPosition.x, finalPosition.y, finalPosition.z);
     }

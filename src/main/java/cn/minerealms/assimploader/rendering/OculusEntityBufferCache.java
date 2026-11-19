@@ -22,6 +22,11 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
+//? if neoforge {
+/*
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.MeshData;
+*///?}
 import net.minecraft.client.renderer.ShaderInstance;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
@@ -55,6 +60,10 @@ public final class OculusEntityBufferCache {
     private static long poseResident,poseUploads,poseUploadedBytes,poseDraws,poseShadowDraws,poseHits,poseFallbacks;
     private static final LocalMeshEncoder ENCODER = new LocalMeshEncoder();
     private static BufferBuilder scratch;
+    //? if neoforge {
+    /*
+    private static ByteBufferBuilder scratchBuffer;
+    *///?}
     private static boolean failed;
     private static boolean computeFailed;
     private static long uploads, vertices, bytes, draws, shadowDraws;
@@ -293,8 +302,16 @@ public final class OculusEntityBufferCache {
     }
 
     private static Entry upload(AssimpScene scene, AssimpMesh mesh,PoseSnapshot snapshot,Entry previous,boolean gpu) {
+        //? if forge {
         if (scratch == null) scratch = new BufferBuilder(1 << 20);
         scratch.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.NEW_ENTITY);
+        //?}
+        //? if neoforge {
+        /*
+        if (scratchBuffer == null) scratchBuffer = new ByteBufferBuilder(1 << 20);
+        scratchBuffer.clear();
+        scratch = new BufferBuilder(scratchBuffer, VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.NEW_ENTITY);
+        *///?}
         try {
             if(snapshot==null || gpu) ENCODER.encode(mesh, ModelTextureCache.material(scene, mesh), scratch);
             else {
@@ -302,10 +319,22 @@ public final class OculusEntityBufferCache {
                 ENCODER.encode(mesh,geometry.positions(),geometry.normals(),ModelTextureCache.material(scene,mesh),scratch);
             }
         } catch (RuntimeException | LinkageError error) {
+            //? if forge {
             scratch.discard();
+            //?}
+            //? if neoforge {
+            /*
+            scratchBuffer.discard();
+            *///?}
             throw error;
         }
+        //? if forge {
         BufferBuilder.RenderedBuffer data = scratch.end();
+        //?}
+        //? if neoforge {
+        /*
+        MeshData data = scratch.build();
+        *///?}
         VertexBuffer buffer = null;
         OculusPoseCompute compute = null;
         boolean transferred = false, complete = false;

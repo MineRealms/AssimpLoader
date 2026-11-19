@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** Compatibility API over the canonical loader. Variant labels do not create duplicate scene ownership. */
 public final class ModelRegistry {
     private static final Logger LOGGER = LoggerFactory.getLogger(ModelRegistry.class);
@@ -52,6 +52,6 @@ public final class ModelRegistry {
     private static ResourceLocation resource(ModelResourceLocation location) {
         ResourceLocation resource = location.getLocation();
         String path = resource.getPath();
-        return new ResourceLocation(resource.getNamespace(), path.startsWith("models/") ? path : "models/" + path);
+        return ResourceLocations.of(resource.getNamespace(), path.startsWith("models/") ? path : "models/" + path);
     }
 }

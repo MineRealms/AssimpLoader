@@ -8,18 +8,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 class ModelTextureCacheTest {
     @TempDir Path directory;
 
     @Test
     void materialTexturesResolveRelativeToTheirOwnModelNamespace() {
-        var source = new ResourceLocation("othermod", "models/vehicle/body.gltf");
-        assertEquals(new ResourceLocation("othermod", "models/vehicle/textures/body.png"),
+        var source = ResourceLocations.of("othermod", "models/vehicle/body.gltf");
+        assertEquals(ResourceLocations.of("othermod", "models/vehicle/textures/body.png"),
                 ModelTextureCache.resolveResource(source, "textures\\body.png"));
-        assertEquals(new ResourceLocation("othermod", "models/shared.png"),
+        assertEquals(ResourceLocations.of("othermod", "models/shared.png"),
                 ModelTextureCache.resolveResource(source, "../shared.png"));
-        assertEquals(new ResourceLocation("test", "textures/direct.png"),
+        assertEquals(ResourceLocations.of("test", "textures/direct.png"),
                 ModelTextureCache.resolveResource(source, "test:textures/direct.png"));
         assertNull(ModelTextureCache.resolveResource(source, "../../../../secret.png"));
         assertNull(ModelTextureCache.resolveResource(source, "C:/private.png"));

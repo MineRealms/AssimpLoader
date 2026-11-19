@@ -1,6 +1,6 @@
 # AssimpLoader
 
-**Minecraft Forge 1.20.1 的通用 3D 资产、动画与 GPU 渲染基础库。**
+**Minecraft 1.20.1 Forge / 1.21.1 NeoForge 的通用 3D 资产、动画与 GPU 渲染基础库。**
 
 将 Blender 等工具导出的 FBX / glTF / GLB 接入 Minecraft，保留材质、节点层级、骨骼和动画，在游戏内完成预览与配置。玩家角色应用已独立为 [RigWorks](https://github.com/MineRealms/RigWorks)，通过 Git 子模块引用本项目。
 
@@ -24,14 +24,16 @@
 
 ## 使用
 
-需要 **Minecraft 1.20.1、Forge 47.x、Java 17**。安装 `build/libs/assimploader-1.0.0-all.jar`，其中包含 Assimp 绑定、原生库及必要的打包依赖。普通薄 JAR 不能代替它。
+需要 **Minecraft 1.20.1 + Forge 47.x + Java 17**，或 **Minecraft 1.21.1 + NeoForge 21.1.x + Java 21**（1.21.1 移植在 `multiversion` 分支进行中）。安装对应节点的产物，例如 `versions/1.20.1-forge/build/libs/assimploader-1.20.1-forge-1.0.0.jar`，其中包含 Assimp 绑定与原生库。普通薄 JAR 不能代替它。
 
 ```powershell
 .\gradlew.bat build --console=plain
-.\gradlew.bat runClient -PwithKubeJS --console=plain
+.\gradlew.bat :1.20.1-forge:runClient -PwithKubeJS --console=plain
 ```
 
-开发客户端默认包含 Oculus / Embeddium，可用 `-PwithoutOculus` 关闭；KubeJS 是可选依赖。发布 JAR 不捆绑这些开发模组。
+构建使用 [Stonecutter](https://stonecutter.kikugie.dev/)：`versions/1.20.1-forge` 与 `versions/1.21.1-neoforge` 各是一个子项目，共享根 `build.gradle`；`gradlew build` 会同时构建两者，`buildAndCollect` 把两个节点的发布包汇总到 `build/distributions`。
+
+开发客户端默认包含 Oculus / Embeddium（1.21.1 节点为 Iris / Embeddium），可用 `-PwithoutOculus` 关闭；KubeJS 是可选依赖。发布 JAR 不捆绑这些开发模组。
 
 在世界内按 `L` 或执行 `/lookdev` 打开工作区，进入 `Edit` 导入、编辑并保存项目。资源包模型和材质可用 `F3+T` 重载。完整流程见 [快速开始](docs/guides/QUICK_START.md)和[模型工作台](docs/guides/MODEL_WORKBENCH.md)。
 
@@ -41,7 +43,7 @@ KubeJS 的具体操作见 **[动画、骨骼、混合、IK 与烘焙动画教程
 
 用 Agent 整理并导入资产，见 **[Agent 自动化工作流](docs/guides/AGENT_ASSET_WORKFLOW.md)** 和 [可复用 Skill](skills/assimploader-asset-pipeline/SKILL.md)。配套 [Blender / Maya / 3ds Max 一键导出](docs/guides/DCC_EXPORTERS.md) 可交付 FBX、图片及初始配置；新脚本按需求未做运行验证。
 
-本仓库维护通用引擎及独立的 AssimpShowcase 示例模组；`build` 分别生成引擎 `-all.jar` 和 `assimpshowcase-1.0.0.jar`。引擎不依赖 RigWorks，单独克隆即可构建。
+本仓库维护通用引擎及独立的 AssimpShowcase 示例模组；`build` 在 `versions/<节点>/build/libs` 分别生成引擎 JAR 与 `assimpshowcase-<mc版本>-<加载器>.jar`。引擎不依赖 RigWorks，单独克隆即可构建。
 
 [RigWorks](https://github.com/MineRealms/RigWorks) 负责玩家换模、原版动作重定向、装备编辑与角色配置同步。其他模组可以使用同一套引擎 API 和工作台扩展接口。
 

@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import static org.lwjgl.opengl.GL33C.*;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** Standalone half-resolution fallback. Shader packs own their HDR pass and never use this backend. */
 public final class VanillaExhaustRenderer {
     private static int volumeProgram, compositeProgram, vao, fbo, color, depthFbo, depthTexture;
@@ -140,7 +140,7 @@ public final class VanillaExhaustRenderer {
 
     private static String read(String path) throws IOException {
         try (var stream = Minecraft.getInstance().getResourceManager()
-                .getResourceOrThrow(new ResourceLocation(AssimpLoader.MODID, path)).open()) {
+                .getResourceOrThrow(ResourceLocations.of(AssimpLoader.MODID, path)).open()) {
             return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         }
     }

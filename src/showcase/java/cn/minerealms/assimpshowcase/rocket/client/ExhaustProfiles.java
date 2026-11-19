@@ -11,10 +11,10 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import java.io.Reader;
 import java.util.HashMap;
 import java.util.Map;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** Client resource-pack profiles, reloaded by F3+T. Invalid overrides never install partial data. */
 public final class ExhaustProfiles implements ResourceManagerReloadListener {
-    public static final ResourceLocation DEFAULT = new ResourceLocation(AssimpLoader.MODID, "kerolox");
+    public static final ResourceLocation DEFAULT = ResourceLocations.of(AssimpLoader.MODID, "kerolox");
     private static final ExhaustProfile FALLBACK = ExhaustProfile.fromJson(new com.google.gson.JsonObject());
     private static volatile Map<ResourceLocation, ExhaustProfile> profiles = Map.of();
 
@@ -25,7 +25,7 @@ public final class ExhaustProfiles implements ResourceManagerReloadListener {
         Map<ResourceLocation, ExhaustProfile> loaded = new HashMap<>();
         resources.listResources("exhaust_profiles", location -> location.getPath().endsWith(".json")).forEach((id, resource) -> {
             String path = id.getPath();
-            ResourceLocation key = new ResourceLocation(id.getNamespace(), path.substring("exhaust_profiles/".length(), path.length() - 5));
+            ResourceLocation key = ResourceLocations.of(id.getNamespace(), path.substring("exhaust_profiles/".length(), path.length() - 5));
             try (Reader reader = resource.openAsReader()) {
                 JsonElement json = JsonParser.parseReader(reader);
                 loaded.put(key, ExhaustProfile.fromJson(json.getAsJsonObject()));

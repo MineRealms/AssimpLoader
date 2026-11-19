@@ -7,7 +7,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** Client-tick commands publish bounded values; the bound program consumes them without entering JS. */
 public final class ScriptShaderParameters {
     static final class Parameter {
@@ -82,7 +82,7 @@ public final class ScriptShaderParameters {
     private static void applyReset(){if(resetRequested.getAndSet(false))registry.reset();}
     public static void define(String id,String resource) {
         checkThread();applyReset();
-        try(var input=Minecraft.getInstance().getResourceManager().open(new ResourceLocation(resource));
+        try(var input=Minecraft.getInstance().getResourceManager().open(ResourceLocations.parse(resource));
             var reader=new InputStreamReader(input,StandardCharsets.UTF_8)) {
             registry.define(id,ShaderParameterDefinition.read(reader));
         }catch(java.io.IOException error){throw new IllegalArgumentException("Cannot read shader parameters: "+resource,error);}

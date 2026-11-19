@@ -11,6 +11,7 @@ import cn.minerealms.assimploader.collision.ModelCollision;
 import cn.minerealms.assimploader.collision.Ray;
 import cn.minerealms.assimploader.model.AssimpMesh;
 import cn.minerealms.assimploader.model.ModelCapabilities;
+import cn.minerealms.assimploader.util.ResourceLocations;
 import com.google.gson.Gson;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -73,7 +74,7 @@ public final class AssimpModelHandle {
     /** Ensure a resource definition is compiled once for this instance; explicit reload replaces it transactionally. */
     public AssimpModelHandle processor(String id,String resource) {
         var state=live();String key=key(id,"processor:");
-        String source=new net.minecraft.resources.ResourceLocation(resource).toString();
+        String source=ResourceLocations.parse(resource).toString();
         var current=state.getModifier(key);
         if(current instanceof ModelAnimationProcessor processor && !processor.isClosed() && source.equals(processor.source()))return this;
         return reloadProcessor(id,source);
@@ -84,8 +85,8 @@ public final class AssimpModelHandle {
         return installProcessor(id,compiled);
     }
     public AssimpModelHandle reloadProcessor(String id,String resource) {
-        var state=live();String source=new net.minecraft.resources.ResourceLocation(resource).toString();
-        try(var reader=net.minecraft.client.Minecraft.getInstance().getResourceManager().openAsReader(new net.minecraft.resources.ResourceLocation(source))) {
+        var state=live();String source=ResourceLocations.parse(resource).toString();
+        try(var reader=net.minecraft.client.Minecraft.getInstance().getResourceManager().openAsReader(ResourceLocations.parse(source))) {
             return installProcessor(id,ModelAnimationProcessor.read(state.getScene(),source,reader));
         }catch(java.io.IOException error){throw new IllegalArgumentException("Cannot read animation processor: "+source,error);}
     }

@@ -27,10 +27,10 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** Material texture ownership shared by world, item and preview renderers, scoped to one resource generation. */
 public final class ModelTextureCache {
-    public static final ResourceLocation WHITE = new ResourceLocation("minecraft", "textures/block/white_concrete.png");
+    public static final ResourceLocation WHITE = ResourceLocations.of("minecraft", "textures/block/white_concrete.png");
     private static final int MAX_DIMENSION = 4096;
     private static final long MAX_PIXELS = 16L * 1024 * 1024;
     private static final Map<AssimpScene, SceneTextures> CACHE = new IdentityHashMap<>();
@@ -168,7 +168,7 @@ public final class ModelTextureCache {
 
         private Entry create(AssimpMaterial material, String path) {
             OculusPBRSupport.ensureLoaderRegistered();
-            ResourceLocation location = new ResourceLocation("assimploader", "runtime/material_" + nextTexture++);
+            ResourceLocation location = ResourceLocations.of("assimploader", "runtime/material_" + nextTexture++);
             AssimpPbrTexture texture = null;
             try {
                 texture = new AssimpPbrTexture();
@@ -303,7 +303,7 @@ public final class ModelTextureCache {
                     .whenComplete((image,error)->RenderSystem.recordRenderCall(()->{
                         debugPending.remove(view);
                         if(closed || owner.closed || error!=null)return;
-                        var location=new ResourceLocation("assimploader","runtime/debug_"+nextTexture++);
+                        var location=ResourceLocations.of("assimploader", "runtime/debug_"+nextTexture++);
                         var texture=new net.minecraft.client.renderer.texture.DynamicTexture(AssimpPbrTexture.nativeImage(image));
                         try {
                             Minecraft.getInstance().getTextureManager().register(location,texture);

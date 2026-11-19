@@ -12,7 +12,7 @@ import java.util.Base64;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 class AssimpMaterialTest {
     @Test
     void rgbPropertiesDefaultToOpaque() throws Exception {
@@ -70,10 +70,10 @@ class AssimpMaterialTest {
     }
 
     private static AssimpMaterial objMaterial(String properties) throws Exception {
-        ResourceLocation model = new ResourceLocation("example", "models/material/triangle.obj");
+        ResourceLocation model = ResourceLocations.of("example", "models/material/triangle.obj");
         Map<ResourceLocation, byte[]> files = Map.of(model,
                 "mtllib paint.mtl\no Triangle\nv 0 0 0\nv 1 0 0\nv 0 1 0\nusemtl Paint\nf 1 2 3\n".getBytes(StandardCharsets.UTF_8),
-                new ResourceLocation("example", "models/material/paint.mtl"),
+                ResourceLocations.of("example", "models/material/paint.mtl"),
                 ("newmtl Paint\n" + properties).getBytes(StandardCharsets.UTF_8));
         AssimpScene scene = new AssimpModelLoader().loadModelFromResources(model, files::get, ModelImportMode.STATIC);
         return scene.getMaterials().get(scene.getMeshes().get(0).getMaterialIndex());

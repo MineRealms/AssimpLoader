@@ -42,6 +42,8 @@ public final class AssimpBootstrap {
             Class.forName("org.lwjgl.assimp.Assimp");
             return true;
         } catch (ClassNotFoundException | LinkageError e) {
+            // Keep the reason: a missing native reads exactly like a missing jar otherwise.
+            AssimpLoader.LOGGER.debug("LWJGL Assimp bindings unavailable: {}", e.toString());
             return false;
         }
     }

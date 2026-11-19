@@ -20,6 +20,15 @@ public class ShowcaseBlock extends BaseEntityBlock {
 
     public ShowcaseModel getModel() { return model; }
 
+    //? if neoforge {
+    /*
+    // 1.21 re-abstracted `codec()` on BaseEntityBlock. The block has no persistent state, so a unit
+    // codec satisfies the contract without inventing a registry lookup.
+    @Override protected com.mojang.serialization.MapCodec<? extends BaseEntityBlock> codec() {
+        return com.mojang.serialization.MapCodec.unit(this);
+    }
+    *///?}
+
     @Override
     public RenderShape getRenderShape(BlockState state) {
         return RenderShape.ENTITYBLOCK_ANIMATED;

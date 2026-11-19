@@ -5,6 +5,10 @@ import cn.minerealms.assimploader.render.ModelVisibility;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.config.AssimpLoaderConfig;
 import net.minecraft.core.BlockPos;
+//? if neoforge {
+/*
+import net.minecraft.core.HolderLookup;
+*///?}
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -12,12 +16,12 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import cn.minerealms.assimpshowcase.rocket.common.RocketEngineState;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 public class ShowcaseBlockEntity extends BlockEntity {
     private transient cn.minerealms.assimploader.model.AssimpScene visualScene;
     private transient AABB visualBounds;
     private boolean rocketBurning = true;
-    private ResourceLocation exhaustProfile = new ResourceLocation("assimploader", "kerolox");
+    private ResourceLocation exhaustProfile = ResourceLocations.of("assimploader", "kerolox");
     private double targetMassFlowKgS = -1;
     private final RocketEngineState engineState = new RocketEngineState();
     public ShowcaseBlockEntity(BlockPos pos, BlockState state) {
@@ -52,6 +56,7 @@ public class ShowcaseBlockEntity extends BlockEntity {
         if (level != null && !level.isClientSide) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
     }
 
+    //? if forge {
     @Override protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
         tag.putBoolean("RocketBurning", rocketBurning);
@@ -61,18 +66,42 @@ public class ShowcaseBlockEntity extends BlockEntity {
 
     @Override public void load(CompoundTag tag) {
         super.load(tag);
+        readSaved(tag);
+    }
+
+    @Override public CompoundTag getUpdateTag() { return saveWithoutMetadata(); }
+    //?}
+    //? if neoforge {
+    /*
+    // 1.21 routed block-entity persistence through HolderLookup.Provider and renamed `load`.
+    @Override protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        tag.putBoolean("RocketBurning", rocketBurning);
+        tag.putString("ExhaustProfile", exhaustProfile.toString());
+        tag.putDouble("TargetMassFlowKgS", targetMassFlowKgS);
+    }
+
+    @Override protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        readSaved(tag);
+    }
+
+    @Override public CompoundTag getUpdateTag(HolderLookup.Provider registries) { return saveWithoutMetadata(registries); }
+    *///?}
+
+    private void readSaved(CompoundTag tag) {
         rocketBurning = !tag.contains("RocketBurning") || tag.getBoolean("RocketBurning");
         ResourceLocation parsed = ResourceLocation.tryParse(tag.getString("ExhaustProfile"));
-        exhaustProfile = parsed == null ? new ResourceLocation("assimploader", "kerolox") : parsed;
+        exhaustProfile = parsed == null ? ResourceLocations.of("assimploader", "kerolox") : parsed;
         double savedFlow = tag.contains("TargetMassFlowKgS") ? tag.getDouble("TargetMassFlowKgS") : -1;
         targetMassFlowKgS = Double.isFinite(savedFlow) && savedFlow >= -1 && savedFlow <= 1_000_000_000
                 ? savedFlow : -1;
     }
 
-    @Override public CompoundTag getUpdateTag() { return saveWithoutMetadata(); }
     @Override public ClientboundBlockEntityDataPacket getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }
 
-    @Override
+    // 1.21 moved the render bounds from BlockEntity onto the renderer (see ShowcaseRenderer); the
+    // accessor stays here because the renderer and the smoke tests both ask the entity for it.
     public AABB getRenderBoundingBox() {
         return ModelVisibility.renderBounds(getModelBounds(), worldPosition,
                 AssimpLoaderConfig.getOrDefault(AssimpLoaderConfig.CLIENT.frustumCullingEnabled::get, true),

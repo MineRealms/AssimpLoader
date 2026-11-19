@@ -3,7 +3,14 @@
   "minVersion": "0.8",
   "package": "cn.minerealms.assimploader.mixin.iris",
   "plugin": "cn.minerealms.assimploader.mixin.iris.OculusProgramMixinPlugin",
+  //? if forge {
   "compatibilityLevel": "JAVA_17",
+  //?}
+  //? if neoforge {
+  /*
+  // NeoForge 21.1 runs on Java 21 and its target classes are class-file version 65.
+  "compatibilityLevel": "JAVA_21",
+  *///?}
   "refmap": "assimploader.refmap.json",
   "client": [
     "ShaderProgramMixin"

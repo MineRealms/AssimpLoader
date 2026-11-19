@@ -8,6 +8,7 @@ import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.lookdev.IModelProvider;
 import cn.minerealms.assimploader.lookdev.IMaterialProvider;
 import cn.minerealms.assimploader.material.PBRMaterial;
+import cn.minerealms.assimploader.util.ResourceLocations;
 import icyllis.modernui.fragment.Fragment;
 import icyllis.modernui.util.DataSet;
 import icyllis.modernui.view.Gravity;
@@ -402,7 +403,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
                         if (texIndex >= 0) {
                             // Create ResourceLocation for embedded texture
                             net.minecraft.resources.ResourceLocation texLoc =
-                                new net.minecraft.resources.ResourceLocation("assimploader",
+                                ResourceLocations.of("assimploader",
                                     "lookdev/embedded_" + texIndex);
                             pbrMat.setBaseColorTexture(texLoc);
                             DebugManager.debug(DebugCategory.LOOKDEV, "Set base color texture: {}", texLoc);
@@ -413,7 +414,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
                         String filename = diffuseTex.substring(diffuseTex.lastIndexOf('/') + 1);
                         filename = filename.substring(diffuseTex.lastIndexOf('\\') + 1);
                         net.minecraft.resources.ResourceLocation texLoc =
-                            new net.minecraft.resources.ResourceLocation("assimploader",
+                            ResourceLocations.of("assimploader",
                                 "textures/" + filename);
                         pbrMat.setBaseColorTexture(texLoc);
                         DebugManager.debug(DebugCategory.LOOKDEV, "Set base color texture: {}", texLoc);
@@ -427,7 +428,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
                         int texIndex = assimpMat.getEmbeddedTextureIndex(normalTex);
                         if (texIndex >= 0) {
                             net.minecraft.resources.ResourceLocation texLoc =
-                                new net.minecraft.resources.ResourceLocation("assimploader",
+                                ResourceLocations.of("assimploader",
                                     "lookdev/embedded_" + texIndex);
                             pbrMat.setNormalTexture(texLoc);
                             DebugManager.debug(DebugCategory.LOOKDEV, "Set normal texture: {}", texLoc);
@@ -442,7 +443,7 @@ public class LookDevScreen extends Fragment implements IModelProvider, IMaterial
                         int texIndex = assimpMat.getEmbeddedTextureIndex(specularTex);
                         if (texIndex >= 0) {
                             net.minecraft.resources.ResourceLocation texLoc =
-                                new net.minecraft.resources.ResourceLocation("assimploader",
+                                ResourceLocations.of("assimploader",
                                     "lookdev/embedded_" + texIndex);
                             pbrMat.setMetallicRoughnessTexture(texLoc);
                             DebugManager.debug(DebugCategory.LOOKDEV, "Set metallic/roughness texture: {}", texLoc);

@@ -11,7 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.HashMap;
 import java.util.Map;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /**
  * Generates dynamic textures from material colors.
  *
@@ -33,7 +33,7 @@ public class MaterialTextureGenerator {
     public static ResourceLocation getOrCreateColorTexture(AssimpMaterial material, int materialIndex) {
         if (material == null || material.getDiffuseColor() == null) {
             // Return white texture as fallback
-            return new ResourceLocation("minecraft", "white");
+            return ResourceLocations.of("minecraft", "white");
         }
 
         float[] color = material.getDiffuseColor();
@@ -56,7 +56,7 @@ public class MaterialTextureGenerator {
 
                 // Register as dynamic texture
                 DynamicTexture dynamicTexture = new DynamicTexture(image);
-                ResourceLocation textureLoc = new ResourceLocation(AssimpLoader.MODID, "generated/" + k);
+                ResourceLocation textureLoc = ResourceLocations.of(AssimpLoader.MODID, "generated/" + k);
 
                 Minecraft.getInstance().getTextureManager().register(textureLoc, dynamicTexture);
 
@@ -66,7 +66,7 @@ public class MaterialTextureGenerator {
                 return textureLoc;
             } catch (Exception e) {
                 DebugManager.error(DebugCategory.RENDER, "Failed to generate color texture for material {}", materialIndex, e);
-                return new ResourceLocation("minecraft", "white");
+                return ResourceLocations.of("minecraft", "white");
             }
         });
     }

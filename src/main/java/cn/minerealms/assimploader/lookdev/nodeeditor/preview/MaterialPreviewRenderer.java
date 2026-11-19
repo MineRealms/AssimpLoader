@@ -4,6 +4,7 @@ import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
 import cn.minerealms.assimploader.lookdev.PhotonIntegration;
 import cn.minerealms.assimploader.lookdev.nodeeditor.shader.NodeBasedMaterial;
+import cn.minerealms.assimploader.util.MeshBuffers;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
@@ -101,12 +102,12 @@ public class MaterialPreviewRenderer {
             currentMaterial.begin();
 
             // Build and render mesh
-            BufferBuilder builder = Tesselator.getInstance().getBuilder();
-            builder.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.NEW_ENTITY);
+            BufferBuilder builder = MeshBuffers.begin(Tesselator.getInstance(),
+                    VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.NEW_ENTITY);
 
             previewMesh.build(builder, modelMatrix);
 
-            BufferUploader.drawWithShader(builder.end());
+            MeshBuffers.draw(builder);
 
             // End material
             currentMaterial.end();

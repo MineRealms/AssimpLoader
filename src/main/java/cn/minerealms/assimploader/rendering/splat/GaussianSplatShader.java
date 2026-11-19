@@ -11,7 +11,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /**
  * Shader program for Gaussian splat rendering.
  *
@@ -51,8 +51,8 @@ public class GaussianSplatShader {
         }
 
         // Load shader sources
-        String vertexSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/core/gaussian_splat.vert"));
-        String fragmentSource = loadShaderSource(new ResourceLocation("assimploader", "shaders/core/gaussian_splat.frag"));
+        String vertexSource = loadShaderSource(ResourceLocations.of("assimploader", "shaders/core/gaussian_splat.vert"));
+        String fragmentSource = loadShaderSource(ResourceLocations.of("assimploader", "shaders/core/gaussian_splat.frag"));
         if (useSSBO) vertexSource = vertexSource.replace("#version 330 core", "#version 430 core\n#define SPLAT_SSBO");
 
         // Compile shaders

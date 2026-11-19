@@ -12,6 +12,12 @@ import java.util.*;
 
 /**
  * AssimpMesh → Photon MeshData 转换器
+ * <p>
+ * Photon 2.2.11 (the 1.21 build) encapsulated {@code MeshData}: {@code meshName}/{@code vertices}/
+ * {@code triangles}/{@code edges} became private with getters that re-derive the geometry from the
+ * model source. A freshly constructed {@code MeshData} points at {@code block/stone}, so the getters
+ * would discard anything written through them; the NeoForge node therefore fills the fields
+ * reflectively. The 1.20.1 build still exposes them as public fields.
  */
 public class AssimpToPhotonMeshConverter {
 
@@ -27,44 +33,35 @@ public class AssimpToPhotonMeshConverter {
                 assimpMesh.getFaceCount());
 
         MeshData meshData = new MeshData();
+        //? if forge {
         meshData.meshName = assimpMesh.getName();
+        //?}
 
         // 1. 转换顶点
+        List<Vector3f> vertices = new ArrayList<>();
         float[] assimpVertices = assimpMesh.getVertices();
         for (int i = 0; i < assimpVertices.length; i += 3) {
-            meshData.vertices.add(new Vector3f(
+            vertices.add(new Vector3f(
                     assimpVertices[i],
                     assimpVertices[i + 1],
                     assimpVertices[i + 2]
             ));
         }
 
-        LOGGER.debug("Converted {} vertices", meshData.vertices.size());
-
         // 2. 转换三角形（从索引）
+        List<MeshData.Triangle> triangles = new ArrayList<>();
         int[] indices = assimpMesh.getIndices();
         double sumArea = 0;
 
         for (int i = 0; i < indices.length; i += 3) {
-            Vector3f v0 = meshData.vertices.get(indices[i]);
-            Vector3f v1 = meshData.vertices.get(indices[i + 1]);
-            Vector3f v2 = meshData.vertices.get(indices[i + 2]);
+            Vector3f v0 = vertices.get(indices[i]);
+            Vector3f v1 = vertices.get(indices[i + 1]);
+            Vector3f v2 = vertices.get(indices[i + 2]);
 
             MeshData.Triangle triangle = new MeshData.Triangle(v0, v1, v2);
-            meshData.triangles.add(triangle);
+            triangles.add(triangle);
             sumArea += triangle.area;
         }
-
-        // Use reflection to set protected field
-        try {
-            Field triangleSumAreaField = MeshData.class.getDeclaredField("triangleSumArea");
-            triangleSumAreaField.setAccessible(true);
-            triangleSumAreaField.set(meshData, sumArea);
-        } catch (Exception e) {
-            LOGGER.error("Failed to set triangleSumArea", e);
-        }
-
-        LOGGER.debug("Converted {} triangles, total area: {}", meshData.triangles.size(), sumArea);
 
         // 3. 转换边（从三角形提取，去重）
         Set<EdgeKey> edgeSet = new HashSet<>();
@@ -78,31 +75,26 @@ public class AssimpToPhotonMeshConverter {
             edgeSet.add(new EdgeKey(i2, i0));
         }
 
+        List<MeshData.Edge> edges = new ArrayList<>();
         double sumLength = 0;
         for (EdgeKey edgeKey : edgeSet) {
-            Vector3f v0 = meshData.vertices.get(edgeKey.i0);
-            Vector3f v1 = meshData.vertices.get(edgeKey.i1);
+            Vector3f v0 = vertices.get(edgeKey.i0);
+            Vector3f v1 = vertices.get(edgeKey.i1);
 
             MeshData.Edge edge = new MeshData.Edge(v0, v1);
             if (edge.length > 0) {
-                meshData.edges.add(edge);
+                edges.add(edge);
                 sumLength += edge.length;
             }
         }
 
-        // Use reflection to set protected field
-        try {
-            Field edgeSumLengthField = MeshData.class.getDeclaredField("edgeSumLength");
-            edgeSumLengthField.setAccessible(true);
-            edgeSumLengthField.set(meshData, sumLength);
-        } catch (Exception e) {
-            LOGGER.error("Failed to set edgeSumLength", e);
-        }
+        store(meshData, vertices, triangles, edges, sumArea, sumLength);
 
-        LOGGER.debug("Converted {} edges, total length: {}", meshData.edges.size(), sumLength);
-
+        LOGGER.debug("Converted {} vertices", vertices.size());
+        LOGGER.debug("Converted {} triangles, total area: {}", triangles.size(), sumArea);
+        LOGGER.debug("Converted {} edges, total length: {}", edges.size(), sumLength);
         LOGGER.info("Mesh conversion complete: {} vertices, {} triangles, {} edges",
-                meshData.vertices.size(), meshData.triangles.size(), meshData.edges.size());
+                vertices.size(), triangles.size(), edges.size());
 
         return meshData;
     }
@@ -143,6 +135,71 @@ public class AssimpToPhotonMeshConverter {
 
         LOGGER.info("Scene conversion complete: {} meshes converted", meshes.size());
         return meshes;
+    }
+
+    private static void store(MeshData meshData, List<Vector3f> vertices, List<MeshData.Triangle> triangles,
+                              List<MeshData.Edge> edges, double sumArea, double sumLength) {
+        //? if forge {
+        meshData.vertices.addAll(vertices);
+        meshData.triangles.addAll(triangles);
+        meshData.edges.addAll(edges);
+        try {
+            Field triangleSumAreaField = MeshData.class.getDeclaredField("triangleSumArea");
+            triangleSumAreaField.setAccessible(true);
+            triangleSumAreaField.set(meshData, sumArea);
+        } catch (Exception e) {
+            LOGGER.error("Failed to set triangleSumArea", e);
+        }
+        try {
+            Field edgeSumLengthField = MeshData.class.getDeclaredField("edgeSumLength");
+            edgeSumLengthField.setAccessible(true);
+            edgeSumLengthField.set(meshData, sumLength);
+        } catch (Exception e) {
+            LOGGER.error("Failed to set edgeSumLength", e);
+        }
+        //?}
+        //? if neoforge {
+        /*
+        setField(meshData, "vertices", vertices);
+        setField(meshData, "triangles", triangles);
+        setField(meshData, "edges", edges);
+        setField(meshData, "triangleSumArea", sumArea);
+        setField(meshData, "edgeSumLength", sumLength);
+        // `ensureLoaded` compares the cached mesh against `source.getMesh()` and rebuilds from it
+        // when they differ; a fresh MeshData resolves to block/stone, which would wipe the lists
+        // above on the next getter call. Cache the same instance so the comparison short-circuits.
+        try {
+            Object source = getField(meshData, "source");
+            if (source instanceof com.lowdragmc.photon.client.gameobject.emitter.data.model.IModelSource modelSource) {
+                setField(meshData, "derivedFrom", modelSource.getMesh());
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Could not cache the MeshData source mesh; previews may fall back to the default model", e);
+        }
+        *///?}
+    }
+
+    // Reflective access is fatal here by design: a `MeshData` whose geometry silently stayed at the
+    // default `block/stone` is worse than a loud failure, so the checked exceptions are folded into a
+    // runtime one instead of propagating through the caller.
+    private static void setField(Object target, String name, Object value) {
+        try {
+            Field field = target.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(target, value);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Cannot write MeshData field " + name, e);
+        }
+    }
+
+    private static Object getField(Object target, String name) {
+        try {
+            Field field = target.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            return field.get(target);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Cannot read MeshData field " + name, e);
+        }
     }
 
     /**

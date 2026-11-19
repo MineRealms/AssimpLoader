@@ -9,11 +9,11 @@ import java.nio.ByteBuffer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.lwjgl.assimp.Assimp.*;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 class ResourceFileIOTest {
     @Test
     void callbacksUseElementCountsAndCStyleSignedSeekOffsets() {
-        ResourceLocation resource = new ResourceLocation("example", "models/data.bin");
+        ResourceLocation resource = ResourceLocations.of("example", "models/data.bin");
         try (ResourceFileIO io = new ResourceFileIO(resource, ignored -> new byte[]{10, 20, 30, 40, 50})) {
             ByteBuffer path = MemoryUtil.memUTF8(resource.getPath());
             ByteBuffer mode = MemoryUtil.memUTF8("rb");

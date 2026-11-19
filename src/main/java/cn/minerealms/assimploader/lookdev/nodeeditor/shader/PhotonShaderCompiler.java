@@ -15,7 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /**
  * Compiles generated GLSL shader code into Photon/Minecraft shaders.
  *
@@ -69,7 +69,7 @@ public class PhotonShaderCompiler {
             // Compile shader
             DebugManager.debug(DebugCategory.LOOKDEV,
                 "[PhotonShaderCompiler] Creating shader instance");
-            ResourceLocation shaderLocation = new ResourceLocation(SHADER_NAMESPACE, shaderName);
+            ResourceLocation shaderLocation = ResourceLocations.of(SHADER_NAMESPACE, shaderName);
             ShaderInstance shaderInstance = compileShaderInstance(shaderLocation);
 
             if (shaderInstance != null) {

@@ -16,7 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /**
  * Integrates Assimp model loading with Minecraft's resource pack system.
  * Allows models to be loaded from resource packs and mod resources.
@@ -36,7 +36,7 @@ public class ResourcePackIntegration {
         ResourceLocation resolved = resolveModelLocation(location.getNamespace(), location.getPath());
         if (manager.getResource(resolved).isPresent()) return AssimpModelLoader.loadCachedResource(manager, resolved, mode);
         for (String extension : new String[]{"fbx", "glb", "gltf", "dae", "obj", "blend", "3ds"}) {
-            ResourceLocation candidate = new ResourceLocation(resolved.getNamespace(), resolved.getPath() + "." + extension);
+            ResourceLocation candidate = ResourceLocations.of(resolved.getNamespace(), resolved.getPath() + "." + extension);
             if (manager.getResource(candidate).isPresent()) return AssimpModelLoader.loadCachedResource(manager, candidate, mode);
         }
         throw new IOException("Model resource not found: " + resolved);
@@ -117,6 +117,6 @@ public class ResourcePackIntegration {
         if (!path.startsWith("models/")) {
             path = "models/" + path;
         }
-        return new ResourceLocation(namespace, path);
+        return ResourceLocations.of(namespace, path);
     }
 }

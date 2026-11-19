@@ -25,7 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.function.Function;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** Forge geometry entry point. Imports are shared by all JSON models referencing the same identity and mode. */
 public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoader.AssimpGeometry> {
     public static final AssimpGeometryLoader INSTANCE = new AssimpGeometryLoader();
@@ -49,12 +49,33 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
             this.mode = "dynamic".equalsIgnoreCase(mode) ? ModelImportMode.DYNAMIC : ModelImportMode.STATIC;
         }
 
+        //? if forge {
         @Override
         public BakedModel bake(IGeometryBakingContext context, ModelBaker baker,
                                Function<Material, TextureAtlasSprite> spriteGetter, ModelState state,
                                ItemOverrides overrides, ResourceLocation modelLocation) {
-            ResourceLocation resource = modelPath.contains(":") ? new ResourceLocation(modelPath)
-                    : new ResourceLocation(modelLocation.getNamespace(), modelPath);
+            return bakeInternal(context, baker, spriteGetter, state, overrides, modelLocation);
+        }
+        //?}
+        //? if neoforge {
+        /*
+        @Override
+        public BakedModel bake(IGeometryBakingContext context, ModelBaker baker,
+                               Function<Material, TextureAtlasSprite> spriteGetter, ModelState state,
+                               ItemOverrides overrides) {
+            // 1.21 dropped the trailing `modelLocation` parameter and `IGeometryBakingContext` no
+            // longer exposes it, so the model name is the only handle left. `ResourceLocations.safe`
+            // normalises whichever spelling it gets.
+            return bakeInternal(context, baker, spriteGetter, state, overrides,
+                    ResourceLocations.safe(context.getModelName(), "assimploader"));
+        }
+        *///?}
+
+        private BakedModel bakeInternal(IGeometryBakingContext context, ModelBaker baker,
+                                        Function<Material, TextureAtlasSprite> spriteGetter, ModelState state,
+                                        ItemOverrides overrides, ResourceLocation modelLocation) {
+            ResourceLocation resource = modelPath.contains(":") ? ResourceLocations.parse(modelPath)
+                    : ResourceLocations.of(modelLocation.getNamespace(), modelPath);
             AssimpScene scene = null;
             Path external = resolveExternalPath(resource);
             if (external != null) {
@@ -71,9 +92,9 @@ public class AssimpGeometryLoader implements IGeometryLoader<AssimpGeometryLoade
                     DebugManager.error(DebugCategory.RENDER, "Cannot import model resource {}", resource, exception);
                 }
             }
-            if (scene == null) return baker.bake(new ResourceLocation("minecraft", "block/stone"), state);
+            if (scene == null) return baker.bake(ResourceLocations.of("minecraft", "block/stone"), state);
             TextureAtlasSprite white = spriteGetter.apply(new Material(TextureAtlas.LOCATION_BLOCKS,
-                    new ResourceLocation("minecraft", "block/white_concrete")));
+                    ResourceLocations.of("minecraft", "block/white_concrete")));
             return new AssimpBakedModel(scene, white, modelLocation, context.getTransforms());
         }
 

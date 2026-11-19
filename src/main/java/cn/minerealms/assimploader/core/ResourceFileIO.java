@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.lwjgl.assimp.Assimp.*;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** Read-only Assimp IO over one resource namespace. All native ownership stays within one import. */
 public final class ResourceFileIO implements AutoCloseable {
     @FunctionalInterface
@@ -97,7 +97,7 @@ public final class ResourceFileIO implements AutoCloseable {
             throw new IOException("Model side file escapes the resource root: " + requested);
         }
         try {
-            return new ResourceLocation(model.getNamespace(), normalized);
+            return ResourceLocations.of(model.getNamespace(), normalized);
         } catch (RuntimeException exception) {
             throw new IOException("Invalid model side file path: " + requested, exception);
         }

@@ -1,41 +1,67 @@
-buildscript {
-    repositories {
-        maven { url = 'https://maven.minecraftforge.net/' }
-        mavenCentral()
-        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
-    }
-    dependencies {
-        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '6.0.54'
-        classpath 'org.spongepowered:mixingradle:0.7.38'
-    }
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'dev.kikugie.stonecutter'
+    // Both loader plugin families come from ModDevGradle. They are declared here (apply false)
+    // so that the per-node branch below can apply exactly one of them.
+    id 'net.neoforged.moddev.legacyforge' version '2.0.148' apply false
+    id 'net.neoforged.moddev' version '2.0.148' apply false
 }
 
-apply plugin: 'net.minecraftforge.gradle'
-apply plugin: 'org.spongepowered.mixin'
-apply plugin: 'java-library'
+// This file is Stonecutter's shared build script: it runs once per node.
+def isForge = mod_loader == 'forge'
 
 version = mod_version
 group = maven_group
-base { archivesName = archives_base_name }
+base { archivesName = "${mod_id}-${minecraft_version}-${mod_loader}" }
+java.toolchain.languageVersion = JavaLanguageVersion.of(java_version.toInteger())
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+// Run directories live at the repository root. The 1.20.1 node keeps the historical `run/`
+// layout; the 1.21.1 node gets a `-1.21.1` suffix so the two never share configs, saves or logs.
+def runSuffix = isForge ? '' : '-1.21.1'
+def runClientDir = rootProject.file("run${runSuffix}")
+def runServerDir = rootProject.file("run-server${runSuffix}")
+def runDataDir = rootProject.file("run-data${runSuffix}")
 
-// Content mods compile against the library; the library never sees their classes.
+// Values expanded into the loader metadata of either node. The loader-version ranges only
+// exist in their own node's gradle.properties, so they are added conditionally.
+def metadata = [
+        minecraft_version_range: minecraft_version_range,
+        loader_version_range  : loader_version_range,
+        kubejs_version_range  : kubejs_version_range,
+        pack_format           : pack_format,
+        mod_id                : mod_id,
+        mod_name              : mod_name,
+        mod_license           : mod_license,
+        mod_version           : mod_version,
+        mod_authors           : mod_authors,
+        mod_description       : mod_description,
+]
+if (project.hasProperty('forge_version_range')) metadata.forge_version_range = project.property('forge_version_range')
+if (project.hasProperty('neo_version_range')) metadata.neo_version_range = project.property('neo_version_range')
+
+// ------------------------------------------------------------------ source sets
+// `showcase` is a separate content mod; `integrationTest` holds the client smoke tests and is
+// merged into the engine mod in dev runs. Both are isolated from `main` by construction.
 sourceSets {
     showcase {
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
         runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
     }
     integrationTest {
-        java.srcDirs = ['src/integration/java']
-        resources.srcDirs = ['src/integration/resources']
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath + sourceSets.showcase.output
         runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath + sourceSets.showcase.output
     }
 }
+
 configurations {
-    localRuntime { canBeConsumed = false; canBeResolved = false }
-    runtimeClasspath.extendsFrom localRuntime
+    // Resolve native packaging separately from the mapped runtime classpath, which is not
+    // available while the task graph is being built on a cold cache.
+    assimpNatives {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+    }
     showcaseImplementation.extendsFrom implementation
     showcaseCompileOnly.extendsFrom compileOnly
     showcaseRuntimeOnly.extendsFrom runtimeOnly
@@ -45,180 +71,891 @@ configurations {
     integrationTestRuntimeOnly.extendsFrom showcaseRuntimeOnly
 }
 
-minecraft {
-    mappings channel: 'official', version: '1.20.1'
+// Generated resources are written by the `data` run. The directory lives at the repository
+// root; a relative path would resolve into the Stonecutter node directory.
+sourceSets.main.resources { srcDir rootProject.file('src/generated/resources') }
 
-    runs {
-        client {
-            workingDirectory project.file(project.findProperty('clientGameDir') ?: 'run')
-            if (project.hasProperty('clientUsername')) args '--username', project.property('clientUsername').toString()
-            if (project.hasProperty('clientServer')) args '--quickPlayMultiplayer', project.property('clientServer').toString()
-            if (project.hasProperty('clientWorkbenchSmoke')) {
-                property 'workbenchtest.enabled', 'true'
-                property 'workbenchtest.world', project.property('clientWorkbenchSmoke').toString()
-                if (project.hasProperty('clientWorkbenchAsset')) property 'workbenchtest.asset', project.file(project.property('clientWorkbenchAsset')).absolutePath
-                args '--width', '1280', '--height', '900'
-            }
-            if (project.hasProperty('clientWorld')) {
-                args '--quickPlaySingleplayer', project.property('clientWorld').toString()
-            }
-            if (project.hasProperty('clientBatchSmoke')) {
-                if (['clientRuntimeSmoke','clientComputeSmoke','clientHighBoneSmoke','clientDeerSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke','clientKubeJsSmoke'].any { project.hasProperty(it) }) {
-                    throw new GradleException('clientBatchSmoke must run independently')
-                }
-                property 'batchtest.enabled','true'
-                if(project.hasProperty('clientBatchSafety')) property 'batchtest.safety','true'
-                args '--width','1280','--height','900'
-            }
-            if (project.hasProperty('clientKubeJsWorldSmoke')) {
-                if (!project.hasProperty('clientRuntimeSmoke')) throw new GradleException('clientKubeJsWorldSmoke requires clientRuntimeSmoke=<world>')
-                property 'worldruntimetest.kubejs','true'
-            }
-            if (project.hasProperty('clientKubeJsSmoke')) {
-                if (['clientRuntimeSmoke','clientComputeSmoke','clientHighBoneSmoke','clientDeerSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke'].any { project.hasProperty(it) }) {
-                    throw new GradleException('clientKubeJsSmoke must run independently')
-                }
-                property 'assimp.kubejsSmoke','true'
-            }
-            if (project.hasProperty('clientJfr')) {
-                jvmArgs '-XX:StartFlightRecording=filename=' + project.file('build/reports/assimp-client.jfr').absolutePath + ',settings=profile,dumponexit=true'
-            }
-            if (project.hasProperty('clientHighBoneSmoke') || project.hasProperty('clientComputeSmoke')) {
-                if (['clientRuntimeSmoke','clientDeerSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke'].any { project.hasProperty(it) }) {
-                    throw new GradleException('clientHighBoneSmoke must run independently')
-                }
-                property 'highbonetest.enabled','true'
-                if (project.hasProperty('clientComputeSmoke')) property 'highbonetest.compute','true'
-                args '--width','1280','--height','900'
-            }
-            if (project.hasProperty('clientRuntimeSmoke')) {
-                if (['clientDeerSmoke','clientHighBoneSmoke','clientComputeSmoke','clientAnimationSmoke','clientSmokeWorld','clientStartupSmoke','clientPbrSmoke','clientAssetSmoke','clientVehicleSmoke','clientRocketSmoke'].any { project.hasProperty(it) }) {
-                    throw new GradleException('clientRuntimeSmoke must run independently')
-                }
-                property 'worldruntimetest.enabled','true'
-                if (project.hasProperty('withOculus')) property 'worldruntimetest.shaders','true'
-                property 'worldruntimetest.world',project.property('clientRuntimeSmoke').toString()
-                if(project.hasProperty('clientRuntimeBatchSmoke')) property 'worldruntimetest.batches','true'
-                args '--width','1280','--height','900'
-            }
-            if (project.hasProperty('clientDeerSmoke')) {
-                if (['clientAnimationSmoke', 'clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke', 'clientVehicleSmoke', 'clientRocketSmoke'].any { project.hasProperty(it) }) {
-                    throw new GradleException('clientDeerSmoke must run independently of the other client smoke tests')
-                }
-                property 'deertest.enabled', 'true'
-                property 'deertest.world', project.property('clientDeerSmoke').toString()
-                args '--width', '1280', '--height', '900'
-            }
-            if (project.hasProperty('clientAnimationSmoke')) {
-                if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke', 'clientVehicleSmoke', 'clientRocketSmoke'].any { project.hasProperty(it) }) {
-                    throw new GradleException('clientAnimationSmoke must run independently of the other client smoke tests')
-                }
-                property 'animationtest.enabled', 'true'
-                args '--width', '1280', '--height', '900'
-            }
-            if (project.hasProperty('clientRocketSmoke')) {
-                if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke', 'clientVehicleSmoke'].any { project.hasProperty(it) }) {
-                    throw new GradleException('clientRocketSmoke must run independently of the other client smoke tests')
-                }
-                property 'rockettest.enabled', 'true'
-                property 'rockettest.world', project.property('clientRocketSmoke').toString()
-                args '--width', '1280', '--height', '720'
-            }
-            if (project.hasProperty('clientSmokeWorld')) {
-                property 'autotest.enabled', 'true'
-                property 'autotest.capture', 'true'
-                property 'autotest.world', project.property('clientSmokeWorld').toString()
-            }
-            if (project.hasProperty('clientStartupSmoke')) {
-                property 'autotest.enabled', 'true'
-                property 'autotest.startupOnly', 'true'
-            }
-            if (project.hasProperty('clientPbrSmoke')) {
-                property 'autotest.enabled', 'true'
-                property 'autotest.pbr', 'true'
-                property 'autotest.world', project.property('clientPbrSmoke').toString()
-                property 'autotest.pbrKeepOpen', project.hasProperty('clientPbrKeepOpen').toString()
-                args '--width', '1280', '--height', '720'
-            }
-            if (project.hasProperty('clientAssetSmoke')) {
-                if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke'].any { project.hasProperty(it) }) {
-                    throw new GradleException('clientAssetSmoke must run independently of the other client smoke tests')
-                }
-                property 'assettest.enabled', 'true'
-                property 'assettest.world', project.property('clientAssetSmoke').toString()
-                property 'assettest.model', project.findProperty('clientAssetModel') ?: 'PROBE_TEXTURED'
-                args '--width', '1280', '--height', '720'
-            }
-            if (project.hasProperty('clientVehicleSmoke')) {
-                if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke'].any { project.hasProperty(it) }) {
-                    throw new GradleException('clientVehicleSmoke must run independently of the other client smoke tests')
-                }
-                property 'vehicletest.enabled', 'true'
-                property 'vehicletest.world', project.property('clientVehicleSmoke').toString()
-                args '--width', '1280', '--height', '720'
-            }
-            if (project.hasProperty('rosettaRepo')) {
-                property 'rosetta.remote.bind', '127.0.0.1'
-                property 'rosetta.remote.port', project.findProperty('rosettaPort') ?: '48790'
-            }
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
-            property 'forge.enabledGameTestNamespaces', 'assimploader'
-            property 'mixin.env.remapRefMap', 'true'
-            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+if (isForge) {
+    // ---------------------------------------------------------------- 1.20.1 / Forge (LegacyForge)
+    apply plugin: 'net.neoforged.moddev.legacyforge'
 
-            mods {
-                assimploader {
-                    source sourceSets.main
-                    source sourceSets.integrationTest
+    legacyForge {
+        version = "${minecraft_version}-${forge_version}"
+
+        runs {
+            configureEach {
+                gameDirectory = rootProject.file('run')
+                systemProperty 'forge.logging.markers', 'REGISTRIES'
+                systemProperty 'forge.logging.console.level', 'debug'
+                // LegacyForge sets `mixin.env.remapRefMap` and `mixin.env.refMapRemappingFile`
+                // itself (pointing at its own `moddev/artifacts/intermediateToNamed.srg`), so the
+                // single-version build's hand-written values must NOT be repeated here.
+            }
+            client {
+                client()
+                gameDirectory = rootProject.file(project.findProperty('clientGameDir') ?: "run${runSuffix}")
+                if (project.hasProperty('clientUsername')) {
+                    programArgument '--username'
+                    programArgument project.property('clientUsername').toString()
                 }
-                assimpshowcase {
-                    source sourceSets.showcase
+                if (project.hasProperty('clientServer')) {
+                    programArgument '--quickPlayMultiplayer'
+                    programArgument project.property('clientServer').toString()
                 }
+                if (project.hasProperty('clientWorkbenchSmoke')) {
+                    systemProperty 'workbenchtest.enabled', 'true'
+                    systemProperty 'workbenchtest.world', project.property('clientWorkbenchSmoke').toString()
+                    if (project.hasProperty('clientWorkbenchAsset')) {
+                        systemProperty 'workbenchtest.asset', rootProject.file(project.property('clientWorkbenchAsset')).absolutePath
+                    }
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '900'
+                }
+                if (project.hasProperty('clientWorld')) {
+                    programArgument '--quickPlaySingleplayer'
+                    programArgument project.property('clientWorld').toString()
+                }
+                if (project.hasProperty('clientBatchSmoke')) {
+                    if (['clientRuntimeSmoke', 'clientComputeSmoke', 'clientHighBoneSmoke', 'clientDeerSmoke',
+                         'clientAnimationSmoke', 'clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke',
+                         'clientAssetSmoke', 'clientVehicleSmoke', 'clientRocketSmoke', 'clientKubeJsSmoke'].any {
+                        project.hasProperty(it)
+                    }) {
+                        throw new GradleException('clientBatchSmoke must run independently')
+                    }
+                    systemProperty 'batchtest.enabled', 'true'
+                    if (project.hasProperty('clientBatchSafety')) systemProperty 'batchtest.safety', 'true'
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '900'
+                }
+                if (project.hasProperty('clientKubeJsWorldSmoke')) {
+                    if (!project.hasProperty('clientRuntimeSmoke')) {
+                        throw new GradleException('clientKubeJsWorldSmoke requires clientRuntimeSmoke=<world>')
+                    }
+                    systemProperty 'worldruntimetest.kubejs', 'true'
+                }
+                if (project.hasProperty('clientKubeJsSmoke')) {
+                    if (['clientRuntimeSmoke', 'clientComputeSmoke', 'clientHighBoneSmoke', 'clientDeerSmoke',
+                         'clientAnimationSmoke', 'clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke',
+                         'clientAssetSmoke', 'clientVehicleSmoke', 'clientRocketSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientKubeJsSmoke must run independently')
+                    }
+                    systemProperty 'assimp.kubejsSmoke', 'true'
+                }
+                if (project.hasProperty('clientJfr')) {
+                    jvmArgument '-XX:StartFlightRecording=filename=' +
+                            layout.buildDirectory.file('reports/assimp-client.jfr').get().asFile.absolutePath +
+                            ',settings=profile,dumponexit=true'
+                }
+                if (project.hasProperty('clientHighBoneSmoke') || project.hasProperty('clientComputeSmoke')) {
+                    if (['clientRuntimeSmoke', 'clientDeerSmoke', 'clientAnimationSmoke', 'clientSmokeWorld',
+                         'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke', 'clientVehicleSmoke',
+                         'clientRocketSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientHighBoneSmoke must run independently')
+                    }
+                    systemProperty 'highbonetest.enabled', 'true'
+                    if (project.hasProperty('clientComputeSmoke')) systemProperty 'highbonetest.compute', 'true'
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '900'
+                }
+                if (project.hasProperty('clientRuntimeSmoke')) {
+                    if (['clientDeerSmoke', 'clientHighBoneSmoke', 'clientComputeSmoke', 'clientAnimationSmoke',
+                         'clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke',
+                         'clientVehicleSmoke', 'clientRocketSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientRuntimeSmoke must run independently')
+                    }
+                    systemProperty 'worldruntimetest.enabled', 'true'
+                    if (project.hasProperty('withOculus')) systemProperty 'worldruntimetest.shaders', 'true'
+                    systemProperty 'worldruntimetest.world', project.property('clientRuntimeSmoke').toString()
+                    if (project.hasProperty('clientRuntimeBatchSmoke')) {
+                        systemProperty 'worldruntimetest.batches', 'true'
+                    }
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '900'
+                }
+                if (project.hasProperty('clientDeerSmoke')) {
+                    if (['clientAnimationSmoke', 'clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke',
+                         'clientAssetSmoke', 'clientVehicleSmoke', 'clientRocketSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientDeerSmoke must run independently of the other client smoke tests')
+                    }
+                    systemProperty 'deertest.enabled', 'true'
+                    systemProperty 'deertest.world', project.property('clientDeerSmoke').toString()
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '900'
+                }
+                if (project.hasProperty('clientAnimationSmoke')) {
+                    if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke',
+                         'clientVehicleSmoke', 'clientRocketSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientAnimationSmoke must run independently of the other client smoke tests')
+                    }
+                    systemProperty 'animationtest.enabled', 'true'
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '900'
+                }
+                if (project.hasProperty('clientRocketSmoke')) {
+                    if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke',
+                         'clientVehicleSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientRocketSmoke must run independently of the other client smoke tests')
+                    }
+                    systemProperty 'rockettest.enabled', 'true'
+                    systemProperty 'rockettest.world', project.property('clientRocketSmoke').toString()
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '720'
+                }
+                if (project.hasProperty('clientSmokeWorld')) {
+                    systemProperty 'autotest.enabled', 'true'
+                    systemProperty 'autotest.capture', 'true'
+                    systemProperty 'autotest.world', project.property('clientSmokeWorld').toString()
+                }
+                if (project.hasProperty('clientStartupSmoke')) {
+                    systemProperty 'autotest.enabled', 'true'
+                    systemProperty 'autotest.startupOnly', 'true'
+                }
+                if (project.hasProperty('clientPbrSmoke')) {
+                    systemProperty 'autotest.enabled', 'true'
+                    systemProperty 'autotest.pbr', 'true'
+                    systemProperty 'autotest.world', project.property('clientPbrSmoke').toString()
+                    systemProperty 'autotest.pbrKeepOpen', project.hasProperty('clientPbrKeepOpen').toString()
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '720'
+                }
+                if (project.hasProperty('clientAssetSmoke')) {
+                    if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientAssetSmoke must run independently of the other client smoke tests')
+                    }
+                    systemProperty 'assettest.enabled', 'true'
+                    systemProperty 'assettest.world', project.property('clientAssetSmoke').toString()
+                    systemProperty 'assettest.model', project.findProperty('clientAssetModel') ?: 'PROBE_TEXTURED'
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '720'
+                }
+                if (project.hasProperty('clientVehicleSmoke')) {
+                    if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke'].any {
+                        project.hasProperty(it)
+                    }) {
+                        throw new GradleException('clientVehicleSmoke must run independently of the other client smoke tests')
+                    }
+                    systemProperty 'vehicletest.enabled', 'true'
+                    systemProperty 'vehicletest.world', project.property('clientVehicleSmoke').toString()
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '720'
+                }
+                if (project.hasProperty('rosettaRepo')) {
+                    systemProperty 'rosetta.remote.bind', '127.0.0.1'
+                    systemProperty 'rosetta.remote.port', project.findProperty('rosettaPort') ?: '48790'
+                }
+                systemProperty 'forge.enabledGameTestNamespaces', mod_id
+            }
+
+            server {
+                server()
+                gameDirectory = runServerDir
+                programArgument '--nogui'
+                systemProperty 'forge.enabledGameTestNamespaces', mod_id
+            }
+
+            data {
+                data()
+                gameDirectory = runDataDir
+                programArgument '--all'
+                programArgument '--mod'
+                programArgument mod_id
+                programArgument '--output'
+                programArgument rootProject.file('src/generated/resources/').absolutePath
+                programArgument '--existing'
+                programArgument rootProject.file('src/main/resources/').absolutePath
             }
         }
 
-        server {
-            workingDirectory project.file('run')
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
-            property 'forge.enabledGameTestNamespaces', 'assimploader'
-            property 'mixin.env.remapRefMap', 'true'
-            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-
-            mods {
-                assimploader {
-                    source sourceSets.main
-                }
-                assimpshowcase { source sourceSets.showcase }
+        mods {
+            assimploader {
+                sourceSet sourceSets.main
+                sourceSet sourceSets.integrationTest
+            }
+            assimpshowcase {
+                sourceSet sourceSets.showcase
             }
         }
 
-        data {
-            workingDirectory project.file('run')
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
-            property 'mixin.env.remapRefMap', 'true'
-            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-            args '--all', '--mod', 'assimploader', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+        // Isolated source sets do not inherit the modding classpath; give each one explicitly.
+        addModdingDependenciesTo sourceSets.test
+        addModdingDependenciesTo sourceSets.showcase
+        addModdingDependenciesTo sourceSets.integrationTest
+    }
 
-            mods {
-                assimploader {
-                    source sourceSets.main
-                }
+    repositories {
+        maven {
+            url = 'https://maven.minecraftforge.net/'
+        }
+        mavenCentral()
+        maven {
+            url = 'https://maven.latvian.dev/releases'
+            content { includeGroup 'dev.latvian.mods' }
+        }
+        maven {
+            url = 'https://maven.architectury.dev/'
+            content { includeGroup 'dev.architectury' }
+        }
+        // ModernUI (dormant dead-wiring; scheduled for removal in migration phase 7).
+        maven { url = 'https://maven.izzel.io/releases/' }
+        maven {
+            url = 'https://api.modrinth.com/maven'
+            content { includeGroup 'maven.modrinth' }
+        }
+        exclusiveContent {
+            forRepository { mavenCentral() }
+            filter {
+                includeGroup 'com.github.stephengold'
+                includeGroup 'javax.vecmath'
             }
         }
+        if (project.hasProperty('rosettaRepo')) {
+            maven {
+                url = uri(project.property('rosettaRepo'))
+                content { includeGroup 'dev.rosetta' }
+            }
+        }
+        if (project.hasProperty('f3TweakerJar')) {
+            flatDir { dirs rootProject.file(project.property('f3TweakerJar')).parentFile }
+        }
+    }
+
+    dependencies {
+        // The Mixin annotation processor writes the refmap and its `.mappings.tsrg` file, which
+        // `reobfJar` consumes. Without it on the processor path neither file is produced.
+        annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+        // Bullet rigid bodies/constraints, isolated behind the character physics service.
+        for (physicsLibrary in [
+                [group: 'com.github.stephengold', name: 'jbullet', version: jbullet_version, range: "[${jbullet_version},1.0.4)"],
+                [group: 'com.github.stephengold', name: 'stack-alloc', version: stack_alloc_version, range: "[${stack_alloc_version},1.0.3)"],
+                [group: 'javax.vecmath', name: 'vecmath', version: vecmath_version, range: "[${vecmath_version},1.5.3)"]]) {
+            jarJar(api("${physicsLibrary.group}:${physicsLibrary.name}:${physicsLibrary.version}") { transitive = false }) {
+                version {
+                    strictly physicsLibrary.range
+                    prefer physicsLibrary.version
+                }
+            }
+            // Plain libraries are invisible to the game classloader in 1.20.1 runs unless they are
+            // also added to the additional runtime classpath (the ForgeGradle `minecraftLibrary`).
+            additionalRuntimeClasspath("${physicsLibrary.group}:${physicsLibrary.name}:${physicsLibrary.version}") {
+                transitive = false
+            }
+        }
+
+        // LWJGL Assimp bindings - MUST match Minecraft's LWJGL version.
+        implementation platform("org.lwjgl:lwjgl-bom:${lwjgl_version}")
+        jarJar(api("org.lwjgl:lwjgl-assimp:${lwjgl_version}") { transitive = false }) {
+            version {
+                strictly lwjgl_version_range
+                prefer lwjgl_version
+            }
+        }
+        additionalRuntimeClasspath("org.lwjgl:lwjgl-assimp:${lwjgl_version}") { transitive = false }
+
+        // Natives are packaged into the release jar below; they must never be on the compile
+        // classpath and must never leak into other mods' classpath.
+        for (nativesClassifier in ['windows', 'linux', 'macos', 'windows-arm64', 'linux-arm64', 'macos-arm64']) {
+            runtimeOnly "org.lwjgl:lwjgl-assimp:${lwjgl_version}:natives-${nativesClassifier}"
+            assimpNatives "org.lwjgl:lwjgl-assimp:${lwjgl_version}:natives-${nativesClassifier}"
+            // NeoForge's dev bootstrap builds the game classloader from `legacyClassPath.file`,
+            // not from the JVM `-cp`, so the natives need to be on the additional runtime
+            // classpath too: `Assimp`'s static initializer resolves
+            // `<platform>/<arch>/org/lwjgl/assimp/*.dll` through its own classloader.
+            additionalRuntimeClasspath("org.lwjgl:lwjgl-assimp:${lwjgl_version}:natives-${nativesClassifier}") {
+                transitive = false
+            }
+        }
+
+        // KubeJS / Rhino / Architectury: compile-only by default, installed only for the
+        // KubeJS acceptance runs.
+        modCompileOnly("dev.latvian.mods:kubejs-forge:${kubejs_version}") { transitive = false }
+        modCompileOnly("dev.latvian.mods:rhino-forge:${rhino_version}") { transitive = false }
+        modCompileOnly("dev.architectury:architectury-forge:${architectury_version}") { transitive = false }
+        if (project.hasProperty('withKubeJS') || project.hasProperty('clientKubeJsSmoke') ||
+                project.hasProperty('clientKubeJsWorldSmoke')) {
+            modRuntimeOnly("dev.latvian.mods:kubejs-forge:${kubejs_version}") { transitive = false }
+            modRuntimeOnly("dev.latvian.mods:rhino-forge:${rhino_version}") { transitive = false }
+            modRuntimeOnly("dev.architectury:architectury-forge:${architectury_version}") { transitive = false }
+        }
+
+        // Dormant historical editor sources compile for reference; active LookDev is independent.
+        compileOnly("icyllis.modernui:ModernUI-Core:${modernui_core_version}")
+        testRuntimeOnly("icyllis.modernui:ModernUI-Core:${modernui_core_version}")
+        modRuntimeOnly("icyllis.modernui:ModernUI-Forge:${modernui_forge_version}")
+        for (module in ['ModernUI-Core', 'ModernUI-Markdown']) {
+            additionalRuntimeClasspath("icyllis.modernui:${module}:${modernui_core_version}") {
+                exclude group: 'org.slf4j', module: 'slf4j-api'
+                exclude group: 'org.apache.logging.log4j'
+                exclude group: 'com.google.code.findbugs', module: 'jsr305'
+                exclude group: 'org.jetbrains', module: 'annotations'
+                exclude group: 'com.ibm.icu', module: 'icu4j'
+                exclude group: 'it.unimi.dsi', module: 'fastutil'
+            }
+        }
+        if (project.hasProperty('f3TweakerJar')) {
+            def devJar = rootProject.file(project.property('f3TweakerJar'))
+            if (!devJar.isFile()) throw new GradleException("F3Tweaker JAR does not exist: ${devJar}")
+            modRuntimeOnly("local.dev:${devJar.name.replaceFirst(/\.jar$/, '')}:local")
+        }
+
+        // Fixed Modrinth version IDs resolve before compilation on a fresh checkout.
+        // Optional mods are available in dev runs but never bundled by jarJar.
+        modCompileOnly("maven.modrinth:gzevkJbM:${photon_version}") { transitive = false }
+        modCompileOnly("maven.modrinth:B1CBVXHX:${ldlib_version}") { transitive = false }
+        if (!project.hasProperty('withoutOptionalMods')) {
+            modRuntimeOnly("maven.modrinth:gzevkJbM:${photon_version}") { transitive = false }
+            modRuntimeOnly("maven.modrinth:B1CBVXHX:${ldlib_version}") { transitive = false }
+        }
+
+        // Development clients include Oculus by default; never bundled into the mod.
+        if (!project.hasProperty('withoutOculus')) {
+            modRuntimeOnly("maven.modrinth:oculus:${oculus_version}") { transitive = false }
+            modRuntimeOnly("maven.modrinth:embeddium:${embeddium_version}") { transitive = false }
+        }
+        if (project.hasProperty('rosettaRepo')) {
+            modRuntimeOnly("dev.rosetta:rosetta-remote-debug-bridge-forge:${project.findProperty('rosettaVersion') ?: '1.0.0'}") {
+                transitive = false
+            }
+        }
+
+        testImplementation platform("org.junit:junit-bom:${junit_version}")
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    // Forge 1.20.1 has no `[[mixins]]` support in mods.toml; the only registration point is the
+    // `MixinConfigs` manifest attribute. MDG's mixin extension also generates the refmaps.
+    mixin {
+        add sourceSets.main, 'assimploader.refmap.json'
+        config 'mixins.photon_compat.json'
+        config 'mixins.iris_compat.json'
+        config 'mixins.assimploader.json'
+        add sourceSets.showcase, 'assimpshowcase.refmap.json'
+        config 'mixins.assimpshowcase.json'
+    }
+
+    // `mixin { add(...) }` collects every refmap's TSRG mappings into one project-wide file
+    // collection that ALL reobfuscation tasks consume - including the main `reobfJar`, which does
+    // not package the showcase. It therefore has to wait for the showcase compile to have written
+    // `assimpshowcase.refmap.json.mappings.tsrg`, or it dies with FileNotFoundException.
+    tasks.named('reobfJar') { dependsOn tasks.named('compileShowcaseJava') }
+
+    tasks.named('processResources', ProcessResources).configure {
+        inputs.properties metadata
+        filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) { expand metadata }
+    }
+    tasks.named('processShowcaseResources', ProcessResources).configure {
+        inputs.properties metadata
+        filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) { expand metadata }
+    }
+
+    tasks.named('jar', Jar).configure {
+        manifest {
+            attributes('Specification-Title': mod_name, 'Specification-Vendor': mod_authors,
+                    'Specification-Version': '1',
+                    'Implementation-Title': "${rootProject.name}-${sc.current.version}",
+                    'Implementation-Version': project.version, 'Implementation-Vendor': mod_authors,
+                    'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                    'MixinConfigs': 'mixins.photon_compat.json,mixins.iris_compat.json,mixins.assimploader.json')
+        }
+        from([rootProject.file('LICENSE'), rootProject.file('docs/THIRD_PARTY_NOTICES.md')]) { into 'META-INF' }
+        from(rootProject.file('licenses')) { into 'META-INF/licenses' }
+        from(rootProject.file('third_party_sources')) { into 'META-INF/third-party-sources' }
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        // The Assimp natives have to live in the distributable jar; LWJGL's SharedLibraryLoader
+        // reads them from the classpath at `<platform>/<arch>/org/lwjgl/assimp/...`.
+        from({
+            project.configurations.assimpNatives.collect {
+                zipTree(it).matching {
+                    exclude 'META-INF/**'
+                    exclude '**/*.git'
+                    exclude '**/*.sha1'
+                }
+            }
+        })
+    }
+} else {
+    // ---------------------------------------------------------------- 1.21.1 / NeoForge
+    apply plugin: 'net.neoforged.moddev'
+
+    neoForge {
+        version = neo_version
+
+        parchment {
+            minecraftVersion = minecraft_version
+            mappingsVersion = parchment_mappings
+        }
+
+        runs {
+            configureEach {
+                gameDirectory = rootProject.file('run')
+                systemProperty 'forge.logging.markers', 'REGISTRIES'
+                systemProperty 'forge.logging.console.level', 'debug'
+            }
+            client {
+                client()
+                gameDirectory = rootProject.file(project.findProperty('clientGameDir') ?: "run${runSuffix}")
+                if (project.hasProperty('clientUsername')) {
+                    programArgument '--username'
+                    programArgument project.property('clientUsername').toString()
+                }
+                if (project.hasProperty('clientServer')) {
+                    programArgument '--quickPlayMultiplayer'
+                    programArgument project.property('clientServer').toString()
+                }
+                if (project.hasProperty('clientWorkbenchSmoke')) {
+                    systemProperty 'workbenchtest.enabled', 'true'
+                    systemProperty 'workbenchtest.world', project.property('clientWorkbenchSmoke').toString()
+                    if (project.hasProperty('clientWorkbenchAsset')) {
+                        systemProperty 'workbenchtest.asset', rootProject.file(project.property('clientWorkbenchAsset')).absolutePath
+                    }
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '900'
+                }
+                if (project.hasProperty('clientWorld')) {
+                    programArgument '--quickPlaySingleplayer'
+                    programArgument project.property('clientWorld').toString()
+                }
+                if (project.hasProperty('clientBatchSmoke')) {
+                    if (['clientRuntimeSmoke', 'clientComputeSmoke', 'clientHighBoneSmoke', 'clientDeerSmoke',
+                         'clientAnimationSmoke', 'clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke',
+                         'clientAssetSmoke', 'clientVehicleSmoke', 'clientRocketSmoke', 'clientKubeJsSmoke'].any {
+                        project.hasProperty(it)
+                    }) {
+                        throw new GradleException('clientBatchSmoke must run independently')
+                    }
+                    systemProperty 'batchtest.enabled', 'true'
+                    if (project.hasProperty('clientBatchSafety')) systemProperty 'batchtest.safety', 'true'
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '900'
+                }
+                if (project.hasProperty('clientKubeJsWorldSmoke')) {
+                    if (!project.hasProperty('clientRuntimeSmoke')) {
+                        throw new GradleException('clientKubeJsWorldSmoke requires clientRuntimeSmoke=<world>')
+                    }
+                    systemProperty 'worldruntimetest.kubejs', 'true'
+                }
+                if (project.hasProperty('clientKubeJsSmoke')) {
+                    if (['clientRuntimeSmoke', 'clientComputeSmoke', 'clientHighBoneSmoke', 'clientDeerSmoke',
+                         'clientAnimationSmoke', 'clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke',
+                         'clientAssetSmoke', 'clientVehicleSmoke', 'clientRocketSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientKubeJsSmoke must run independently')
+                    }
+                    systemProperty 'assimp.kubejsSmoke', 'true'
+                }
+                if (project.hasProperty('clientJfr')) {
+                    jvmArgument '-XX:StartFlightRecording=filename=' +
+                            layout.buildDirectory.file('reports/assimp-client.jfr').get().asFile.absolutePath +
+                            ',settings=profile,dumponexit=true'
+                }
+                if (project.hasProperty('clientHighBoneSmoke') || project.hasProperty('clientComputeSmoke')) {
+                    if (['clientRuntimeSmoke', 'clientDeerSmoke', 'clientAnimationSmoke', 'clientSmokeWorld',
+                         'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke', 'clientVehicleSmoke',
+                         'clientRocketSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientHighBoneSmoke must run independently')
+                    }
+                    systemProperty 'highbonetest.enabled', 'true'
+                    if (project.hasProperty('clientComputeSmoke')) systemProperty 'highbonetest.compute', 'true'
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '900'
+                }
+                if (project.hasProperty('clientRuntimeSmoke')) {
+                    if (['clientDeerSmoke', 'clientHighBoneSmoke', 'clientComputeSmoke', 'clientAnimationSmoke',
+                         'clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke',
+                         'clientVehicleSmoke', 'clientRocketSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientRuntimeSmoke must run independently')
+                    }
+                    systemProperty 'worldruntimetest.enabled', 'true'
+                    if (project.hasProperty('withOculus')) systemProperty 'worldruntimetest.shaders', 'true'
+                    systemProperty 'worldruntimetest.world', project.property('clientRuntimeSmoke').toString()
+                    if (project.hasProperty('clientRuntimeBatchSmoke')) {
+                        systemProperty 'worldruntimetest.batches', 'true'
+                    }
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '900'
+                }
+                if (project.hasProperty('clientDeerSmoke')) {
+                    if (['clientAnimationSmoke', 'clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke',
+                         'clientAssetSmoke', 'clientVehicleSmoke', 'clientRocketSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientDeerSmoke must run independently of the other client smoke tests')
+                    }
+                    systemProperty 'deertest.enabled', 'true'
+                    systemProperty 'deertest.world', project.property('clientDeerSmoke').toString()
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '900'
+                }
+                if (project.hasProperty('clientAnimationSmoke')) {
+                    if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke',
+                         'clientVehicleSmoke', 'clientRocketSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientAnimationSmoke must run independently of the other client smoke tests')
+                    }
+                    systemProperty 'animationtest.enabled', 'true'
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '900'
+                }
+                if (project.hasProperty('clientRocketSmoke')) {
+                    if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke',
+                         'clientVehicleSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientRocketSmoke must run independently of the other client smoke tests')
+                    }
+                    systemProperty 'rockettest.enabled', 'true'
+                    systemProperty 'rockettest.world', project.property('clientRocketSmoke').toString()
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '720'
+                }
+                if (project.hasProperty('clientSmokeWorld')) {
+                    systemProperty 'autotest.enabled', 'true'
+                    systemProperty 'autotest.capture', 'true'
+                    systemProperty 'autotest.world', project.property('clientSmokeWorld').toString()
+                }
+                if (project.hasProperty('clientStartupSmoke')) {
+                    systemProperty 'autotest.enabled', 'true'
+                    systemProperty 'autotest.startupOnly', 'true'
+                }
+                if (project.hasProperty('clientPbrSmoke')) {
+                    systemProperty 'autotest.enabled', 'true'
+                    systemProperty 'autotest.pbr', 'true'
+                    systemProperty 'autotest.world', project.property('clientPbrSmoke').toString()
+                    systemProperty 'autotest.pbrKeepOpen', project.hasProperty('clientPbrKeepOpen').toString()
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '720'
+                }
+                if (project.hasProperty('clientAssetSmoke')) {
+                    if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke'].any { project.hasProperty(it) }) {
+                        throw new GradleException('clientAssetSmoke must run independently of the other client smoke tests')
+                    }
+                    systemProperty 'assettest.enabled', 'true'
+                    systemProperty 'assettest.world', project.property('clientAssetSmoke').toString()
+                    systemProperty 'assettest.model', project.findProperty('clientAssetModel') ?: 'PROBE_TEXTURED'
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '720'
+                }
+                if (project.hasProperty('clientVehicleSmoke')) {
+                    if (['clientSmokeWorld', 'clientStartupSmoke', 'clientPbrSmoke', 'clientAssetSmoke'].any {
+                        project.hasProperty(it)
+                    }) {
+                        throw new GradleException('clientVehicleSmoke must run independently of the other client smoke tests')
+                    }
+                    systemProperty 'vehicletest.enabled', 'true'
+                    systemProperty 'vehicletest.world', project.property('clientVehicleSmoke').toString()
+                    programArgument '--width'
+                    programArgument '1280'
+                    programArgument '--height'
+                    programArgument '720'
+                }
+                if (project.hasProperty('rosettaRepo')) {
+                    systemProperty 'rosetta.remote.bind', '127.0.0.1'
+                    systemProperty 'rosetta.remote.port', project.findProperty('rosettaPort') ?: '48790'
+                }
+                systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            }
+
+            server {
+                server()
+                gameDirectory = runServerDir
+                programArgument '--nogui'
+                systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            }
+
+            data {
+                data()
+                gameDirectory = runDataDir
+                programArgument '--all'
+                programArgument '--mod'
+                programArgument mod_id
+                programArgument '--output'
+                programArgument rootProject.file('src/generated/resources/').absolutePath
+                programArgument '--existing'
+                programArgument rootProject.file('src/main/resources/').absolutePath
+            }
+        }
+
+        mods {
+            assimploader {
+                sourceSet sourceSets.main
+                sourceSet sourceSets.integrationTest
+            }
+            assimpshowcase {
+                sourceSet sourceSets.showcase
+            }
+        }
+
+        addModdingDependenciesTo sourceSets.test
+        addModdingDependenciesTo sourceSets.showcase
+        addModdingDependenciesTo sourceSets.integrationTest
+
+        unitTest {
+            enable()
+            testedMod = mods.assimploader
+        }
+    }
+
+    repositories {
+        maven {
+            url = 'https://maven.neoforged.net/releases'
+        }
+        mavenCentral()
+        maven {
+            url = 'https://maven.latvian.dev/releases'
+            content { includeGroup 'dev.latvian.mods' }
+        }
+        maven {
+            url = 'https://maven.architectury.dev/'
+            content { includeGroup 'dev.architectury' }
+        }
+        // ModernUI (dormant dead-wiring; scheduled for removal in migration phase 7).
+        maven { url = 'https://maven.izzel.io/releases/' }
+        maven {
+            url = 'https://api.modrinth.com/maven'
+            content { includeGroup 'maven.modrinth' }
+        }
+        exclusiveContent {
+            forRepository { mavenCentral() }
+            filter {
+                includeGroup 'com.github.stephengold'
+                includeGroup 'javax.vecmath'
+            }
+        }
+        if (project.hasProperty('rosettaRepo')) {
+            maven {
+                url = uri(project.property('rosettaRepo'))
+                content { includeGroup 'dev.rosetta' }
+            }
+        }
+        if (project.hasProperty('f3TweakerJar')) {
+            flatDir { dirs rootProject.file(project.property('f3TweakerJar')).parentFile }
+        }
+    }
+
+    dependencies {
+        // NeoForge runs in official mappings, so plain configurations carry everything and no
+        // `mod*` remapping configurations exist.
+        for (physicsLibrary in [
+                [group: 'com.github.stephengold', name: 'jbullet', version: jbullet_version, range: "[${jbullet_version},1.0.4)"],
+                [group: 'com.github.stephengold', name: 'stack-alloc', version: stack_alloc_version, range: "[${stack_alloc_version},1.0.3)"],
+                [group: 'javax.vecmath', name: 'vecmath', version: vecmath_version, range: "[${vecmath_version},1.5.3)"]]) {
+            jarJar(api("${physicsLibrary.group}:${physicsLibrary.name}:${physicsLibrary.version}") { transitive = false }) {
+                version {
+                    strictly physicsLibrary.range
+                    prefer physicsLibrary.version
+                }
+            }
+            additionalRuntimeClasspath("${physicsLibrary.group}:${physicsLibrary.name}:${physicsLibrary.version}") {
+                transitive = false
+            }
+        }
+
+        jarJar(api("org.lwjgl:lwjgl-assimp:${lwjgl_version}") { transitive = false }) {
+            version {
+                strictly lwjgl_version_range
+                prefer lwjgl_version
+            }
+        }
+        additionalRuntimeClasspath("org.lwjgl:lwjgl-assimp:${lwjgl_version}") { transitive = false }
+
+        for (nativesClassifier in ['windows', 'linux', 'macos', 'windows-arm64', 'linux-arm64', 'macos-arm64']) {
+            runtimeOnly "org.lwjgl:lwjgl-assimp:${lwjgl_version}:natives-${nativesClassifier}"
+            assimpNatives "org.lwjgl:lwjgl-assimp:${lwjgl_version}:natives-${nativesClassifier}"
+            // NeoForge's dev bootstrap builds the game classloader from `legacyClassPath.file`,
+            // not from the JVM `-cp`, so the natives need to be on the additional runtime
+            // classpath too: `Assimp`'s static initializer resolves
+            // `<platform>/<arch>/org/lwjgl/assimp/*.dll` through its own classloader.
+            additionalRuntimeClasspath("org.lwjgl:lwjgl-assimp:${lwjgl_version}:natives-${nativesClassifier}") {
+                transitive = false
+            }
+        }
+
+        implementation platform("org.lwjgl:lwjgl-bom:${lwjgl_version}")
+
+        compileOnly("dev.latvian.mods:kubejs-neoforge:${kubejs_version}") { transitive = false }
+        compileOnly("dev.latvian.mods:rhino:${rhino_version}") { transitive = false }
+        if (project.hasProperty('withKubeJS') || project.hasProperty('clientKubeJsSmoke') ||
+                project.hasProperty('clientKubeJsWorldSmoke')) {
+            runtimeOnly("dev.latvian.mods:kubejs-neoforge:${kubejs_version}") { transitive = false }
+            runtimeOnly("dev.latvian.mods:rhino:${rhino_version}") { transitive = false }
+        }
+
+        // ModernUI is dead wiring scheduled for deletion in migration phase 7. Only the
+        // loader-agnostic Core stays (compileOnly) so the dormant editor sources keep compiling
+        // until then; the Forge-only runtime artefacts are not used by the NeoForge dev client.
+        compileOnly("icyllis.modernui:ModernUI-Core:${modernui_core_version}")
+        testRuntimeOnly("icyllis.modernui:ModernUI-Core:${modernui_core_version}")
+
+        compileOnly("maven.modrinth:gzevkJbM:${photon_version}") { transitive = false }
+        compileOnly("maven.modrinth:B1CBVXHX:${ldlib_version}") { transitive = false }
+        if (!project.hasProperty('withoutOptionalMods')) {
+            runtimeOnly("maven.modrinth:gzevkJbM:${photon_version}") { transitive = false }
+            runtimeOnly("maven.modrinth:B1CBVXHX:${ldlib_version}") { transitive = false }
+        }
+        // `-PwithoutOculus` drops the whole shader stack (Iris + Sodium) on this node.
+        if (!project.hasProperty('withoutOculus')) {
+            runtimeOnly("maven.modrinth:iris:${iris_version}") { transitive = false }
+            runtimeOnly("maven.modrinth:sodium:${sodium_version}") { transitive = false }
+        }
+        if (project.hasProperty('rosettaRepo')) {
+            runtimeOnly("dev.rosetta:rosetta-remote-debug-bridge-neoforge:${project.findProperty('rosettaVersion') ?: '1.0.0'}") {
+                transitive = false
+            }
+        }
+        // Locally built 1.21.1 mod for the dev client. ModDevGradle has no `fg.deobf` and its
+        // `modRuntimeOnly` only takes repository notations, so a plain jar goes on the runtime
+        // classpath like any other local file dependency.
+        runtimeOnly(files(rootProject.file("../F3Tweaker/build/libs/F3Tweaker-1.21.1-1.0.0.jar")))
+
+        testImplementation platform("org.junit:junit-bom:${junit_version}")
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    tasks.named('processResources', ProcessResources).configure {
+        inputs.properties metadata
+        filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) { expand metadata }
+    }
+    tasks.named('processShowcaseResources', ProcessResources).configure {
+        inputs.properties metadata
+        filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) { expand metadata }
+    }
+
+    tasks.named('jar', Jar).configure {
+        manifest {
+            attributes('Specification-Title': mod_name, 'Specification-Vendor': mod_authors,
+                    'Specification-Version': '1',
+                    'Implementation-Title': "${rootProject.name}-${sc.current.version}",
+                    'Implementation-Version': project.version, 'Implementation-Vendor': mod_authors,
+                    'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"))
+        }
+        from([rootProject.file('LICENSE'), rootProject.file('docs/THIRD_PARTY_NOTICES.md')]) { into 'META-INF' }
+        from(rootProject.file('licenses')) { into 'META-INF/licenses' }
+        from(rootProject.file('third_party_sources')) { into 'META-INF/third-party-sources' }
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        from({
+            project.configurations.assimpNatives.collect {
+                zipTree(it).matching {
+                    exclude 'META-INF/**'
+                    exclude '**/*.git'
+                    exclude '**/*.sha1'
+                }
+            }
+        })
     }
 }
 
-sourceSets.main.resources { srcDir 'src/generated/resources' }
+// Process test sources with the same target rules as production sources.
+stonecutter.tasks.configureSource(sourceSets.test)
+stonecutter.tasks.configureSource(sourceSets.showcase)
+stonecutter.tasks.configureSource(sourceSets.integrationTest)
 
+// ---------------------------------------------------------------- shared by both nodes
 
+// The AssimpShowcase companion mod. It is a separate mod, not part of the engine jar.
+def showcaseJar = tasks.register('showcaseJar', Jar) {
+    group = 'build'
+    description = 'Builds the AssimpShowcase companion mod jar.'
+    archiveBaseName = "assimpshowcase-${minecraft_version}-${mod_loader}"
+    archiveVersion = mod_version
+    from sourceSets.showcase.output
+    from(rootProject.file('LICENSE')) { into 'META-INF' }
+    manifest { attributes 'MixinConfigs': 'mixins.assimpshowcase.json' }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// LegacyForge only remaps the main `jar` automatically. The companion mod is embedded in no
+// other artifact, but it is shipped, so its vanilla calls must be SRG-named for the production
+// runtime. NeoForge runs mojmap, so no remap is needed there.
+if (isForge) {
+    configurations.create('showcaseRuntimeElements') {
+        extendsFrom configurations.showcaseRuntimeClasspath
+    }
+    configurations.create('showcaseApiElements') {
+        extendsFrom configurations.showcaseCompileClasspath
+    }
+    // Local variable, not `ext.*`: inside `showcaseJar.configure { }` the name `ext` resolves to
+    // the task's own extra-properties container, which is empty.
+    def showcaseReobf = obfuscation.reobfuscate(showcaseJar, sourceSets.showcase)
+    showcaseJar.configure { finalizedBy showcaseReobf }
+}
+
+sourceSets.test.compileClasspath += sourceSets.showcase.output
+sourceSets.test.runtimeClasspath += sourceSets.showcase.output
+
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
+    if (project.hasProperty('runtimeBenchmark')) {
+        systemProperty 'assimp.runtimeBenchmark', 'true'
+    }
+    // Several tests read `src/showcase/resources/...` relative to the repository root, which is
+    // one level above the Stonecutter node project.
+    workingDir = rootProject.projectDir
+    testLogging { events 'failed'; exceptionFormat 'full' }
+}
+
+tasks.named('build').configure { dependsOn 'showcaseJar', 'integrationTestClasses' }
+
+apply from: rootProject.file('gradle/module-boundaries.gradle')
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // javac stops at 100 errors by default, which hides most of a migration's error list
+    // behind the first screenful. The full list is what drives the per-group fixes.
+    options.compilerArgs << '-Xmaxerrs' << '10000'
+}
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+// ==================== KubeJS acceptance scripts ====================
+// The acceptance scripts are copied into the run's kubejs folder before the client starts and
+// removed afterwards, so a failing run never leaves a generated script behind.
 
 if (project.hasProperty('clientKubeJsSmoke') || project.hasProperty('clientKubeJsWorldSmoke')) {
     def serverSmoke = project.hasProperty('clientKubeJsWorldSmoke')
-    def smokeSource = file(serverSmoke ? 'model-tests/kubejs/assimploader_server_acceptance.js' : 'model-tests/kubejs/assimploader_acceptance.js')
-    def smokeTarget = file(serverSmoke ? 'run/kubejs/server_scripts/assimploader_acceptance.generated.js' : 'run/kubejs/client_scripts/assimploader_acceptance.generated.js')
+    def smokeSource = rootProject.file(serverSmoke ?
+            'model-tests/kubejs/assimploader_server_acceptance.js' :
+            'model-tests/kubejs/assimploader_acceptance.js')
+    def smokeTarget = new File(runClientDir, serverSmoke ?
+            'kubejs/server_scripts/assimploader_acceptance.generated.js' :
+            'kubejs/client_scripts/assimploader_acceptance.generated.js')
     def smokePayload = { smokeSource.bytes }
     def prepareScript = tasks.register('prepareKubeJsSmoke') {
         doLast {
@@ -239,7 +976,7 @@ if (project.hasProperty('clientKubeJsSmoke') || project.hasProperty('clientKubeJ
 }
 
 if (project.hasProperty('clientKubeJsSmoke')) {
-    def kubeResult = file('run/kubejs-smoke-result.json')
+    def kubeResult = new File(runClientDir, 'kubejs-smoke-result.json')
     tasks.matching { it.name == 'runClient' }.configureEach {
         doFirst {
             if (kubeResult.exists() && !kubeResult.delete()) throw new GradleException('Cannot remove stale KubeJS result')
@@ -249,229 +986,6 @@ if (project.hasProperty('clientKubeJsSmoke')) {
             def result = new groovy.json.JsonSlurper().parse(kubeResult)
             if (result.success != true) throw new GradleException("KubeJS acceptance failed: ${result.failure}")
         }
-    }
-}
-
-configurations {
-    // Resolve native packaging separately from the mapped Forge runtimeClasspath, which is
-    // not available while the task graph is being built on a cold cache.
-    assimpNatives {
-        canBeConsumed = false
-        canBeResolved = true
-        transitive = false
-    }
-}
-
-// Plain libraries and native resources must also be visible to the game's class loader.
-fg.configureMinecraftLibraryConfiguration(configurations.assimpNatives)
-
-repositories {
-    if (project.hasProperty('f3TweakerJar')) {
-        flatDir { dirs file(project.property('f3TweakerJar')).parentFile }
-    }
-    exclusiveContent {
-        forRepository { mavenCentral() }
-        filter {
-            includeGroup 'com.github.stephengold'
-            includeGroup 'javax.vecmath'
-        }
-    }
-    maven { url = 'https://maven.minecraftforge.net/' }
-    mavenCentral()
-    maven {
-        url = 'https://maven.latvian.dev/releases'
-        content { includeGroup 'dev.latvian.mods' }
-    }
-    maven {
-        url = 'https://maven.architectury.dev/'
-        content { includeGroup 'dev.architectury' }
-    }
-    // ModernUI
-    maven { url = 'https://maven.izzel.io/releases/' }
-    maven {
-        url = 'https://api.modrinth.com/maven'
-        content { includeGroup 'maven.modrinth' }
-    }
-    if (project.hasProperty('rosettaRepo')) {
-        maven {
-            url = uri(project.property('rosettaRepo'))
-            content { includeGroup 'dev.rosetta' }
-        }
-    }
-}
-
-dependencies {
-    minecraft "net.minecraftforge:forge:1.20.1-${forge_version}"
-
-    // Bullet rigid bodies/constraints, isolated behind the character physics service.
-    for (physicsLibrary in [
-            [group: 'com.github.stephengold', name: 'jbullet', version: '1.0.3', range: '[1.0.3,1.0.4)'],
-            [group: 'com.github.stephengold', name: 'stack-alloc', version: '1.0.2', range: '[1.0.2,1.0.3)'],
-            [group: 'javax.vecmath', name: 'vecmath', version: '1.5.2', range: '[1.5.2,1.5.3)']]) {
-        api("${physicsLibrary.group}:${physicsLibrary.name}:${physicsLibrary.version}") { transitive = false }
-        minecraftLibrary("${physicsLibrary.group}:${physicsLibrary.name}:${physicsLibrary.version}") { transitive = false }
-        jarJar(group: physicsLibrary.group, name: physicsLibrary.name, version: physicsLibrary.range) {
-            transitive = false
-            // Resolve a fixed binary while retaining a compatible Jar-in-Jar selection interval.
-            jarJar.pin(it, physicsLibrary.version)
-        }
-    }
-
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-
-    for (coordinate in ['dev.latvian.mods:kubejs-forge:2001.6.5-build.26',
-                        'dev.latvian.mods:rhino-forge:2001.2.2-build.17',
-                        'dev.architectury:architectury-forge:9.1.12']) {
-        def kubeDependency = fg.deobf(coordinate)
-        compileOnly(kubeDependency) { transitive = false }
-        if (project.hasProperty('withKubeJS') || project.hasProperty('clientKubeJsSmoke') || project.hasProperty('clientKubeJsWorldSmoke')) {
-            localRuntime(kubeDependency) { transitive = false }
-        }
-    }
-
-    // LWJGL Assimp bindings - MUST match Minecraft's LWJGL version (3.3.1)
-    implementation(platform("org.lwjgl:lwjgl-bom:3.3.1"))
-    minecraftLibrary("org.lwjgl:lwjgl-assimp:3.3.1") {
-        transitive = false // Minecraft already supplies the matching LWJGL core.
-    }
-    api('org.lwjgl:lwjgl-assimp:3.3.1') { transitive = false }
-
-    // Bundle LWJGL Assimp into the mod
-    jarJar(group: 'org.lwjgl', name: 'lwjgl-assimp', version: '[3.3.1,3.3.2)')
-
-    // Natives are packaged into the '-all' jar by the `jarJar` task below; they must never be
-    // on the compile classpath and must never leak into other mods' classpath.
-    // runtimeOnly keeps them available to the dev runs; assimpNatives is what gets bundled.
-    for (nativesClassifier in ['windows', 'linux', 'macos', 'windows-arm64', 'linux-arm64', 'macos-arm64']) {
-        runtimeOnly "org.lwjgl:lwjgl-assimp:3.3.1:natives-${nativesClassifier}"
-        assimpNatives "org.lwjgl:lwjgl-assimp:3.3.1:natives-${nativesClassifier}"
-    }
-
-    // Dormant historical editor sources compile for reference; active LookDev is independent.
-    compileOnly "icyllis.modernui:ModernUI-Core:${modernui_core_version}@jar"
-    testRuntimeOnly "icyllis.modernui:ModernUI-Core:${modernui_core_version}@jar"
-    localRuntime fg.deobf("icyllis.modernui:ModernUI-Forge:${modernui_forge_version}")
-    for (module in ['ModernUI-Core', 'ModernUI-Markdown']) {
-        minecraftLibrary("icyllis.modernui:${module}:${modernui_core_version}") {
-            exclude group: 'org.slf4j', module: 'slf4j-api'
-            exclude group: 'org.apache.logging.log4j'
-            exclude group: 'com.google.code.findbugs', module: 'jsr305'
-            exclude group: 'org.jetbrains', module: 'annotations'
-            exclude group: 'com.ibm.icu', module: 'icu4j'
-            exclude group: 'it.unimi.dsi', module: 'fastutil'
-        }
-    }
-    if (project.hasProperty('f3TweakerJar')) {
-        def devJar = file(project.property('f3TweakerJar'))
-        if (!devJar.isFile()) throw new GradleException("F3Tweaker JAR does not exist: ${devJar}")
-        localRuntime fg.deobf("local.dev:${devJar.name.replaceFirst(/\.jar$/, '')}:local")
-    }
-
-    // Fixed Modrinth version IDs resolve before compilation on a fresh checkout.
-    // Optional mods are available in dev runs but never bundled by jarJar.
-    def softDeps = [
-            'maven.modrinth:gzevkJbM:a7chTVuf', // Photon 1.1.17
-            'maven.modrinth:B1CBVXHX:yhlCY3k1' // LDLib 1.0.48
-    ]
-    softDeps.each { dep ->
-        def mapped = fg.deobf(dep)
-        compileOnly mapped
-        if (!project.hasProperty('withoutOptionalMods')) localRuntime mapped
-    }
-
-    // Development clients include Oculus by default; never bundled into the mod.
-    if (!project.hasProperty('withoutOculus')) {
-        localRuntime fg.deobf('maven.modrinth:oculus:iQ1SwGc3') // Oculus 1.8.0 / MC 1.20.1
-        localRuntime fg.deobf('maven.modrinth:embeddium:UTbfe5d1') // Embeddium 0.3.31
-    }
-    if (project.hasProperty('rosettaRepo')) {
-        // A Maven coordinate lets ForgeGradle remap the bridge for a development client.
-        localRuntime(fg.deobf("dev.rosetta:rosetta-remote-debug-bridge-forge:${project.findProperty('rosettaVersion') ?: '1.0.0'}")) {
-            transitive = false
-        }
-    }
-
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.3'
-}
-
-jar {
-    exclude 'assimpshowcase.refmap.json'
-    from(['LICENSE', 'docs/THIRD_PARTY_NOTICES.md']) { into 'META-INF' }
-    from('licenses') { into 'META-INF/licenses' }
-    from('third_party_sources') { into 'META-INF/third-party-sources' }
-    manifest {
-        attributes([
-                "Specification-Title"     : "assimploader",
-                "Specification-Vendor"    : "MineRealms Team",
-                "Specification-Version"   : "1",
-                "Implementation-Title"    : project.name,
-                "Implementation-Version"  : project.version.toString(),
-                "Implementation-Vendor"   : "MineRealms Team",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                "MixinConfigs"            : "mixins.photon_compat.json,mixins.iris_compat.json,mixins.assimploader.json"
-        ])
-    }
-
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-jarJar.enable()
-
-// The '-all' jar is what users install, so the Assimp natives have to live there.
-// (Putting them in the plain jar only would ship a mod that cannot load its native library.)
-tasks.named('jarJar').configure {
-    exclude 'assimpshowcase.refmap.json'
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(['LICENSE', 'docs/THIRD_PARTY_NOTICES.md']) { into 'META-INF' }
-    from('licenses') { into 'META-INF/licenses' }
-    from('third_party_sources') { into 'META-INF/third-party-sources' }
-
-    from {
-        project.configurations.assimpNatives.collect {
-            zipTree(it).matching {
-                exclude 'META-INF/**'
-                exclude '**/*.git'
-                exclude '**/*.sha1'
-            }
-        }
-    }
-}
-
-mixin {
-    add sourceSets.main, "assimploader.refmap.json"
-    config "mixins.photon_compat.json"
-    config "mixins.iris_compat.json"
-    config "mixins.assimploader.json"
-    add sourceSets.showcase, 'assimpshowcase.refmap.json'
-    config 'mixins.assimpshowcase.json'
-}
-
-tasks.register('showcaseJar', Jar) {
-    exclude 'assimploader.refmap.json'
-    archiveBaseName = 'assimpshowcase'
-    from sourceSets.showcase.output
-    from('LICENSE') { into 'META-INF' }
-    manifest { attributes 'MixinConfigs': 'mixins.assimpshowcase.json' }
-}
-reobf { showcaseJar {} }
-tasks.named('showcaseJar').configure { finalizedBy 'reobfShowcaseJar' }
-
-sourceSets.test.compileClasspath += sourceSets.showcase.output
-sourceSets.test.runtimeClasspath += sourceSets.showcase.output
-tasks.named('build').configure { dependsOn 'showcaseJar', 'integrationTestClasses' }
-apply from: 'gradle/module-boundaries.gradle'
-
-jar.finalizedBy('reobfJar')
-
-tasks.withType(JavaCompile) {
-    options.encoding = 'UTF-8'
-}
-
-tasks.withType(Test) {
-    useJUnitPlatform()
-    if (project.hasProperty('runtimeBenchmark')) {
-        systemProperty 'assimp.runtimeBenchmark', 'true'
     }
 }
 
@@ -488,21 +1002,19 @@ tasks.register('copyToGameMods', Copy) {
     def dest = project.findProperty('gameModsDir')
     onlyIf { dest != null }
 
-    from("${buildDir}/libs") {
-        include '*-all.jar'
-        rename '(.*)-all.jar', '$1.jar'
+    from(layout.buildDirectory.dir('libs')) {
+        include "${base.archivesName.get()}-${project.version}.jar"
     }
     if (dest != null) {
         into dest
     }
 
-    dependsOn 'reobfJarJar'
+    dependsOn 'jar'
 
     doLast {
         println "Copied jar to ${dest}"
     }
 }
-
 
 // ==================== Optional dev-only dependencies ====================
 
@@ -511,11 +1023,12 @@ tasks.register('copyToGameMods', Copy) {
  * are not redistributable, so they are downloaded on demand instead of being committed.
  *
  * Pinned by Modrinth version id (not version number) so the artefacts can never silently
- * change underneath us, and verified by sha512.
+ * change underneath us, and verified by sha512. The 1.21.1 artifacts are added in migration
+ * phase 5, once their Modrinth version ids and checksums are pinned.
  */
-def devOnlyDeps = [
+def devOnlyDeps = isForge ? [
         [
-                name  : 'photon-forge-1.20.1-1.1.17.jar',
+                name  : "photon-forge-1.20.1-1.1.17.jar",
                 url   : 'https://cdn.modrinth.com/data/gzevkJbM/versions/a7chTVuf/photon-forge-1.20.1-1.1.17.jar',
                 sha512: 'b0bdc63d73f9eda4a38c16e2cedbf80e325f57ba4452fbab8959a8bbc9f3a99754298d8b45376aee69e87ad91508c63ad045d76233b304a6a1de9cbeaf02c8f6'
         ],
@@ -524,13 +1037,13 @@ def devOnlyDeps = [
                 url   : 'https://cdn.modrinth.com/data/B1CBVXHX/versions/yhlCY3k1/ldlib-forge-1.20.1-1.0.48.jar',
                 sha512: '564f71dccc84854e84fc795d7c2972b785498de198bafdae22e46e7b6fd257e6b4cd0b24396eae7caaec16f090500069f06e6b43ad50130a9d50ee9923850c59'
         ]
-]
+] : []
 
 tasks.register('downloadDevDeps') {
     group = 'deployment'
     description = 'Downloads the non-redistributable dev-only mod jars into mods_dev/'
 
-    def targetDir = layout.projectDirectory.dir('mods_dev').asFile
+    def targetDir = rootProject.file('mods_dev')
     outputs.dir(targetDir)
 
     doLast {

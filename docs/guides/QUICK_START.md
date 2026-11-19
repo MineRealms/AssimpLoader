@@ -2,15 +2,15 @@
 
 ## 构建和安装
 
-需要 Minecraft 1.20.1、Forge 47.x 和 JDK 17。在项目根目录执行：
+需要 Minecraft 1.20.1、Forge 47.x 和 JDK 17（1.21.1 NeoForge 移植在 `multiversion` 分支进行中，需要 JDK 21）。在项目根目录执行：
 
 ```powershell
-.\gradlew.bat build --console=plain
+.\gradlew.bat :1.20.1-forge:build --console=plain
 ```
 
-安装 `build/libs/assimploader-1.0.0-all.jar`。其中包含 Assimp 绑定、Windows/Linux/macOS 的 x64 和 ARM64 原生库；仅打包不代表所有平台均已实机验证。普通薄 JAR 不能代替 `-all.jar`。
+安装 `versions/1.20.1-forge/build/libs/assimploader-1.20.1-forge-1.0.0.jar`。其中包含 Assimp 绑定、Windows/Linux/macOS 的 x64 和 ARM64 原生库；仅打包不代表所有平台均已实机验证。普通薄 JAR 不能代替它。
 
-另一个产物 `assimpshowcase-1.0.0.jar` 是模型展台、装甲车、鹿和火箭等示例内容。引擎本身不注册这些游戏内容；使用示例命令时需一并安装 Showcase。
+另一个产物 `versions/1.20.1-forge/build/libs/assimpshowcase-1.20.1-forge-1.0.0.jar` 是模型展台、装甲车、鹿和火箭等示例内容。引擎本身不注册这些游戏内容；使用示例命令时需一并安装 Showcase。
 
 ## 游戏内预览和编辑
 
@@ -41,7 +41,7 @@
 [详细 KubeJS 动画教程](KUBEJS_ANIMATION_GUIDE.md)提供实例取得、骨骼、烘焙片段、混合、程序化姿态、IK 和重载的具体 API，以及[可运行 Demo](../../examples/kubejs/README.md)。
 
 ```powershell
-.\gradlew.bat runClient -PwithKubeJS --console=plain
+.\gradlew.bat :1.20.1-forge:runClient -PwithKubeJS --console=plain
 ```
 
 KubeJS 可选，动画时钟和 GPU 计算始终由引擎负责。脚本给出状态、权重和目标，不逐顶点求解。
@@ -55,8 +55,8 @@ Oculus 开发依赖默认开启，`-PwithoutOculus` 可关闭。实际 PBR 显�
 ## 开发与验证
 
 ```powershell
-.\gradlew.bat test integrationTestClasses --console=plain
+.\gradlew.bat :1.20.1-forge:test :1.20.1-forge:integrationTestClasses --console=plain
 git diff --check
 ```
 
-单元测试报告在 `build/reports/tests/test/index.html`；编译通过不等于实际 GPU 图像验收。更多启动参数见[开发客户端](DEVELOPMENT_CLIENT.md)，过程记录在 [history](../history/README.md)。
+单元测试报告在 `versions/1.20.1-forge/build/reports/tests/test/index.html`；编译通过不等于实际 GPU 图像验收。更多启动参数见[开发客户端](DEVELOPMENT_CLIENT.md)，过程记录在 [history](../history/README.md)。

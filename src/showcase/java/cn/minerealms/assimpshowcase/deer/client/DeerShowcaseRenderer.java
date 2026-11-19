@@ -13,10 +13,10 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import org.joml.Matrix4f;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 public final class DeerShowcaseRenderer extends ConfiguredEntityRenderer<DeerShowcaseEntity> {
     public static final ResourceLocation MODEL_RESOURCE =
-            new ResourceLocation(AssimpLoader.MODID, "models/validation/deer_showcase.glb");
+            ResourceLocations.of(AssimpLoader.MODID, "models/validation/deer_showcase.glb");
     public static final String MODEL_ID = AssimpModelLoader.canonicalIdentity(MODEL_RESOURCE);
 
     public DeerShowcaseRenderer(EntityRendererProvider.Context context) {

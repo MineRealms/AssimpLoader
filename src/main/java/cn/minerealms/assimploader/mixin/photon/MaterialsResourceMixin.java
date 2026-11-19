@@ -1,5 +1,6 @@
 package cn.minerealms.assimploader.mixin.photon;
 
+//? if forge {
 import cn.minerealms.assimploader.compat.photon.AssimpToPhotonMaterialConverter;
 import cn.minerealms.assimploader.core.AssimpModelLoader;
 import cn.minerealms.assimploader.material.PBRMaterial;
@@ -22,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -208,8 +208,6 @@ public class MaterialsResourceMixin {
             // 5. 刷新容器显示
             container.reBuild();
 
-            // 6. 释放 Assimp 资源
-
             LOGGER.info("FBX material import completed successfully: {} material(s) imported", imported);
 
         } catch (Exception e) {
@@ -217,3 +215,92 @@ public class MaterialsResourceMixin {
         }
     }
 }
+//?}
+//? if neoforge {
+/*
+import cn.minerealms.assimploader.compat.photon.AssimpToPhotonMaterialConverter;
+import cn.minerealms.assimploader.core.AssimpModelLoader;
+import cn.minerealms.assimploader.material.PBRMaterial;
+import cn.minerealms.assimploader.model.AssimpMaterial;
+import cn.minerealms.assimploader.model.AssimpMesh;
+import cn.minerealms.assimploader.model.AssimpScene;
+import com.lowdragmc.lowdraglib2.editor.resource.ResourceImportContext;
+import com.lowdragmc.photon.client.gameobject.emitter.data.material.IMaterial;
+import com.lowdragmc.photon.gui.editor.resource.MaterialResource;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+
+// `MaterialResource` declares no file importer in Photon 2.2.11; both entry points live on LDLib2's
+// `Resource` superclass, and mixin does not resolve `@Pseudo` injection targets through superclasses.
+// The mixin therefore attaches to `Resource` and dispatches on the concrete type at runtime.
+@Pseudo
+@Mixin(targets = "com.lowdragmc.lowdraglib2.editor.resource.Resource", remap = false)
+public class MaterialsResourceMixin {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("MaterialsResourceMixin");
+
+    @Inject(method = "canImportFile", at = @At("RETURN"), cancellable = true)
+    private void assimpCanImport(File file, CallbackInfoReturnable<Boolean> cir) {
+        if (((Object) this) instanceof MaterialResource && PhotonModelFiles.isAssimpOnly(file)) {
+            cir.setReturnValue(true);
+        }
+    }
+
+    @Inject(method = "importFile", at = @At("HEAD"), cancellable = true)
+    @SuppressWarnings("unchecked")
+    private void assimpImportFile(ResourceImportContext ctx, CallbackInfo ci) {
+        File file = ctx.getFile();
+        if (file == null || !PhotonModelFiles.isAssimpOnly(file)) return;
+        try {
+            AssimpScene scene = new AssimpModelLoader().loadModel(file.toPath());
+            String stem = PhotonModelFiles.stem(file.getName());
+
+            // 只导入场景里真正被网格引用的材质，避免生成一堆用不到的资源。
+            Set<Integer> used = new HashSet<>();
+            for (AssimpMesh mesh : scene.getMeshes()) {
+                int index = mesh.getMaterialIndex();
+                if (index >= 0 && index < scene.getMaterials().size()) used.add(index);
+            }
+            if (used.isEmpty()) {
+                ctx.fail(String.format(Locale.ROOT, "No materials found in %s", file.getName()));
+                ci.cancel();
+                return;
+            }
+
+            for (int index : used) {
+                AssimpMaterial assimpMat = scene.getMaterials().get(index);
+                String materialName = stem + "_Material_" + index;
+                PBRMaterial pbrMat = new PBRMaterial(materialName);
+
+                float[] diffuse = assimpMat.getDiffuseColor();
+                pbrMat.setBaseColor(new org.joml.Vector4f(diffuse[0], diffuse[1], diffuse[2], diffuse[3]));
+
+                // 环境光作为自发光的近似，和 1.20.1 分支保持一致。
+                float[] ambient = assimpMat.getAmbientColor();
+                if (ambient != null && (ambient[0] > 0.01f || ambient[1] > 0.01f || ambient[2] > 0.01f)) {
+                    pbrMat.setEmissiveFactor(new org.joml.Vector3f(ambient[0], ambient[1], ambient[2]));
+                }
+
+                IMaterial photonMat = (IMaterial) AssimpToPhotonMaterialConverter.convertAuto(pbrMat);
+                ctx.complete(materialName, photonMat);
+            }
+            ci.cancel();
+        } catch (Exception | LinkageError e) {
+            LOGGER.error("Failed to import materials from {}", file.getName(), e);
+            ctx.fail(String.format(Locale.ROOT, "Assimp import failed: %s", e.getMessage()));
+            ci.cancel();
+        }
+    }
+}
+*///?}

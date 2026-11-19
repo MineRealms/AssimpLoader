@@ -5,6 +5,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import cn.minerealms.assimploader.util.ScreenCompat;
 
 import java.util.function.Consumer;
 
@@ -70,7 +71,7 @@ public class TextInputScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         // Draw background
-        renderBackground(graphics);
+        ScreenCompat.renderBackground(this, graphics, mouseX, mouseY, partialTick);
 
         // Draw title
         graphics.drawCenteredString(this.font, this.title, this.width / 2, this.height / 2 - 60, 0xFFFFFF);

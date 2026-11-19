@@ -27,7 +27,8 @@ import org.lwjgl.opengl.GL30;
 import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
-
+import cn.minerealms.assimploader.util.MeshBuffers;
+import cn.minerealms.assimploader.util.ResourceLocations;
 /**
  * Offscreen renderer for LookDev preview.
  *
@@ -331,12 +332,12 @@ public class OffscreenRenderer {
         poseStack.last().pose().set(viewMatrix);  // Use set() instead of mul() to avoid accumulation
         poseStack.last().pose().mul(modelMatrix);
 
-        // Setup shader
-        RenderSystem.setShader(GameRenderer::getPositionTexColorNormalShader);
+        // Setup shader. 1.21 dropped `position_tex_color_normal`: its fragment shader never read the
+        // interpolated normal, so the plain position/tex/color program renders identically.
+        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
 
         // Render all meshes
         Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder bufferBuilder = tesselator.getBuilder();
 
         // Disabled to reduce log spam
         // DebugManager.info(DebugCategory.LOOKDEV, "[OffscreenRenderer] Rendering {} meshes", currentModel.getMeshes().size());
@@ -385,11 +386,11 @@ public class OffscreenRenderer {
                 RenderSystem.setShaderTexture(0, textureLocation);
             } else {
                 // Use white texture as fallback
-                RenderSystem.setShaderTexture(0, new ResourceLocation("minecraft", "textures/block/white_concrete.png"));
+                RenderSystem.setShaderTexture(0, ResourceLocations.of("minecraft", "textures/block/white_concrete.png"));
             }
 
             // Render mesh
-            renderMesh(mesh, material, poseStack, bufferBuilder, 0xF000F0, 0);
+            renderMesh(mesh, material, poseStack, tesselator, 0xF000F0, 0);
         }
 
         // Disabled to reduce log spam
@@ -406,8 +407,7 @@ public class OffscreenRenderer {
         for (int i = 0; i < scene.getTextures().size(); i++) {
             AssimpTexture texture = scene.getTextures().get(i);
 
-            ResourceLocation textureLoc = new ResourceLocation("assimploader",
-                "lookdev/embedded_" + i);
+            ResourceLocation textureLoc = ResourceLocations.of("assimploader", "lookdev/embedded_" + i);
 
             try {
                 NativeImage image = texture.loadAsNativeImage();
@@ -427,7 +427,7 @@ public class OffscreenRenderer {
      * Render a single mesh (adapted from AssimpItemRenderer)
      */
     private void renderMesh(AssimpMesh mesh, AssimpMaterial material, PoseStack poseStack,
-                           BufferBuilder bufferBuilder, int packedLight, int packedOverlay) {
+                           Tesselator tesselator, int packedLight, int packedOverlay) {
 
         float[] vertices = mesh.getVertices();
         float[] normals = mesh.getNormals();
@@ -466,8 +466,10 @@ public class OffscreenRenderer {
         // Ambient light
         float ambientStrength = 0.4f;
 
-        // Begin drawing
-        bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+        // Begin drawing. 1.21 builders are single-use and own their backing buffer, so each mesh
+        // gets a fresh batch from the tesselator instead of re-beginning a shared one.
+        BufferBuilder bufferBuilder = MeshBuffers.begin(tesselator, VertexFormat.Mode.QUADS,
+                DefaultVertexFormat.POSITION_TEX_COLOR);
 
         // Render triangles with reversed winding order
         for (int i = 0; i < indices.length; i += 3) {
@@ -543,31 +545,27 @@ public class OffscreenRenderer {
             bufferBuilder.vertex(pose, v2.x, v2.y, v2.z)
                 .uv(u2, vt2)
                 .color(color2.x, color2.y, color2.z, color2.w)
-                .normal(normalMatrix, n2.x, n2.y, n2.z)
                 .endVertex();
 
             bufferBuilder.vertex(pose, v1.x, v1.y, v1.z)
                 .uv(u1, vt1)
                 .color(color1.x, color1.y, color1.z, color1.w)
-                .normal(normalMatrix, n1.x, n1.y, n1.z)
                 .endVertex();
 
             bufferBuilder.vertex(pose, v0.x, v0.y, v0.z)
                 .uv(u0, vt0)
                 .color(color0.x, color0.y, color0.z, color0.w)
-                .normal(normalMatrix, n0.x, n0.y, n0.z)
                 .endVertex();
 
             // Duplicate last vertex for degenerate quad
             bufferBuilder.vertex(pose, v0.x, v0.y, v0.z)
                 .uv(u0, vt0)
                 .color(color0.x, color0.y, color0.z, color0.w)
-                .normal(normalMatrix, n0.x, n0.y, n0.z)
                 .endVertex();
         }
 
         // Draw
-        BufferUploader.drawWithShader(bufferBuilder.end());
+        MeshBuffers.draw(bufferBuilder);
     }
 
     /**

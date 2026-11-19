@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.lookdev.render;
 
 import cn.minerealms.assimploader.debug.DebugManager;
 import cn.minerealms.assimploader.debug.DebugManager.DebugCategory;
+import cn.minerealms.assimploader.util.MeshBuffers;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.Minecraft;
@@ -116,8 +117,8 @@ public class LookDevOverlayRenderer {
 
         // Draw textured quad
         Matrix4f matrix = poseStack.last().pose();
-        BufferBuilder bufferBuilder = Tesselator.getInstance().getBuilder();
-        bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+        BufferBuilder bufferBuilder = MeshBuffers.begin(Tesselator.getInstance(),
+                VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
 
         // Flip V coordinate (OpenGL bottom-left origin -> screen top-left origin)
         bufferBuilder.vertex(matrix, x, y + height, 0).uv(0, 0).endVertex();
@@ -125,7 +126,7 @@ public class LookDevOverlayRenderer {
         bufferBuilder.vertex(matrix, x + width, y, 0).uv(1, 1).endVertex();
         bufferBuilder.vertex(matrix, x, y, 0).uv(0, 1).endVertex();
 
-        BufferUploader.drawWithShader(bufferBuilder.end());
+        MeshBuffers.draw(bufferBuilder);
 
         poseStack.popPose();
 

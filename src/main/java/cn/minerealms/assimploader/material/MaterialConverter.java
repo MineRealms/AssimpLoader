@@ -7,7 +7,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /**
  * Converts PBR materials to Minecraft RenderType.
  *
@@ -103,7 +103,7 @@ public class MaterialConverter {
     public static RenderType createPBRRenderType(PBRMaterial material) {
         ResourceLocation texture = material.getBaseColorTexture();
         if (texture == null) {
-            texture = new ResourceLocation("minecraft", "textures/block/white_concrete.png");
+            texture = ResourceLocations.of("minecraft", "textures/block/white_concrete.png");
         }
 
         // For now, fallback to standard render types

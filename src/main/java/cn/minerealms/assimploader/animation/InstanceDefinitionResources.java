@@ -13,7 +13,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** Resource-pack sidecars with deterministic parent merging and generation-scoped caching. */
 public final class InstanceDefinitionResources {
     private static final Map<ResourceLocation, Optional<ModelInstanceDefinition>> CACHE = new HashMap<>();
@@ -23,12 +23,12 @@ public final class InstanceDefinitionResources {
         if (model == null) return Optional.empty();
         String path = model.getPath();
         int dot = path.lastIndexOf('.');
-        ResourceLocation sidecar = new ResourceLocation(model.getNamespace(), (dot < 0 ? path : path.substring(0, dot)) + ".instance.json");
+        ResourceLocation sidecar = ResourceLocations.of(model.getNamespace(), (dot < 0 ? path : path.substring(0, dot)) + ".instance.json");
         return CACHE.computeIfAbsent(sidecar, key -> {
             var manager = Minecraft.getInstance().getResourceManager();
             if (manager.getResource(key).isEmpty()) return Optional.empty();
             JsonObject merged = resolve(key.toString(), location -> {
-                try (var reader = manager.openAsReader(new ResourceLocation(location))) {
+                try (var reader = manager.openAsReader(ResourceLocations.parse(location))) {
                     return JsonParser.parseReader(reader).getAsJsonObject();
                 } catch (IOException failure) { throw new UncheckedIOException("Cannot read instance " + location, failure); }
             });

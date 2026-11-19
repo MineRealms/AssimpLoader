@@ -22,7 +22,9 @@ import net.minecraft.world.entity.vehicle.DismountHelper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+//? if forge {
 import net.minecraftforge.network.NetworkHooks;
+//?}
 import org.jetbrains.annotations.Nullable;
 
 /** Rideable heavy vehicle; model convention is +Z forward, +X right, +Y up. */
@@ -63,14 +65,28 @@ public final class ArmoredCarEntity extends Entity {
         super(type, level);
         this.blocksBuilding = true;
         this.lastInputTick = this.tickCount;
+        //? if forge {
+        // 1.21 deleted Entity#setMaxUpStep; 0.6 is the vanilla default anyway.
         setMaxUpStep(0.6f);
+        //?}
     }
 
+    //? if forge {
     @Override
     protected void defineSynchedData() {
         this.entityData.define(WHEEL_ROLL, 0.0f);
         this.entityData.define(STEERING_ANGLE, 0.0f);
     }
+    //?}
+    //? if neoforge {
+    /*
+    // 1.21 passes the data builder in instead of exposing the SynchedEntityData field.
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        builder.define(WHEEL_ROLL, 0.0f);
+        builder.define(STEERING_ANGLE, 0.0f);
+    }
+    *///?}
 
     @Override
     public void onSyncedDataUpdated(EntityDataAccessor<?> accessor) {
@@ -259,12 +275,24 @@ public final class ArmoredCarEntity extends Entity {
     /** Clients send controls and interpolate server motion; vanilla vehicle-position packets are not used. */
     @Override public boolean isControlledByLocalInstance() { return !level().isClientSide; }
 
+    //? if forge {
     @Override
     public void lerpTo(double x, double y, double z, float yaw, float pitch, int steps, boolean teleport) {
         targetX = x; targetY = y; targetZ = z;
         targetYaw = yaw; targetPitch = pitch;
         interpolationSteps = teleport ? 1 : Math.max(2, steps);
     }
+    //?}
+    //? if neoforge {
+    /*
+    // 1.21 dropped the `teleport` flag from lerpTo.
+    @Override
+    public void lerpTo(double x, double y, double z, float yaw, float pitch, int steps) {
+        targetX = x; targetY = y; targetZ = z;
+        targetYaw = yaw; targetPitch = pitch;
+        interpolationSteps = Math.max(2, steps);
+    }
+    *///?}
 
     private void tickInterpolation() {
         double startX = getX(), startZ = getZ();
@@ -303,10 +331,16 @@ public final class ArmoredCarEntity extends Entity {
         entityData.set(STEERING_ANGLE, currentSteeringAngle);
     }
 
+    //? if forge {
     @Override
     public Packet<ClientGamePacketListener> getAddEntityPacket() {
         return NetworkHooks.getEntitySpawningPacket(this);
     }
+    //?}
+    //? if neoforge {
+    /*
+    // 1.21 replaced this with getAddEntityPacket(ServerEntity), whose Entity default is already correct.
+    *///?}
 
     private static Vec3 forwardVector(float minecraftYawDegrees) {
         double yaw = Math.toRadians(minecraftYawDegrees);

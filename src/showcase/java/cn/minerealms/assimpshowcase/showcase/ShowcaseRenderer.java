@@ -50,6 +50,14 @@ public class ShowcaseRenderer extends BaseAssimpRenderer implements BlockEntityR
         return bypassCulling(entity) || ModelVisibility.withinDistance(entity.getRenderBoundingBox(), camera, getViewDistance());
     }
 
+    //? if neoforge {
+    /*
+    // 1.21 moved the culling box from BlockEntity onto the renderer.
+    @Override public net.minecraft.world.phys.AABB getRenderBoundingBox(ShowcaseBlockEntity entity) {
+        return entity.getRenderBoundingBox();
+    }
+    *///?}
+
     @Override public boolean shouldRenderOffScreen(ShowcaseBlockEntity entity) {
         // Routing is compiled into the anchor section, while assets and visibility settings can reload.
         // Keep Showcase entities global; the engine still frustum-tests their real bounds every frame.

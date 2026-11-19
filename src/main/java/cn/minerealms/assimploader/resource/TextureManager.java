@@ -13,7 +13,7 @@ import java.io.InputStream;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /**
  * Manages texture loading and caching for Assimp models.
  * Handles both embedded textures and external texture files.
@@ -80,7 +80,7 @@ public class TextureManager {
             DynamicTexture texture = new DynamicTexture(image);
 
             // Generate resource location for embedded texture
-            ResourceLocation location = new ResourceLocation("assimp", "embedded/" + name);
+            ResourceLocation location = ResourceLocations.of("assimp", "embedded/" + name);
 
             // Register with Minecraft texture manager
             Minecraft.getInstance()

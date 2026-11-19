@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 public abstract class ArmoredCarCameraMixin {
     @Shadow private Entity entity;
 
+    //? if forge {
     @ModifyArg(method = "setup", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/Camera;getMaxZoom(D)D"), index = 0)
     private double assimploader$moveCameraBehindArmoredCar(double distance) {
@@ -19,4 +20,16 @@ public abstract class ArmoredCarCameraMixin {
             return Math.max(distance, ArmoredCarEntity.CAMERA_DISTANCE);
         return distance;
     }
+    //?}
+    //? if neoforge {
+    /*
+    // 1.21 feeds getMaxZoom a float, so the replacement argument has to follow.
+    @ModifyArg(method = "setup", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/Camera;getMaxZoom(F)F"), index = 0)
+    private float assimploader$moveCameraBehindArmoredCar(float distance) {
+        if (entity != null && entity.getVehicle() instanceof ArmoredCarEntity)
+            return Math.max(distance, (float) ArmoredCarEntity.CAMERA_DISTANCE);
+        return distance;
+    }
+    *///?}
 }

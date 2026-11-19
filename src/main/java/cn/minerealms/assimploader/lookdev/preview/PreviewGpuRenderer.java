@@ -32,7 +32,7 @@ import java.nio.IntBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 /** Render-thread-owned GPU resources for exactly one selected model. No framebuffer readback. */
 public final class PreviewGpuRenderer implements AutoCloseable {
     private final AssimpScene scene;
@@ -242,7 +242,7 @@ public final class PreviewGpuRenderer implements AutoCloseable {
     }
 
     private static int compile(int type, String name) throws IOException {
-        ResourceLocation location = new ResourceLocation("assimploader", "shaders/lookdev/" + name);
+        ResourceLocation location = ResourceLocations.of("assimploader", "shaders/lookdev/" + name);
         String source;
         try (var input = Minecraft.getInstance().getResourceManager().open(location)) {
             source = new String(input.readAllBytes(), StandardCharsets.UTF_8);

@@ -14,7 +14,7 @@ import java.util.Base64;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 class ImportedPbrMaterialTest {
     @Test
     void blenderFbxMetadataRestoresAuthoredKnifeScalarProperties() throws Exception {
@@ -32,10 +32,10 @@ class ImportedPbrMaterialTest {
 
     @Test
     void genericPhongShininessIsNotSilentlyClassifiedAsBlenderRoughness() throws Exception {
-        ResourceLocation location = new ResourceLocation("example", "models/plain.obj");
+        ResourceLocation location = ResourceLocations.of("example", "models/plain.obj");
         Map<ResourceLocation, byte[]> files = Map.of(location,
                 "mtllib plain.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nusemtl Paint\nf 1 2 3\n".getBytes(StandardCharsets.UTF_8),
-                new ResourceLocation("example", "models/plain.mtl"),
+                ResourceLocations.of("example", "models/plain.mtl"),
                 "newmtl Paint\nKd .2 .4 .6\nNs 36\nmap_Ns gloss.png\n".getBytes(StandardCharsets.UTF_8));
         AssimpScene scene = new AssimpModelLoader().loadModelFromResources(location, files::get, ModelImportMode.STATIC);
         var pbr = scene.getMaterials().get(scene.getMeshes().get(0).getMaterialIndex()).getPbrInputs();

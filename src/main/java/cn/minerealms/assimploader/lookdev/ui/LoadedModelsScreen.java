@@ -105,7 +105,10 @@ public final class LoadedModelsScreen extends Screen {
 
     @Override
     public void tick() {
+        //? if forge {
+        // 1.21 deleted EditBox#tick(); the caret now advances inside EditBox#renderWidget.
         if (search != null) search.tick();
+        //?}
         if (--refreshCountdown <= 0 || cacheGeneration != AssimpModelLoader.getCacheGeneration()) {
             refreshCountdown = 20;
             refreshCatalog();
@@ -345,8 +348,7 @@ public final class LoadedModelsScreen extends Screen {
         return super.mouseReleased(x, y, button);
     }
 
-    @Override
-    public boolean mouseScrolled(double x, double y, double amount) {
+    private boolean scrolled(double x, double y, double amount) {
         if (inPreview(x, y)) { camera.zoom(amount); return true; }
         if (nodesTab && x >= previewX() && x < width && y >= previewY() && y < height - 24) {
             firstNode = Math.max(0, Math.min(Math.max(0, nodes.size() - visibleNodes()), firstNode - (int)Math.signum(amount) * 3));
@@ -357,8 +359,23 @@ public final class LoadedModelsScreen extends Screen {
                     firstRow - (int) Math.signum(amount) * Math.max(1, (int) Math.abs(amount))));
             return true;
         }
-        return super.mouseScrolled(x, y, amount);
+        return false;
     }
+
+    //? if forge {
+    @Override
+    public boolean mouseScrolled(double x, double y, double amount) {
+        return scrolled(x, y, amount) || super.mouseScrolled(x, y, amount);
+    }
+    //?}
+    //? if neoforge {
+    /*
+    // 1.21 split the scroll delta into horizontal and vertical axes; only the vertical one is used here.
+    @Override
+    public boolean mouseScrolled(double x, double y, double deltaX, double deltaY) {
+        return scrolled(x, y, deltaY) || super.mouseScrolled(x, y, deltaX, deltaY);
+    }
+    *///?}
 
     @Override
     public boolean keyPressed(int key, int scanCode, int modifiers) {

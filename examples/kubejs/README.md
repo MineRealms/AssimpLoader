@@ -4,7 +4,7 @@
 
 ## 可见的动画 Demo
 
-1. 安装 AssimpLoader `-all.jar`、AssimpShowcase、KubeJS / Rhino / Architectury。
+1. 安装 AssimpLoader 发布 JAR（如 `versions/1.20.1-forge/build/libs/assimploader-1.20.1-forge-1.0.0.jar`）、AssimpShowcase、KubeJS / Rhino / Architectury。
 2. 将 [assimp_animation_tutorial.js](client_scripts/assimp_animation_tutorial.js) 放入实例 `kubejs/client_scripts/`，执行 `/kubejs reload client_scripts`。
 3. `/give @s assimploader:showcase_highbone_probe`，手持后观察 `Wave`；下蹲切换局部片段混合、最后一个节点的增量姿态和 Morph。
 

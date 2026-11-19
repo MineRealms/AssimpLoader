@@ -11,14 +11,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-
+import cn.minerealms.assimploader.util.ResourceLocations;
 class ResourceModelImportTest {
     @Test
     void gltfReadsItsExternalBinFromTheSameResourceNamespace() throws Exception {
-        var model = new ResourceLocation("example", "models/triangle/mesh.gltf");
+        var model = ResourceLocations.of("example", "models/triangle/mesh.gltf");
         Map<ResourceLocation, byte[]> files = new HashMap<>();
         files.put(model, gltf("mesh.bin"));
-        files.put(new ResourceLocation("example", "models/triangle/mesh.bin"), triangle());
+        files.put(ResourceLocations.of("example", "models/triangle/mesh.bin"), triangle());
         var scene = new AssimpModelLoader().loadModelFromResources(model, files::get, ModelImportMode.DYNAMIC);
         assertEquals(1, scene.getMeshCount());
         assertEquals(3, scene.getMeshes().get(0).getVertexCount());
@@ -27,10 +27,10 @@ class ResourceModelImportTest {
 
     @Test
     void objReadsMaterialPropertiesFromItsSideFile() throws Exception {
-        var model = new ResourceLocation("example", "models/obj/triangle.obj");
+        var model = ResourceLocations.of("example", "models/obj/triangle.obj");
         Map<ResourceLocation, byte[]> files = Map.of(
                 model, "mtllib paint.mtl\no Triangle\nv 0 0 0\nv 1 0 0\nv 0 1 0\nusemtl Paint\nf 1 2 3\n".getBytes(StandardCharsets.UTF_8),
-                new ResourceLocation("example", "models/obj/paint.mtl"), "newmtl Paint\nKd 0.25 0.5 0.75\n".getBytes(StandardCharsets.UTF_8));
+                ResourceLocations.of("example", "models/obj/paint.mtl"), "newmtl Paint\nKd 0.25 0.5 0.75\n".getBytes(StandardCharsets.UTF_8));
         var scene = new AssimpModelLoader().loadModelFromResources(model, files::get, ModelImportMode.STATIC);
         var material = scene.getMaterials().get(scene.getMeshes().get(0).getMaterialIndex());
         assertArrayEquals(new float[]{0.25f, 0.5f, 0.75f, 1f}, material.getDiffuseColor(), 1e-5f);
@@ -38,15 +38,15 @@ class ResourceModelImportTest {
 
     @Test
     void missingRequiredSideFileProducesAnImportError() {
-        var model = new ResourceLocation("example", "models/triangle/mesh.gltf");
+        var model = ResourceLocations.of("example", "models/triangle/mesh.gltf");
         assertThrows(IOException.class, () -> new AssimpModelLoader().loadModelFromResources(model,
                 resource -> resource.equals(model) ? gltf("missing.bin") : null, ModelImportMode.STATIC));
     }
 
     @Test
     void resourcePathsCannotEscapeTheirNamespaceOrRoot() throws Exception {
-        var model = new ResourceLocation("example", "models/triangle/mesh.gltf");
-        assertEquals(new ResourceLocation("example", "models/shared.bin"), ResourceFileIO.resolve(model, "../shared.bin"));
+        var model = ResourceLocations.of("example", "models/triangle/mesh.gltf");
+        assertEquals(ResourceLocations.of("example", "models/shared.bin"), ResourceFileIO.resolve(model, "../shared.bin"));
         assertThrows(IOException.class, () -> ResourceFileIO.resolve(model, "../../../outside.bin"));
         assertThrows(IOException.class, () -> ResourceFileIO.resolve(model, "other:models/mesh.bin"));
         assertThrows(IOException.class, () -> ResourceFileIO.resolve(model, "/etc/file"));
