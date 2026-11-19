@@ -33,7 +33,8 @@ public final class OculusEntityDrawBridge {
             // exclude inventory/offscreen GUI previews without disabling resident world VBOs.
             if (bridge == null || !bridge.isRenderingLevel.getBoolean(null)
                     || !bridge.renderWithExtendedVertexFormat.getBoolean(null)
-                    || !Boolean.TRUE.equals(bridge.useExtendedVertexFormat.invoke(bridge.worldRenderingSettings))) return false;
+                    || (bridge.useExtendedVertexFormat != null
+                    && !Boolean.TRUE.equals(bridge.useExtendedVertexFormat.invoke(bridge.worldRenderingSettings)))) return false;
             Object pipeline = bridge.currentPipeline();
             return pipeline != null && bridge.overridePhase.getDeclaringClass().isInstance(pipeline)
                     && bridge.overridePhase.get(pipeline) == null;
@@ -64,7 +65,7 @@ public final class OculusEntityDrawBridge {
             Api bridge = api();
             bridge.clearActiveUniforms.invoke(null);
             bridge.clearActiveSamplers.invoke(null);
-            bridge.lastAppliedShader.set(null, null);
+            if (bridge.lastAppliedShader != null) bridge.lastAppliedShader.set(null, null);
         } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
             fail(exception);
             throw new IllegalStateException("Could not invalidate Oculus shader binding", exception);
@@ -158,7 +159,13 @@ public final class OculusEntityDrawBridge {
             ClassLoader loader = OculusEntityDrawBridge.class.getClassLoader();
             Class<?> settingsType = Class.forName("net.irisshaders.iris.shaderpack.materialmap.WorldRenderingSettings", false, loader);
             Object settings = settingsType.getField("INSTANCE").get(null);
-            Method useExtended = settingsType.getMethod("shouldUseExtendedVertexFormat");
+            // Iris 1.8 on 1.21 extends entity vertices unconditionally during the ImmediateState pass.
+            Method useExtended;
+            try {
+                useExtended = settingsType.getMethod("shouldUseExtendedVertexFormat");
+            } catch (NoSuchMethodException noLegacyToggle) {
+                useExtended = null;
+            }
 
             Class<?> pipelineType = Class.forName("net.irisshaders.iris.pipeline.WorldRenderingPipeline", false, loader);
             Method getManager = Class.forName("net.irisshaders.iris.Iris", false, loader).getMethod("getPipelineManager");
@@ -185,9 +192,15 @@ public final class OculusEntityDrawBridge {
                     .getMethod("clearActiveUniforms");
             Method clearActiveSamplers = Class.forName("net.irisshaders.iris.gl.program.ProgramSamplers", false, loader)
                     .getMethod("clearActiveSamplers");
-            Field lastAppliedShader = Class.forName("net.irisshaders.iris.pipeline.programs.ExtendedShader", false, loader)
-                    .getDeclaredField("lastApplied");
-            if (!lastAppliedShader.trySetAccessible()) throw new IllegalAccessException("Cannot invalidate Oculus shader binding");
+            Field lastAppliedShader;
+            try {
+                lastAppliedShader = Class.forName("net.irisshaders.iris.pipeline.programs.ExtendedShader", false, loader)
+                        .getDeclaredField("lastApplied");
+                if (!lastAppliedShader.trySetAccessible()) throw new IllegalAccessException("Cannot invalidate Oculus shader binding");
+            } catch (NoSuchFieldException noLegacyCache) {
+                // Iris 1.21 ExtendedShader.apply always binds its program; Oculus caches the last one.
+                lastAppliedShader = null;
+            }
             api = new Api(settings, useExtended, getManager, getPipeline, getPhase, setPhase, blockEntityPhase, entityPhase,
                     handSolidPhase, handTranslucentPhase,
                     overridePhase, entityFormat, isRenderingLevel, renderWithExtended,

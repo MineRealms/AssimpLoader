@@ -15,7 +15,7 @@ import java.lang.reflect.Proxy;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-/** Optional bridge to Oculus 1.8's public implementation interfaces, with no shader injection. */
+/** Optional bridge to Oculus/Iris PBR texture loaders, with no shader injection. */
 public final class OculusPBRSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(OculusPBRSupport.class);
     private static final Map<AbstractTexture, Boolean> PREPARED = new WeakHashMap<>();
@@ -35,10 +35,10 @@ public final class OculusPBRSupport {
         if (bridge != null) return true;
         try {
             ClassLoader loader = OculusPBRSupport.class.getClassLoader();
-            Class<?> registryType = Class.forName("net.irisshaders.iris.texture.pbr.loader.PBRTextureLoaderRegistry", false, loader);
-            Class<?> loaderType = Class.forName("net.irisshaders.iris.texture.pbr.loader.PBRTextureLoader", false, loader);
-            Class<?> consumerType = Class.forName("net.irisshaders.iris.texture.pbr.loader.PBRTextureLoader$PBRTextureConsumer", false, loader);
-            Class<?> managerType = Class.forName("net.irisshaders.iris.texture.pbr.PBRTextureManager", false, loader);
+            Class<?> registryType = pbrClass(loader, "texture.pbr.loader.PBRTextureLoaderRegistry", "pbr.loader.PBRTextureLoaderRegistry");
+            Class<?> loaderType = pbrClass(loader, "texture.pbr.loader.PBRTextureLoader", "pbr.loader.PBRTextureLoader");
+            Class<?> consumerType = pbrClass(loader, "texture.pbr.loader.PBRTextureLoader$PBRTextureConsumer", "pbr.loader.PBRTextureLoader$PBRTextureConsumer");
+            Class<?> managerType = pbrClass(loader, "texture.pbr.PBRTextureManager", "pbr.texture.PBRTextureManager");
             Object registry = registryType.getField("INSTANCE").get(null);
             Object manager = managerType.getField("INSTANCE").get(null);
             Method normal = consumerType.getMethod("acceptNormalTexture", AbstractTexture.class);
@@ -58,11 +58,19 @@ public final class OculusPBRSupport {
             registryType.getMethod("register", Class.class, loaderType).invoke(registry, AssimpPbrTexture.class, proxy);
             bridge = new Bridge(manager, managerType.getMethod("getOrLoadHolder", int.class),
                     managerType.getMethod("onDeleteTexture", int.class), proxy);
-            LOGGER.info("Registered Oculus PBR loader for AssimpLoader material textures");
+            LOGGER.info("Registered Oculus/Iris PBR loader for AssimpLoader material textures ({})", registryType.getPackageName());
             return true;
         } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
             fail(exception);
             return false;
+        }
+    }
+
+    private static Class<?> pbrClass(ClassLoader loader, String oculusName, String irisName) throws ClassNotFoundException {
+        try {
+            return Class.forName("net.irisshaders.iris." + oculusName, false, loader);
+        } catch (ClassNotFoundException legacyMissing) {
+            return Class.forName("net.irisshaders.iris." + irisName, false, loader);
         }
     }
 

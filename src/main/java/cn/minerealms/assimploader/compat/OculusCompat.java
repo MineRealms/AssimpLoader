@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 
-/** Optional Oculus access. Reflection handles are resolved once, never looked up in draw loops. */
+/** Optional Oculus/Iris access. Reflection handles are resolved once, never looked up in draw loops. */
 public final class OculusCompat {
     private static final Logger LOGGER = LoggerFactory.getLogger(OculusCompat.class);
     private static volatile Boolean loaded;
@@ -26,7 +26,7 @@ public final class OculusCompat {
         if (known != null) return known;
         ModList mods = ModList.get();
         if (mods == null) return false;
-        loaded = mods.isLoaded("oculus");
+        loaded = mods.isLoaded("oculus") || mods.isLoaded("iris");
         return loaded;
     }
 

@@ -33,13 +33,13 @@ public class PhotonIntegration {
     }
 
     /**
-     * Check if Oculus mod is loaded (Oculus includes Photon)
+     * Check whether the Oculus/Iris shader integration is installed.
      */
     public static boolean isOculusLoaded() {
         if (oculusLoaded == null) {
-            oculusLoaded = ModList.get().isLoaded("oculus");
+            oculusLoaded = cn.minerealms.assimploader.compat.OculusCompat.isOculusLoaded();
             if (oculusLoaded) {
-                DebugManager.info(DebugCategory.LOOKDEV, "[PhotonIntegration] Oculus mod detected");
+                DebugManager.info(DebugCategory.LOOKDEV, "[PhotonIntegration] Oculus/Iris mod detected");
             }
         }
         return oculusLoaded;

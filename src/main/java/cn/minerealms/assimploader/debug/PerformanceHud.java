@@ -45,7 +45,7 @@ public final class PerformanceHud {
         text=List.of("ASSIMPLOADER  "+runtime.mode(),
                 String.format(Locale.ROOT,"%d FPS  frame %.2f ms  p95 %.2f",Minecraft.getInstance().getFps(),mean,p95),
                 "Instances "+runtime.instances()+"  eval/skip/pause "+runtime.evaluated()+"/"+runtime.skipped()+"/"+runtime.paused(),
-                "Oculus "+(OculusCompat.isShadersActive()?"shader pack":net.minecraftforge.fml.ModList.get().isLoaded("oculus")?"installed / vanilla":"absent")+"  view "+MaterialDebugViews.current(),
+                "Oculus/Iris "+(OculusCompat.isShadersActive()?"shader pack":OculusCompat.isOculusLoaded()?"installed / vanilla":"absent")+"  view "+MaterialDebugViews.current(),
                 "Pose buffers "+cache.buffers()+"  MiB "+String.format(Locale.ROOT,"%.1f",cache.residentBytes()/1048576d),
                 "Compute dispatch/hit "+compute.dispatches()+"/"+compute.hits()+"  MiB "+String.format(Locale.ROOT,"%.1f",compute.bytes()/1048576d),
                 batch==null?"Batch inactive":"Batch instances/draws "+batch.lastInstances()+"/"+batch.lastSubmissions()+"  HiZ "+batch.lastHiZ(),

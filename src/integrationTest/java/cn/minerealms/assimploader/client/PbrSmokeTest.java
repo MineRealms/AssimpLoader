@@ -10,6 +10,7 @@ import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.render.AssimpPbrTexture;
 import cn.minerealms.assimploader.render.ModelTextureCache;
 import cn.minerealms.assimploader.render.SceneTransforms;
+import cn.minerealms.assimploader.rendering.OculusEntityBufferCache;
 import cn.minerealms.assimpshowcase.showcase.ShowcaseModel;
 import cn.minerealms.assimpshowcase.showcase.ShowcaseRegistry;
 import net.minecraft.client.Minecraft;
@@ -297,6 +298,10 @@ public final class PbrSmokeTest {
     private static void capture(Minecraft mc) {
         boolean expectedShaders = phase != Phase.CAPTURE_NO_SHADERS;
         if (OculusCompat.isShadersActive() != expectedShaders) throw new IllegalStateException("unexpected shader state before screenshot");
+        var cache = OculusEntityBufferCache.statistics();
+        var poses = OculusEntityBufferCache.poseStatistics();
+        if (expectedShaders && (cache.buffers() + poses.buffers() == 0 || cache.draws() + poses.draws() == 0))
+            throw new IllegalStateException("shader pack is active but extended entity buffers were not drawn: " + cache + " " + poses);
         if (phase == Phase.CAPTURE_NO_PBR || phase == Phase.CAPTURE_PORTAL_NO_PBR) {
             var scene = AssimpModelLoader.getCachedModel(currentModel.modelName());
             for (var material : scene.getMaterials()) {
@@ -325,7 +330,7 @@ public final class PbrSmokeTest {
         captureRequested = true;
         Screenshot.grab(mc.gameDirectory, name, mc.getMainRenderTarget(), message -> mc.execute(() -> {
             if (!Files.isRegularFile(mc.gameDirectory.toPath().resolve("screenshots").resolve(name))) fail(mc, "screenshot failed: " + message.getString(), null);
-            else { AssimpLoader.LOGGER.info("[PbrSmoke] Captured {} shaderActive={}", name, OculusCompat.isShadersActive()); captureDone = true; }
+            else { AssimpLoader.LOGGER.info("[PbrSmoke] Captured {} shaderActive={} entityCache={} poseCache={}", name, OculusCompat.isShadersActive(), cache, poses); captureDone = true; }
         }));
     }
 
