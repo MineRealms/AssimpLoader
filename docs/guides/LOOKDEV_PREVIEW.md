@@ -1,6 +1,6 @@
 # LookDev 模型预览
 
-2026-11-13：LookDev 当前入口改为 Minecraft 原生 Screen，用于查看 AssimpLoader 已加载的模型。节点编辑器标签页保留空白，不执行旧节点图、材质修改或 shader 注入流程。
+LookDev 使用 Minecraft 原生 Screen 查看 AssimpLoader 已加载的模型。当前工作区使用两级导航：AssimpLoader 分区下为 Models、Edit、Debug；节点层级并入 Edit / Tree，不再单设空 Nodes 页面。其他模组通过 [工作区注册接口](WORKSPACE_EXTENSIONS.md) 添加自己的分区。
 
 ## 入口和内容
 

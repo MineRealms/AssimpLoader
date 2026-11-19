@@ -12,7 +12,7 @@
 | PBR 材质 | Base Color、Normal、Metallic/Roughness、AO、Emission、透明/裁切材质；Oculus / Iris 的 LabPBR 接口，1.21.1 光影路径仍在回归验证 |
 | 动画运行时 | 骨骼片段、状态切换、分层混合、遮罩、程序化姿态、IK、Morph 数据、Spring 与 Bullet 物理服务 |
 | GPU 管线 | 常驻顶点/索引缓冲、GPU 蒙皮、骨骼调色板、实例批处理；按能力与渲染条件启用 MDI、Compute 和 Hi-Z 路径 |
-| 游戏内工作台 | 文件导入、独立 GPU 预览、层级、Transform、材质参数、挂点、时间轴、撤销/重做、项目保存与重开 |
+| 游戏内工作台 | 文件导入、独立 GPU 预览、层级、Transform、材质参数、挂点、时间轴、撤销/重做、项目保存与重开；可注册的模组分区和功能页 |
 | 数据与脚本 | JSON 实例/动画处理器、可选 KubeJS API、热重载、挂点和空间查询、可扩展工作台接口 |
 | 调试 | LookDev 已加载模型列表、材质诊断、骨架/包围盒/碰撞显示和性能 HUD |
 
@@ -53,11 +53,11 @@ KubeJS 的具体操作见 **[动画、骨骼、混合、IK 与烘焙动画教程
 | Agent 与 DCC 导出 | [自动化指南](docs/guides/AGENT_ASSET_WORKFLOW.md) · [三种软件导出](docs/guides/DCC_EXPORTERS.md) · [Skill](skills/assimploader-asset-pipeline/SKILL.md) |
 | 材质与光影 | [Oculus PBR](docs/guides/OCULUS_PBR_USAGE.md) · [渲染集成](docs/reference/RENDERING_INTEGRATION.md) |
 | 动画与脚本 | [动画指南](docs/guides/ANIMATION_USAGE_GUIDE.md) · [处理器](docs/reference/ANIMATION_PROCESSORS.md) · [KubeJS](docs/guides/KUBEJS_INTEGRATION.md) |
-| 编辑器扩展 | [工作台](docs/guides/MODEL_WORKBENCH.md) · [项目格式](docs/reference/WORKBENCH_PROJECT_FORMAT.md) |
+| 编辑器扩展 | [工作台](docs/guides/MODEL_WORKBENCH.md) · [GUI 分区与页面注册](docs/guides/WORKSPACE_EXTENSIONS.md) · [项目格式](docs/reference/WORKBENCH_PROJECT_FORMAT.md) |
 | 示例 | [模型展台与 CIWS](docs/showcase/MODEL_SHOWCASE.md) · [装甲车](docs/showcase/VEHICLES.md) · [火箭尾焰](docs/showcase/ROCKET_EXHAUST.md) |
 | 全部资料 | [文档索引](docs/README.md) · [历史记录](docs/history/README.md) · [路线图](docs/roadmap/IN_GAME_WORKBENCH_TODO.md) |
 
-工作台编辑资产配置，不修改原始 Mesh、UV、蒙皮权重或动画关键帧；Nodes 页保留为空入口，旧 ModernUI 节点编辑器已移除。具体可用范围以当前指南及验收记录为准。
+工作台编辑资产配置，不修改原始 Mesh、UV、蒙皮权重或动画关键帧。AssimpLoader 分区包含 Models、Edit、Debug；节点层级在 Edit / Tree 中编辑。RigWorks 和其他模组通过公共接口注册自己的分区与页面。旧 ModernUI 节点编辑器已移除。
 
 ## 许可
 

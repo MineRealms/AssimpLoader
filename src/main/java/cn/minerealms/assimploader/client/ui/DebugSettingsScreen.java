@@ -13,13 +13,13 @@ public final class DebugSettingsScreen extends Screen {
     private int tab, left, span, contentY;
     public DebugSettingsScreen(Screen parent){super(Component.literal("AssimpLoader / Debug"));this.parent=parent;}
     @Override protected void init() {
-        span=Math.min(720,width-32);left=(width-span)/2;contentY=height<320?80:104;
+        span=Math.min(720,width-32);left=(width-span)/2;contentY=height<320?84:104;
         LookDevNavigation.install(this,widget->addRenderableWidget(widget),LookDevNavigation.Page.DEBUG);
         String[] tabs={"Geometry","Materials","Rendering","HUD"};
         int track=(span-6)/4;
         for(int i=0;i<tabs.length;i++) {
             int selected=i;
-            addRenderableWidget(FlatUi.choice(left+i*(track+2),height<320?50:62,track,height<320?22:26,
+            addRenderableWidget(FlatUi.choice(left+i*(track+2),height<320?54:62,track,height<320?22:26,
                 Component.literal(tabs[i]),()->tab==selected,button->{tab=selected;rebuildWidgets();}));
         }
         var config=AssimpLoaderConfig.CLIENT;var debug=config.debugView;

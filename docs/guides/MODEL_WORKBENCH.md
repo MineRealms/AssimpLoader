@@ -4,7 +4,7 @@
 
 工作台把 FBX 等资产变成可编辑项目，在游戏里调整配置、预览已有动画并保存。编辑的是配置和独立预览姿态，不会回写源 FBX、修改网格顶点、骨骼权重或动画关键帧。
 
-`/lookdev` 的 Models 浏览器、Edit 工作台和设置页均使用原生 Minecraft Screen，不依赖 ModernUI。旧 ModernUI 节点编辑器已移除，Nodes 页仅保留空入口；实际的 Photon 模型/材质导入集成继续保留。
+`/lookdev` 使用原生 Minecraft Screen，不依赖 ModernUI。第一行选择模组分区；AssimpLoader 的第二行包含 Models、Edit、Debug。旧 Nodes 空入口合并到 Edit / Tree。RigWorks 等模组注册自己的分区和功能页，公共接入方法见 [GUI 扩展](WORKSPACE_EXTENSIONS.md)。实际的 Photon 模型/材质导入集成继续保留。
 
 ## 打开与导入
 

@@ -30,6 +30,8 @@ public final class WorkbenchExtensions {
         String title();
         boolean supports(Context context);
         Screen open(Context context);
+        /** Optional registered page used by the shared navigation shell. */
+        default cn.minerealms.assimploader.client.ui.WorkbenchPageRegistry.Key navigationPage() { return null; }
         /** Project open/import only, after formal/recovery selection; may stage newer consumer data as dirty edits. */
         default void opened(Context context) {}
         default boolean handlesApplication() { return false; }

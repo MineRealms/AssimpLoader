@@ -13,6 +13,7 @@
 | [Blender / Maya / 3ds Max 导出](guides/DCC_EXPORTERS.md) | 统一任务、应用内一键导出、资源包/角色草稿和交付清单 |
 | [Oculus PBR](guides/OCULUS_PBR_USAGE.md) | 动态材质、LabPBR 与光影设置 |
 | [模型工作台](guides/MODEL_WORKBENCH.md) | 导入、编辑、预览、保存、恢复与扩展 |
+| [工作区与模组 GUI 扩展](guides/WORKSPACE_EXTENSIONS.md) | 两级导航、页面注册、项目上下文与世界编辑相机 |
 | [LookDev](guides/LOOKDEV_PREVIEW.md) | 已加载模型列表与 GPU 预览 |
 | [动画](guides/ANIMATION_USAGE_GUIDE.md) · [KubeJS](guides/KUBEJS_INTEGRATION.md) | 运行时控制与脚本 API |
 | [KubeJS 动画操作报告](guides/KUBEJS_ANIMATION_GUIDE.md) · [Demo](../examples/kubejs/README.md) | 片段、骨骼、混合、IK、烘焙及实际安装步骤 |

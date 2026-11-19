@@ -80,6 +80,8 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private Button undo,redo,save;
 
     public ModelWorkbenchScreen(){super(Component.literal("Model Workbench"));}
+    /** Legacy Nodes links now open the hierarchy within the asset editor. */
+    public void showNodes(){commit();section=Section.NODES;scroll=0;if(minecraft!=null){refreshRows();rebuildWidgets();}}
     @Override protected void init(){
         if(store==null){
             String configured=System.getProperty("assimploader.workbenchDirectory","");
@@ -268,7 +270,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         }
         addRenderableWidget(FlatUi.toggle(x,y,w,24,Component.literal("Skeleton / sockets"),()->showSkeleton,b->showSkeleton=!showSkeleton));y+=32;
         for(var extension:WorkbenchExtensions.available(context())){
-            var e=extension;addRenderableWidget(FlatUi.button(x,y,w,24,Component.literal(e.title()),b->{commit();minecraft.setScreen(e.open(context()));}));y+=30;
+            var e=extension;addRenderableWidget(FlatUi.button(x,y,w,24,Component.literal(e.title()),b->{commit();if(e.navigationPage()!=null)LookDevNavigation.open(e.navigationPage());else minecraft.setScreen(e.open(context()));}));y+=30;
         }
         addRenderableWidget(FlatUi.button(x,y,w,24,Component.literal("Revert saved"),b->revertSaved(false)));
     }
@@ -324,7 +326,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     }
     @Override public void render(GuiGraphics g,int mx,int my,float partial){
         g.fill(0,0,width,height,FlatUi.BACKGROUND);LookDevNavigation.render(g,width);
-        g.fill(0,46,width,84,FlatUi.SURFACE);g.fill(0,84,left,height,FlatUi.SURFACE);g.fill(width-right,84,width,height,FlatUi.SURFACE);
+        g.fill(0,LookDevNavigation.HEADER_HEIGHT,width,84,FlatUi.SURFACE);g.fill(0,84,left,height,FlatUi.SURFACE);g.fill(width-right,84,width,height,FlatUi.SURFACE);
         g.fill(viewportX(),viewportY(),width-right-1,viewportY()+viewportHeight(),0xff292e33);
         g.fill(left,84,left+1,height,FlatUi.LINE);g.fill(width-right-1,84,width-right,height,FlatUi.LINE);
         long now=System.nanoTime();double elapsed=lastNanos==0?0:Math.min(.1,(now-lastNanos)*1e-9);lastNanos=now;
