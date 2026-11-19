@@ -7,6 +7,35 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class WorldEditCameraOrbitTest {
+    @Test void twoDimensionalFramingKeepsTheFocusInTheViewportAfterOrbiting() {
+        var camera = new WorldEditCameraOrbit();
+        camera.frame(.24, .62);
+        for (int i = 0; i < 12; i++) {
+            camera.orbit(100, i % 2 == 0 ? 17 : -17);
+            var relative = new Vector3d(100, 75, -380).sub(camera.position(100, 75, -380, 1.3, .7, new Vector3d()));
+            double depth = relative.dot(camera.forward(new Vector3d()));
+            assertEquals(.24, (relative.dot(camera.right(new Vector3d())) / (depth * 1.3) + 1) / 2, 1e-12);
+            assertEquals(.62, (1 - relative.dot(camera.up(new Vector3d())) / (depth * .7)) / 2, 1e-12);
+        }
+    }
+    @Test void fitUsesTheAvailableViewportAndPreservesTheSelectedOrbit() {
+        var camera = new WorldEditCameraOrbit();
+        camera.orbit(91, 45);
+        float yaw = camera.yaw(), pitch = camera.pitch();
+        camera.pan(50, 25, .01);
+        camera.frame(.25);
+        camera.fit(1.5, 1.4, .7);
+        assertEquals(1.5 * 1.12 / Math.sin(Math.atan(.7)), camera.distance(), 1e-12);
+        assertEquals(yaw, camera.yaw());
+        assertEquals(pitch, camera.pitch());
+        assertEquals(new Vector3d(), camera.target(0, 0, 0, new Vector3d()));
+        double halfViewportDistance = camera.distance();
+        camera.frame(.5);
+        camera.fit(1.5, 1.4, 1.4);
+        assertTrue(camera.distance() < halfViewportDistance);
+        camera.fit(Double.NaN, 1, 1);
+        assertTrue(Double.isFinite(camera.distance()));
+    }
     @Test void startsInFrontOfTheBodyAndLooksBackWithoutChangingItsHeading() {
         for (double heading : new double[]{0, 90, -175, 270}) {
             var camera = new WorldEditCameraOrbit();

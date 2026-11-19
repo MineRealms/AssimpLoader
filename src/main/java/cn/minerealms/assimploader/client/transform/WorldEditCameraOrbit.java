@@ -5,7 +5,7 @@ import org.joml.Vector3d;
 /** Orbit math in Minecraft's yaw/pitch convention, independent of client or GL state. */
 final class WorldEditCameraOrbit {
     static final double MIN_DISTANCE = .18, MAX_DISTANCE = 16, MAX_PAN = 8;
-    private double yaw, pitch = 10, distance = 2.8, frame = .5;
+    private double yaw, pitch = 10, distance = 2.8, frame = .5, frameY = .5;
     private double panX, panY, panZ;
     private final Vector3d forward = new Vector3d(), right = new Vector3d(), up = new Vector3d();
 
@@ -16,6 +16,7 @@ final class WorldEditCameraOrbit {
         pitch = 10;
         distance = 2.8;
         frame = .5;
+        frameY = .5;
         focus();
         updateBasis();
     }
@@ -49,8 +50,21 @@ final class WorldEditCameraOrbit {
     void frame(double centerX) {
         if (Double.isFinite(centerX)) frame = clamp(centerX, 0, 1);
     }
+    void frame(double centerX, double centerY) {
+        frame(centerX);
+        if (Double.isFinite(centerY)) frameY = clamp(centerY, 0, 1);
+    }
 
     void focus() { panX = panY = panZ = 0; }
+    void fit(double radius, double horizontalTangent, double verticalTangent) {
+        if (!Double.isFinite(radius) || radius <= 0 || !Double.isFinite(horizontalTangent)
+                || horizontalTangent <= 0 || !Double.isFinite(verticalTangent) || verticalTangent <= 0) return;
+        double viewport = Math.max(.1, 2 * Math.min(frame, 1 - frame));
+        double verticalViewport = Math.max(.1, 2 * Math.min(frameY, 1 - frameY));
+        double angle = Math.atan(Math.min(horizontalTangent * viewport, verticalTangent * verticalViewport));
+        distance = clamp(radius * 1.12 / Math.sin(angle), MIN_DISTANCE, MAX_DISTANCE);
+        focus();
+    }
     double distance() { return distance; }
     float yaw() { return (float) yaw; }
     float pitch() { return (float) pitch; }
@@ -63,13 +77,22 @@ final class WorldEditCameraOrbit {
     }
 
     Vector3d pivot(double x, double y, double z, double horizontalTangent, Vector3d destination) {
+        return pivot(x, y, z, horizontalTangent, 1, destination);
+    }
+
+    Vector3d pivot(double x, double y, double z, double horizontalTangent, double verticalTangent, Vector3d destination) {
         double tangent = Double.isFinite(horizontalTangent) ? clamp(horizontalTangent, .01, 8) : 1;
         double shift = clamp((frame * 2 - 1) * distance * tangent, -MAX_DISTANCE, MAX_DISTANCE);
-        return target(x, y, z, destination).fma(-shift, right);
+        double vertical = Double.isFinite(verticalTangent) ? clamp(verticalTangent, .01, 8) : 1;
+        double shiftY = clamp((1 - frameY * 2) * distance * vertical, -MAX_DISTANCE, MAX_DISTANCE);
+        return target(x, y, z, destination).fma(-shift, right).fma(-shiftY, up);
     }
 
     Vector3d position(double x, double y, double z, double horizontalTangent, Vector3d destination) {
         return pivot(x, y, z, horizontalTangent, destination).fma(-distance, forward);
+    }
+    Vector3d position(double x, double y, double z, double horizontalTangent, double verticalTangent, Vector3d destination) {
+        return pivot(x, y, z, horizontalTangent, verticalTangent, destination).fma(-distance, forward);
     }
 
     private void updateBasis() {

@@ -2,7 +2,7 @@ package cn.minerealms.assimploader.client.transform;
 
 import cn.minerealms.assimploader.AssimpLoader;
 import cn.minerealms.assimploader.mixin.camera.WorldEditCameraAccess;
-import com.mojang.blaze3d.systems.RenderSystem;
+import cn.minerealms.assimploader.mixin.camera.WorldEditProjectionAccess;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
@@ -28,12 +28,12 @@ import java.util.function.Function;
 /**
  * A temporary camera for an in-world editor, using the normal world/shader rendering path.
  * Open from Screen.init and close from removed. The focus callback is sampled once per setup.
- * Vanilla VISUAL-shape collision ignores fluids and uses eight offset rays along the boom;
- * the pan/framing pivot also clips against visual block shapes. Collision and loaded chunks
- * take precedence over exact panel framing. This does not move or rotate the player.
+ * Free editor orbit is the default. Consumers may opt into visual-block collision;
+ * all modes remain within loaded chunks. This does not move or rotate the player.
  */
 @Mod.EventBusSubscriber(modid = AssimpLoader.MODID, value = Dist.CLIENT)
 public final class WorldEditCamera {
+    public enum Collision { FREE, VISUAL_BLOCKS }
     private static WorldEditCamera current;
     private final WorldEditCameraOrbit orbit = new WorldEditCameraOrbit();
     private final Vector3d pivot = new Vector3d();
@@ -43,6 +43,9 @@ public final class WorldEditCamera {
     private Screen screen;
     private CameraType previousType;
     private double verticalTangent = Math.tan(Math.toRadians(35));
+    private double horizontalTangent = 1;
+    private double fitRadius;
+    private Collision collision = Collision.FREE;
 
     public WorldEditCamera() {}
 
@@ -60,6 +63,7 @@ public final class WorldEditCamera {
         previousType = minecraft.options.getCameraType();
         focusProvider = focus;
         orbit.reset(player.yBodyRot);
+        fitRadius = 0;
         minecraft.options.setCameraType(CameraType.THIRD_PERSON_BACK);
         current = this;
     }
@@ -97,10 +101,16 @@ public final class WorldEditCamera {
     public void zoom(double wheel) { orbit.zoom(wheel); }
     public void lift(double wheel) { orbit.lift(wheel); }
     public void focus() { orbit.focus(); }
+    /** Fits on the next world frame, once its current FOV and aspect ratio are available. */
+    public void fit(double radius) {
+        if (Double.isFinite(radius) && radius > 0) fitRadius = radius;
+    }
     public void frame(double viewportCenterX) { orbit.frame(viewportCenterX); }
+    public void frame(double viewportCenterX, double viewportCenterY) { orbit.frame(viewportCenterX, viewportCenterY); }
     public double distance() { return orbit.distance(); }
+    public void collision(Collision value) { collision = Objects.requireNonNull(value); }
 
-    /** Called only by Camera.setup TAIL, after the renderer installed the world projection. */
+    /** Camera setup precedes world projection installation; never sample the previous GUI projection. */
     public static void apply(Camera camera, BlockGetter world, Entity entity, float partialTick) {
         WorldEditCamera editor = current;
         if (editor == null || !editor.active()) return;
@@ -110,6 +120,7 @@ public final class WorldEditCamera {
     }
 
     private void update(Camera camera, float partialTick) {
+        Minecraft minecraft = Minecraft.getInstance();
         Vec3 focus;
         try {
             float alpha = Float.isFinite(partialTick) ? Math.max(0, Math.min(partialTick, 1)) : 0;
@@ -123,14 +134,26 @@ public final class WorldEditCamera {
             close();
             return;
         }
-        double horizontalTangent = tangent(RenderSystem.getProjectionMatrix().m00(), 1);
-        verticalTangent = tangent(RenderSystem.getProjectionMatrix().m11(), verticalTangent);
-        orbit.pivot(focus.x, focus.y, focus.z, horizontalTangent, pivot);
+        double fov = ((WorldEditProjectionAccess) minecraft.gameRenderer).assimploader$getFov(camera, partialTick, true);
+        var projection = minecraft.gameRenderer.getProjectionMatrix(fov);
+        horizontalTangent = tangent(projection.m00(), horizontalTangent);
+        verticalTangent = tangent(projection.m11(), verticalTangent);
+        if (fitRadius > 0) {
+            orbit.fit(fitRadius, horizontalTangent, verticalTangent);
+            fitRadius = 0;
+        }
+        WorldEditCameraAccess access = (WorldEditCameraAccess) camera;
+        access.assimploader$setRotation(orbit.yaw(), orbit.pitch());
+        if (collision == Collision.FREE) {
+            orbit.position(focus.x, focus.y, focus.z, horizontalTangent, verticalTangent, pivot);
+            Vec3 position = loadedSegment(focus, new Vec3(pivot.x, pivot.y, pivot.z));
+            access.assimploader$setPosition(position.x, position.y, position.z);
+            return;
+        }
+        orbit.pivot(focus.x, focus.y, focus.z, horizontalTangent, verticalTangent, pivot);
         // The complete focus-to-pivot segment covers both panning and panel framing.
         Vec3 framed = clip(focus, new Vec3(pivot.x, pivot.y, pivot.z));
         framed = loadedSegment(focus, framed);
-        WorldEditCameraAccess access = (WorldEditCameraAccess) camera;
-        access.assimploader$setRotation(orbit.yaw(), orbit.pitch());
         access.assimploader$setPosition(framed.x, framed.y, framed.z);
         //? if forge {
         double boom = access.assimploader$getMaxZoom(orbit.distance());

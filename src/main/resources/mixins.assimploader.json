@@ -16,6 +16,7 @@
     "lifecycle.MinecraftShutdownMixin",
     "render.VertexBufferSelectionAccess",
     "camera.WorldEditCameraAccess",
+    "camera.WorldEditProjectionAccess",
     "camera.WorldEditCameraMixin",
     "visibility.ShowcaseFrustumMixin",
     "visibility.ShowcaseViewportMixin",
