@@ -208,7 +208,7 @@ public final class PoseSnapshot {
         Matrix4f global = new Matrix4f(parent).mul(local);
         globals.putIfAbsent(node.getName(), global);
         for (int index : node.getMeshIndices()) {
-            if (index >= 0 && index < scene.getMeshCount()) instances.add(new MeshInstance(scene.getMeshes().get(index), global));
+            if (index >= 0 && index < scene.getMeshCount()) instances.add(new MeshInstance(scene.getMeshes().get(index), global, node));
         }
         for (AssimpNode child : node.getChildren()) collect(scene, child, global, overrides, locals, globals, instances);
     }
@@ -283,7 +283,9 @@ public final class PoseSnapshot {
         return new MeshBounds(all.toAabb(), boneBoxes, unweighted.toAabb());
     }
 
-    public record MeshInstance(AssimpMesh mesh, Matrix4f transform) {
+    public record MeshInstance(AssimpMesh mesh, Matrix4f transform, AssimpNode node) {
+        public MeshInstance(AssimpMesh mesh, Matrix4f transform) { this(mesh, transform, null); }
+
         public MeshInstance {
             Objects.requireNonNull(mesh, "mesh");
             transform = new Matrix4f(Objects.requireNonNull(transform, "transform"));

@@ -11,7 +11,9 @@ import java.util.List;
 
 /** Immutable draw plan built once when a scene is selected, including repeated mesh instances. */
 public final class PreviewSceneData {
-    public record Draw(int meshIndex, Matrix4f transform) {}
+    public record Draw(int meshIndex, Matrix4f transform, AssimpNode node) {
+        public Draw(int meshIndex, Matrix4f transform) { this(meshIndex,transform,null); }
+    }
     private final List<Draw> draws;
     private final Vector3f center;
     private final Vector3f size;
@@ -55,7 +57,7 @@ public final class PreviewSceneData {
     private static void collect(AssimpNode node, Matrix4f parent, int count, List<Draw> target) {
         Matrix4f transform = new Matrix4f(parent).mul(node.getTransformation());
         for (int index : node.getMeshIndices()) {
-            if (index >= 0 && index < count) target.add(new Draw(index, new Matrix4f(transform)));
+            if (index >= 0 && index < count) target.add(new Draw(index, new Matrix4f(transform),node));
         }
         for (AssimpNode child : node.getChildren()) collect(child, transform, count, target);
     }

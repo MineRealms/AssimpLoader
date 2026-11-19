@@ -16,7 +16,10 @@ import java.util.Map;
 
 /** Cached scene instances preserve every imported parent transform, including unit scale. */
 public final class SceneTransforms {
-    public record Instance(AssimpMesh mesh, Matrix4f transform) {}
+    /** Node identity distinguishes occurrences that share both geometry and a transform. */
+    public record Instance(AssimpMesh mesh, Matrix4f transform, AssimpNode node) {
+        public Instance(AssimpMesh mesh, Matrix4f transform) { this(mesh, transform, null); }
+    }
     private record Entry(List<Instance> instances, AABB bounds, boolean opaque) {}
     private static final Map<AssimpScene, Entry> CACHE = new IdentityHashMap<>();
     private SceneTransforms() {}
@@ -73,7 +76,7 @@ public final class SceneTransforms {
         if (node == null) return;
         Matrix4f global = new Matrix4f(parent).mul(overrides.getOrDefault(node.getName(), node.getTransformation()));
         for (int index : node.getMeshIndices()) {
-            if (index >= 0 && index < scene.getMeshCount()) instances.add(new Instance(scene.getMeshes().get(index), global));
+            if (index >= 0 && index < scene.getMeshCount()) instances.add(new Instance(scene.getMeshes().get(index), global, node));
         }
         for (AssimpNode child : node.getChildren()) collect(scene, child, global, overrides, instances);
     }
