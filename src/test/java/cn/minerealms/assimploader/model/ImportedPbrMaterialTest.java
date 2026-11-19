@@ -5,6 +5,10 @@ import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.material.PbrMaterialInputs;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
+import org.lwjgl.assimp.AIMaterial;
+import org.lwjgl.assimp.AIMaterialProperty;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -14,6 +18,7 @@ import java.util.Base64;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.lwjgl.assimp.Assimp.*;
 import cn.minerealms.assimploader.util.ResourceLocations;
 class ImportedPbrMaterialTest {
     @Test
@@ -65,6 +70,36 @@ class ImportedPbrMaterialTest {
         assertEquals(0.2f, pbr.emissiveG(), 1e-5f);
         assertEquals(0.3f, pbr.emissiveB(), 1e-5f);
         assertTrue(pbr.hasUnsupportedUv());
+    }
+
+    @Test
+    void recognizesBothNativeOcclusionStrengthKeysWithoutOverridingTheStandardKey() {
+        for (int semantic : new int[]{aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP}) {
+            assertEquals(0.6f, occlusionStrength(semantic, false, "glTF2 Importer"), 1e-5f);
+            assertEquals(0.4f, occlusionStrength(semantic, true, "glTF2 Importer"), 1e-5f);
+            assertEquals(1f, occlusionStrength(semantic, false, "Autodesk FBX Importer"), 1e-5f);
+        }
+    }
+
+    private static float occlusionStrength(int semantic, boolean standard, String format) {
+        try (var stack = MemoryStack.stackPush()) {
+            var material = AIMaterial.calloc(stack);
+            int count = standard ? 2 : 1;
+            var pointers = stack.mallocPointer(count);
+            for (int i = 0; i < count; i++) {
+                var storage = stack.calloc(AIMaterialProperty.SIZEOF);
+                var property = new AIMaterialProperty(storage);
+                property.mKey().data(stack.UTF8(i == 0 ? "$tex.file.strength" : _AI_MATKEY_GLTF_STRENGTH_BASE));
+                storage.putInt(AIMaterialProperty.MSEMANTIC, semantic);
+                storage.putInt(AIMaterialProperty.MTYPE, aiPTI_Float);
+                storage.putInt(AIMaterialProperty.MDATALENGTH, 4);
+                var value = stack.malloc(4).putFloat(0, i == 0 ? 0.6f : 0.4f);
+                MemoryUtil.memPutAddress(property.address() + AIMaterialProperty.MDATA, MemoryUtil.memAddress(value));
+                pointers.put(i, property.address());
+            }
+            material.mProperties(pointers).mNumAllocated(count);
+            return new AssimpMaterial(material, 0, format, "").getPbrInputs().occlusionStrength();
+        }
     }
 
     private static String gltf() {

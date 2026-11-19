@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
 
 /**
  * Immutable snapshot of one Assimp mesh.
@@ -43,6 +44,7 @@ public class AssimpMesh {
     private final int[] indices;
     private final int faceCount;
     private final List<MorphTarget> morphTargets;
+    private final Map<String, String> morphTargetAliases;
     private final int morphMethod;
 
     /** Bone name -> inverse bind (offset) matrix, in stable declaration order. */
@@ -50,6 +52,11 @@ public class AssimpMesh {
     private final SkinnedMeshProcessor.SkinnedMeshData skinnedData;
 
     public AssimpMesh(AIMesh aiMesh, int index, CoordinateSystemConverter.CoordinateSystem coordinateSystem) {
+        this(aiMesh, index, coordinateSystem, false);
+    }
+
+    AssimpMesh(AIMesh aiMesh, int index, CoordinateSystemConverter.CoordinateSystem coordinateSystem,
+               boolean blenderFbx) {
         this.index = index;
         this.name = aiMesh.mName().dataString();
         this.materialIndex = aiMesh.mMaterialIndex();
@@ -65,6 +72,7 @@ public class AssimpMesh {
         this.indices = readIndices(aiMesh);
         this.morphMethod = aiMesh.mMethod();
         this.morphTargets = readMorphTargets(aiMesh);
+        this.morphTargetAliases = morphAliases(morphTargets.stream().map(MorphTarget::getName).toList(), blenderFbx);
 
         this.boneOffsets = readBones(aiMesh);
         this.skinnedData = this.boneOffsets.isEmpty()
@@ -192,6 +200,7 @@ public class AssimpMesh {
 
     private int[] readIndices(AIMesh aiMesh) {
         int faceCount = aiMesh.mNumFaces();
+        if (faceCount == 0) return new int[0];
         AIFace.Buffer faceBuffer = aiMesh.mFaces();
         if (faceBuffer == null) {
             return new int[0];
@@ -232,6 +241,22 @@ public class AssimpMesh {
                     readMorphDeltas(target.mNormals(), normals, true)));
         }
         return List.copyOf(targets);
+    }
+
+    static Map<String, String> morphAliases(List<String> names, boolean blenderFbx) {
+        if (!blenderFbx) return Map.of();
+        var occupied = new HashSet<>(names);
+        var aliases = new LinkedHashMap<String, String>();
+        for (String name : names) {
+            int dot = name.indexOf('.');
+            if (dot <= 0 || dot != name.lastIndexOf('.')) continue;
+            String shortName = name.substring(0, dot);
+            if (shortName.equals(name.substring(dot + 1)) && !occupied.contains(shortName))
+                aliases.put(name, shortName);
+        }
+        // Assimp may combine a Blender FBX channel and shape as Blink.Blink.
+        // Keep the imported name: an authored Blink.Blink is indistinguishable here.
+        return Map.copyOf(aliases);
     }
 
     private float[] readMorphDeltas(AIVector3D.Buffer stream, float[] base, boolean direction) {
@@ -367,6 +392,8 @@ public class AssimpMesh {
     }
 
     public List<MorphTarget> getMorphTargets() { return morphTargets; }
+    /** Imported FBX name -> optional unambiguous legacy shorthand; original names remain valid. */
+    public Map<String, String> getMorphTargetAliases() { return morphTargetAliases; }
     public boolean hasMorphTargets() { return !morphTargets.isEmpty(); }
     public int getMorphMethod() { return morphMethod; }
     public float[] getDefaultMorphWeights() {

@@ -126,8 +126,11 @@ public class AssimpMaterial {
         if (gltf) {
             var combined = readTexture(material, AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, 0);
             if (combined != null) {
-                if (roughness == null) roughness = new PbrMaterialInputs.TextureRef(combined.path(), 1, combined.uvIndex());
-                if (metallic == null) metallic = new PbrMaterialInputs.TextureRef(combined.path(), 2, combined.uvIndex());
+                // Newer Assimp also exposes the packed glTF image through the individual slots.
+                if (roughness == null || roughness.path().equals(combined.path()))
+                    roughness = new PbrMaterialInputs.TextureRef(combined.path(), 1, combined.uvIndex());
+                if (metallic == null || metallic.path().equals(combined.path()))
+                    metallic = new PbrMaterialInputs.TextureRef(combined.path(), 2, combined.uvIndex());
             }
         }
         var occlusion = firstTexture(material, aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP);
@@ -154,7 +157,16 @@ public class AssimpMaterial {
         float normalScale = readScalarProperty(material, _AI_MATKEY_GLTF_SCALE_BASE, aiTextureType_NORMALS);
         if (!Float.isFinite(normalScale) && blenderFbx) normalScale = readScalarProperty(material, AI_MATKEY_BUMPSCALING);
         float occlusionStrength = readScalarProperty(material, _AI_MATKEY_GLTF_STRENGTH_BASE,
-                gltf ? aiTextureType_LIGHTMAP : aiTextureType_AMBIENT_OCCLUSION);
+                aiTextureType_AMBIENT_OCCLUSION);
+        if (!Float.isFinite(occlusionStrength))
+            occlusionStrength = readScalarProperty(material, _AI_MATKEY_GLTF_STRENGTH_BASE, aiTextureType_LIGHTMAP);
+        // LWJGL 3.3.3's native importer stores this under $tex.file.strength,
+        // although its generated Java header still declares $tex.strength.
+        if (gltf && !Float.isFinite(occlusionStrength)) {
+            occlusionStrength = readScalarProperty(material, "$tex.file.strength", aiTextureType_AMBIENT_OCCLUSION);
+            if (!Float.isFinite(occlusionStrength))
+                occlusionStrength = readScalarProperty(material, "$tex.file.strength", aiTextureType_LIGHTMAP);
+        }
         float[] emission = readColorProperty(material, AI_MATKEY_COLOR_EMISSIVE);
         if (emission == null) emission = emissive == null ? new float[]{0, 0, 0} : new float[]{1, 1, 1};
         float intensity = fallback(readScalarProperty(material, AI_MATKEY_EMISSIVE_INTENSITY), 1f);

@@ -41,6 +41,7 @@ public final class CharacterMorphModifier implements PoseModifier {
         this.groups=Map.copyOf(nested);
         var names=new HashSet<>(bones.keySet());names.addAll(groups.keySet());
         scene.getMeshes().forEach(m->m.getMorphTargets().forEach(t->names.add(t.getName())));
+        scene.getMeshes().forEach(m->names.addAll(m.getMorphTargetAliases().values()));
         known=Set.copyOf(names);
         this.defaults=Map.copyOf(defaults);
         defaults.forEach((name,w)->{if(!known.contains(name)||!Float.isFinite(w)||Math.abs(w)>4)throw new IllegalArgumentException("Invalid morph default: "+name);});
@@ -94,8 +95,10 @@ public final class CharacterMorphModifier implements PoseModifier {
             var values=weights.getOrDefault(mesh,mesh.getDefaultMorphWeights()).clone();
             for(int i=0;i<values.length;i++) {
                 String name=mesh.getMorphTargets().get(i).getName();
-                if(defaults.containsKey(name))values[i]=defaults.get(name);
-                var value=expanded.get(name);
+                String alias=mesh.getMorphTargetAliases().getOrDefault(name,name);
+                Float preset=defaults.containsKey(name)?defaults.get(name):defaults.get(alias);
+                if(preset!=null)values[i]=preset;
+                var value=expanded.containsKey(name)?expanded.get(name):expanded.get(alias);
                 if(value!=null)values[i]+=value;
             }
             weights.put(mesh,values);

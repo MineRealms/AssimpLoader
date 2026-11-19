@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 
 /**
  * Fully materialised, Java-side copy of an Assimp scene.
@@ -79,9 +80,11 @@ public class AssimpScene {
         try {
             int meshCount = aiScene.mNumMeshes();
             if (meshCount > 0) {
+                boolean blenderFbx = sourceFormat.toLowerCase(Locale.ROOT).contains("fbx")
+                        && sourceGenerator.toLowerCase(Locale.ROOT).contains("blender");
                 PointerBuffer buffer = aiScene.mMeshes();
                 for (int i = 0; i < meshCount; i++) {
-                    meshList.add(new AssimpMesh(AIMesh.create(buffer.get(i)), i, coordinateSystem));
+                    meshList.add(new AssimpMesh(AIMesh.create(buffer.get(i)), i, coordinateSystem, blenderFbx));
                 }
             }
 
