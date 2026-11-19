@@ -1,5 +1,7 @@
 # AssimpLoader
 
+![AssimpLoader](src/main/resources/icon.png)
+
 **Minecraft 1.20.1 Forge / 1.21.1 NeoForge 的通用 3D 资产、动画与 GPU 渲染基础库。**
 
 将 Blender 等工具导出的 FBX / glTF / GLB 接入 Minecraft，保留材质、节点层级、骨骼和动画，在游戏内完成预览与配置。玩家角色应用已独立为 [RigWorks](https://github.com/MineRealms/RigWorks)，通过 Git 子模块引用本项目。
