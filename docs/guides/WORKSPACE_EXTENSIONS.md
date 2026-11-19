@@ -99,9 +99,9 @@ WorkbenchExtensions.register(new WorkbenchExtensions.Extension() {
 
 ### 显式导入类型
 
-默认 **Model** 导入不激活任何消费模组。扩展覆盖 `canImport()` 返回 true 后出现在导入类型中；用户选定后，模型先由公共资产流程导入，再调用该扩展的异步 `initialize(context)`。仅因为 FBX 有骨骼而自动启用玩家模型是不允许的。
+默认 **Import** 直接打开系统原生文件选择框，不激活任何消费模组，也不要求用户手动输入路径。扩展覆盖 `canImport()` 返回 true，并从自己的导入按钮调用 `ModelWorkbenchScreen.requestImport(id)`；玩家选中文件后，模型先由公共资产流程导入，再调用指定扩展的异步 `initialize(context)`。仅因为 FBX 有骨骼而自动启用玩家模型是不允许的。
 
-初始化应在同一会话写入自己的扩展节。需要后台解析时自行安排工作线程，并把会话修改切回客户端线程；返回的 `CompletableFuture<Void>` 结束前工作台显示准备中。已有该扩展节的项目、ZIP 重新打开时不重复初始化，而是调用 `opened(context)`。RigWorks 的 Characters 导入入口使用 `ModelWorkbenchScreen.requestImport("rigworks")` 指定类型。
+初始化应在同一会话写入自己的扩展节。需要后台解析时自行安排工作线程，并把会话修改切回客户端线程；返回的 `CompletableFuture<Void>` 结束前工作台显示准备中。已有该扩展节的项目、ZIP 重新打开时不重复初始化，而是调用 `opened(context)`。RigWorks 的 Characters 导入入口使用 `ModelWorkbenchScreen.requestImport("rigworks")` 指定类型，同样直接打开原生文件选择框。Open 打开已有项目也复用引擎的原生对话框。
 
 ### 根变换与运行时隔离
 
