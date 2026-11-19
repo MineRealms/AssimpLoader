@@ -83,6 +83,7 @@ config/assimploader/workbench/
 | 模式 | 行为 |
 | --- | --- |
 | **OPAQUE** | 不透明，忽略基础色透明度 |
+| **SOURCE** | 新导入默认；沿用源材质透明分组和纹理 Alpha，不强制填满头发片等裁切区域 |
 | **MASK** | 根据 Alpha cutoff 裁切 |
 | **BLEND** | 半透明混合；复杂交叠仍受透明排序限制 |
 
@@ -91,6 +92,8 @@ config/assimploader/workbench/
 项目贴图通常相对模型目录填写。例如模型是 `assets/model.fbx`，图片是 `assets/textures/metal.png`，引用为 `textures/metal.png`。在已有项目新填外部路径不会立即复制图片；本地 Save 仍保存该配置。Export 会把可读取的外部覆盖贴图复制到包内，并只改写包内文档的相对引用；找不到的配置贴图会阻止导出。为了让本地项目也便于移动，仍建议先把图片放进 `assets`，再填写相对路径。贴图约定见 [PBR 资产规范](PBR_ASSET_SPEC.md)。
 
 预览器使用固定光照和简化 PBR，支持基础色、法线、LabPBR 输入和数值外观预览。各槽可保存，不保证所有工作流和通道语义均完整显示，也没有法线翻转或通道重排面板。它不执行 Oculus / Iris 光影包的完整世界管线；实际阴影、环境反射、Bloom、曝光和玻璃效果要在目标世界渲染路径检查。
+
+运行时覆盖已消费双面开关，包括普通实体提交、静态 VBO、GPU 蒙皮及 Oculus 实体缓存；只有一种剔除状态的批量后端会将双面材质交回即时 VBO 路径。OPAQUE 在现有后台贴图准备任务中将基础色 Alpha 置为 255；MASK 将“纹理 Alpha × 材质 Alpha”与 cutoff 比较后生成二值 Alpha，顶点 Alpha 归一为 1，避免重复相乘。BLEND 保留连续 Alpha。缺图材质同样先使用白色贴图应用这些规则，原始贴图和法线/LabPBR 图不变；变体随对应材质缓存，不逐帧转换。Oculus 仍控制自己的实体着色器，不需要插入裁切 Uniform。与其他异步贴图一样，加载完成前可能短暂显示占位白色；具体光影照明和透明排序仍需目标世界验收。
 
 normal/specular 由独立预览器创建和缓存，不依赖 Oculus 建立纹理。贴图来源改变时替换对应缓存，关闭预览、切换项目或资源重载时释放预览自有纹理；数值材质调整使用 Uniform，不逐帧重传这些图片。
 
@@ -122,6 +125,8 @@ normal/specular 由独立预览器创建和缓存，不依赖 Oculus 建立纹�
 | **Export** | 把当前草稿、资产和扩展附加文件打成可重新编辑的 ZIP；尚无项目时先建立项目 |
 
 普通资产的 Apply 按来源标识生效，可影响本客户端使用同一资产的多个实例，不是单个实体编辑。消费者也可显式使用按实例隔离的覆盖；RigWorks 用这种方式区分不同玩家的节点和材质配置。Apply 不生成展示实体、不改碰撞箱、不注册新物品；重启后也不会仅因磁盘上存在项目，就自动应用到运行模型。
+
+场景实例保留所属节点，因此多个节点复用同一网格时，可以分别隐藏，父节点隐藏也会作用于其子树。扩展若手动构造 `SceneTransforms.Instance`，需将所属 `AssimpNode` 作为第三个参数传入；兼容的两参数构造器没有节点身份，只能在该网格的所有节点都隐藏时整体隐藏。
 
 Save/Apply/Export 先等待扩展的 `prepareAsync` 完成源文件校验和捕获，再通过同步 `prepare` 写入派生配置。Save 随后保存统一文档，成功后调用扩展的 `saved` 回调。项目包含 RigWorks 扩展时，这个回调会保存并应用角色，也可能触发已启用的自动分享。独立的 Apply 调用扩展的应用入口，不要求先写入项目 JSON；不要把本地应用成功理解为服务器已接受版本。
 
@@ -180,3 +185,54 @@ RigWorks 分享完整角色配置：比例/根变换、骨骼和动作映射、�
 当前没有网格/UV/权重/关键帧创作、节点材质图、完整通用世界视口、资源包导出、面向所有普通资产的通用网络同步，以及高级 IK、次级运动和 LOD 面板。复杂资产继续在 Blender 等 DCC 软件制作，再到工作台配置。
 
 详见 [项目格式](../reference/WORKBENCH_PROJECT_FORMAT.md) 和 [后续 TODO](../roadmap/IN_GAME_WORKBENCH_TODO.md)。
+
+## 扩展 API 接入规范
+
+本节面向基于 AssimpLoader 开发编辑器扩展的模组。扩展实现 `WorkbenchExtensions.Extension`，在客户端初始化时调用 `WorkbenchExtensions.register(extension)`。`id()` 必须是稳定的 `[a-z0-9_.-]` 标识，最长 64 字符；重复注册不同实现会报错。`supports(context)` 决定当前项目是否启用该扩展，建议检查项目自己的 `extensions.<id>` 标记，而不是仅检查有没有骨骼。
+
+| 接口 | 扩展的职责 |
+| --- | --- |
+| `canImport()`、`initialize(context)` | 提供显式导入类型；异步完成预处理和扩展配置，完成前不宣告导入成功 |
+| `panels(context)` | 注册自己的 `Panel`；通过共享 `Inspector` 构建控件，使用同一个预览、选择和撤销会话 |
+| `ownsRootTransform()`、`rootTransform` getter/setter | 让 Tree、Gizmo 和预览编辑消费者的根变换，避免角色根变换再叠加一份通用根变换 |
+| `prepareAsync(context)` | 在 Save/Apply/Export 取快照之前异步读取、校验并捕获外部作者文件 |
+| `prepare(context)` | 在客户端线程把派生结果写入统一文档；保持短小，不执行文件扫描或阻塞等待 |
+| `saved(savedContext)` | 正式保存成功后处理那份已落盘快照；此处不是当前仍可继续编辑的草稿 |
+| `handlesApplication()`、`apply(context)` | 接管消费者自己的应用方式；接管后不会执行普通资产按来源生效的 `WorkbenchRuntime.apply` |
+| `packageFiles(context)` | 返回已准备好的附加文件快照，交给公共 ZIP 导出流程 |
+
+一个项目只应有一个根变换拥有者；当前公共界面选择首个可用的 `ownsRootTransform()` 扩展。`handlesApplication()` 只抑制通用来源级 Apply，公共界面仍会调用各可用扩展的 `apply`。扩展应在自己的命名空间内工作，不接管其他消费者的配置。
+
+### 异步任务与错误
+
+行为重载、重新分析等面板操作通过 `Context.runTask` 进入工作台的忙碌状态、会话检查和错误提示：
+
+```java
+inspector.action("Reload sources", () ->
+        context.runTask("Reloading sources", () -> reloadSourcesAsync(context)));
+```
+
+这里的 `reloadSourcesAsync` 是消费者自己的方法。`runTask` 不会自动把方法体移到后台线程：磁盘读取和重预处理仍由扩展安排到自己的有界工作队列。修改 `context.session()`、刷新界面和操作 Minecraft 渲染对象必须回到客户端线程；`initialize`、`prepareAsync` 的完成也应在该线程交付。失败应让 Future 异常完成，不能吞掉错误后把旧数据伪装成新快照。
+
+`runTask` 只接受仍属于该工作台的会话，并拒绝冲突的忙碌操作。不要在其忙碌回调里递归触发 Save/Apply；工具栏已负责统一执行 `prepareAsync → prepare → 快照/应用`。扩展直接请求保存时，在客户端线程调用 `context.saveProject()` 并等待其 Future；正式文件即使已写入，后续 `saved` 应用失败仍会作为失败报告，不能假定所有错误都意味着文件未落盘。
+
+### 实例覆盖与挂点
+
+消费者渲染各自的角色或实体时，应使用稳定的实例拥有者，不能以共享 `AssimpScene` 代替拥有者：
+
+```java
+try (var scope = WorkbenchRuntime.instance(owner, scene, document, textureSource)) {
+    var attachment = WorkbenchRuntime.socket(scene, poseSnapshot, "right_item");
+    // Render this owner's model and consume the optional attachment here.
+}
+```
+
+`owner` 是该实例的独立状态对象；`document` 是已经接受的实例覆盖。`textureSource` 是用于解析相对贴图的实际模型文件 `Path`，不是贴图目录；传 `null` 时沿用场景来源。这样可让共享网格的两个实例使用不同项目贴图，而不修改场景来源。所有依赖该覆盖的模型、材质、姿态和挂点查询都应位于作用域内；`document == null` 仍建立拥有者作用域，并抑制外部来源级覆盖。实例卸载时调用 `WorkbenchRuntime.release(owner, scene)` 释放其缓存。
+
+`socket(scene, snapshot, name)` 返回叠加节点编辑后的模型空间挂点矩阵，包含 Socket 局部变换；没有该挂点或节点时返回 `null`。消费者自己决定挂什么、如何提交渲染，以及角色/模型根变换和世界变换，并且只应用一次。通用 Socket 不自动注册装备、不驱动原版持物行为，也不替消费者建立网络同步。
+
+### ZIP 附加目录与内嵌贴图
+
+扩展若导出整个作者目录，应同时提供以 `/` 结尾、值为 `new byte[0]` 的目录快照标记，例如 `extensions/example/behavior/`。它会排除项目磁盘里该目录的旧内容，再加入本次提供的文件，避免已删除脚本重新进入 ZIP。目录已清空时仍保留标记；空 Map 只是没有新增文件，不会清除旧文件。标记不写入 ZIP，也不进入清单。只声明自己拥有的目录；它不会删除本地项目文件。
+
+工作台从场景建立材质配置时，将已识别的内嵌贴图名称正规化为 `*N`，其中 `N` 是该源模型的纹理索引。导出时也会将能够匹配内嵌纹理、且没有实际外部文件的名称改为 `*N`。图片继续保留在原 FBX 等源文件中；不要把 `*0` 当文件路径，也不要让消费者把该索引错误地用于另一份模型。

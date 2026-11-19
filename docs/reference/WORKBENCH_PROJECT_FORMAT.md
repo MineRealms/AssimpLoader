@@ -48,6 +48,13 @@ editable JSON. It includes bounds, meshes, UV availability, bones, morph target
 counts, animation durations and import diagnostics. Units still require an author
 decision when source metadata does not describe the intended Minecraft size.
 
+New material records default to `SOURCE`, preserving the imported transparency
+classification, texture Alpha and culling. Explicit `OPAQUE` ignores Alpha;
+`MASK` thresholds texture Alpha times the material factor; `BLEND` keeps continuous
+Alpha. OPAQUE/MASK create a cached albedo variant on the image worker, leaving
+source images and normal/LabPBR channels intact. Existing explicit modes retain
+their names. Opening a new FBX must not implicitly force its hair cards opaque.
+
 The shared `WorkbenchSession` maintains immutable drafts and bounded undo/redo.
 Begin/commit a transaction around a drag; cancel restores its starting document.
 `markSaved(persisted)` records the exact snapshot written by an asynchronous save,
@@ -221,3 +228,130 @@ These GPU objects and transient selections are not serialized. Undo/redo refresh
 socket rows and clears a selection whose socket no longer exists in the draft.
 The source scene remains read-only; this preview is still simplified PBR rather
 than the shader pack's complete world-lighting pipeline.
+
+## Extension API And Runtime Scopes
+
+Register a client-side `WorkbenchExtensions.Extension` once with a stable ID
+matching `[a-z0-9_.-]{1,64}` and a nonblank title. A different extension with the
+same ID is rejected. `supports(context)` determines whether an existing project
+enables the extension. Use an explicit namespaced document marker for consumer
+semantics; a skeleton alone does not identify a player or vehicle model.
+
+`canImport()` exposes an explicit import type. Its asynchronous
+`initialize(context)` must finish preprocessing and stage its extension data
+before reporting success. `panels(context)` supplies `Panel` objects whose
+`build(Inspector)` method contributes controls to the existing Inspector. Edits
+go through `context.session().edit(...)`, preserving shared undo and preview.
+An extension can return the existing parent screen from `open(context)` when it
+does not need a separate destination.
+
+`ownsRootTransform()` opts into the paired root getter/setter used by the shared
+Tree, Gizmo and preview. Keep one authoritative root transform: do not duplicate
+it in both consumer data and `document.transform`. Only one extension should own
+a project's root; the current screen selects the first available owner.
+`handlesApplication()` suppresses the ordinary source-wide
+`WorkbenchRuntime.apply(scene, document)`, while all available consumer `apply`
+hooks still run. The consumer then owns its instance application and any
+consumer-specific synchronization.
+
+### Asynchronous Lifecycle
+
+`Context.runTask(label, Supplier<CompletableFuture<Void>>)` wraps a panel task in
+the owning workbench's busy state, expected-session check and error reporting.
+It rejects an obsolete session or a conflicting busy operation. Completion is
+delivered through the client executor, including rejection when an operation has
+been superseded. The supplier itself starts on the calling thread; this API is
+not a worker executor.
+
+Consumers must schedule file reads and expensive preprocessing on bounded worker
+queues, then marshal session/UI mutations back to the client thread before
+completing `initialize` or `prepareAsync`. Save, Apply and Export await the
+available extensions' `prepareAsync` stages in order, then invoke their short
+synchronous `prepare` hooks before capturing data. `packageFiles` should return
+the resulting immutable source snapshot, without rescanning the filesystem on
+the client thread. Propagate validation errors by exceptional completion; do not
+silently label the previous snapshot as newly prepared.
+
+Do not recursively call Save from a task that already holds the workbench's busy
+state. For an explicit consumer save, call `Context.saveProject()` on the client
+thread. Its future covers persistence, the saved baseline and consumer `saved`
+hooks. A `saved` hook receives a separate session containing exactly the written
+document, and must not recursively save that snapshot session. If application
+inside the hook fails, the future may fail even though the formal write already
+succeeded; the UI reports that distinction.
+
+### Owner And Texture Source
+
+```java
+try (var scope = WorkbenchRuntime.instance(owner, scene, document, textureSource)) {
+    Matrix4f attachment = WorkbenchRuntime.socket(scene, poseSnapshot, "tool");
+    // Render the owner's scene and consume attachment within this scope.
+}
+```
+
+`owner` is a stable, per-instance runtime object, not the shared `AssimpScene`.
+`document` is the accepted immutable override for that instance. The optional
+`textureSource` is the actual model-file `Path` whose parent resolves relative
+texture references; it is not a directory. `null` uses `scene.getSourcePath()`.
+Changing one owner's document or texture source refreshes that owner's binding
+without replacing another owner's scene. Even a null document establishes an
+owner scope and suppresses source-wide overrides for that instance.
+
+Use the scope on the render thread and close it with try-with-resources, including
+on exceptions. It restores any outer scope. Capture
+`WorkbenchRuntime.textureSource(scene)` while the scope is active before
+scheduling image IO; a worker does not inherit the render thread's scope.
+`release(owner, scene)` retires the owner's material/cache resources when the
+instance is unloaded. This mechanism does not distribute documents over the
+network; ownership and revision protocols belong to the consumer.
+
+`WorkbenchRuntime.socket(scene, snapshot, name)` resolves a named socket against
+the edited pose and multiplies its local transform onto the node frame. It
+returns a model-space matrix, or `null` for a missing binding, socket or node.
+Node paths are resolved through the imported hierarchy, and additive node edits
+are included. The consumer attaches its item/effect and applies its model root
+and world transform exactly once. A stored socket alone creates no item, entity,
+equipment behavior or network event.
+
+### Complete Extension Directory Snapshots
+
+For a complete replacement of an extension-owned archive subtree,
+`Extension.packageFiles(context)` can return:
+
+```java
+Map.of(
+    "extensions/example/behavior/", new byte[0],
+    "extensions/example/behavior/manifest.json", manifestBytes,
+    "extensions/example/behavior/scripts/main.js", scriptBytes
+)
+```
+
+The trailing slash plus empty byte array is an export instruction. Existing disk
+files under that subtree are excluded from the archive before the supplied
+snapshot files are added. Deleted or renamed source files therefore do not
+reappear from an older on-disk project. Keep the marker with no other entries to
+export an empty snapshot. An empty map alone preserves the legacy merge behavior
+and removes nothing.
+
+Markers must have empty values and safe portable paths under `extensions/`.
+Only claim directories owned by that consumer. The marker itself is omitted
+from the ZIP and its manifest; it does not create an empty directory entry or
+delete files from the local project. Exact extra-file overrides without a marker
+continue to replace only the same archive path. Shared export rejects duplicate
+extra-file keys from different extensions, and the container also rejects path,
+case and file/directory conflicts.
+
+### Canonical Embedded Texture References
+
+`WorkbenchDocument.MaterialOverride.from(scene, material)` normalizes recognized
+embedded texture names to `*N`, where `N` is the texture index in that exact
+source scene. The scene-aware overload also discovers available normal/specular
+inputs. Consumers importing material defaults should use this overload so an
+embedded filename is not mistaken for a missing external image.
+
+ZIP export preserves existing `*N` references inside the original model. When a
+configured name matches an embedded texture and no real external file resolves
+for it, export canonicalizes the name to `*N` in the exported document. A genuine
+external replacement remains an external texture dependency and is packaged as
+described above. Canonicalization neither extracts embedded images nor modifies
+the source FBX, and embedded indices must not be reused with a different model.
