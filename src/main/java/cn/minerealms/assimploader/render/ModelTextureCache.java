@@ -315,10 +315,16 @@ public final class ModelTextureCache {
         }
 
         private void close(net.minecraft.client.renderer.texture.TextureManager manager) {
+            if (closed) return;
             closed = true;
             if (pending != null) pending.cancel(false);
-            if (texture != null) manager.release(location);
-            debugTextures.values().forEach(manager::release);debugTextures.clear();prepared=null;
+            var retired = new java.util.ArrayList<>(debugTextures.values());
+            if (texture != null) retired.add(location);
+            debugTextures.clear();
+            debugPending.clear();
+            prepared = null;
+            // Iris can still hold this location in a queued translucent/outline batch this frame.
+            if (!retired.isEmpty()) ClientRenderResources.releaseAfterFrame(() -> retired.forEach(manager::release));
         }
     }
 }
