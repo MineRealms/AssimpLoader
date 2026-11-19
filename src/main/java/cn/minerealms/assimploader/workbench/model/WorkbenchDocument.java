@@ -78,6 +78,7 @@ public record WorkbenchDocument(int version, String assetId, String sourcePath, 
                 if(reference!=null&&(scene.findEmbeddedTextureIndex(reference)>=0||file!=null&&java.nio.file.Files.isRegularFile(file)))
                     textures.put(slot,reference);
             }
+            textures.replaceAll((slot,reference)->{int index=scene.findEmbeddedTextureIndex(reference);return index>=0?"*"+index:reference;});
             return new MaterialOverride(value.r,value.g,value.b,value.a,value.metallic,value.roughness,value.emission,
                     value.alphaMode,value.cutoff,value.doubleSided,textures);
         }

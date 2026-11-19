@@ -76,6 +76,25 @@ class WorkbenchPackageTest {
         assertEquals(WorkbenchProjectStore.hashFiles(restored.directory().resolve("assets")), restored.document().contentHash());
     }
 
+    @Test void namedEmbeddedImagesExportAsPortableEmbeddedIndices() throws Exception {
+        Path model=gltf(temp.resolve("embedded-source"));
+        var json=JsonParser.parseString(Files.readString(model)).getAsJsonObject();
+        json.add("images",JsonParser.parseString("[{\"name\":\"named-albedo.png\",\"uri\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+afoIAAAAASUVORK5CYII=\"}]"));
+        json.add("textures",JsonParser.parseString("[{\"source\":0}]"));
+        json.add("materials",JsonParser.parseString("[{\"pbrMetallicRoughness\":{\"baseColorTexture\":{\"index\":0}}}]"));
+        json.getAsJsonArray("meshes").get(0).getAsJsonObject().getAsJsonArray("primitives").get(0).getAsJsonObject().addProperty("material",0);
+        Files.writeString(model,json.toString());
+        var store=new WorkbenchProjectStore(temp.resolve("projects"));var project=store.importAsset(model);
+        assertEquals(1,project.scene().getTextureCount());
+        String name=project.scene().getTextures().get(0).getFilename();assertFalse(name.isBlank());
+        var material=project.document().materials().get(0);var paths=new LinkedHashMap<>(material.textures());paths.put("albedo",name);
+        var legacy=project.document().withMaterial(0,new WorkbenchDocument.MaterialOverride(material.r(),material.g(),material.b(),material.a(),material.metallic(),material.roughness(),material.emission(),material.alphaMode(),material.cutoff(),material.doubleSided(),paths));
+        Path archive=store.exportZip(project,legacy,temp.resolve("embedded.zip"));
+        var restored=store.importZip(archive);
+        assertEquals("*0",restored.document().materials().get(0).textures().get("albedo"));
+        assertEquals(1,restored.scene().getTextureCount());
+    }
+
     @Test void ownedDirectorySnapshotDropsDeletedScriptsAndRetainsOtherExtensionData() throws Exception {
         var store = new WorkbenchProjectStore(temp.resolve("projects"));
         var project = store.importAsset(gltf(temp.resolve("source")));

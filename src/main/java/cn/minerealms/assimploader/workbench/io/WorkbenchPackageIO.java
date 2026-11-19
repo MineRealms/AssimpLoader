@@ -203,10 +203,10 @@ final class WorkbenchPackageIO {
             var textures = new LinkedHashMap<String, String>();
             for (var texture : material.textures().entrySet()) {
                 String reference = texture.getValue();
-                if (reference.matches("\\*\\d+") || project.scene().findEmbeddedTextureIndex(reference) >= 0) {
-                    textures.put(texture.getKey(), reference); continue;
-                }
+                if (reference.matches("\\*\\d+")) { textures.put(texture.getKey(),reference); continue; }
                 Path file = SceneMetadata.resolveDependency(model, reference);
+                int embedded=project.scene().findEmbeddedTextureIndex(reference);
+                if(embedded>=0&&(file==null||!Files.isRegularFile(file))) {textures.put(texture.getKey(),"*"+embedded);continue;}
                 if (file == null || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS))
                     throw new IOException("Missing texture for package export: " + reference);
                 Path absolute = file.toAbsolutePath().normalize();
