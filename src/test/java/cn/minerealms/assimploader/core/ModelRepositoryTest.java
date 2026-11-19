@@ -16,6 +16,20 @@ class ModelRepositoryTest {
     void clearRepository() { AssimpModelLoader.clearCache(); }
 
     @Test
+    void addingAnAssetChangesCatalogWithoutInvalidatingLiveResources() {
+        AssimpModelLoader.clearCache();
+        long resources=AssimpModelLoader.getResourceGeneration(),catalog=AssimpModelLoader.getCacheGeneration();
+        AssimpScene original=triangle(ModelImportMode.DYNAMIC);
+        AssimpModelLoader.updateModelCache("test:first",original);
+        AssimpModelLoader.updateModelCache("test:second",triangle(ModelImportMode.DYNAMIC));
+        assertTrue(AssimpModelLoader.getCacheGeneration()>catalog);
+        assertEquals(resources,AssimpModelLoader.getResourceGeneration());
+        assertSame(original,AssimpModelLoader.getCachedModel("test:models/first",ModelImportMode.DYNAMIC));
+        AssimpModelLoader.updateModelCache("test:first",triangle(ModelImportMode.DYNAMIC));
+        assertTrue(AssimpModelLoader.getResourceGeneration()>resources);
+    }
+
+    @Test
     void namespaceAndPathCollisionsDoNotOverwriteOrCreateAmbiguousAliases() {
         AssimpModelLoader.clearCache();
         AssimpScene first = triangle(ModelImportMode.STATIC);

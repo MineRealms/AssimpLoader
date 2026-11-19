@@ -191,6 +191,8 @@ public class AssimpModelLoader {
     public static long getCacheGeneration() {
         return ModelRepository.generation();
     }
+    /** Changes only when existing model resources become invalid, not when another asset is added. */
+    public static long getResourceGeneration() { return ModelRepository.invalidationGeneration(); }
 
     /** Listeners may run on a loading worker. GL consumers must schedule their own render-thread work. */
     public static void addCacheInvalidationListener(Runnable listener) {

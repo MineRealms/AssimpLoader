@@ -22,6 +22,7 @@ final class ModelRepository {
     private static final Map<String, Long> VERSIONS = new HashMap<>();
     private static final CopyOnWriteArrayList<Runnable> INVALIDATION_LISTENERS = new CopyOnWriteArrayList<>();
     private static final AtomicLong GENERATION = new AtomicLong();
+    private static final AtomicLong INVALIDATION_GENERATION = new AtomicLong();
     private static final Set<String> EXTENSIONS = Set.of("fbx", "gltf", "glb", "obj", "dae", "blend", "3ds", "ply", "stl", "x", "lwo", "lws", "md2", "md3", "md5mesh", "smd", "vta", "ase", "ac", "ifc", "b3d", "dxf", "ogex", "irr", "irrmesh", "ms3d", "nff", "off", "raw", "ter", "cob", "scn", "q3d", "q3s", "xgl", "zgl", "assbin");
     private static Map<String, Set<String>> aliases = Map.of();
     private static Map<String, String> preferredKeys = Map.of();
@@ -221,6 +222,7 @@ final class ModelRepository {
     static long generation() {
         return GENERATION.get();
     }
+    static long invalidationGeneration() { return INVALIDATION_GENERATION.get(); }
 
     static void addListener(Runnable listener) {
         INVALIDATION_LISTENERS.addIfAbsent(Objects.requireNonNull(listener));
@@ -231,6 +233,7 @@ final class ModelRepository {
     }
 
     private static void notifyInvalidation() {
+        INVALIDATION_GENERATION.incrementAndGet();
         for (Runnable listener : INVALIDATION_LISTENERS) {
             try {
                 listener.run();

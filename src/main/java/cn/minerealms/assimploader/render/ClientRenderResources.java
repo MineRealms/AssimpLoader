@@ -34,7 +34,7 @@ public final class ClientRenderResources {
     private ClientRenderResources() {}
 
     public static boolean checkGeneration() {
-        long current = AssimpModelLoader.getCacheGeneration();
+        long current = AssimpModelLoader.getResourceGeneration();
         if (current == generation) return false;
         clear();
         return true;
@@ -72,7 +72,7 @@ public final class ClientRenderResources {
             RenderSystem.recordRenderCall(ClientRenderResources::clear);
             return;
         }
-        generation = AssimpModelLoader.getCacheGeneration();
+        generation = AssimpModelLoader.getResourceGeneration();
         CachedMeshRenderer.clear();
         cn.minerealms.assimploader.client.WorldModelBatches.clear();
         OculusEntityBufferCache.clear();
