@@ -31,11 +31,15 @@ uint signedByte(float value) {
     return uint(int(clamp(value, -1.0, 1.0) * 127.0)) & 255u;
 }
 
-// ENTITY's tangent starts at byte 50 in Oculus 1.8, crossing a uint boundary.
-// One invocation owns an entire triangle, so these masked writes never race.
+// Iris ENTITY has a 54-byte stride, so even position floats can cross uints.
+// Each invocation owns an aligned group of triangles, including shared words.
 void packedBytes(uint byteOffset, uint value, uint count) {
     uint word = byteOffset / 4u;
     uint shift = (byteOffset & 3u) * 8u;
+    if (count == 4u && shift == 0u) {
+        vertices[word] = value;
+        return;
+    }
     uint bits = count * 8u;
     uint mask = count == 4u ? 0xffffffffu : (1u << bits) - 1u;
     uint lowMask = mask << shift;
@@ -46,9 +50,7 @@ void packedBytes(uint byteOffset, uint value, uint count) {
     }
 }
 
-void main() {
-    uint triangle = gl_GlobalInvocationID.x;
-    if (triangle >= uint(triangleCount)) return;
+void deformTriangle(uint triangle) {
     uint first = triangle * 3u;
     uint a = indices[first], b = indices[first + 1u], c = indices[first + 2u];
     vec3 edge1 = position(b) - position(a), edge2 = position(c) - position(a);
@@ -68,12 +70,20 @@ void main() {
         else t = normalize(cross(abs(n.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0), n));
         // Match Oculus NormalHelper and shader packs' cross(tangent, normal) convention.
         float handedness = dot(cross(t, n), bitangent) < 0.0 ? -1.0 : 1.0;
-        uint pos = (offset + uint(positionOffset)) / 4u;
-        vertices[pos] = floatBitsToUint(p.x);
-        vertices[pos + 1u] = floatBitsToUint(p.y);
-        vertices[pos + 2u] = floatBitsToUint(p.z);
+        uint pos = offset + uint(positionOffset);
+        packedBytes(pos, floatBitsToUint(p.x), 4u);
+        packedBytes(pos + 4u, floatBitsToUint(p.y), 4u);
+        packedBytes(pos + 8u, floatBitsToUint(p.z), 4u);
         packedBytes(offset + uint(normalOffset), signedByte(n.x) | (signedByte(n.y) << 8u) | (signedByte(n.z) << 16u), 3u);
         packedBytes(offset + uint(tangentOffset), signedByte(t.x) | (signedByte(t.y) << 8u) | (signedByte(t.z) << 16u)
             | (signedByte(handedness) << 24u), 4u);
     }
+}
+
+void main() {
+    uint stride = uint(vertexStride);
+    uint trianglesPerInvocation = (stride & 3u) == 0u ? 1u : (stride & 1u) == 0u ? 2u : 4u;
+    uint first = gl_GlobalInvocationID.x * trianglesPerInvocation;
+    for (uint i = 0u; i < trianglesPerInvocation && first + i < uint(triangleCount); ++i)
+        deformTriangle(first + i);
 }
