@@ -12,10 +12,10 @@ tasks.register('buildAndCollect', Sync) {
     dependsOn ':1.20.1-forge:build', ':1.21.1-neoforge:build'
     dependsOn ':1.20.1-forge:reobfJar', ':1.20.1-forge:reobfShowcaseJar'
     from(layout.projectDirectory.dir('versions/1.20.1-forge/build/libs')) {
-        include 'assimploader-1.20.1-forge-*.jar', 'assimpshowcase-1.20.1-forge-*.jar'
+        include 'assimploader-1.20.1-*-forge.jar', 'assimpshowcase-1.20.1-*-forge.jar'
     }
     from(layout.projectDirectory.dir('versions/1.21.1-neoforge/build/libs')) {
-        include 'assimploader-1.21.1-neoforge-*.jar', 'assimpshowcase-1.21.1-neoforge-*.jar'
+        include 'assimploader-1.21.1-*-neoforge.jar', 'assimpshowcase-1.21.1-*-neoforge.jar'
     }
     into layout.buildDirectory.dir('distributions')
     duplicatesStrategy = DuplicatesStrategy.FAIL

@@ -26,7 +26,7 @@
 
 ## 使用
 
-需要 **Minecraft 1.20.1 + Forge 47.x + Java 17**，或 **Minecraft 1.21.1 + NeoForge 21.1.x + Java 21**（1.21.1 移植在 `multiversion` 分支进行中）。安装对应节点的产物，例如 `versions/1.20.1-forge/build/libs/assimploader-1.20.1-forge-1.0.0.jar`，其中包含 Assimp 绑定与原生库。普通薄 JAR 不能代替它。
+需要 **Minecraft 1.20.1 + Forge 47.x + Java 17**，或 **Minecraft 1.21.1 + NeoForge 21.1.x + Java 21**。安装对应节点的产物，例如 `versions/1.20.1-forge/build/libs/assimploader-1.20.1-1.0.0-forge.jar`，其中包含 Assimp 绑定与原生库。普通薄 JAR 不能代替它。
 
 ```powershell
 .\gradlew.bat build --console=plain

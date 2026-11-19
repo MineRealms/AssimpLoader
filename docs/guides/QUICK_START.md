@@ -8,9 +8,9 @@
 .\gradlew.bat :1.20.1-forge:build --console=plain
 ```
 
-安装 `versions/1.20.1-forge/build/libs/assimploader-1.20.1-forge-1.0.0.jar`。其中包含 Assimp 绑定、Windows/Linux/macOS 的 x64 和 ARM64 原生库；仅打包不代表所有平台均已实机验证。普通薄 JAR 不能代替它。
+安装 `versions/1.20.1-forge/build/libs/assimploader-1.20.1-1.0.0-forge.jar`。其中包含 Assimp 绑定、Windows/Linux/macOS 的 x64 和 ARM64 原生库；仅打包不代表所有平台均已实机验证。普通薄 JAR 不能代替它。
 
-另一个产物 `versions/1.20.1-forge/build/libs/assimpshowcase-1.20.1-forge-1.0.0.jar` 是模型展台、装甲车、鹿和火箭等示例内容。引擎本身不注册这些游戏内容；使用示例命令时需一并安装 Showcase。
+另一个产物 `versions/1.20.1-forge/build/libs/assimpshowcase-1.20.1-1.0.0-forge.jar` 是模型展台、装甲车、鹿和火箭等示例内容。引擎本身不注册这些游戏内容；使用示例命令时需一并安装 Showcase。
 
 ## 游戏内预览和编辑
 

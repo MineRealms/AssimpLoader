@@ -15,8 +15,8 @@ JS 不逐顶点变形，不推进物理子步，不自行调用渲染。引擎�
 
 ## 2. 安装和最小可见 Demo
 
-1. 安装引擎发布 JAR（如 `versions/1.20.1-forge/build/libs/assimploader-1.20.1-forge-1.0.0.jar`）、KubeJS、Rhino 和 Architectury。
-2. 本文可见样例还需要 `assimpshowcase-1.20.1-forge-1.0.0.jar`；开发客户端默认已加载 Showcase。
+1. 安装引擎发布 JAR（如 `versions/1.20.1-forge/build/libs/assimploader-1.20.1-1.0.0-forge.jar`）、KubeJS、Rhino 和 Architectury。
+2. 本文可见样例还需要 `assimpshowcase-1.20.1-1.0.0-forge.jar`；开发客户端默认已加载 Showcase。
 3. 将 [assimp_animation_tutorial.js](../../examples/kubejs/client_scripts/assimp_animation_tutorial.js) 放入实例的 `kubejs/client_scripts/`。
 4. 使用 `/kubejs reload client_scripts`，进入测试世界执行下面命令并手持物品。
 
