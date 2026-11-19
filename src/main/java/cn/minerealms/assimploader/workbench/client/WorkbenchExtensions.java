@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import cn.minerealms.assimploader.workbench.model.ModelTransform;
 
 /** Consumer modules contribute typed panels and application without becoming engine dependencies. */
@@ -24,6 +25,10 @@ public final class WorkbenchExtensions {
         public Path projectPath() {return parent instanceof ProjectSaver saver?saver.projectPath():null;}
         public void refresh() {if(parent instanceof ModelWorkbenchScreen editor)editor.refreshExtension();}
         public void previewClip(String clip) {if(parent instanceof ModelWorkbenchScreen editor)editor.previewClip(clip);}
+        public CompletableFuture<Void> runTask(String label,Supplier<CompletableFuture<Void>> work) {
+            return parent instanceof ModelWorkbenchScreen editor?editor.runExtensionTask(session,label,work):
+                    CompletableFuture.failedFuture(new IllegalStateException("This editor has no owning workbench project"));
+        }
     }
     public interface ProjectSaver {
         /** Completes on the client thread after persistence and the consumer's saved hook. */
@@ -47,6 +52,13 @@ public final class WorkbenchExtensions {
         /** Stages derived consumer data before the shared Save/Apply/Export snapshot. */
         default void prepare(Context context) {}
         default void saved(Context context) {}
+        /**
+         * Extra ZIP files, using portable paths under extensions/. To publish a complete directory
+         * snapshot, include its trailing-slash path with an empty byte array (for example
+         * extensions/rigworks/behavior/). Its old disk contents are excluded, including deleted
+         * files. Keep this marker for an empty snapshot; an empty map alone deletes nothing.
+         * Markers are not ZIP entries. Only claim directories owned by this extension.
+         */
         default Map<String,byte[]> packageFiles(Context context) {return Map.of();}
         /** Optional registered page used by the shared navigation shell. */
         default cn.minerealms.assimploader.client.ui.WorkbenchPageRegistry.Key navigationPage() { return null; }

@@ -72,6 +72,8 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private int left,right,sectionColumns=2,scroll,inspectorScroll,inspectorMaxScroll,dragButton=-1,request;
     private String selectedNode="",selectedSocket="",status="",query="";
     private String extensionPanel="";
+    private String pendingImportExtension;
+    private boolean pendingImport;
     private List<ExtensionPanel> extensionPanels=List.of();
     private int selectedMaterial=-1;
     private boolean busy,playing,loop=true,rendered,failed,showSkeleton=true,catalogRequested;
@@ -157,7 +159,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         }
         if(session!=null){
             extensionPanels=WorkbenchExtensions.available(context()).stream().flatMap(e->e.panels(context()).stream().map(p->new ExtensionPanel(e,p))).toList();
-            for(var panel:extensionPanels)list.add(new Row("["+panel.owner.title()+"] "+panel.panel.title(),"extension:"+panel.owner.id()+"/"+panel.panel.id(),0,-1));
+            int index=0;for(var panel:extensionPanels)list.add(index++,new Row("["+panel.owner.title()+"] "+panel.panel.title(),"extension:"+panel.owner.id()+"/"+panel.panel.id(),0,-1));
         }
         rows=list.stream().filter(row->row.label.toLowerCase(Locale.ROOT).contains(filter)||row.key.toLowerCase(Locale.ROOT).contains(filter)).toList();
         if(session!=null&&!selectedSocket.isEmpty()&&!session.document().sockets().containsKey(selectedSocket))selectedSocket="";
@@ -187,6 +189,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         importPath(input,null);
     }
     public void requestImport(String extension){
+        if(busy&&operation==Operation.NORMAL&&session==null){pendingImport=true;pendingImportExtension=extension;return;}
         if(!allowReplace())return;
         minecraft.setScreen(new PathScreen(this,true,extension));
     }
@@ -307,6 +310,10 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private ModelTransform rootTransform(){var owner=rootOwner();return owner==null?session.document().transform():owner.rootTransform(context());}
     private WorkbenchDocument previewDocument(){return session.document().withTransform(rootTransform());}
     private void prepareExtensions(){for(var extension:WorkbenchExtensions.available(context()))extension.prepare(context());commit();}
+    public CompletableFuture<Void> runExtensionTask(WorkbenchSession expected,String label,Supplier<CompletableFuture<Void>> work){
+        if(session!=expected)return CompletableFuture.failedFuture(new IllegalStateException("This edit session no longer belongs to the workbench"));
+        return awaitExtensions(label,work);
+    }
     private CompletableFuture<Void> prepareForAction(WorkbenchSession expected){
         if(expected==null||expected!=session||scene==null)return CompletableFuture.failedFuture(new IllegalStateException("This edit session no longer belongs to the workbench"));
         return awaitExtensions("Reading extension sources",()->{
@@ -353,7 +360,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
         @Override public void select(String title,List<String> values,String selected,Consumer<String> setter){
             label(title);int yy=y;
             addRenderableWidget(FlatUi.icon(x,yy,FlatUi.Icon.PREVIOUS,Component.literal("Previous "+title),b->{if(values.isEmpty())return;int index=values.indexOf(selected);setter.accept(values.get(index<0?values.size()-1:Math.floorMod(index-1,values.size())));refreshExtension();}));
-            labels.add(new Label(selected==null?"":selected,x+32,yy+9));
+            labels.add(new Label(FlatUi.clip(font,selected==null?"":selected,Math.max(1,w-64)),x+32,yy+9));
             addRenderableWidget(FlatUi.icon(x+w-26,yy,FlatUi.Icon.NEXT,Component.literal("Next "+title),b->{if(values.isEmpty())return;setter.accept(values.get((values.indexOf(selected)+1)%values.size()));refreshExtension();}));y+=36;
         }
     }
@@ -395,6 +402,7 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private void animationEdit(){if(session!=null)edit(d->d.withAnimation(new WorkbenchDocument.AnimationPreview(d.animation().clip(),clock,speed,loop,playing)));}
     private double duration(){return session==null?0:metadata.clips().stream().filter(c->c.name().equals(session.document().animation().clip())).mapToDouble(SceneMetadata.ClipInfo::seconds).findFirst().orElse(0);}
     @Override public void tick(){
+        if(pendingImport&&!busy&&minecraft.screen==this){String extension=pendingImportExtension;pendingImport=false;pendingImportExtension=null;requestImport(extension);return;}
         //? if forge {
         // 1.21 deleted EditBox#tick(); the caret now advances inside EditBox#renderWidget.
         if(search!=null)search.tick();fields.forEach(EditBox::tick);
