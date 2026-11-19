@@ -177,6 +177,16 @@ public final class LoadedModelsScreen extends Screen {
     private int visibleRows() { return Math.max(1, (listBottom() - LIST_TOP) / ROW_HEIGHT); }
     private int visibleNodes() { return Math.max(1, (previewHeight() - 32) / 24); }
 
+    // 1.21's default background blurs the framebuffer. This screen paints an opaque background and
+    // renders its 3D preview straight into it, so that blur only smears the list, the stats and the
+    // model, while the widgets drawn afterwards by super#render stay sharp. 1.20.1 had no blur.
+    //? if neoforge {
+    /*
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    }
+    *///?}
+
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         graphics.fill(0, 0, width, height, FlatUi.BACKGROUND);

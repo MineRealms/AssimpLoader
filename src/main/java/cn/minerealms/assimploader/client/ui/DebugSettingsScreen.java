@@ -73,6 +73,14 @@ public final class DebugSettingsScreen extends Screen {
                     ()->value.get()==choice,button->{value.set(choice);value.save();}));
         }
     }
+    // Same reason as LoadedModelsScreen: 1.21's default background blur would smear this
+    // screen's opaque background and leave only the widgets sharp.
+    //? if neoforge {
+    /*
+    @Override
+    public void renderBackground(GuiGraphics graphics,int mouseX,int mouseY,float partialTick) {
+    }
+    *///?}
     @Override public void render(GuiGraphics graphics,int mouseX,int mouseY,float partialTick) {
         graphics.fill(0,0,width,height,FlatUi.BACKGROUND);
         LookDevNavigation.render(graphics,width);
