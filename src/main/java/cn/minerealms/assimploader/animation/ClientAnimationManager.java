@@ -53,10 +53,15 @@ public class ClientAnimationManager {
         }
     }
 
-    ClientAnimationManager() { this(InstanceDefinitionResources::forModel); }
+    ClientAnimationManager() { this(InstanceDefinitionResources::forModel, true); }
+    private final boolean localDefinitions;
 
     ClientAnimationManager(Function<ResourceLocation, Optional<ModelInstanceDefinition>> definitions) {
+        this(definitions, false);
+    }
+    private ClientAnimationManager(Function<ResourceLocation, Optional<ModelInstanceDefinition>> definitions, boolean localDefinitions) {
         this.definitions = Objects.requireNonNull(definitions);
+        this.localDefinitions = localDefinitions;
     }
 
     public static ClientAnimationManager getInstance() { return INSTANCE; }
@@ -99,7 +104,8 @@ public class ClientAnimationManager {
         AnimationState state = null;
         if (!invalidDefinitions.contains(scene)) {
             try {
-                definition = definitions.apply(scene.getSourceResource());
+                definition = localDefinitions && scene.getSourceResource() == null
+                        ? InstanceDefinitionResources.forFile(scene.getSourcePath()) : definitions.apply(scene.getSourceResource());
                 if (definition.isPresent()) state = definition.get().instantiate(scene).animation();
             } catch (RuntimeException failure) {
                 invalidDefinitions.add(scene);

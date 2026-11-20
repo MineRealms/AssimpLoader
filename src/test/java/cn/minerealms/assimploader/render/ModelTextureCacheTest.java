@@ -10,6 +10,19 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.*;
 import cn.minerealms.assimploader.util.ResourceLocations;
 class ModelTextureCacheTest {
+    @org.junit.jupiter.api.Test void portableAliasesResolveTexturesInsideTheAssetBundle()throws Exception{
+        Path project=java.nio.file.Files.createDirectories(directory.resolve("portable"));
+        java.nio.file.Files.writeString(project.resolve("project.workbench.json"),"{}");
+        Path assets=java.nio.file.Files.createDirectories(project.resolve("assets"));
+        Path model=java.nio.file.Files.createDirectories(assets.resolve("demo/models")).resolve("model.fbx");
+        java.nio.file.Files.writeString(model,"source");
+        Path texture=java.nio.file.Files.createDirectories(assets.resolve("demo/textures")).resolve("body.png");
+        java.nio.file.Files.writeString(texture,"pixels");
+        java.nio.file.Files.writeString(model.resolveSibling("model.resources.json"),"{\"version\":1,\"model\":\"demo:models/model.fbx\",\"resources\":{\"demo:textures/body.png\":\"demo/textures/body.png\"}}");
+        assertEquals(texture,ModelTextureCache.resolveFile(model,"demo:textures/body.png"));
+        assertEquals(texture,ModelTextureCache.resolveFile(model,"../textures/body.png"));
+        assertThrows(java.io.IOException.class,()->ModelTextureCache.resolveFile(model,"../../../outside.png"));
+    }
     @TempDir Path directory;
 
     @Test

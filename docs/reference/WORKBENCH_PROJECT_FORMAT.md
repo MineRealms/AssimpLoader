@@ -22,6 +22,58 @@ glTF external buffers; folder imports also retain image, MTL and binary sidecars
 Source files are untouched. Models import in `DYNAMIC` mode so node hierarchy,
 skinning and animation remain available. Run this blocking service on a worker.
 
+## Portable Resource Dependencies
+
+Resource-pack layout remains `assets/<namespace>/models/...` inside a Minecraft
+resource pack. A workbench ZIP is a different container with `manifest.json`,
+`project.workbench.json`, copied `assets/`, and optional `extensions/`; do not place
+a workbench ZIP in `resourcepacks` and expect Minecraft to activate it.
+
+`WorkbenchAssets.importLoaded` copies a resource model with its referenced
+textures, conventional LabPBR siblings, optional `.instance.json`, JSON parents,
+and installed consumers' declared dependencies. Namespace and relative resource
+paths are retained below the project's `assets/`. It writes an adjacent
+`<model-stem>.resources.json` index:
+
+```json
+{
+  "version": 1,
+  "model": "example:models/avatar/model.fbx",
+  "resources": {
+    "example:models/avatar/profile.json": "example/models/avatar/profile.json",
+    "shared:instances/base.json": "shared/instances/base.json"
+  }
+}
+```
+
+Index values are relative to the workbench `assets/` root. For a loose source
+outside a workbench they are relative to its own directory. They cannot escape
+that root or resolve through a symlink outside it. File-backed textures and
+instance parents can use these original namespaced aliases. Index JSON is
+limited to 1 MiB and 4096 aliases; resource collection is bounded to 4096 files,
+512 JSON definitions and 2 GiB. Missing declared JSON dependencies stop a
+resource-pack capture instead of publishing a silently incomplete project.
+
+Consumers register `WorkbenchAssets.registerDependencyContributor(id, callback)`
+during setup. The callback returns resource IDs to collect; the engine copies
+their referenced JSON/image/model files. RigWorks owns profile discovery and
+declares profile/equipment/rig/physics dependencies through this API. The engine
+has no character-specific dependency names or imports.
+
+Individual file import copies its adjacent `.instance.json`/resource index and
+adjacent JSON definitions explicitly referring to that model, then follows their
+confined file references. It does not copy every unrelated JSON in the folder.
+An existing portable project's asset root is retained on reimport. Cross-folder
+dependencies of arbitrary loose files still require a complete bundle or index;
+the importer reports unresolved references instead of searching the disk.
+
+`InstanceDefinitionResources.forScene` supports resource-backed and file-backed
+scenes. Local definitions merge relative or indexed namespaced parents, validate
+the declared source model, and rebind only the in-memory definition's model name
+to the imported file identity. Original JSON bytes remain unchanged. The cache
+is cleared on the existing resource/model reload lifecycle, so F3+T rereads local
+sidecars. Managed animation owners still instantiate independent mutable states.
+
 Missing texture files become diagnostic issues. Multiple source models require
 explicit selection. Paths in a saved project are relative to its directory;
 parent traversal, absolute model paths and symlink escapes are rejected. Absolute
@@ -104,6 +156,14 @@ After open/import has selected the formal document or an accepted recovery draft
 same edit session. Such changes remain dirty until saved. A callback failure is
 reported as a diagnostic without preventing the valid project from opening. The
 hook is not invoked while rebasing the first asset copy during Save.
+
+New imports call `Extension.imported` for supported extension markers and an
+explicitly requested consumer, once each. ZIPs use this contract for every UI
+entry point, including generic Import, Open and file drops. Import does not call
+the local-project `opened` hook first: an old archive cannot be silently replaced
+by a newer local profile before the consumer asks which copy to create/update.
+Cancel/failure restores the previous edit session and removes only the newly
+created owned import directory. Ordinary unmarked model imports remain generic.
 
 Shared Save/Apply/Export await `Extension.prepareAsync(context)` to validate and
 capture external source files, then run `Extension.prepare(context)` on the client

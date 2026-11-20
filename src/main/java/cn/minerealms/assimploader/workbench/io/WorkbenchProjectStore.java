@@ -5,6 +5,8 @@ import cn.minerealms.assimploader.core.ModelImportMode;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.workbench.model.SceneMetadata;
 import cn.minerealms.assimploader.workbench.model.WorkbenchDocument;
+import cn.minerealms.assimploader.resource.LocalModelResources;
+import com.google.gson.JsonElement;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -51,6 +53,13 @@ public final class WorkbenchProjectStore {
         if(root.getParent()==null)throw new IllegalArgumentException("Project directory must not be a filesystem root");
     }
     public Path root(){return root;}
+    /** Removes only the newly created project passed back by an unsuccessful UI import transaction. */
+    public void discardImported(Project project)throws IOException {
+        Path directory=project.directory().toAbsolutePath().normalize();
+        if(!root.equals(directory.getParent())||!project.documentPath().toAbsolutePath().normalize().equals(directory.resolve(PROJECT_FILE))
+                ||Files.isSymbolicLink(directory))throw new IOException("Canceled import is outside the project directory");
+        removeOwnedImport(directory);
+    }
     public static List<String> modelExtensions(){return MODEL_EXTENSIONS.stream().sorted().toList();}
 
     public List<Path> listProjects() throws IOException {
@@ -62,17 +71,27 @@ public final class WorkbenchProjectStore {
     }
 
     public Project importAsset(Path input) throws IOException {
+        return importAsset(input, null);
+    }
+
+    /** Copies an explicit bounded bundle root while preserving model-relative resource paths. */
+    public Project importAsset(Path input, Path bundleRoot) throws IOException {
         Path requested=input.toAbsolutePath().normalize();
         if(Files.isRegularFile(requested)&&extension(requested).equals("zip"))return importZip(requested);
         if(Files.isRegularFile(requested)&&requested.getFileName().toString().endsWith(".workbench.json"))return open(requested);
         if(Files.isDirectory(requested)&&Files.isRegularFile(requested.resolve(PROJECT_FILE)))return open(requested);
         Path model=selectModel(requested);
+        Path bundle=bundleRoot==null?null:bundleRoot.toAbsolutePath().normalize();
+        if(bundle==null){var resources=LocalModelResources.open(model);if(!resources.root().equals(model.getParent()))bundle=resources.root();}
+        if(bundle!=null&&(!model.startsWith(bundle)||!model.toRealPath().startsWith(bundle.toRealPath())))
+            throw new IOException("Model escapes portable import bundle");
         AssimpScene sourceScene=new AssimpModelLoader().loadModel(model,ModelImportMode.DYNAMIC);
         Files.createDirectories(root);
         Path staging=Files.createTempDirectory(root,".import-");
         try {
             Path assets=staging.resolve("assets");Files.createDirectories(assets);
-            Path copiedModel=assets.resolve(model.getFileName().toString());
+            Path modelRelative=bundle==null?Path.of(model.getFileName().toString()):bundle.relativize(model);
+            Path copiedModel=assets.resolve(modelRelative);
             var files=new LinkedHashMap<Path,Path>();files.put(model,copiedModel);
             var sourceToPortable=new LinkedHashMap<String,String>();
             var extraIssues=new ArrayList<String>();
@@ -80,17 +99,19 @@ public final class WorkbenchProjectStore {
                 if(sourceScene.findEmbeddedTextureIndex(reference)>=0)continue;
                 Path dependency=SceneMetadata.resolveDependency(model,reference);
                 if(dependency==null||!Files.isRegularFile(dependency))continue;
-                Path relative=portableDependency(model,dependency);
+                Path relative=bundle!=null&&dependency.startsWith(bundle)?bundle.relativize(dependency):portableDependency(model,dependency);
                 Path destination=assets.resolve(relative).normalize();
                 if(!destination.startsWith(assets))throw new IOException("Dependency escapes imported project");
                 Path collision=files.entrySet().stream().filter(entry->entry.getValue().equals(destination))
                         .map(Map.Entry::getKey).findFirst().orElse(null);
                 if(collision!=null&&!collision.equals(dependency))throw new IOException("Ambiguous dependency path: "+relative);
-                files.put(dependency,destination);sourceToPortable.put(reference,slash(relative));
+                files.put(dependency,destination);sourceToPortable.put(reference,slash(copiedModel.getParent().relativize(destination)));
                 if(!safeRelative(reference))extraIssues.add("Texture reference remapped in project: "+reference);
             }
-            collectContainerDependencies(model,assets,files,extraIssues);
-            if(Files.isDirectory(requested))collectFolderDependencies(requested,model,assets,files);
+            collectContainerDependencies(model,copiedModel.getParent(),files,extraIssues);
+            if(bundle==null)collectAdjacentDependencies(model,copiedModel.getParent(),files,extraIssues);
+            if(bundle!=null)collectBundleDependencies(bundle,assets,files);
+            else if(Files.isDirectory(requested))collectFolderDependencies(requested,model,assets,files);
             long bytes=0;
             for(var entry:files.entrySet()) {
                 if(Thread.currentThread().isInterrupted())throw new IOException("Import cancelled");
@@ -104,7 +125,7 @@ public final class WorkbenchProjectStore {
             if(stem.isBlank())stem="model";
             if(stem.length()>64)stem=stem.substring(0,64);
             String id="workbench:"+stem+"_"+hash.substring(0,12);
-            WorkbenchDocument document=WorkbenchDocument.defaults(sourceScene,id,"assets/"+model.getFileName(),hash);
+            WorkbenchDocument document=WorkbenchDocument.defaults(sourceScene,id,"assets/"+slash(modelRelative),hash);
             for(var entry:document.materials().entrySet()) {
                 var material=entry.getValue();var textures=new LinkedHashMap<>(material.textures());
                 textures.replaceAll((slot,reference)->sourceToPortable.getOrDefault(reference,reference));
@@ -319,6 +340,88 @@ public final class WorkbenchProjectStore {
             for(Path file:entries)if(file.startsWith(folder))files.putIfAbsent(file,assets.resolve(parent.relativize(file)));
         }
     }
+
+    private static void collectBundleDependencies(Path bundle,Path assets,Map<Path,Path> files)throws IOException {
+        try(var paths=Files.walk(bundle,32)){
+            var iterator=paths.iterator();
+            while(iterator.hasNext()){
+                Path file=iterator.next();
+                if(Files.isSymbolicLink(file))throw new IOException("Portable import bundle contains a symbolic link");
+                if(!Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS))continue;
+                if(files.size()>=10000&&!files.containsKey(file))throw new IOException("Import bundle exceeds 10000 dependency files");
+                if(!file.toRealPath().startsWith(bundle.toRealPath()))throw new IOException("Portable import dependency escapes its bundle");
+                files.putIfAbsent(file,assets.resolve(bundle.relativize(file)));
+            }
+        }
+    }
+
+    /** Copy model sidecars and adjacent definitions that explicitly identify this model. */
+    private static void collectAdjacentDependencies(Path model,Path assets,Map<Path,Path> files,List<String> issues)throws IOException {
+        var resources=LocalModelResources.open(model);
+        var queued=new java.util.ArrayDeque<Path>();var visited=new java.util.HashSet<Path>();
+        try(var siblings=Files.list(model.getParent())){
+            for(Path file:siblings.filter(path->path.getFileName().toString().endsWith(".json")).sorted().toList()){
+                if(Files.isSymbolicLink(file))throw new IOException("Adjacent model JSON cannot be a symbolic link");
+                if(!Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS))continue;
+                if(file.equals(LocalModelResources.instancePath(model))||file.equals(LocalModelResources.indexPath(model))){queued.add(file);continue;}
+                try{
+                    var json=resources.json(file);
+                    if(json.has("model")&&json.get("model").isJsonPrimitive()){
+                        String declared=json.get("model").getAsString();
+                        String filename=declared.substring(Math.max(declared.lastIndexOf('/'),declared.lastIndexOf('\\'))+1);
+                        if(filename.equals(model.getFileName().toString()))queued.add(file);
+                    }
+                }catch(IOException|RuntimeException unrelated){/* Unassociated files are not part of an individual model import. */}
+            }
+        }
+        var sidecar=LocalModelResources.instancePath(model);
+        if(Files.isRegularFile(sidecar,LinkOption.NOFOLLOW_LINKS)){
+            var json=resources.json(sidecar);
+            if(json.has("model")&&json.get("model").isJsonPrimitive()&&json.get("model").getAsString().contains(":"))
+                resources.originalModel(cn.minerealms.assimploader.util.ResourceLocations.parse(json.get("model").getAsString()));
+        }
+        if(resources.originalModel().isEmpty())for(Path candidate:queued){
+            try{
+                var json=resources.json(candidate);
+                if(!json.has("model")||!json.get("model").isJsonPrimitive())continue;
+                String reference=json.get("model").getAsString();if(!reference.contains(":"))continue;
+                var identity=cn.minerealms.assimploader.util.ResourceLocations.parse(reference);
+                if(Path.of(identity.getPath()).getFileName().equals(model.getFileName())){resources.originalModel(identity);break;}
+            }catch(RuntimeException|IOException invalid){issues.add("Cannot inspect adjacent model JSON: "+candidate.getFileName());}
+        }
+        while(!queued.isEmpty()){
+            Path file=queued.remove().toAbsolutePath().normalize();if(!visited.add(file))continue;
+            if(visited.size()>512)throw new IOException("Model JSON dependency graph exceeds 512 files");
+            Path relative=model.getParent().relativize(file);
+            Path destination=assets.resolve(relative).normalize();
+            if(relative.startsWith("..")){issues.add("Adjacent JSON dependency needs bundle import: "+relative);continue;}
+            files.putIfAbsent(file,destination);
+            JsonElement json;
+            try{json=resources.json(file);}catch(IOException invalid){issues.add("Cannot read adjacent JSON "+file.getFileName()+": "+invalid.getMessage());continue;}
+            for(String reference:references(json)){
+                if(!resourceFile(reference))continue;
+                try{
+                    Path dependency=resources.resolve(reference,file);
+                    if(!Files.isRegularFile(dependency,LinkOption.NOFOLLOW_LINKS)){issues.add("Missing JSON dependency: "+reference);continue;}
+                    Path local=model.getParent().relativize(dependency);
+                    if(local.startsWith("..")){issues.add("JSON dependency needs bundle import: "+reference);continue;}
+                    files.putIfAbsent(dependency,assets.resolve(local));
+                    if(reference.endsWith(".json"))queued.add(dependency);
+                }catch(IOException|RuntimeException invalid){issues.add("Unavailable JSON dependency "+reference+": "+invalid.getMessage());}
+            }
+        }
+    }
+
+    private static List<String> references(JsonElement value){
+        var result=new ArrayList<String>();collectReferences(value,result,0);return result;
+    }
+    private static void collectReferences(JsonElement value,List<String> result,int depth){
+        if(depth>32||result.size()>4096)throw new IllegalArgumentException("Model JSON dependency graph is too complex");
+        if(value.isJsonObject())value.getAsJsonObject().entrySet().forEach(e->collectReferences(e.getValue(),result,depth+1));
+        else if(value.isJsonArray())value.getAsJsonArray().forEach(e->collectReferences(e,result,depth+1));
+        else if(value.isJsonPrimitive()&&value.getAsJsonPrimitive().isString())result.add(value.getAsString());
+    }
+    private static boolean resourceFile(String value){return value.matches("(?i).+\\.(json|fbx|gltf|glb|obj|dae|png|jpg|jpeg|tga|dds|bin|mtl|ktx2)");}
     private static void collectContainerDependencies(Path model,Path assets,Map<Path,Path> files,List<String> issues) throws IOException {
         if(extension(model).equals("gltf")) {
             var json=JsonParser.parseString(Files.readString(model)).getAsJsonObject();

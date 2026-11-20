@@ -131,6 +131,11 @@ public final class ModelTextureCache {
             catch(java.nio.file.InvalidPathException invalid){return null;}
         }
         if (source == null || texturePath == null || texturePath.isBlank() || texturePath.startsWith("*")) return null;
+        if(Files.isRegularFile(cn.minerealms.assimploader.resource.LocalModelResources.indexPath(source))){
+            var resources=cn.minerealms.assimploader.resource.LocalModelResources.open(source);
+            Path candidate=resources.resolve(texturePath,source);
+            return Files.isRegularFile(candidate)?candidate:null;
+        }
         String path = texturePath.replace('\\', '/');
         if (path.startsWith("/") || path.contains(":")) return null;
         // Keep the lexical path for callers (important on Windows where the

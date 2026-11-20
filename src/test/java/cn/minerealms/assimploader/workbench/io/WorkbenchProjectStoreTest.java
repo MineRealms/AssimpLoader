@@ -13,12 +13,56 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.util.Map;
+import java.util.List;
 import java.util.zip.ZipFile;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class WorkbenchProjectStoreTest {
+    @Test void canceledImportCleanupRemovesOnlyItsOwnedNewProject() throws Exception {
+        var store=new WorkbenchProjectStore(temp.resolve("projects"));
+        var imported=store.importAsset(createGltf(temp.resolve("source")));
+        var other=store.importAsset(createGltf(temp.resolve("other-source")));
+        store.discardImported(imported);
+        assertFalse(Files.exists(imported.directory()));
+        assertTrue(Files.isRegularFile(other.documentPath()));
+        assertEquals(List.of(other.documentPath()),store.listProjects());
+        var outside=new WorkbenchProjectStore(temp.resolve("outside")).importAsset(createGltf(temp.resolve("outside-source")));
+        assertThrows(java.io.IOException.class,()->store.discardImported(outside));
+        assertTrue(Files.isRegularFile(outside.documentPath()));
+    }
     @TempDir Path temp;
+
+    @Test void portableResourceBundleKeepsAliasesAndInheritedInstancesAcrossZipAndReimport()throws Exception{
+        Path bundle=Files.createDirectories(temp.resolve("bundle"));
+        Path source=createGltf(bundle.resolve("test/models/avatar"));
+        Path common=Files.createDirectories(bundle.resolve("common/instances"));
+        Files.writeString(common.resolve("base.json"),"{\"version\":1,\"model\":\"test:models/avatar/model.gltf\"}");
+        Files.writeString(source.resolveSibling("model.instance.json"),"{\"parent\":\"common:instances/base.json\"}");
+        Files.writeString(source.resolveSibling("profile.json"),"{\"model\":\"test:models/avatar/model.gltf\"}");
+        Files.writeString(source.resolveSibling("model.resources.json"),"{\"version\":1,\"model\":\"test:models/avatar/model.gltf\",\"resources\":{\"common:instances/base.json\":\"common/instances/base.json\"}}");
+        var store=new WorkbenchProjectStore(temp.resolve("projects"));var project=store.importAsset(source,bundle);
+        assertEquals("assets/test/models/avatar/model.gltf",project.document().sourcePath());
+        var zip=store.exportZip(project,project.document(),temp.resolve("portable.zip"));var restored=store.importAsset(zip);
+        Path restoredModel=restored.scene().getSourcePath();
+        assertTrue(Files.isRegularFile(restored.directory().resolve("assets/common/instances/base.json")));
+        var definition=cn.minerealms.assimploader.animation.InstanceDefinitionResources.forFile(restoredModel).orElseThrow();
+        assertEquals(cn.minerealms.assimploader.core.AssimpModelLoader.fileIdentity(restoredModel),definition.getModel());
+        var copied=store.importAsset(restoredModel);
+        assertTrue(Files.isRegularFile(copied.directory().resolve("assets/common/instances/base.json")));
+        assertTrue(cn.minerealms.assimploader.animation.InstanceDefinitionResources.forFile(copied.scene().getSourcePath()).isPresent());
+    }
+
+    @Test void directModelImportCopiesItsProfileReferencesWithoutUnrelatedJson()throws Exception{
+        Path source=createGltf(temp.resolve("source"));
+        Files.writeString(source.resolveSibling("profile.json"),"{\"model\":\"test:models/avatar/model.gltf\",\"equipment\":\"test:models/avatar/equipment.json\"}");
+        Files.writeString(source.resolveSibling("equipment.json"),"{\"version\":1}");
+        Files.writeString(source.resolveSibling("unrelated.json"),"{\"notAnAsset\":true}");
+        var project=new WorkbenchProjectStore(temp.resolve("projects")).importAsset(source);
+        assertTrue(Files.isRegularFile(project.directory().resolve("assets/profile.json")));
+        assertTrue(Files.isRegularFile(project.directory().resolve("assets/equipment.json")));
+        assertFalse(Files.exists(project.directory().resolve("assets/unrelated.json")));
+    }
 
     @Test void gltfImportCopiesExternalBufferSavesPortableProjectAndReopensEdits() throws Exception {
         Path source=createGltf(temp.resolve("original"));

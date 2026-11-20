@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -17,6 +19,25 @@ import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.*;
 
 class WorkbenchExtensionsContractTest {
+    @Test void markedArchivesSelectTheirImportHookForEveryGenericEntryPoint() {
+        var extension=new ImportProbe("archive-import-contract");
+        WorkbenchExtensions.register(extension);
+        var session=new WorkbenchSession(document().withExtension(extension.id(),new JsonObject()));
+        var context=new WorkbenchExtensions.Context(null,session,null);
+        assertEquals(List.of(extension),WorkbenchExtensions.importTargets(context,null));
+        assertEquals(List.of(extension),WorkbenchExtensions.importTargets(context,extension.id()));
+        WorkbenchExtensions.importTargets(context,null).get(0).imported(context).join();
+        assertEquals(List.of("imported"),extension.calls);
+    }
+
+    @Test void ordinaryImportsRemainGenericUntilAnExplicitConsumerIsSelected() {
+        var extension=new ImportProbe("explicit-import-contract");
+        WorkbenchExtensions.register(extension);
+        var context=new WorkbenchExtensions.Context(null,new WorkbenchSession(document()),null);
+        assertTrue(WorkbenchExtensions.importTargets(context,null).isEmpty());
+        assertEquals(List.of(extension),WorkbenchExtensions.importTargets(context,extension.id()));
+    }
+
     @Test void panelAndGenericTransformShareHistoryAndRetainUnknownConsumerData() {
         var initial = document();
         var session = new WorkbenchSession(initial);
@@ -88,6 +109,18 @@ class WorkbenchExtensionsContractTest {
                 }
             });
         }
+    }
+
+    private static final class ImportProbe implements WorkbenchExtensions.Extension {
+        private final String id;
+        private final List<String> calls=new ArrayList<>();
+        private ImportProbe(String id){this.id=id;}
+        @Override public String id(){return id;}
+        @Override public String title(){return "Import probe";}
+        @Override public boolean supports(WorkbenchExtensions.Context context){return context.session().document().extensions().has(id);}
+        @Override public boolean canImport(){return true;}
+        @Override public Screen open(WorkbenchExtensions.Context context){return context.parent();}
+        @Override public CompletableFuture<Void> imported(WorkbenchExtensions.Context context){calls.add("imported");return CompletableFuture.completedFuture(null);}
     }
 
     private static final class CapturedInspector implements WorkbenchExtensions.Inspector {

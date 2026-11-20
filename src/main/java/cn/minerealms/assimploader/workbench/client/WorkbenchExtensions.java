@@ -119,4 +119,15 @@ public final class WorkbenchExtensions {
     public static List<Extension> all() {return List.copyOf(EXTENSIONS.values());}
     public static Extension get(String id) {var value=EXTENSIONS.get(id);if(value==null)throw new IllegalArgumentException("Unknown workbench extension: "+id);return value;}
     public static List<Extension> available(Context context) { return EXTENSIONS.values().stream().filter(e -> e.supports(context)).toList(); }
+    /** A marked archive always receives the same consumer import hook, regardless of its UI entry point. */
+    public static List<Extension> importTargets(Context context,String explicitExtension) {
+        var selected=new LinkedHashMap<String,Extension>();
+        for(var extension:available(context))selected.put(extension.id(),extension);
+        if(explicitExtension!=null){
+            var extension=get(explicitExtension);
+            if(!extension.canImport())throw new IllegalArgumentException("This extension cannot import models: "+explicitExtension);
+            selected.put(extension.id(),extension);
+        }
+        return List.copyOf(selected.values());
+    }
 }

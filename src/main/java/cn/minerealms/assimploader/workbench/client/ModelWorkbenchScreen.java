@@ -52,6 +52,8 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     private record Row(String label,String key,int depth,int index) {}
     private record Label(String text,int x,int y) {}
     private record OpenedProject(WorkbenchProjectStore.Project project,WorkbenchProjectStore.Recovery recovery) {}
+    private record PreviousProject(WorkbenchProjectStore.Project project,WorkbenchSession session,AssimpScene scene,
+                                   SceneMetadata metadata,List<Path> projects,double clock,boolean playing,boolean loop,float speed) {}
     private record ImportedProject(WorkbenchProjectStore.Project project,WorkbenchDocument sourceDefaults) {}
     private record SavedProject(WorkbenchDocument document,String warning) {}
     private record ExtensionPanel(WorkbenchExtensions.Extension owner,WorkbenchExtensions.Panel panel) {}
@@ -203,18 +205,48 @@ public final class ModelWorkbenchScreen extends Screen implements WorkbenchExten
     }
     public void importPath(Path input,String extension){
         if(!allowReplace())return;
+        if(input.getFileName().toString().endsWith(".workbench.json")||java.nio.file.Files.isDirectory(input)&&
+                java.nio.file.Files.isRegularFile(input.resolve(WorkbenchProjectStore.PROJECT_FILE))){
+            task("Opening project",()->{try{return withRecovery(store.open(input));}catch(Exception e){throw new RuntimeException(e);}},opened->{
+                loadOpened(opened);
+                if(extension!=null&&!WorkbenchExtensions.get(extension).supports(context()))
+                    runExtensionTask(session,"Preparing "+extension,()->WorkbenchExtensions.get(extension).initialize(context()));
+            });return;
+        }
+        var previous=new PreviousProject(project,session,scene,metadata,projects,clock,playing,loop,speed);
         task("Importing "+input.getFileName(),()->{try{return withRecovery(store.importAsset(input));}catch(Exception e){throw new RuntimeException(e);}},opened->{
-            loadOpened(opened,extension==null);
-            if(extension!=null){
-                var imported=session;var original=imported.document();
-                awaitExtensions("Preparing "+extension+" configuration",()->WorkbenchExtensions.get(extension).imported(context()))
-                        .whenComplete((unused,error)->{if(error!=null&&session==imported){imported.set(original);refreshExtension();}})
-                        .thenRun(()->{status="Imported ["+extension+"]";refreshExtension();fit();});
-            }
+            loadOpened(opened,false);
+            var imported=session;
+            awaitExtensions("Preparing imported project",()->{
+                CompletableFuture<Void> result=CompletableFuture.completedFuture(null);
+                var context=context();
+                for(var consumer:WorkbenchExtensions.importTargets(context,extension))
+                    result=result.thenCompose(unused->consumer.imported(context));
+                return result;
+            }).whenComplete((unused,error)->{
+                if(error!=null&&session==imported){restoreAfterImport(previous,opened.project(),error);return;}
+                if(error==null&&session==imported){status="Imported"+(extension==null?"":" ["+extension+"]");refreshExtension();fit();}
+            });
         });
+    }
+    private void restoreAfterImport(PreviousProject previous,WorkbenchProjectStore.Project imported,Throwable failure){
+        boolean canceled=operationCause(failure) instanceof CancellationException;
+        if(previous.scene()!=null){
+            load(previous.scene(),previous.metadata(),previous.project(),previous.session().document(),previous.session().document().assetId());
+            session=previous.session();clock=previous.clock();playing=previous.playing();loop=previous.loop();speed=previous.speed();
+        }else{
+            if(recovery!=null)recovery.invalidatePendingWrites();
+            releaseRenderer();project=null;recovery=null;session=null;scene=null;metadata=null;data=null;pose=null;
+            section=Section.ASSETS;extensionPanel="";extensionPanels=List.of();issues=List.of();
+        }
+        projects=previous.projects();refreshExtension();
+        String message=canceled?"Import canceled":"Import failed: "+operationCause(failure).getMessage();
+        task("Removing canceled import",()->{try{store.discardImported(imported);return true;}catch(Exception e){throw new RuntimeException(e);}},
+                ignored->status=message,Operation.DISCARD).exceptionally(error->{status=message+"; imported-file cleanup failed";return null;});
     }
     public void open(Path input){
         if(!allowReplace())return;
+        if(input.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".zip")){importPath(input);return;}
         task("Opening project",()->{try{return withRecovery(store.open(input));}catch(Exception e){throw new RuntimeException(e);}},this::loadOpened);
     }
     private OpenedProject withRecovery(WorkbenchProjectStore.Project project){return new OpenedProject(project,store.readRecovery(project.documentPath(),project.document()));}
