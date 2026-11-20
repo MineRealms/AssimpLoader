@@ -21,7 +21,10 @@ jobs:
       matrix:
         include:
           - node: 1.20.1-forge
-            java: '17'
+            # Gradle itself must run on 21: the Stonecutter 0.9.8 settings plugin refuses to
+            # resolve on an older JVM. The 1.20.1 compile target still comes from the per-node
+            # java_version toolchain in versions/<node>/gradle.properties.
+            java: '21'
             metadata: META-INF/mods.toml
             pack-format: 15
           - node: 1.21.1-neoforge
@@ -94,6 +97,9 @@ jobs:
           metadata = os.environ['MOD_METADATA']
           pack_format = int(os.environ['PACK_FORMAT'])
           libs = Path('versions') / node / 'build' / 'libs'
+          # Release jars are named <mod>-<minecraft>-<version>-<loader>.jar (see da77d07), so
+          # the node name alone is not enough to match them.
+          minecraft, _, loader = node.rpartition('-')
           natives = {
               f'{platform}/{arch}/org/lwjgl/assimp/{library}'
               for platform, library in (
@@ -104,7 +110,7 @@ jobs:
               for arch in ('x64', 'arm64')
           }
           for mod_id in ('assimploader', 'assimpshowcase'):
-              jars = [p for p in libs.glob(f'{mod_id}-{node}-*.jar')
+              jars = [p for p in libs.glob(f'{mod_id}-{minecraft}-*-{loader}.jar')
                       if not p.stem.endswith(('-sources', '-javadoc'))]
               if len(jars) != 1:
                   raise SystemExit(f'Expected one {mod_id} release jar, found {jars}')
