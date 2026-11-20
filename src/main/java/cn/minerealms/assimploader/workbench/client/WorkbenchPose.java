@@ -2,6 +2,7 @@ package cn.minerealms.assimploader.workbench.client;
 
 import cn.minerealms.assimploader.animation.AnimationPlayer;
 import cn.minerealms.assimploader.animation.PoseSnapshot;
+import cn.minerealms.assimploader.animation.MorphChannelBinding;
 import cn.minerealms.assimploader.model.AssimpNode;
 import cn.minerealms.assimploader.model.AssimpScene;
 import cn.minerealms.assimploader.workbench.model.SceneMetadata;
@@ -56,8 +57,11 @@ public final class WorkbenchPose {
         if(!scene.isDynamic()) {draws.clear();draws.addAll(staticDraws);}
         sampledDraws=List.copyOf(draws);
         var morphs=new java.util.IdentityHashMap<cn.minerealms.assimploader.model.AssimpMesh,float[]>();
-        if(player!=null)for(var channel:player.getAnimation().getMorphChannels())for(var mesh:scene.getMeshes())
-            if(mesh.getName().equals(channel.getMeshName()))morphs.put(mesh,channel.sample(player.getCurrentTime(),mesh.getMorphTargets().size()));
+        if(player!=null)for(var channel:player.getAnimation().getMorphChannels())for(int i=0;i<scene.getMeshes().size();i++) {
+            var mesh=scene.getMeshes().get(i);
+            if(mesh.hasMorphTargets()&&MorphChannelBinding.matches(scene,channel.getMeshName(),i))
+                morphs.put(mesh,channel.sample(player.getCurrentTime(),mesh.getMorphTargets().size()));
+        }
         snapshot = PoseSnapshot.capture(++frame, scene, locals,morphs);
         sampled = document; sampledTime = time;
         return snapshot;

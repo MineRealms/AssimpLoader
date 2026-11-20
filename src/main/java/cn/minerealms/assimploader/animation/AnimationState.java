@@ -245,8 +245,9 @@ public class AnimationState implements AutoCloseable {
             layerMorphs.forEach((mesh,values) -> {
                 float mask=layer.getMask().isEmpty()?1:layer.getMask().getOrDefault(mesh.getName(),0f);
                 if (!layer.getMask().isEmpty()) for (var channel:layer.getPlayer().getAnimation().getMorphChannels()) {
-                    if (nodeOwnsMesh(scene.getRootNode(),channel.getMeshName(),scene.getMeshes().indexOf(mesh)))
-                        mask=Math.max(mask,layer.getMask().getOrDefault(channel.getMeshName(),0f));
+                    int index=scene.getMeshes().indexOf(mesh);
+                    if (MorphChannelBinding.matches(scene,channel.getMeshName(),index))
+                        mask=Math.max(mask,MorphChannelBinding.mask(scene,channel.getMeshName(),index,layer.getMask()));
                 }
                 float weight=layer.getWeight()*mask;
                 if(weight==0) return;
@@ -278,20 +279,12 @@ public class AnimationState implements AutoCloseable {
         for (var channel : player.getAnimation().getMorphChannels()) {
             for (int i = 0; i < scene.getMeshes().size(); i++) {
                 AssimpMesh mesh = scene.getMeshes().get(i);
-                if (mesh.hasMorphTargets() && (mesh.getName().equals(channel.getMeshName())
-                        || nodeOwnsMesh(scene.getRootNode(), channel.getMeshName(), i))) {
+                if (mesh.hasMorphTargets() && MorphChannelBinding.matches(scene, channel.getMeshName(), i)) {
                     result.put(mesh, channel.sample(player.getCurrentTime(), mesh.getMorphTargets().size()));
                 }
             }
         }
         return result;
-    }
-
-    private static boolean nodeOwnsMesh(AssimpNode node, String name, int meshIndex) {
-        if (node == null) return false;
-        if (node.getName().equals(name)) for (int index : node.getMeshIndices()) if (index == meshIndex) return true;
-        for (AssimpNode child : node.getChildren()) if (nodeOwnsMesh(child, name, meshIndex)) return true;
-        return false;
     }
 
     private static Map<AssimpMesh, float[]> copyWeights(Map<AssimpMesh, float[]> source) {
