@@ -99,6 +99,11 @@ public final class PreviewGpuRenderer implements AutoCloseable {
             RenderSystem.depthMask(true);
             GL11.glClearDepth(1);
             GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT);
+            // AssimpLoader mirrors FBX X coordinates into Minecraft space. That reflection
+            // flips triangle winding, so keep the preview's cull convention explicit instead
+            // of inheriting a front-face state left by Iris or another render pass.
+            GL11.glCullFace(GL11.GL_BACK);
+            GL11.glFrontFace(GL11.GL_CCW);
             RenderSystem.disableCull();
             RenderSystem.enableBlend();
             RenderSystem.blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
@@ -143,7 +148,8 @@ public final class PreviewGpuRenderer implements AutoCloseable {
                     float[] color = edit==null?cn.minerealms.assimploader.debug.MaterialDebugViews.tint(material):new float[]{edit.r(),edit.g(),edit.b(),edit.a()};
                     GL20.glUniform4f(colorUniform, color == null ? 1 : color[0], color == null ? 1 : color[1],
                             color == null ? 1 : color[2], color == null ? 1 : color[3]);
-                    if(edit!=null&& !edit.doubleSided())RenderSystem.enableCull();else RenderSystem.disableCull();
+                    boolean doubleSided=edit!=null?edit.doubleSided():material!=null&&material.isDoubleSided();
+                    if(!doubleSided)RenderSystem.enableCull();else RenderSystem.disableCull();
                     var inputs=material==null?null:material.getPbrInputs();
                     var original=material(mesh);
                     var originalInputs=original==null?inputs:original.getPbrInputs();
@@ -305,7 +311,9 @@ public final class PreviewGpuRenderer implements AutoCloseable {
                 }
                 for (int i = 0; i + 2 < indices.length; i += 3) {
                     if (valid(indices[i], mesh) && valid(indices[i + 1], mesh) && valid(indices[i + 2], mesh)) {
-                        elements.put(indices[i]).put(indices[i + 1]).put(indices[i + 2]);
+                        // The imported mesh is reflected on X. Match every other renderer's
+                        // index reversal so back-face culling keeps the authored front face.
+                        elements.put(indices[i + 2]).put(indices[i + 1]).put(indices[i]);
                     }
                 }
                 vertices.flip();
@@ -384,6 +392,8 @@ public final class PreviewGpuRenderer implements AutoCloseable {
         private final boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
         private final double clearDepth = GL11.glGetDouble(GL11.GL_DEPTH_CLEAR_VALUE);
         private final boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        private final int cullFace = GL11.glGetInteger(GL11.GL_CULL_FACE_MODE);
+        private final int frontFace = GL11.glGetInteger(GL11.GL_FRONT_FACE);
         private final boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
         private final int srcRgb = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
         private final int dstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
@@ -419,6 +429,8 @@ public final class PreviewGpuRenderer implements AutoCloseable {
             RenderSystem.depthFunc(depthFunction);
             RenderSystem.depthMask(depthMask);
             GL11.glClearDepth(clearDepth);
+            GL11.glCullFace(cullFace);
+            GL11.glFrontFace(frontFace);
             if (cull) RenderSystem.enableCull(); else RenderSystem.disableCull();
             if (blend) RenderSystem.enableBlend(); else RenderSystem.disableBlend();
             RenderSystem.blendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
