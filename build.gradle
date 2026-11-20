@@ -80,7 +80,17 @@ if (isForge) {
     apply plugin: 'net.neoforged.moddev.legacyforge'
 
     legacyForge {
-        version = "${minecraft_version}-${forge_version}"
+        // ModDevGradle picks its "without recompilation" artifact pipeline whenever CI=true.
+        // That pipeline keeps Forge's own signed manifest in the produced jar, so the patched
+        // classes fail the SHA-256 digest check as soon as a test loads one of them
+        // (SecurityException: SHA-256 digest error for net/minecraftforge/...). The recompiled
+        // artifact carries no signature, so pin the behaviour instead of inheriting the
+        // environment's CI variable. `enable` replaces the modding settings, so the version has
+        // to be repeated inside the same block.
+        enable {
+            forgeVersion = "${minecraft_version}-${forge_version}"
+            disableRecompilation = false
+        }
 
         runs {
             configureEach {
@@ -813,8 +823,13 @@ if (isForge) {
         }
         // Locally built 1.21.1 mod for the dev client. ModDevGradle has no `fg.deobf` and its
         // `modRuntimeOnly` only takes repository notations, so a plain jar goes on the runtime
-        // classpath like any other local file dependency.
-        runtimeOnly(files(rootProject.file("../F3Tweaker/build/libs/F3Tweaker-1.21.1-1.0.0.jar")))
+        // classpath like any other local file dependency. The sibling project is not part of the
+        // repository, so only wire it in where it has actually been built; a clean checkout and
+        // CI must not depend on a file outside the repo.
+        def localF3Tweaker = rootProject.file("../F3Tweaker/build/libs/F3Tweaker-1.21.1-1.0.0.jar")
+        if (localF3Tweaker.isFile()) {
+            runtimeOnly(files(localF3Tweaker))
+        }
 
         testImplementation platform("org.junit:junit-bom:${junit_version}")
         testImplementation 'org.junit.jupiter:junit-jupiter'
