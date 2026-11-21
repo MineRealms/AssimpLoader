@@ -21,4 +21,3 @@ test_fabrik.exe || exit /b 1
 
 echo BUILD OK
 endlocal
-

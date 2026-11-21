@@ -256,4 +256,3 @@ inline pack4 mask4::select(pack4 yes, pack4 no) const noexcept {
 }
 
 } // namespace fk::simd
-

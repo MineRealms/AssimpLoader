@@ -14,7 +14,6 @@ T* from_handle(jlong handle) noexcept { return reinterpret_cast<T*>(handle); }
 jstring jstring_from(JNIEnv* env, const char* text) {
     return env->NewStringUTF(text);
 }
-
 void with_floats(JNIEnv* env, jfloatArray array, jfloat*& out) {
     out = array ? env->GetFloatArrayElements(array, nullptr) : nullptr;
 }
