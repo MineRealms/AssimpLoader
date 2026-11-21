@@ -1,0 +1,42 @@
+cmake_minimum_required(VERSION 3.20)
+project(FabriKNative VERSION 1.0.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+option(FK_ENABLE_JNI "Build JNI bridge (requires JNI headers)" OFF)
+option(FK_AVX2 "Enable AVX2 code generation" OFF)
+
+add_library(fabrik SHARED src/c_api.cpp)
+target_include_directories(fabrik PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_definitions(fabrik PRIVATE FK_BUILDING_DLL)
+set_target_properties(fabrik PROPERTIES CXX_VISIBILITY_PRESET hidden)
+
+if(MSVC)
+    target_compile_options(fabrik PRIVATE /EHsc /W3)
+    if(FK_AVX2)
+        target_compile_options(fabrik PRIVATE /arch:AVX2)
+    else()
+        target_compile_options(fabrik PRIVATE /arch:AVX)
+    endif()
+else()
+    target_compile_options(fabrik PRIVATE -Wall -Wextra)
+    if(FK_AVX2)
+        target_compile_options(fabrik PRIVATE -mavx2)
+    endif()
+endif()
+
+add_executable(test_fabrik tests/test_fabrik.cpp)
+target_link_libraries(test_fabrik PRIVATE fabrik)
+
+enable_testing()
+add_test(NAME native_tests COMMAND test_fabrik)
+
+if(FK_ENABLE_JNI)
+    find_package(JNI REQUIRED)
+    add_library(fabrik_jni SHARED src/jni_bridge.cpp)
+    target_include_directories(fabrik_jni PRIVATE ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(fabrik_jni PRIVATE fabrik ${JNI_LIBRARIES})
+    set_target_properties(fabrik_jni PROPERTIES CXX_VISIBILITY_PRESET hidden)
+endif()

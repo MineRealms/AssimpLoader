@@ -74,13 +74,15 @@ The release JAR bundles the Assimp bindings and native libraries for all six pla
 
 Builds use [Stonecutter](https://stonecutter.kikugie.dev/): `versions/1.20.1-forge` and `versions/1.21.1-neoforge` are separate subprojects sharing the root `build.gradle`. `buildAndCollect` gathers both release JARs into `build/distributions`.
 
-FABRIK IK uses the Java solver by default. Set the client config `runtime.nativeIkEnabled` to opt into the native solver. Release JARs already bundle precompiled FabriKNative libraries for eight platforms; ordinary builds need no native source checkout. If enabled on a platform where the library cannot load, creating a FABRIK chain reports an error rather than silently falling back. To rebuild the bundled libraries, provide a separate FabriKNative source directory and a Zig toolchain:
+FABRIK IK uses the Java solver by default. Set the client config `runtime.nativeIkEnabled` to opt into the native solver. Release JARs already bundle precompiled FabriKNative libraries for eight platforms, and ordinary builds do not compile C++. The source now lives in `native/FabriKNative` and is used by native rebuilds by default; `-PfabrikNativeDir` can point to another checkout. If enabled on a platform where the library cannot load, creating a FABRIK chain reports an error rather than silently falling back. To rebuild the bundled libraries, install the Zig toolchain and run:
 
 ```powershell
-.\gradlew.bat :1.21.1-neoforge:jar -PbuildNative '-PfabrikNativeDir=..\FabriKNative' --console=plain
+.\gradlew.bat :1.21.1-neoforge:jar -PbuildNative --console=plain
 ```
 
-The `FABRIK_NATIVE_DIR` environment variable can replace `-PfabrikNativeDir`. The external source directory must provide `build_all.bat` and produce all eight manifest artifacts. It is not distributed as an AssimpLoader Git submodule.
+To validate another checkout, add `-PfabrikNativeDir=H:/path/to/FabriKNative`.
+
+The `FABRIK_NATIVE_DIR` environment variable can replace `-PfabrikNativeDir`. The source directory must provide `build_all.bat` and produce all eight manifest artifacts. The vendored source, C ABI header and tests are under `native/FabriKNative`; build directories and local Zig toolchains are not committed. The prebuilt outputs remain separately under `src/main/resources/native/fabrik`.
 
 In game, press `L` or run `/lookdev` to open the workbench, then import, edit and save projects under `Edit`.
 

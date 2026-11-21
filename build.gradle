@@ -891,11 +891,15 @@ stonecutter.tasks.configureSource(sourceSets.integrationTest)
 if (project.hasProperty('buildNative')) {
     def windows = org.gradle.internal.os.OperatingSystem.current().isWindows()
     def nativeScript = windows ? 'tools/native/build_native.bat' : 'tools/native/build_native.sh'
+    // The source is vendored for reproducible rebuilds. A separate checkout can still
+    // override it for local experiments or when validating a newer native revision.
+    def bundledFabrikSource = rootProject.file('native/FabriKNative').absolutePath
     def nativeSource = providers.gradleProperty('fabrikNativeDir')
-            .orElse(providers.environmentVariable('FABRIK_NATIVE_DIR')).orNull
+            .orElse(providers.environmentVariable('FABRIK_NATIVE_DIR'))
+            .orElse(bundledFabrikSource).orNull
     if (nativeSource == null || nativeSource.isBlank() || !rootProject.file(nativeSource).isDirectory()) {
-        throw new GradleException('-PbuildNative requires -PfabrikNativeDir=<FabriKNative source directory> ' +
-                'or FABRIK_NATIVE_DIR. Ordinary builds use the bundled precompiled libraries.')
+        throw new GradleException('FabriKNative source directory is missing: ' + nativeSource +
+                '. Restore native/FabriKNative or pass -PfabrikNativeDir=<source directory>.')
     }
     def nativeSourceDir = rootProject.file(nativeSource).canonicalPath
     def expectedNatives = [
