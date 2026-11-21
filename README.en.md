@@ -74,6 +74,14 @@ The release JAR bundles the Assimp bindings and native libraries for all six pla
 
 Builds use [Stonecutter](https://stonecutter.kikugie.dev/): `versions/1.20.1-forge` and `versions/1.21.1-neoforge` are separate subprojects sharing the root `build.gradle`. `buildAndCollect` gathers both release JARs into `build/distributions`.
 
+FABRIK IK uses the Java solver by default. Set the client config `runtime.nativeIkEnabled` to opt into the native solver. Release JARs already bundle precompiled FabriKNative libraries for eight platforms; ordinary builds need no native source checkout. If enabled on a platform where the library cannot load, creating a FABRIK chain reports an error rather than silently falling back. To rebuild the bundled libraries, provide a separate FabriKNative source directory and a Zig toolchain:
+
+```powershell
+.\gradlew.bat :1.21.1-neoforge:jar -PbuildNative '-PfabrikNativeDir=..\FabriKNative' --console=plain
+```
+
+The `FABRIK_NATIVE_DIR` environment variable can replace `-PfabrikNativeDir`. The external source directory must provide `build_all.bat` and produce all eight manifest artifacts. It is not distributed as an AssimpLoader Git submodule.
+
 In game, press `L` or run `/lookdev` to open the workbench, then import, edit and save projects under `Edit`.
 
 ## Documentation

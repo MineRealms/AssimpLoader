@@ -891,6 +891,13 @@ stonecutter.tasks.configureSource(sourceSets.integrationTest)
 if (project.hasProperty('buildNative')) {
     def windows = org.gradle.internal.os.OperatingSystem.current().isWindows()
     def nativeScript = windows ? 'tools/native/build_native.bat' : 'tools/native/build_native.sh'
+    def nativeSource = providers.gradleProperty('fabrikNativeDir')
+            .orElse(providers.environmentVariable('FABRIK_NATIVE_DIR')).orNull
+    if (nativeSource == null || nativeSource.isBlank() || !rootProject.file(nativeSource).isDirectory()) {
+        throw new GradleException('-PbuildNative requires -PfabrikNativeDir=<FabriKNative source directory> ' +
+                'or FABRIK_NATIVE_DIR. Ordinary builds use the bundled precompiled libraries.')
+    }
+    def nativeSourceDir = rootProject.file(nativeSource).canonicalPath
     def expectedNatives = [
             'native/fabrik/windows-x86/fabrik.dll',
             'native/fabrik/windows-x86_64/fabrik.dll',
@@ -906,6 +913,7 @@ if (project.hasProperty('buildNative')) {
         group = 'native'
         description = 'Rebuilds and copies native libraries via the tools/native manifest (-PbuildNative).'
         workingDir = rootProject.projectDir
+        environment 'FABRIK_NATIVE_DIR', nativeSourceDir
         if (windows) {
             // cmd splits on '/', so pass a backslash absolute path through `call`.
             commandLine 'cmd', '/c', 'call', rootProject.file(nativeScript).absolutePath

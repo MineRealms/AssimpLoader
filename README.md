@@ -74,6 +74,14 @@
 
 构建使用 [Stonecutter](https://stonecutter.kikugie.dev/)：`versions/1.20.1-forge` 与 `versions/1.21.1-neoforge` 各是一个子项目，共享根 `build.gradle`。`buildAndCollect` 把两个节点的发布包汇总到 `build/distributions`。
 
+FABRIK 逆运动学默认使用 Java 求解器。客户端配置中的 `runtime.nativeIkEnabled` 可显式启用原生求解器；发布 JAR 已包含八个平台的 FabriKNative 预编译库，普通构建不需要其源码。开启后若当前平台的原生库无法加载，创建 FABRIK 链会报错，不会静默回退。需要从源码重新构建这些库时，另备 FabriKNative 源码和 Zig 工具链，并运行：
+
+```powershell
+.\gradlew.bat :1.21.1-neoforge:jar -PbuildNative '-PfabrikNativeDir=..\FabriKNative' --console=plain
+```
+
+也可以设置环境变量 `FABRIK_NATIVE_DIR` 代替 `-PfabrikNativeDir`。外部源码目录必须提供 `build_all.bat`，并产生清单要求的八个平台文件；此源码不作为 AssimpLoader 的 Git 子模块分发。
+
 进入世界后按 `L` 或执行 `/lookdev` 打开工作台，在 `Edit` 中导入、编辑并保存项目。
 
 ## 文档

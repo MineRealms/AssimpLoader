@@ -19,6 +19,9 @@ while IFS= read -r line || [ -n "$line" ]; do
         ''|'#'*) continue ;;
     esac
     IFS='|' read -r NAME SOURCE WIN_BUILD UNIX_BUILD DIST LIST <<< "$line"
+    if [ "$SOURCE" = '@FABRIK_NATIVE_DIR' ]; then
+        SOURCE="${FABRIK_NATIVE_DIR:?FABRIK_NATIVE_DIR is required for -PbuildNative}"
+    fi
     echo "[NATIVE] Module: $NAME (source=$SOURCE)"
 
     if [ -n "$UNIX_BUILD" ]; then

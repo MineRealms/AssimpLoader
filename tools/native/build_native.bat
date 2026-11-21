@@ -31,6 +31,13 @@ set "SOURCE=%~2"
 set "WIN_BUILD=%~3"
 set "DIST=%~5"
 set "LIST=%~6"
+if /I "%SOURCE%"=="@FABRIK_NATIVE_DIR" (
+    if not defined FABRIK_NATIVE_DIR (
+        echo [NATIVE][ERROR] FABRIK_NATIVE_DIR is required for -PbuildNative.
+        exit /b 1
+    )
+    set "SOURCE=%FABRIK_NATIVE_DIR%"
+)
 echo [NATIVE] Module: %NAME% (source=%SOURCE%)
 
 if not "%WIN_BUILD%"=="" (
