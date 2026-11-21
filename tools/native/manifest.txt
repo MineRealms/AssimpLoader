@@ -8,4 +8,4 @@
 # artifacts is a comma-separated list of SRC>DST entries, where DST is
 # <arch>/<normalized-file> below src/main/resources/native/<name>/.
 # Adding a native module only requires adding one line here.
-fabrik|@FABRIK_NATIVE_DIR|build_all.bat||dist|fabrik-windows-x86.dll>windows-x86/fabrik.dll,fabrik-windows-x86_64.dll>windows-x86_64/fabrik.dll,fabrik-windows-aarch64.dll>windows-aarch64/fabrik.dll,fabrik-linux-armv7.so>linux-armv7/libfabrik.so,fabrik-linux-x86_64.so>linux-x86_64/libfabrik.so,fabrik-linux-aarch64.so>linux-aarch64/libfabrik.so,fabrik-macos-x86_64.dylib>macos-x86_64/libfabrik.dylib,fabrik-macos-aarch64.dylib>macos-aarch64/libfabrik.dylib
+fabrik|@FABRIK_NATIVE_DIR|build_all.bat|build_all.sh|dist|fabrik-windows-x86.dll>windows-x86/fabrik.dll,fabrik-windows-x86_64.dll>windows-x86_64/fabrik.dll,fabrik-windows-aarch64.dll>windows-aarch64/fabrik.dll,fabrik-linux-armv7.so>linux-armv7/libfabrik.so,fabrik-linux-x86_64.so>linux-x86_64/libfabrik.so,fabrik-linux-aarch64.so>linux-aarch64/libfabrik.so,fabrik-macos-x86_64.dylib>macos-x86_64/libfabrik.dylib,fabrik-macos-aarch64.dylib>macos-aarch64/libfabrik.dylib

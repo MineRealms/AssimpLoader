@@ -1,0 +1,3 @@
+*.sh text eol=lf
+tools/native/manifest.txt text eol=lf
+native/FabriKNative/*.sh text eol=lf

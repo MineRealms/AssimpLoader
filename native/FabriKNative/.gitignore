@@ -1,0 +1,12 @@
+.tools/
+dist/
+build/
+jna-resources/
+.zig-cache/
+zig-cache/
+zig-out/
+*.obj
+*.o
+*.lib
+*.exp
+*.pdb

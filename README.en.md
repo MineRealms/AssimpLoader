@@ -82,7 +82,7 @@ FABRIK IK uses the Java solver by default. Set the client config `runtime.native
 
 To validate another checkout, add `-PfabrikNativeDir=H:/path/to/FabriKNative`.
 
-The `FABRIK_NATIVE_DIR` environment variable can replace `-PfabrikNativeDir`. The source directory must provide `build_all.bat` and produce all eight manifest artifacts. The vendored source, C ABI header and tests are under `native/FabriKNative`; build directories and local Zig toolchains are not committed. The prebuilt outputs remain separately under `src/main/resources/native/fabrik`.
+The `FABRIK_NATIVE_DIR` environment variable can replace `-PfabrikNativeDir`. The source directory must provide `build_all.bat` on Windows or `build_all.sh` on Unix and produce all eight manifest artifacts. The vendored source, C ABI header and tests are under `native/FabriKNative`; build directories and local Zig toolchains are not committed. The prebuilt outputs remain separately under `src/main/resources/native/fabrik`.
 
 In game, press `L` or run `/lookdev` to open the workbench, then import, edit and save projects under `Edit`.
 

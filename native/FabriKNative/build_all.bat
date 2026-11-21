@@ -4,10 +4,14 @@ set "ROOT=%~dp0"
 set "DIST=%ROOT%dist"
 if not exist "%DIST%" mkdir "%DIST%"
 
-set "ZIG="
-for /f "delims=" %%Z in ('dir /s /b "%ROOT%.tools\zig.exe" 2^>nul') do set "ZIG=%%Z"
-if "%ZIG%"=="" (
-    echo [ERROR] zig.exe not found under .tools - run download_zig.bat first
+if not defined ZIG (
+    for /f "delims=" %%Z in ('dir /s /b "%ROOT%.tools\zig.exe" 2^>nul') do set "ZIG=%%Z"
+)
+if not defined ZIG (
+    for /f "delims=" %%Z in ('where zig.exe 2^>nul') do set "ZIG=%%Z"
+)
+if not defined ZIG (
+    echo [ERROR] Zig not found - run download_zig.bat, add Zig to PATH, or set ZIG to zig.exe
     exit /b 1
 )
 

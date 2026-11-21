@@ -82,7 +82,7 @@ FABRIK 逆运动学默认使用 Java 求解器。客户端配置中的 `runtime.
 
 需要验证另一份 checkout 时，再追加 `-PfabrikNativeDir=H:/path/to/FabriKNative`。
 
-也可以设置环境变量 `FABRIK_NATIVE_DIR` 代替 `-PfabrikNativeDir`。源码目录必须提供 `build_all.bat`，并产生清单要求的八个平台文件。默认源码、C ABI 头文件和测试位于 `native/FabriKNative`；预编译产物仍单独放在 `src/main/resources/native/fabrik`，不会把构建目录或本地 Zig 工具链提交进仓库。
+也可以设置环境变量 `FABRIK_NATIVE_DIR` 代替 `-PfabrikNativeDir`。源码目录必须提供 Windows 的 `build_all.bat` 或 Unix 的 `build_all.sh`，并产生清单要求的八个平台文件。默认源码、C ABI 头文件和测试位于 `native/FabriKNative`；预编译产物仍单独放在 `src/main/resources/native/fabrik`，不会把构建目录或本地 Zig 工具链提交进仓库。
 
 进入世界后按 `L` 或执行 `/lookdev` 打开工作台，在 `Edit` 中导入、编辑并保存项目。
 
