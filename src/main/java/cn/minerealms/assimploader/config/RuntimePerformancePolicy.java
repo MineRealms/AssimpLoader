@@ -13,7 +13,7 @@ import java.util.Objects;
 public record RuntimePerformancePolicy(
         Mode mode, int nearUpdateTicks, int farUpdateTicks, double farDistance,
         int hiddenUpdateTicks, int visibilityGraceTicks,
-        boolean ikEnabled, boolean springBonesEnabled, boolean particlesEnabled, boolean trailsEnabled,
+        boolean ikEnabled, boolean nativeIkEnabled, boolean springBonesEnabled, boolean particlesEnabled, boolean trailsEnabled,
         int maxParticleEmissions, int maxTrailSamples,
         boolean gpuMorphEnabled, int maxMorphTargets, int maxMorphMiB) {
 
@@ -36,6 +36,24 @@ public record RuntimePerformancePolicy(
         range(maxMorphMiB, 1, 128, "maxMorphMiB");
     }
 
+    /** Backward-compatible constructor: native IK is opt-in and defaults to disabled. */
+    public RuntimePerformancePolicy(Mode mode, int nearUpdateTicks, int farUpdateTicks, double farDistance,
+            int hiddenUpdateTicks, int visibilityGraceTicks,
+            boolean ikEnabled, boolean springBonesEnabled, boolean particlesEnabled, boolean trailsEnabled,
+            int maxParticleEmissions, int maxTrailSamples,
+            boolean gpuMorphEnabled, int maxMorphTargets, int maxMorphMiB) {
+        this(mode, nearUpdateTicks, farUpdateTicks, farDistance, hiddenUpdateTicks, visibilityGraceTicks,
+                ikEnabled, false, springBonesEnabled, particlesEnabled, trailsEnabled,
+                maxParticleEmissions, maxTrailSamples, gpuMorphEnabled, maxMorphTargets, maxMorphMiB);
+    }
+
+    public RuntimePerformancePolicy withNativeIk(boolean enabled) {
+        return new RuntimePerformancePolicy(mode, nearUpdateTicks, farUpdateTicks, farDistance,
+                hiddenUpdateTicks, visibilityGraceTicks, ikEnabled, enabled, springBonesEnabled,
+                particlesEnabled, trailsEnabled, maxParticleEmissions, maxTrailSamples,
+                gpuMorphEnabled, maxMorphTargets, maxMorphMiB);
+    }
+
     private static void range(int value, int minimum, int maximum, String name) {
         if (value < minimum || value > maximum) {
             throw new IllegalArgumentException(name + " must be in [" + minimum + "," + maximum + "]");
@@ -47,11 +65,11 @@ public record RuntimePerformancePolicy(
     public static RuntimePerformancePolicy forMode(Mode mode) {
         return switch (Objects.requireNonNull(mode)) {
             case QUALITY -> new RuntimePerformancePolicy(mode, 1, 1, 64, 1, 40,
-                    true, true, true, true, 32, 4096, true, 32, 128);
+                    true, false, true, true, true, 32, 4096, true, 32, 128);
             case BALANCED, CUSTOM -> new RuntimePerformancePolicy(mode, 1, 2, 64, 10, 40,
-                    true, true, true, true, 16, 128, true, 32, 128);
+                    true, false, true, true, true, 16, 128, true, 32, 128);
             case PERFORMANCE -> new RuntimePerformancePolicy(mode, 1, 4, 32, 20, 20,
-                    true, true, true, true, 8, 32, true, 32, 128);
+                    true, false, true, true, true, 8, 32, true, 32, 128);
         };
     }
 
@@ -64,8 +82,9 @@ public record RuntimePerformancePolicy(
     public static void refreshFromConfig() {
         var config = AssimpLoaderConfig.CLIENT.runtime;
         Mode mode = AssimpLoaderConfig.getOrDefault(config.mode::get, Mode.BALANCED);
+        boolean nativeIk = AssimpLoaderConfig.getOrDefault(config.nativeIkEnabled::get, false);
         if (mode != Mode.CUSTOM) {
-            current = forMode(mode);
+            current = forMode(mode).withNativeIk(nativeIk);
             return;
         }
         int near = AssimpLoaderConfig.getIntOrDefault(config.nearUpdateTicks, 1);
@@ -75,6 +94,7 @@ public record RuntimePerformancePolicy(
                 Math.max(near, AssimpLoaderConfig.getIntOrDefault(config.hiddenUpdateTicks, 10)),
                 AssimpLoaderConfig.getIntOrDefault(config.visibilityGraceTicks, 40),
                 AssimpLoaderConfig.getOrDefault(config.ikEnabled::get, true),
+                nativeIk,
                 AssimpLoaderConfig.getOrDefault(config.springBonesEnabled::get, true),
                 AssimpLoaderConfig.getOrDefault(config.particlesEnabled::get, true),
                 AssimpLoaderConfig.getOrDefault(config.trailsEnabled::get, true),

@@ -449,6 +449,7 @@ public class AssimpLoaderConfig {
         public final ForgeConfigSpec.IntValue hiddenUpdateTicks;
         public final ForgeConfigSpec.IntValue visibilityGraceTicks;
         public final ForgeConfigSpec.BooleanValue ikEnabled;
+        public final ForgeConfigSpec.BooleanValue nativeIkEnabled;
         public final ForgeConfigSpec.BooleanValue springBonesEnabled;
         public final ForgeConfigSpec.BooleanValue particlesEnabled;
         public final ForgeConfigSpec.BooleanValue trailsEnabled;
@@ -476,6 +477,9 @@ public class AssimpLoaderConfig {
                     .defineInRange("visibilityGraceTicks", 40, 0, 1200);
             ikEnabled = builder.comment("CUSTOM: allow instance IK modifiers")
                     .define("ikEnabled", true);
+            nativeIkEnabled = builder.comment("Use the native FabriK backend for FABRIK IK when available.",
+                            "Explicitly enabling this REQUIRES a compatible bundled native; an incompatible platform fails with an error instead of falling back.")
+                    .define("nativeIkEnabled", false);
             springBonesEnabled = builder.comment("CUSTOM: allow instance Spring Bone simulation")
                     .define("springBonesEnabled", true);
             particlesEnabled = builder.comment("CUSTOM: allow attachment particle emitters")

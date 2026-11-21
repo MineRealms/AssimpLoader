@@ -99,7 +99,10 @@ public class IKManager {
      * Remove an IK chain
      */
     public boolean removeChain(String name) {
-        return ikChains.remove(name) != null;
+        IKChain removed = ikChains.remove(name);
+        if (removed == null) return false;
+        disposeSolver(removed);
+        return true;
     }
 
     /**
@@ -165,7 +168,14 @@ public class IKManager {
      * Clear all IK chains
      */
     public void clear() {
+        for (IKChain chain : ikChains.values()) disposeSolver(chain);
         ikChains.clear();
+    }
+
+    private static void disposeSolver(IKChain chain) {
+        if (chain.getSolver() instanceof cn.minerealms.assimploader.animation.ik.solvers.NativeFABRIKSolver nativeSolver) {
+            nativeSolver.close();
+        }
     }
 
     /**
@@ -176,13 +186,35 @@ public class IKManager {
     }
 
     /**
-     * Create a solver instance based on type.
+     * Create a solver instance based on type, honoring the client config gate.
      */
     private IKSolver createSolver(IKSolver.Type type) {
+        return createSolver(type, nativeIkEnabled());
+    }
+
+    private static boolean nativeIkEnabled() {
+        return cn.minerealms.assimploader.config.AssimpLoaderConfig.getOrDefault(
+                cn.minerealms.assimploader.config.AssimpLoaderConfig.CLIENT.runtime.nativeIkEnabled::get, false);
+    }
+
+    /**
+     * Solver factory. FABRIK is routed to the native backend only when explicitly enabled and a
+     * compatible native is available; an explicit opt-in without a usable native is a hard error
+     * rather than a silent fallback to the pure-Java solver.
+     */
+    static IKSolver createSolver(IKSolver.Type type, boolean nativeIkEnabled) {
         switch (type) {
             case TWO_BONE:
                 return new cn.minerealms.assimploader.animation.ik.solvers.TwoBoneIKSolver();
             case FABRIK:
+                if (nativeIkEnabled) {
+                    if (!cn.minerealms.assimploader.nativeapi.fabrik.FabriKNative.available()) {
+                        throw new IllegalStateException("nativeIkEnabled is true but the FabriK native is " +
+                                cn.minerealms.assimploader.nativeapi.fabrik.FabriKNative.backend() +
+                                ". Disable nativeIkEnabled or install a compatible native; no silent fallback.");
+                    }
+                    return new cn.minerealms.assimploader.animation.ik.solvers.NativeFABRIKSolver();
+                }
                 return new cn.minerealms.assimploader.animation.ik.solvers.FABRIKSolver();
             case CCD:
                 return new cn.minerealms.assimploader.animation.ik.solvers.CCDSolver();

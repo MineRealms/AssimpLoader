@@ -907,6 +907,7 @@ if (project.hasProperty('buildNative')) {
         description = 'Rebuilds and copies native libraries via the tools/native manifest (-PbuildNative).'
         workingDir = rootProject.projectDir
         if (windows) {
+            // cmd splits on '/', so pass a backslash absolute path through `call`.
             commandLine 'cmd', '/c', 'call', rootProject.file(nativeScript).absolutePath
         } else {
             commandLine 'bash', rootProject.file(nativeScript).absolutePath
