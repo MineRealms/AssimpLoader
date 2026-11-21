@@ -433,6 +433,10 @@ if (isForge) {
             }
         }
 
+        // Minecraft/Forge supply JNA at runtime; compile-only keeps it out of the jar.
+        compileOnly "net.java.dev.jna:jna:${jna_version}"
+        testImplementation "net.java.dev.jna:jna:${jna_version}"
+
         testImplementation platform("org.junit:junit-bom:${junit_version}")
         testImplementation 'org.junit.jupiter:junit-jupiter'
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -831,6 +835,10 @@ if (isForge) {
             runtimeOnly(files(localF3Tweaker))
         }
 
+        // Minecraft/Forge supply JNA at runtime; compile-only keeps it out of the jar.
+        compileOnly "net.java.dev.jna:jna:${jna_version}"
+        testImplementation "net.java.dev.jna:jna:${jna_version}"
+
         testImplementation platform("org.junit:junit-bom:${junit_version}")
         testImplementation 'org.junit.jupiter:junit-jupiter'
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -876,6 +884,52 @@ stonecutter.tasks.configureSource(sourceSets.showcase)
 stonecutter.tasks.configureSource(sourceSets.integrationTest)
 
 // ---------------------------------------------------------------- shared by both nodes
+
+// Native pipeline. Default builds NEVER compile C++: they package the prebuilt natives that are
+// committed under src/main/resources/native/... . Passing -PbuildNative opts in to re-building
+// them from the manifest; a missing toolchain or a failed script fails the build loudly.
+if (project.hasProperty('buildNative')) {
+    def windows = org.gradle.internal.os.OperatingSystem.current().isWindows()
+    def nativeScript = windows ? 'tools/native/build_native.bat' : 'tools/native/build_native.sh'
+    def expectedNatives = [
+            'native/fabrik/windows-x86/fabrik.dll',
+            'native/fabrik/windows-x86_64/fabrik.dll',
+            'native/fabrik/windows-aarch64/fabrik.dll',
+            'native/fabrik/linux-armv7/libfabrik.so',
+            'native/fabrik/linux-x86_64/libfabrik.so',
+            'native/fabrik/linux-aarch64/libfabrik.so',
+            'native/fabrik/macos-x86_64/libfabrik.dylib',
+            'native/fabrik/macos-aarch64/libfabrik.dylib',
+    ]
+
+    def buildNative = tasks.register('buildNative', Exec) {
+        group = 'native'
+        description = 'Rebuilds and copies native libraries via the tools/native manifest (-PbuildNative).'
+        workingDir = rootProject.projectDir
+        if (windows) {
+            commandLine 'cmd', '/c', 'call', rootProject.file(nativeScript).absolutePath
+        } else {
+            commandLine 'bash', rootProject.file(nativeScript).absolutePath
+        }
+        ignoreExitValue = true
+        doFirst { logger.lifecycle("Building native libraries with ${nativeScript}") }
+        doLast {
+            def result = executionResult.get()
+            if (result.exitValue != 0) {
+                throw new GradleException("Native build script '${nativeScript}' failed (exit ${result.exitValue}). " +
+                        'Configure the native toolchain manually (FabriKNative needs Zig; see its download_zig.bat) ' +
+                        'and rerun with -PbuildNative, or drop -PbuildNative to use the committed prebuilt natives.')
+            }
+            def missing = expectedNatives.findAll { !rootProject.file("src/main/resources/${it}").isFile() }
+            if (!missing.isEmpty()) {
+                throw new GradleException("Native build finished but did not produce: ${missing.join(', ')}. " +
+                        'Configure the native toolchain manually and rerun with -PbuildNative.')
+            }
+        }
+    }
+    tasks.named('processResources') { dependsOn buildNative }
+    tasks.named('jar') { dependsOn buildNative }
+}
 
 // The AssimpShowcase companion mod. It is a separate mod, not part of the engine jar.
 def showcaseJar = tasks.register('showcaseJar', Jar) {

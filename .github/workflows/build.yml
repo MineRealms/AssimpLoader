@@ -111,6 +111,15 @@ jobs:
               )
               for arch in ('x64', 'arm64')
           }
+          fabrik_natives = {
+              f'native/fabrik/{arch}/{file}'
+              for arch, file in (
+                  ('windows-x86', 'fabrik.dll'), ('windows-x86_64', 'fabrik.dll'),
+                  ('windows-aarch64', 'fabrik.dll'), ('linux-armv7', 'libfabrik.so'),
+                  ('linux-x86_64', 'libfabrik.so'), ('linux-aarch64', 'libfabrik.so'),
+                  ('macos-x86_64', 'libfabrik.dylib'), ('macos-aarch64', 'libfabrik.dylib'),
+              )
+          }
           for mod_id in ('assimploader', 'assimpshowcase'):
               jars = [p for p in libs.glob(f'{mod_id}-{minecraft}-*-{loader}.jar')
                       if not p.stem.endswith(('-sources', '-javadoc'))]
@@ -120,10 +129,10 @@ jobs:
                   names = set(jar.namelist())
                   required = {metadata, 'pack.mcmeta'}
                   if mod_id == 'assimploader':
-                      required |= natives | {'META-INF/jarjar/metadata.json',
-                                            'mixins.assimploader.json',
-                                            'mixins.iris_compat.json',
-                                            'mixins.photon_compat.json'}
+                      required |= natives | fabrik_natives | {'META-INF/jarjar/metadata.json',
+                                                             'mixins.assimploader.json',
+                                                             'mixins.iris_compat.json',
+                                                             'mixins.photon_compat.json'}
                   else:
                       required.add('mixins.assimpshowcase.json')
                   missing = required - names
