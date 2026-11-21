@@ -4,7 +4,9 @@ on:
   push:
     branches: [ '**' ]
   pull_request:
-    branches: [ main ]
+    # The default branch is multiversion, so filtering on "main" meant pull requests
+    # never triggered this workflow at all (and the PR report job with them).
+    branches: [ '**' ]
   workflow_dispatch:
 
 concurrency:
