@@ -14,11 +14,27 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.util.Map;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipFile;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class WorkbenchProjectStoreTest {
+    @Test void failedReloadAfterPublishingRemovesTheBrokenProject() throws Exception {
+        Path projects=temp.resolve("projects");
+        AtomicInteger loads=new AtomicInteger();
+        var store=new WorkbenchProjectStore(projects,(model,mode)->{
+            if(loads.incrementAndGet()==2)throw new java.io.IOException("simulated copied-model load failure");
+            return new cn.minerealms.assimploader.core.AssimpModelLoader().loadModel(model,mode);
+        });
+
+        assertThrows(java.io.IOException.class,()->store.importAsset(createGltf(temp.resolve("source"))));
+        assertTrue(store.listProjects().isEmpty());
+        try(var entries=Files.list(projects)) {
+            assertTrue(entries.noneMatch(path->Files.isDirectory(path)));
+        }
+    }
+
     @Test void canceledImportCleanupRemovesOnlyItsOwnedNewProject() throws Exception {
         var store=new WorkbenchProjectStore(temp.resolve("projects"));
         var imported=store.importAsset(createGltf(temp.resolve("source")));

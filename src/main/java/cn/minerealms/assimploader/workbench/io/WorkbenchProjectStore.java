@@ -41,6 +41,12 @@ public final class WorkbenchProjectStore {
     private static final Set<String> MODEL_EXTENSIONS=Set.of("fbx","gltf","glb","obj","dae","ply","stl","blend","3ds");
     private static final long MAX_BUNDLE_BYTES=2L*1024*1024*1024;
     private final Path root;
+    private final ModelImporter modelImporter;
+
+    @FunctionalInterface
+    interface ModelImporter {
+        AssimpScene load(Path model, ModelImportMode mode) throws IOException;
+    }
 
     public record Project(Path directory, Path documentPath, AssimpScene scene,
                           WorkbenchDocument document, SceneMetadata metadata) {}
@@ -49,8 +55,13 @@ public final class WorkbenchProjectStore {
     }
 
     public WorkbenchProjectStore(Path projectsRoot) {
+        this(projectsRoot,(model,mode)->new AssimpModelLoader().loadModel(model,mode));
+    }
+
+    WorkbenchProjectStore(Path projectsRoot,ModelImporter modelImporter) {
         root=projectsRoot.toAbsolutePath().normalize();
         if(root.getParent()==null)throw new IllegalArgumentException("Project directory must not be a filesystem root");
+        this.modelImporter=java.util.Objects.requireNonNull(modelImporter);
     }
     public Path root(){return root;}
     /** Removes only the newly created project passed back by an unsuccessful UI import transaction. */
@@ -85,9 +96,11 @@ public final class WorkbenchProjectStore {
         if(bundle==null){var resources=LocalModelResources.open(model);if(!resources.root().equals(model.getParent()))bundle=resources.root();}
         if(bundle!=null&&(!model.startsWith(bundle)||!model.toRealPath().startsWith(bundle.toRealPath())))
             throw new IOException("Model escapes portable import bundle");
-        AssimpScene sourceScene=new AssimpModelLoader().loadModel(model,ModelImportMode.DYNAMIC);
+        AssimpScene sourceScene=modelImporter.load(model,ModelImportMode.DYNAMIC);
         Files.createDirectories(root);
         Path staging=Files.createTempDirectory(root,".import-");
+        Path published=null;
+        boolean complete=false;
         try {
             Path assets=staging.resolve("assets");Files.createDirectories(assets);
             Path modelRelative=bundle==null?Path.of(model.getFileName().toString()):bundle.relativize(model);
@@ -133,18 +146,21 @@ public final class WorkbenchProjectStore {
                         material.metallic(),material.roughness(),material.emission(),material.alphaMode(),material.cutoff(),material.doubleSided(),textures));
             }
             writeAtomic(staging.resolve(PROJECT_FILE),WorkbenchCodec.write(document));
-            Path published=root.resolve(stem+"-"+hash.substring(0,12)+"-"+UUID.randomUUID().toString().substring(0,8));
-            move(staging,published);
-            AssimpScene scene=new AssimpModelLoader().loadModel(published.resolve(document.sourcePath()),ModelImportMode.DYNAMIC);
+            Path destination=root.resolve(stem+"-"+hash.substring(0,12)+"-"+UUID.randomUUID().toString().substring(0,8));
+            move(staging,destination);
+            published=destination;
+            AssimpScene scene=modelImporter.load(published.resolve(document.sourcePath()),ModelImportMode.DYNAMIC);
             SceneMetadata metadata=SceneMetadata.inspect(scene,document);
             if(!extraIssues.isEmpty()) {
                 var issues=new ArrayList<>(metadata.issues());issues.addAll(extraIssues);
                 metadata=new SceneMetadata(metadata.nodes(),metadata.meshes(),metadata.materials(),metadata.clips(),metadata.bounds(),issues,
                         metadata.skinned(),metadata.embeddedTextures(),metadata.sourceFormat(),metadata.sourceGenerator());
             }
+            complete=true;
             return new Project(published,published.resolve(PROJECT_FILE),scene,document,metadata);
         } finally {
             if(Files.isDirectory(staging,LinkOption.NOFOLLOW_LINKS))removeStaging(staging);
+            if(!complete&&published!=null&&Files.isDirectory(published,LinkOption.NOFOLLOW_LINKS))removeOwnedImport(published);
         }
     }
 
