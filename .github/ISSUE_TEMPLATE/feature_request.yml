@@ -1,0 +1,40 @@
+name: Feature Request
+description: Propose a format, a rendering feature, a workbench capability, or an API addition
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem you want solved, not only the solution you have in mind.
+        A request that names a concrete asset or workflow result is far more likely to be picked up.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What should be possible, and who benefits from it?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: What should AssimpLoader do? Name the observable result in game or in the workbench.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Where it should live
+      description: Importer, renderer, animation system, physics, workbench panel, KubeJS API, ... Optional.
+      placeholder: "workbench / importer / KubeJS"
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What else could solve it, and why is that worse?
+  - type: textarea
+    id: context
+    attributes:
+      label: Extra context
+      description: Sample files, other mods that already do this, prior discussion links.

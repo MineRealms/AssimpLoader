@@ -1,76 +1,132 @@
 name: Bug Report
-description: Report a bug
+description: Report a crash, a failed import, a wrong render, or behaviour that differs from the documentation
+title: "[Bug]: "
+labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Please fill out this template to report a bug/crash!
-        For the versions "latest" is NOT a valid version! If you write it your issue will be simply closed.
+        Two minutes here saves the maintainers days.
+
+        - **"latest" is not a version.** Reports without a concrete mod version get closed.
+        - Describe what you saw *and* what you expected, not just "it does not work".
+        - Logs go on a paste site, never in the issue body.
   - type: dropdown
     id: loader
     attributes:
-      label: Modloader
+      label: Mod loader
       options:
         - Forge
-        - Fabric
+        - NeoForge
     validations:
       required: true
   - type: input
     id: mc_version
     attributes:
       label: Minecraft version
+      placeholder: "1.21.1"
+    validations:
+      required: true
+  - type: input
+    id: mod_version
+    attributes:
+      label: AssimpLoader version
+      description: From the mod list or the jar file name. "latest" is not accepted.
+      placeholder: "1.0.0"
     validations:
       required: true
   - type: input
     id: loader_version
     attributes:
-      label: Modloader version
-      description: "Version of forge/fabric(api)?"
+      label: Loader version
+      placeholder: "21.1.259 (NeoForge) / 47.2.0 (Forge)"
     validations:
       required: true
-  - type: input
-    id: modversion
+  - type: dropdown
+    id: consumer
     attributes:
-      label: Mod version
-      description: "Version of the mod"
+      label: Who is loading the model
+      description: Engine bugs and consumer bugs look identical from the outside, so tell us which side you are on.
+      options:
+        - AssimpLoader directly (my own mod / the workbench)
+        - RigWorks
+        - AssimpShowcase
+        - Another mod
     validations:
       required: true
-  - type: input
-    id: tenshilibVersion
+  - type: dropdown
+    id: platform
     attributes:
-      label: TenshiLib version
-      description: "Version of TenshiLib"
+      label: Platform
+      description: The prebuilt native library differs per platform, so this is required even for non-crash reports.
+      options:
+        - Windows x64
+        - Windows arm64
+        - Linux x64
+        - Linux arm64
+        - macOS arm64
+        - macOS x64
+    validations:
+      required: true
+  - type: dropdown
+    id: asset_type
+    attributes:
+      label: Asset format
+      options:
+        - FBX
+        - glTF
+        - GLB
+        - OBJ
+        - DAE
+        - Not sure
     validations:
       required: true
   - type: textarea
     id: description
     attributes:
-      label: Description
-      description: Description of the issue.
+      label: What happened
+      description: |
+        What you saw, and what you expected instead. For imports: what was dropped, mangled, or rejected.
     validations:
       required: true
   - type: textarea
     id: reproduction
     attributes:
       label: Steps to reproduce
-      value: 1. Step one
+      placeholder: |
+        1.
+        2.
+        3.
     validations:
       required: true
   - type: textarea
-    id: mod_compat
+    id: asset
     attributes:
-      label: Mods that might affect the issue
+      label: The model file that triggers it
       description: |
-        If you think it might be cause of an incompability
-        Adding a link + the used version will help greatly
+        A download link to the source file, or to a minimal file that still reproduces the problem.
+        Never attach an entire modpack.
+      placeholder: "model.glb"
+  - type: textarea
+    id: other_mods
+    attributes:
+      label: Other mods installed
+      description: Versions for anything that touches rendering (Iris/Oculus, ModernUI, Sodium, Embeddium, physics mods).
   - type: textarea
     id: logs
     attributes:
       label: Logs
       description: |
-        Use a paste site for the logs. If you copy paste the log in here you will be ignored!
-        Here are example links for those sites:  
-        [https://gist.github.com/](https://gist.github.com/)
-        [https://paste.gg/](https://paste.gg/)
+        Link to `latest.log` or the crash report. For native crashes also include the `hs_err_pid*.log`.
+        https://gist.github.com/ · https://paste.gg/
     validations:
       required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this is not a duplicate
+          required: true
+        - label: I can reproduce it with a file that is not tied to a private modpack
+        - label: I can reproduce it with only AssimpLoader and its required dependencies installed

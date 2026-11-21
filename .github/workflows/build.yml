@@ -157,3 +157,80 @@ jobs:
             versions/${{ matrix.node }}/build/reports/tests/test
             versions/${{ matrix.node }}/build/test-results/test
           if-no-files-found: ignore
+
+  # The Checks tab is out of sight for most reviewers, so fold the matrix result into a
+  # single pull request comment. The comment carries a marker and is updated in place on
+  # every push instead of stacking up a new one per run.
+  report:
+    name: PR report
+    needs: build
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      checks: read
+      pull-requests: write
+    steps:
+      - name: Post the check summary on the pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- assimploader-build-report -->';
+            const pr = context.payload.pull_request;
+            const sha = pr.head.sha;
+            const { data: ref } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: sha,
+              filter: 'latest',
+            });
+            const icon = {
+              success: '✅', failure: '❌', cancelled: '🚫', skipped: '⏭️',
+              timed_out: '⌛', stale: '🧹', action_required: '🔒',
+            };
+            const runs = ref.check_runs.filter(run => run.name !== 'PR report');
+            const rows = runs.map(run =>
+              `| ${icon[run.conclusion] || '⏳'} | ${run.name} | ${run.conclusion || 'in progress'} |`);
+            const failed = runs.filter(run => run.conclusion === 'failure').length;
+            let verdict;
+            if (rows.length === 0) {
+              verdict = '还没有读到任何 check run（工作流可能刚启动），这条评论稍后会被更新。';
+            } else if (failed > 0) {
+              verdict = `**${failed} 个任务失败。** 点上面的“完整运行”看日志；失败节点同时会把 Gradle 的失败摘要写成 check 注解。`;
+            } else {
+              verdict = '全部通过。合并前仍需在真实客户端里验证：编译和测试通过不等于游戏内可用。';
+            }
+            const body = [
+              marker,
+              `### 构建检查 · PR #${pr.number}`,
+              '',
+              `HEAD \`${sha.slice(0, 7)}\` · [完整运行](${context.payload.repository.html_url}/actions/runs/${context.runId})`,
+              '',
+              '| 结果 | 任务 | 结论 |',
+              '| --- | --- | --- |',
+              ...rows,
+              '',
+              verdict,
+            ].join('\n');
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              per_page: 100,
+            });
+            const existing = comments.find(comment => comment.body && comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body,
+              });
+            }
