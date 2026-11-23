@@ -155,15 +155,25 @@ public final class SpringBoneModifier implements PoseModifier {
     private static boolean nonnegative(float value) { return Float.isFinite(value) && value >= 0; }
     private static void positive(float value) { if (!Float.isFinite(value) || value <= 0) throw new IllegalArgumentException("Invalid collider radius"); }
 
-    /** sqrt(norm1 * normInfinity) bounds maximum scale, and is exact for axis-aligned TRS. */
+    /** Bounds the maximum stretch, without inflating orthogonal TRS columns when they rotate. */
     public static float conservativeScale(Matrix4f matrix) {
-        float one = Math.max(Math.abs(matrix.m00()) + Math.abs(matrix.m01()) + Math.abs(matrix.m02()),
-                Math.max(Math.abs(matrix.m10()) + Math.abs(matrix.m11()) + Math.abs(matrix.m12()),
-                        Math.abs(matrix.m20()) + Math.abs(matrix.m21()) + Math.abs(matrix.m22())));
-        float infinity = Math.max(Math.abs(matrix.m00()) + Math.abs(matrix.m10()) + Math.abs(matrix.m20()),
-                Math.max(Math.abs(matrix.m01()) + Math.abs(matrix.m11()) + Math.abs(matrix.m21()),
-                        Math.abs(matrix.m02()) + Math.abs(matrix.m12()) + Math.abs(matrix.m22())));
-        float scale = (float) Math.sqrt(one * infinity);
+        double a = matrix.m00(), b = matrix.m01(), c = matrix.m02();
+        double d = matrix.m10(), e = matrix.m11(), f = matrix.m12();
+        double g = matrix.m20(), h = matrix.m21(), i = matrix.m22();
+        double one = Math.max(Math.abs(a) + Math.abs(b) + Math.abs(c),
+                Math.max(Math.abs(d) + Math.abs(e) + Math.abs(f), Math.abs(g) + Math.abs(h) + Math.abs(i)));
+        double infinity = Math.max(Math.abs(a) + Math.abs(d) + Math.abs(g),
+                Math.max(Math.abs(b) + Math.abs(e) + Math.abs(h), Math.abs(c) + Math.abs(f) + Math.abs(i)));
+
+        // The largest eigenvalue of A^T A is bounded by its largest absolute row sum.
+        double ad = Math.abs(a * d + b * e + c * f);
+        double ag = Math.abs(a * g + b * h + c * i);
+        double dg = Math.abs(d * g + e * h + f * i);
+        double gram = Math.max(a * a + b * b + c * c + ad + ag,
+                Math.max(d * d + e * e + f * f + ad + dg, g * g + h * h + i * i + ag + dg));
+        double bound = Math.sqrt(Math.min(one * infinity, gram));
+        float scale = (float) bound;
+        if (scale < bound) scale = Math.nextUp(scale);
         if (!Float.isFinite(scale) || scale <= 0) throw new IllegalArgumentException("Collapsed collider transform");
         return scale;
     }

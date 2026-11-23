@@ -135,4 +135,46 @@ class SpringBoneModifierTest {
         assertEquals(2.5f, hit.distance(), 1e-6);
         assertEquals(3, snapshot.getNodeTransform("Joint").m30(), 1e-6);
     }
+
+    @Test void rotatingUniformScaleDoesNotInflateSphereOrCapsule() {
+        AssimpScene scene = scene();
+        for (var rotation : new Vector3f[]{new Vector3f(), new Vector3f(0, 0, (float) Math.PI / 4), new Vector3f(.7f, -.9f, 1.1f)}) {
+            var transform = new Matrix4f().translation(7, -3, 2).rotateXYZ(rotation.x, rotation.y, rotation.z).scale(100);
+            assertEquals(100, SpringBoneModifier.conservativeScale(transform), 2e-5);
+            var graph = new PoseGraph(scene.getRootNode(), Map.of("Parent", transform));
+            var sphere = new SpringBoneModifier.Sphere("Joint", new Vector3f(), .00104f).at(graph);
+            var capsule = new SpringBoneModifier.Capsule("Joint", new Vector3f(), new Vector3f(0, .003f, 0), .00104f).at(graph);
+            assertEquals(.104f, sphere.radius(), 1e-7);
+            assertEquals(.104f, capsule.radius(), 1e-7);
+        }
+    }
+
+    @Test void rotatingNonuniformScaleUsesItsLargestAxis() {
+        var transform = new Matrix4f().rotateXYZ(.7f, -.9f, 1.1f).scale(-2, .5f, 3);
+        float scale = SpringBoneModifier.conservativeScale(transform);
+        assertEquals(3, scale, 1e-6);
+        assertTrue(scale >= transform.transformDirection(new Vector3f(0, 0, 1)).length());
+    }
+
+    @Test void shearBoundContainsItsLargestStretchAndTransformedSphere() {
+        var shear = new Matrix4f().m10(1);
+        double largestStretch = (1 + Math.sqrt(5)) / 2;
+        float unrotatedScale = SpringBoneModifier.conservativeScale(shear);
+        assertTrue(unrotatedScale >= largestStretch);
+        assertTrue(unrotatedScale < 2, "The Gram bound should improve the old shear bound");
+        for (var transform : List.of(shear, new Matrix4f().rotateXYZ(.7f, -.9f, 1.1f).mul(shear))) {
+            float scale = SpringBoneModifier.conservativeScale(transform);
+            assertTrue(scale >= largestStretch);
+            for (int latitude = 0; latitude <= 24; latitude++) {
+                double pitch = latitude * Math.PI / 24;
+                for (int longitude = 0; longitude < 48; longitude++) {
+                    double yaw = longitude * Math.PI / 24;
+                    var point = new Vector3f((float) (Math.sin(pitch) * Math.cos(yaw)),
+                            (float) Math.cos(pitch), (float) (Math.sin(pitch) * Math.sin(yaw)));
+                    assertTrue(transform.transformDirection(point).length() <= scale + 1e-6,
+                            "A transformed sphere point escaped the conservative radius");
+                }
+            }
+        }
+    }
 }
