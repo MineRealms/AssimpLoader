@@ -70,6 +70,30 @@ class SpringBoneModifierTest {
         assertTrue(rendered.y < -.1f);
     }
 
+    @Test void nearOppositeTailPreservesScaleAndMatchesPublishedPose() {
+        AssimpScene scene = scene();
+        Vector3f axis = new Vector3f(.1501f, -.9393f, .3086f).normalize();
+        Vector3f tail = new Vector3f(axis).mul(.002065443f);
+        Vector3f turnAxis = new Vector3f(axis).cross(new Vector3f(0, 0, 1)).normalize();
+        for (float angle : new float[]{(float) Math.PI - .000321f, (float) Math.PI}) {
+            var settings = new SpringBoneModifier.Settings("Joint", tail, 0, 0, new Vector3f(), 0, .01, 8, 5);
+            var spring = new SpringBoneModifier(settings);
+            Map<String, Matrix4f> locals = new LinkedHashMap<>();
+            locals.put("Parent", new Matrix4f().translation(.2f, 1, -.15f).scale(100));
+            spring.apply(scene, locals, 0);
+            Vector3f particle = spring.getTailPosition();
+            locals.put("Joint", new Matrix4f().rotate(angle, turnAxis));
+            spring.apply(scene, locals, 0);
+
+            var pose = cn.minerealms.assimploader.animation.PoseSnapshot.capture(1, scene, locals);
+            Vector3f rendered = pose.getNodeTransform("Joint").transformPosition(new Vector3f(tail));
+            assertTrue(rendered.distance(particle) < 2e-6f, "Published tip differs from the stored particle: " + angle);
+            assertTrue(locals.get("Joint").getScale(new Vector3f()).distance(new Vector3f(1)) < 2e-5f,
+                    "Spring rotation must preserve the animated scale: " + angle);
+            assertEquals(particle, spring.getTailPosition());
+        }
+    }
+
     @Test void modelSpaceSphereDeflectsTailAndSettingsAreDefensive() {
         AssimpScene scene = scene();
         SpringBoneModifier.Settings settings = settings();

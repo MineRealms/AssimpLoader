@@ -99,9 +99,28 @@ public final class SpringBoneModifier implements PoseModifier {
         }
         Vector3f direction = new Vector3f(position).sub(origin);
         if (direction.lengthSquared() > 1.0e-12f) {
-            Quaternionf rotation = new Quaternionf().rotationTo(restDirection.normalize(), direction.normalize());
+            Quaternionf rotation = shortestArc(restDirection, direction);
             graph.rotateModel(settings.node(), rotation);
         }
+    }
+
+    /** JOML 1.10.5 can return a nonunit rotation for nearly opposite directions. */
+    private static Quaternionf shortestArc(Vector3fc from, Vector3fc to) {
+        Quaternionf rotation = new Quaternionf().rotationTo(from, to);
+        if (rotation.w >= .01f) return rotation;
+
+        // The cross product still resolves the angle when the dot product rounds to -1.
+        double fx = from.x(), fy = from.y(), fz = from.z(), tx = to.x(), ty = to.y(), tz = to.z();
+        double x = fy * tz - fz * ty, y = fz * tx - fx * tz, z = fx * ty - fy * tx;
+        double crossLength = Math.sqrt(x * x + y * y + z * z);
+        if (crossLength == 0) {
+            // Avoid a degenerate perpendicular axis for an exact half turn.
+            return (Math.abs(fx) > Math.abs(fz) ? rotation.set(-from.y(), from.x(), 0, 0)
+                    : rotation.set(0, -from.z(), from.y(), 0)).normalize();
+        }
+        double halfAngle = .5 * Math.atan2(crossLength, fx * tx + fy * ty + fz * tz);
+        double scale = Math.sin(halfAngle) / crossLength;
+        return rotation.set((float) (x * scale), (float) (y * scale), (float) (z * scale), (float) Math.cos(halfAngle));
     }
 
     private void integrate(Vector3f origin, Vector3f target, Vector3f restDirection, float length,
