@@ -22,6 +22,7 @@ public final class NativeResources {
     private static final Map<String, String> PREFIX_TO_ARCH = Map.ofEntries(
             Map.entry("win32-x86-64", "windows-x86_64"),
             Map.entry("win32-x86", "windows-x86"),
+            Map.entry("win32-aarch64", "windows-aarch64"),
             Map.entry("win32-arm64", "windows-aarch64"),
             Map.entry("linux-x86-64", "linux-x86_64"),
             Map.entry("linux-x86", "linux-x86"),
@@ -43,7 +44,10 @@ public final class NativeResources {
 
     /** Maps the current JNA resource prefix to a normalized arch directory name. */
     public static String archDir() {
-        String prefix = Platform.RESOURCE_PREFIX;
+        return archDir(Platform.RESOURCE_PREFIX);
+    }
+
+    static String archDir(String prefix) {
         String arch = PREFIX_TO_ARCH.get(prefix);
         if (arch == null) {
             throw new IllegalStateException("No native arch directory mapping for JNA platform '" + prefix + "'");
